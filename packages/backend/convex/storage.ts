@@ -14,6 +14,7 @@ import { requireProjectAccess, requireUser } from "./lib/access";
 import type { Id } from "./_generated/dataModel";
 import {
   action,
+  internalMutation,
   mutation,
   query,
   type ActionCtx,
@@ -172,10 +173,21 @@ export const createAssetFromUpload = mutation({
     format: v.optional(v.string()),
     sceneId: v.optional(v.id("scenes")),
     shotId: v.optional(v.id("shots")),
+    jobId: v.optional(v.id("generationJobs")),
     tags: v.optional(v.array(v.string())),
     durationSec: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    lineage: v.optional(
+      v.object({
+        prompt: v.optional(v.string()),
+        model: v.optional(v.string()),
+        modelVersion: v.optional(v.string()),
+        seed: v.optional(v.number()),
+        parentAssetIds: v.optional(v.array(v.id("assets"))),
+        referenceAssetIds: v.optional(v.array(v.id("assets"))),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -191,6 +203,7 @@ export const createAssetFromUpload = mutation({
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
+      jobId: args.jobId,
       type: args.type,
       storageId: args.storageId,
       format: args.format ?? meta.contentType ?? "application/octet-stream",
@@ -199,12 +212,66 @@ export const createAssetFromUpload = mutation({
       width: args.width,
       height: args.height,
       tags: args.tags ?? [],
+      lineage: args.lineage,
       starred: false,
       createdBy: user._id,
       createdAt: now,
       updatedAt: now,
     });
     return assetId;
+  },
+});
+
+const lineageValidator = v.object({
+  prompt: v.optional(v.string()),
+  model: v.optional(v.string()),
+  modelVersion: v.optional(v.string()),
+  seed: v.optional(v.number()),
+  parentAssetIds: v.optional(v.array(v.id("assets"))),
+  referenceAssetIds: v.optional(v.array(v.id("assets"))),
+});
+
+/**
+ * Internal: create an asset from a storage blob produced by a generation job.
+ * Called from the job runner (no end-user auth on the action ctx).
+ */
+export const createAssetFromGeneration = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+    type: assetType,
+    format: v.string(),
+    sizeBytes: v.number(),
+    createdBy: v.id("users"),
+    jobId: v.id("generationJobs"),
+    shotId: v.optional(v.id("shots")),
+    sceneId: v.optional(v.id("scenes")),
+    durationSec: v.optional(v.number()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    lineage: v.optional(lineageValidator),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("assets", {
+      projectId: args.projectId,
+      sceneId: args.sceneId,
+      shotId: args.shotId,
+      jobId: args.jobId,
+      type: args.type,
+      storageId: args.storageId,
+      format: args.format,
+      sizeBytes: args.sizeBytes,
+      durationSec: args.durationSec,
+      width: args.width,
+      height: args.height,
+      tags: [],
+      lineage: args.lineage,
+      starred: false,
+      createdBy: args.createdBy,
+      createdAt: now,
+      updatedAt: now,
+    });
   },
 });
 

@@ -8,6 +8,7 @@ export type {
   ModelFeature,
   ModelInput,
   ModelKind,
+  ModelOperation,
   PollResult,
   ProviderRequest,
   SubmitResult,

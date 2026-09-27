@@ -51,8 +51,8 @@ describe("versioning", () => {
     });
     expect(versions).toHaveLength(2);
 
-    const first = versions.find((x) => x._id === v1)!;
-    const second = versions.find((x) => x._id === v2)!;
+    const first = versions.find((x: { _id: string }) => x._id === v1)!;
+    const second = versions.find((x: { _id: string }) => x._id === v2)!;
     expect(first.parentId).toBeUndefined();
     expect(first.contentFileId).toBe(file1);
     expect(second.parentId).toBe(v1);
@@ -97,7 +97,7 @@ describe("versioning", () => {
     const list = await asUser.query(api.timelineVersions.listForProject, {
       projectId,
     });
-    expect(list.find((x) => x._id === v2)?.parentId).toBe(v1);
+    expect(list.find((x: { _id: string }) => x._id === v2)?.parentId).toBe(v1);
   });
 
   it("updates shot blockoutFileId to a new storage blob (no overwrite)", async () => {
@@ -132,7 +132,9 @@ describe("versioning", () => {
     });
 
     const shot = await t.run(async (ctx) => ctx.db.get(shotId));
-    expect(shot?.blockoutFileId).toBe(second);
+    expect(shot && "blockoutFileId" in shot ? shot.blockoutFileId : null).toBe(
+      second,
+    );
     // Previous blob still exists.
     const oldUrl = await t.run(async (ctx) => ctx.storage.getUrl(first));
     expect(oldUrl).toBeTruthy();

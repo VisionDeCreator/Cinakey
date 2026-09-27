@@ -8,16 +8,22 @@
  * @module
  */
 
+import type * as adapters_cost from "../adapters/cost.js";
 import type * as adapters_deepseek from "../adapters/deepseek.js";
 import type * as adapters_gptImage2 from "../adapters/gptImage2.js";
 import type * as adapters_index from "../adapters/index.js";
+import type * as adapters_mock from "../adapters/mock.js";
 import type * as adapters_seedance25 from "../adapters/seedance25.js";
 import type * as auth from "../auth.js";
 import type * as blockouts from "../blockouts.js";
+import type * as credits from "../credits.js";
+import type * as generation from "../generation.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
+import type * as lib_env from "../lib/env.js";
 import type * as lib_versioning from "../lib/versioning.js";
 import type * as lib_workspaces from "../lib/workspaces.js";
+import type * as notifications from "../notifications.js";
 import type * as projects from "../projects.js";
 import type * as scriptVersions from "../scriptVersions.js";
 import type * as seed from "../seed.js";
@@ -32,16 +38,22 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "adapters/cost": typeof adapters_cost;
   "adapters/deepseek": typeof adapters_deepseek;
   "adapters/gptImage2": typeof adapters_gptImage2;
   "adapters/index": typeof adapters_index;
+  "adapters/mock": typeof adapters_mock;
   "adapters/seedance25": typeof adapters_seedance25;
   auth: typeof auth;
   blockouts: typeof blockouts;
+  credits: typeof credits;
+  generation: typeof generation;
   http: typeof http;
   "lib/access": typeof lib_access;
+  "lib/env": typeof lib_env;
   "lib/versioning": typeof lib_versioning;
   "lib/workspaces": typeof lib_workspaces;
+  notifications: typeof notifications;
   projects: typeof projects;
   scriptVersions: typeof scriptVersions;
   seed: typeof seed;

@@ -7,6 +7,7 @@ import { AssetsPage } from "@/features/assets/AssetsPage";
 import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
 import { UploadTestPage } from "@/features/dev/UploadTestPage";
+import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
 import { ProjectPage } from "@/features/projects/ProjectPage";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
@@ -56,6 +57,7 @@ export function AppRouter() {
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dev/upload" element={<UploadTestPage />} />
+          <Route path="/dev/generation" element={<GenerationTestPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/projects" replace />} />

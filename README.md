@@ -64,7 +64,19 @@ npx convex env set AUTH_GOOGLE_ID <your-google-client-id>
 npx convex env set AUTH_GOOGLE_SECRET <your-google-client-secret>
 ```
 
-Provider API keys (`SEEDANCE_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, etc.) are also Convex env vars only. Never put secrets in `VITE_*` variables or commit them to the repo.
+Provider API keys and job flags are Convex env vars only (`npx convex env set` from `packages/backend`). Never put secrets in `VITE_*` variables or commit them to the repo.
+
+| Env var | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | GPT Image 2 |
+| `SEEDANCE_API_KEY` | Seedance 2.5 (ByteDance) |
+| `SEEDANCE_API_BASE_URL` | Optional API host override |
+| `DEEPSEEK_API_KEY` | DeepSeek chat |
+| `GENERATION_WEBHOOK_SECRET` | HMAC for `POST /webhooks/generation` |
+| `USE_MOCK_ADAPTERS` | `true` = delayed sample outputs (no spend) |
+| `ALLOW_DEV_CREDITS` | `true` = non-staff can use `grantDev` |
+
+Dev pages (signed-in): `/dev/upload`, `/dev/generation`.
 
 ### Scripts (from repo root)
 
