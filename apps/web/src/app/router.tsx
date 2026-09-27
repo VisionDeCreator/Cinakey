@@ -16,6 +16,8 @@ import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayo
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { LookDevPage } from "@/features/look-dev/LookDevPage";
 import { EntitySheetPage } from "@/features/look-dev/EntitySheetPage";
+import { BlockoutPage } from "@/features/blockout/BlockoutPage";
+import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
 import { ScriptRoomPage } from "@/features/script/ScriptRoomPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
@@ -71,9 +73,10 @@ export function AppRouter() {
               path="look-dev/:entityId"
               element={<EntitySheetPage />}
             />
+            <Route path="blockout" element={<BlockoutPage />} />
             <Route
-              path="blockout"
-              element={<ProjectStagePlaceholder stage="blockout" />}
+              path="blockout/shots/:shotId"
+              element={<BlockoutEditorPage />}
             />
             <Route
               path="shots"

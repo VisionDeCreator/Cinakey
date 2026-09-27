@@ -184,6 +184,106 @@ export const findEntityByNameInternal = internalQuery({
   },
 });
 
+export const applyShotList = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    sceneElementId: v.string(),
+    shots: v.array(
+      v.object({
+        shotType: v.string(),
+        lensMm: v.optional(v.number()),
+        cameraMove: v.optional(v.string()),
+        durationSec: v.number(),
+        characterNames: v.optional(v.array(v.string())),
+        locationName: v.optional(v.string()),
+        dialogueLineId: v.optional(v.string()),
+        dialogue: v.optional(v.string()),
+        notes: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const scene = await ctx.db
+      .query("scenes")
+      .withIndex("by_project_element", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("elementId", args.sceneElementId),
+      )
+      .unique();
+    if (scene === null) {
+      throw new Error(
+        `Scene with elementId "${args.sceneElementId}" not found — commit a script first`,
+      );
+    }
+
+    const entities = await ctx.db
+      .query("entities")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const resolveCharacterIds = (
+      names: string[] | undefined,
+    ): Id<"entities">[] => {
+      if (!names || names.length === 0) return [];
+      const ids: Id<"entities">[] = [];
+      for (const name of names) {
+        const key = normalizeEntityName(name);
+        const found = entities.find(
+          (e) =>
+            e.kind === "character" && normalizeEntityName(e.name) === key,
+        );
+        if (found) ids.push(found._id);
+      }
+      return ids;
+    };
+
+    const resolveLocationId = (
+      name: string | undefined,
+    ): Id<"entities"> | undefined => {
+      if (!name) return undefined;
+      const key = normalizeEntityName(name);
+      return entities.find(
+        (e) => e.kind === "location" && normalizeEntityName(e.name) === key,
+      )?._id;
+    };
+
+    const existing = await ctx.db
+      .query("shots")
+      .withIndex("by_scene", (q) => q.eq("sceneId", scene._id))
+      .collect();
+    for (const s of existing) {
+      await ctx.db.delete(s._id);
+    }
+
+    const now = Date.now();
+    const ids: Id<"shots">[] = [];
+    for (let i = 0; i < args.shots.length; i++) {
+      const def = args.shots[i]!;
+      const id = await ctx.db.insert("shots", {
+        projectId: args.projectId,
+        sceneId: scene._id,
+        order: i,
+        shotType: String(def.shotType).trim() || "medium",
+        lensMm: def.lensMm,
+        cameraMove: def.cameraMove,
+        durationSec: Math.max(0.5, Number(def.durationSec) || 3),
+        characterIds: resolveCharacterIds(def.characterNames),
+        locationId: resolveLocationId(def.locationName),
+        dialogueLineId: def.dialogueLineId,
+        dialogue: def.dialogue,
+        status: "planned",
+        outdated: false,
+        notes: def.notes,
+        createdAt: now,
+        updatedAt: now,
+      });
+      ids.push(id);
+    }
+    return { sceneId: scene._id, shotIds: ids, replaced: existing.length };
+  },
+});
+
 export const patchEntityDescription = internalMutation({
   args: {
     entityId: v.id("entities"),
@@ -348,6 +448,36 @@ export const accept = action({
       await ctx.runAction(api.entities.saveSheet, {
         entityId,
         patch: { draftPrompt: String(payload.prompt ?? "") },
+      });
+    } else if (proposal.kind === "shot_list") {
+      const sceneElementId = String(payload.sceneElementId ?? "");
+      if (!sceneElementId) {
+        throw new Error("shot_list proposal needs sceneElementId");
+      }
+      const rawShots = (payload.shots ?? []) as Array<Record<string, unknown>>;
+      await ctx.runMutation(internal.proposals.applyShotList, {
+        projectId: proposal.projectId,
+        sceneElementId,
+        shots: rawShots.map((s) => ({
+          shotType: String(s.shotType ?? "medium"),
+          lensMm:
+            typeof s.lensMm === "number" ? s.lensMm : undefined,
+          cameraMove:
+            typeof s.cameraMove === "string" ? s.cameraMove : undefined,
+          durationSec:
+            typeof s.durationSec === "number" ? s.durationSec : 3,
+          characterNames: Array.isArray(s.characterNames)
+            ? (s.characterNames as string[])
+            : undefined,
+          locationName:
+            typeof s.locationName === "string" ? s.locationName : undefined,
+          dialogueLineId:
+            typeof s.dialogueLineId === "string"
+              ? s.dialogueLineId
+              : undefined,
+          dialogue: typeof s.dialogue === "string" ? s.dialogue : undefined,
+          notes: typeof s.notes === "string" ? s.notes : undefined,
+        })),
       });
     }
 

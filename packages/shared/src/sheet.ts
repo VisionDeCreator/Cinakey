@@ -238,6 +238,84 @@ export function assembleLookDevPrompt(input: AssembleLookDevPromptInput): string
   return parts.join("\n\n");
 }
 
+export type ShotKeyframeFields = {
+  shotType: string;
+  lensMm?: number;
+  cameraMove?: string;
+  durationSec?: number;
+  dialogue?: string;
+  notes?: string;
+};
+
+export type AssembleShotKeyframePromptInput = {
+  shot: ShotKeyframeFields;
+  styleSheet?: SheetDocument | null;
+  characters?: Array<{
+    name: string;
+    description?: string;
+    sheet?: SheetDocument | null;
+  }>;
+  location?: {
+    name: string;
+    description?: string;
+    sheet?: SheetDocument | null;
+  } | null;
+  rules?: string[];
+  userPrompt?: string;
+};
+
+/**
+ * Storyboard keyframe prompt: style + characters + location + shot framing + rules.
+ */
+export function assembleShotKeyframePrompt(
+  input: AssembleShotKeyframePromptInput,
+): string {
+  const parts: string[] = [];
+  const styleText = styleSheetToPromptText(input.styleSheet);
+  if (styleText) parts.push(styleText);
+
+  for (const character of input.characters ?? []) {
+    const text = entitySheetToPromptText(character.sheet, {
+      name: character.name,
+      description: character.description,
+    });
+    if (text) parts.push(text);
+  }
+
+  if (input.location) {
+    const text = entitySheetToPromptText(input.location.sheet, {
+      name: input.location.name,
+      description: input.location.description,
+    });
+    if (text) parts.push(text);
+  }
+
+  const shotParts = joinParts([
+    `Shot type: ${input.shot.shotType}`,
+    input.shot.lensMm !== undefined ? `Lens: ${input.shot.lensMm}mm` : null,
+    input.shot.cameraMove ? `Camera move: ${input.shot.cameraMove}` : null,
+    input.shot.durationSec !== undefined
+      ? `Duration: ${input.shot.durationSec}s`
+      : null,
+    input.shot.dialogue ? `Dialogue: "${input.shot.dialogue}"` : null,
+    input.shot.notes,
+  ]);
+  if (shotParts) parts.push(shotParts);
+
+  if (input.rules && input.rules.length > 0) {
+    parts.push(`Project rules: ${input.rules.join("; ")}`);
+  }
+
+  const user = input.userPrompt?.trim();
+  if (user) {
+    parts.push(user);
+  } else {
+    parts.push("Cinematic still keyframe for a storyboard, single frame.");
+  }
+
+  return parts.join("\n\n");
+}
+
 /** Short summary of sheet fields for copilot context. */
 export function sheetSummary(sheet: SheetDocument | null | undefined): string {
   if (!sheet) return "(no sheet)";

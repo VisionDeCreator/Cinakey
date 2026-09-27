@@ -38,6 +38,7 @@ import type * as proposals from "../proposals.js";
 import type * as scenes from "../scenes.js";
 import type * as scriptVersions from "../scriptVersions.js";
 import type * as seed from "../seed.js";
+import type * as shots from "../shots.js";
 import type * as storage from "../storage.js";
 import type * as timelineVersions from "../timelineVersions.js";
 import type * as users from "../users.js";
@@ -79,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   scenes: typeof scenes;
   scriptVersions: typeof scriptVersions;
   seed: typeof seed;
+  shots: typeof shots;
   storage: typeof storage;
   timelineVersions: typeof timelineVersions;
   users: typeof users;

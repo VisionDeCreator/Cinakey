@@ -1,0 +1,70 @@
+REFERENCES
+@image_1 = the boy. Use it for his exact face, hair, scar, goggles, scarf, clothing, gear and proportions from every angle.
+@image_2 = the giant cheetah. Use it for its exact body, spots, face, saddle, blanket, harness, beads and rifle scabbard.
+@image_3 = the savanna. Use it for the exact golden grassland, acacia trees, rocky outcrop, red-cliffed river, fallen log, distant mountains and sunset sky.
+@image_4 = the rifle. Use it for its exact carved wooden stock, leather and bead wraps, brass receiver with glowing amber line, cream-white barrel, brass scope and sling.
+@image_5 = the hybrid antelope. Use it for the exact look of every antelope in the herd, including the one being hunted.
+@image_6 = the crocodile-shark. Use it for the exact creature in the river.
+
+ART STYLE — LOCKED TO THE REFERENCE IMAGES:
+Use the exact art style already defined in @image_1, @image_2, @image_3, @image_4, @image_5 and @image_6 for the entire video. Do not change, reinterpret or drift from it at any point. Every frame must look like these illustrations brought to life: soft painted anime illustration with a warm watercolor-and-gouache texture, gentle faceted shading built from soft angular planes of color, soft but clean painterly edges, fine thin warm-dark outlines (never heavy black lines), subtle paper-like grain, warm golden highlights and muted-violet shadows. Fur, grass, dust and water spray are painted as layered, leaf-like tufts and strokes, exactly as in the references. This applies to everything: the boy, cheetah, antelope, crocodile-shark, rifle, grass, trees, river, sky, dust, splashes and muzzle flash. No cel-shading, no photoreal textures, no 3D render look, no style shift in fast action, close-ups, top-down shots or water shots. The last frame matches the first in style.
+
+IMAGE QUALITY — ALWAYS SHARP AND CLEAN:
+Every frame sharp, crisp and clean. Faces, eyes, hands, fur and the rifle stay in sharp focus and clearly readable, even at full sprint. Motion is shown with painted speed streaks and flying grass in the background only; the boy, cheetah and target antelope are never blurred or smeared. No noise, no flicker, no warping, no melting shapes, no ghosting between frames.
+
+THE BOY — @image_1, identical in every shot:
+A lean teenage boy with deep brown skin, short coily black hair on top with faded sides, dark-brown eyes, strong brows and a small X-shaped scar on his cheek. A brass-framed pair of goggles with amber lenses on a leather strap across his forehead. A long, tattered mustard-yellow scarf around his neck. A tan leather vest laced up the front, a leather strap across his chest, a belt with pouches and a sheathed knife. A burnt-orange wrap skirt-shorts with black-and-cream geometric trim and hanging cord tassels. Beaded bracelets in turquoise, cream and red, a bone pendant shaped like a paw print, and leather sandals cross-strapped up to his calves.
+
+THE CHEETAH — @image_2: a horse-sized cheetah with a golden, black-spotted coat, cream belly, black tear lines and amber eyes. A brown leather saddle over a red, cream and teal geometric blanket, a leather harness with brass rings, hanging teal and red beads and brass coin charms, short reins, and a leather rifle scabbard on its right side.
+
+THE RIFLE — @image_4: a long hunting rifle with a dark carved wooden stock with geometric diamond patterns and a brass butt plate, leather-wrapped grip and forend with bands of cream, turquoise and red beads, a brass receiver with a softly glowing amber line, a long cream-white barrel with brass rings and a vented muzzle, a brass scope with a glowing amber front lens and a leather eye cup, and an embossed leather sling.
+
+THE ANTELOPE — @image_5, every one in the herd: slender antelope with a shaggy dark plum-violet back, coral-red sides, curving teal stripes, cream legs and belly, a dark tufted tail, long ridged lyre-shaped horns, amber eyes, a golden mane and beard, and a mandrill-like face with bright blue ridged cheeks and a red nose.
+
+THE CROCODILE-SHARK — @image_6: a huge creature with an armored olive-brown crocodile back, a tan belly, black shark gill slits, a tall notched shark dorsal fin, a crescent shark tail, rows of large jagged ivory teeth, flat black eyes, old pink scars, hanging weed and a broken spear lodged in its back.
+
+LOCATION — @image_3: golden savanna at sunset, tall grass swaying, acacia trees, a rocky outcrop, and a river running between red earth cliffs, low sun and a violet-and-apricot sky. No readable text, no logos, no brand names anywhere.
+
+SHOTS (30 seconds total, multi-shot, 16:9):
+Shot 1 (0.0s–1.5s) — Extreme wide shot, slow drift forward: the @image_3 savanna at sunset, golden grass rippling in the wind; far off, a herd of @image_5 antelope grazes near the acacias.
+Shot 2 (1.5s–3.0s) — Close-up: a single antelope grazing, its blue-and-red mandrill face chewing a mouthful of golden grass, ears flicking, amber eyes calm.
+Shot 3 (3.0s–4.0s) — Extreme close-up, low in the grass: blades part slightly, revealing @image_1's eyes watching, perfectly still, amber goggles on his forehead.
+Shot 4 (4.0s–5.0s) — Low side shot through the grass: the @image_2 cheetah lies flattened beside him, amber eyes locked on the herd, only the tip of its tail twitching.
+Shot 5 (5.0s–6.0s) — Medium shot on the herd: the grazing antelope suddenly lifts its head, stops chewing and sniffs the air; the others freeze.
+Shot 6 (6.0s–7.0s) — Low angle: the boy slowly rolls onto his back in the grass and raises the @image_4 rifle straight up at the sky, thumb easing over the glowing brass receiver.
+Shot 7 (7.0s–8.0s) — Wide shot: he fires into the air; an amber muzzle flash, and a flock of birds bursts out of the nearest acacia.
+Shot 8 (8.0s–9.5s) — Low shot at ground level: the herd explodes into motion, hooves pounding past the camera, dust and grass flying.
+Shot 9 (9.5s–11.5s) — Top-down aerial shot: the herd streams across the golden plain like a river of violet and coral; a small group of five breaks away from the main herd and veers off toward the river.
+Shot 10 (11.5s–12.5s) — Medium shot: the boy leaps into the saddle as the cheetah rises and launches forward in one explosive movement, grass spraying behind them.
+Shot 11 (12.5s–14.0s) — Low tracking shot alongside at full speed: the cheetah stretched out in a full sprint, the boy crouched low in the saddle, scarf streaming, grass whipping past.
+Shot 12 (14.0s–15.0s) — Front shot on the boy: he snaps his amber goggles down over his eyes, locked on.
+Shot 13 (15.0s–16.5s) — High rear drone shot: they cut into the breakaway group, which scatters in all directions, until only one antelope is left fleeing ahead of them, zigzagging through the grass.
+Shot 14 (16.5s–17.5s) — Close tracking shot on the target antelope: running flat out, it glances back, eyes wide, mane flying.
+Shot 15 (17.5s–18.5s) — Low shot at the river's edge: the antelope leaps the river first. Beneath the calm, murky surface, a dark dorsal fin silently turns and slices toward the crossing point.
+Shot 16 (18.5s–19.5s) — Wide side shot: the cheetah reaches the red cliff edge and leaps out over the river, the boy crouched against its back, the sunset behind them.
+Shot 17 (19.5s–20.5s) — Low shot from the water's surface: the @image_6 crocodile-shark erupts from the river directly beneath them, jaws gaping wide, water exploding upward.
+Shot 18 (20.5s–21.5s) — Close-up on the boy mid-air: his eyes flick down as the jaws snap shut just inches below his sandal and the cheetah's tail, spray hitting his face.
+Shot 19 (21.5s–22.5s) — Wide shot: the cheetah lands hard on the far bank, claws digging into the red earth, and keeps running without breaking stride as the creature crashes back into the river behind them.
+Shot 20 (22.5s–24.0s) — Low tracking shot: the chase continues; the antelope is tiring, its stride shortening as it runs toward the open plain beyond the rocky outcrop.
+Shot 21 (24.0s–25.0s) — Medium shot: the cheetah skids to a stop on a rocky rise, and the boy sits up tall in the saddle, draws the rifle from the scabbard and raises it to his shoulder.
+Shot 22 (25.0s–26.0s) — Point of view through the scope: an amber-tinted circle, the fleeing antelope running across the golden plain, the scope slowly steadying onto it.
+Shot 23 (26.0s–29.0s) — Side shot, slow push-in toward his face: his cheek against the stock, one eye at the scope, the wind catching his scarf. He takes a long, deep breath in, his chest rising, then slowly lets it out; his eye narrows and everything goes still.
+Shot 24 (29.0s–30.0s) — Hard cut to black as the gunshot rings out and echoes across the plain.
+
+CONSISTENCY:
+The art style of all six references never changes. The boy's face, hair, scar, goggles, scarf and clothing stay identical in every shot, with the goggles on his forehead until Shot 12 and over his eyes from Shot 12 onward. The cheetah, rifle, antelope and crocodile-shark always match their references. The hunted antelope is always the same individual after Shot 13. The crocodile-shark only shows its fin before Shot 17. No gore and nothing graphic at any point.
+
+MOTION AND PHYSICS:
+The cheetah runs with a real cheetah's gait: its spine flexing and extending with each bound, its tail swinging for balance through turns. The boy moves with the cheetah's rhythm, crouched low and balanced. The antelope bound and zigzag with light, springy leaps. Grass, dust and water spray react with realistic weight. The scarf, tassels, beads and harness charms whip in the wind. The river eruption throws heavy sheets of water that fall back realistically.
+
+LIGHTING:
+Warm golden sunset light throughout, long shadows across the grass, the sun low behind the action in the wide shots. The rifle's amber glow and the scope's amber tint stand out in the final shots.
+
+TECHNICAL:
+16:9, 24fps, highest available resolution, sharp and clean painted illustrated look matching the references, no subtitles, no on-screen text, no logos, no watermark.
+
+MUSIC:
+Tense, epic savanna score: begins almost silent, with a low string drone, soft kalimba notes and a faint heartbeat on a talking drum. After the shot into the air, it bursts into driving, galloping hand drums, djembes and shakers with soaring strings and a bold horn line that builds through the chase. It cuts to a breath of silence as the jaws erupt from the river, crashes back in on the landing, then fades away completely from Shot 21 to leave only wind and breathing.
+
+AUDIO (native sound, synced to picture, no dialogue):
+0.0s wind in the grass, distant bird calls, a low drone. 1.5s close, crunchy chewing and a soft snort. 3.0s his slow breathing, grass rustling. 4.0s a low, rumbling cheetah purr. 5.0s the antelope's sharp snort of alarm, then silence. 6.0s a faint electronic hum as the rifle's amber line brightens. 7.0s a sharp rifle crack echoing across the plain, birds exploding into flight. 8.0s thundering hooves and the full score kicking in. 11.5s the cheetah's explosive launch and pounding paws. 14.0s the click of the goggles snapping down. 15.0s rushing wind and scattering hooves. 17.5s a sudden hush and a deep, ominous underwater rumble. 18.5s the cheetah's powerful leap, wind roaring. 19.5s a huge splash and a deep, bellowing roar. 20.5s the heavy clack of jaws snapping shut. 21.5s a heavy landing thud, the score crashing back in. 24.0s the cheetah skidding on rock, the rifle sliding from its scabbard, the bolt working. 26.0s total silence except wind, the boy's long, deep inhale and slow exhale, and his heartbeat. 29.0s a single sharp gunshot over black, echoing into silence.

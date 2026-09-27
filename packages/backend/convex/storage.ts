@@ -154,7 +154,7 @@ export async function saveJson(
 }
 
 /**
- * Load and parse a JSON file from storage.
+ * Load and parse a JSON file from storage (actions only — queries cannot read blobs).
  */
 export async function loadJson<T = unknown>(
   ctx: ActionCtx,

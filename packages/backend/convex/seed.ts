@@ -179,7 +179,8 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
       characterIds: def.characterIds,
       locationId: def.locationId,
       dialogue: def.dialogue,
-      status: "todo",
+      status: "planned",
+      outdated: false,
       createdAt: now,
       updatedAt: now,
     });

@@ -276,6 +276,21 @@ export const createTake = internalMutation({
   },
 });
 
+export const setShotKeyframeInternal = internalMutation({
+  args: {
+    shotId: v.id("shots"),
+    keyframeAssetId: v.id("assets"),
+  },
+  handler: async (ctx, args) => {
+    const shot = await ctx.db.get(args.shotId);
+    if (shot === null) return;
+    await ctx.db.patch(args.shotId, {
+      keyframeAssetId: args.keyframeAssetId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Public action: startGeneration
 // ---------------------------------------------------------------------------
@@ -736,12 +751,19 @@ async function finishSuccess(
     outputAssetIds.push(assetId);
 
     if (job.shotId) {
-      await ctx.runMutation(internal.generation.createTake, {
-        projectId: job.projectId,
-        shotId: job.shotId,
-        assetId,
-        jobId: job._id,
-      });
+      if (adapter.capabilities.kind === "video") {
+        await ctx.runMutation(internal.generation.createTake, {
+          projectId: job.projectId,
+          shotId: job.shotId,
+          assetId,
+          jobId: job._id,
+        });
+      } else if (adapter.capabilities.kind === "image") {
+        await ctx.runMutation(internal.generation.setShotKeyframeInternal, {
+          shotId: job.shotId,
+          keyframeAssetId: assetId,
+        });
+      }
     }
   }
 
@@ -784,7 +806,9 @@ async function finishSuccess(
     body: job.prompt.slice(0, 120),
     href: job.entityId
       ? `/projects/${job.projectId}/look-dev/${job.entityId}`
-      : `/dev/generation?jobId=${job._id}`,
+      : job.shotId
+        ? `/projects/${job.projectId}/blockout`
+        : `/dev/generation?jobId=${job._id}`,
   });
 }
 

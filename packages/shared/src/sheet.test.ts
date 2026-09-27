@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assembleLookDevPrompt,
+  assembleShotKeyframePrompt,
   createEmptySheet,
   lockedIdsFromSheet,
   mergeSheet,
@@ -52,5 +53,39 @@ describe("cinakey.sheet/1.0 helpers", () => {
     expect(prompt).toContain("Project rules");
     expect(prompt).toContain("portrait reference");
     expect(styleSheetToPromptText(style)).toContain("Lighting");
+  });
+
+  it("assembles shot keyframe prompts from shot + sheets + rules", () => {
+    const style = mergeSheet(createEmptySheet("style"), {
+      palette: "cool blue",
+      mood: "tense",
+    });
+    const character = mergeSheet(createEmptySheet("character"), {
+      look: "green coat",
+    });
+    const location = mergeSheet(createEmptySheet("location"), {
+      notes: "Rainy café window",
+    });
+    const prompt = assembleShotKeyframePrompt({
+      shot: {
+        shotType: "close-up",
+        lensMm: 50,
+        cameraMove: "static",
+        durationSec: 3,
+        dialogue: "You're late again.",
+      },
+      styleSheet: style,
+      characters: [{ name: "Maya", sheet: character }],
+      location: { name: "Café", sheet: location },
+      rules: ["Warm natural light"],
+    });
+    expect(prompt).toContain("Palette: cool blue");
+    expect(prompt).toContain("Character: Maya");
+    expect(prompt).toContain("Location: Café");
+    expect(prompt).toContain("Shot type: close-up");
+    expect(prompt).toContain("50mm");
+    expect(prompt).toContain("You're late again.");
+    expect(prompt).toContain("Project rules");
+    expect(prompt).toContain("storyboard");
   });
 });

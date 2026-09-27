@@ -206,6 +206,7 @@ export const createProposal = internalMutation({
       v.literal("rules"),
       v.literal("character_details"),
       v.literal("image_prompt"),
+      v.literal("shot_list"),
     ),
     payload: v.optional(v.any()),
     payloadFileId: v.optional(v.id("_storage")),
@@ -346,12 +347,38 @@ export const loadProjectContext = internalQuery({
       .query("copilotMessages")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
+    const scenes = await ctx.db
+      .query("scenes")
+      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const shots = await ctx.db
+      .query("shots")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const shotCountByScene = new Map<string, number>();
+    for (const shot of shots) {
+      shotCountByScene.set(
+        shot.sceneId,
+        (shotCountByScene.get(shot.sceneId) ?? 0) + 1,
+      );
+    }
+    const scenesSummary =
+      scenes.length === 0
+        ? "(no live scenes)"
+        : scenes
+            .sort((a, b) => a.order - b.order)
+            .map(
+              (s) =>
+                `- ${s.heading} (elementId=${s.elementId}, shots=${shotCountByScene.get(s._id) ?? 0})`,
+            )
+            .join("\n");
     const creditBalance = await getWorkspaceBalance(ctx, project.workspaceId);
     return {
       project,
       entities,
       tip,
       creditBalance,
+      scenesSummary,
       messages: messages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .sort((a, b) => a.createdAt - b.createdAt)
@@ -446,6 +473,7 @@ export const runTurn = action({
                   `- ${e.kind}: ${e.name}${e.description ? ` — ${e.description}` : ""}`,
               )
               .join("\n"),
+      scenesSummary: loaded.scenesSummary,
     });
 
     const history: ChatMessage[] = [
@@ -920,6 +948,24 @@ async function handleToolCall(
         prompt: String(parsed.prompt ?? ""),
       },
       diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_shot_list") {
+    const summary = String(parsed.summary ?? "Shot list");
+    const sceneElementId = String(parsed.sceneElementId ?? "");
+    const shots = Array.isArray(parsed.shots) ? parsed.shots : [];
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "shot_list",
+      payload: {
+        summary,
+        sceneElementId,
+        shots,
+      },
+      diffSummary: `${summary} (${shots.length} shots)`,
     });
     return { proposalId };
   }

@@ -1,14 +1,12 @@
 /**
  * Materialize a cinakey.script/1.0 document into live scenes + entities,
- * and flag shots outdated when dialogue line sets change.
+ * and flag shots outdated when linked dialogue lines change.
  */
 
 import {
-  dialogueLineSetsEqual,
   extractCharacterNames,
   extractLocationNames,
   normalizeEntityName,
-  sceneDialogueLineIds,
   withRuntimeEstimates,
   type ScriptDocument,
   type ScriptEntityKind,
@@ -316,42 +314,40 @@ async function flagOutdatedShots(
     next: ScriptDocument;
   },
 ): Promise<void> {
-  const prevById = new Map(args.previous.scenes.map((s) => [s.id, s]));
-  const nextById = new Map(args.next.scenes.map((s) => [s.id, s]));
-  const changedElementIds = new Set<string>();
-
-  for (const [id, nextScene] of nextById) {
-    const prev = prevById.get(id);
-    if (!prev) {
-      changedElementIds.add(id);
-      continue;
-    }
-    if (
-      !dialogueLineSetsEqual(
-        sceneDialogueLineIds(prev),
-        sceneDialogueLineIds(nextScene),
-      )
-    ) {
-      changedElementIds.add(id);
-      continue;
-    }
-    // Also flag if any dialogue text changed for same ids.
-    const prevLines = new Map<string, string>();
-    for (const beat of prev.beats) {
+  const prevLines = new Map<string, { sceneId: string; dialogue: string }>();
+  for (const scene of args.previous.scenes) {
+    for (const beat of scene.beats) {
       for (const line of beat.lines) {
-        prevLines.set(line.id, line.dialogue);
-      }
-    }
-    for (const beat of nextScene.beats) {
-      for (const line of beat.lines) {
-        if (prevLines.get(line.id) !== line.dialogue) {
-          changedElementIds.add(id);
-        }
+        prevLines.set(line.id, {
+          sceneId: scene.id,
+          dialogue: line.dialogue,
+        });
       }
     }
   }
 
-  if (changedElementIds.size === 0) return;
+  const nextLines = new Map<string, { sceneId: string; dialogue: string }>();
+  for (const scene of args.next.scenes) {
+    for (const beat of scene.beats) {
+      for (const line of beat.lines) {
+        nextLines.set(line.id, {
+          sceneId: scene.id,
+          dialogue: line.dialogue,
+        });
+      }
+    }
+  }
+
+  /** Line ids whose text changed or that were removed. */
+  const changedOrRemoved = new Set<string>();
+  for (const [id, prev] of prevLines) {
+    const next = nextLines.get(id);
+    if (!next || next.dialogue !== prev.dialogue) {
+      changedOrRemoved.add(id);
+    }
+  }
+
+  if (changedOrRemoved.size === 0) return;
 
   const scenes = await ctx.db
     .query("scenes")
@@ -360,15 +356,27 @@ async function flagOutdatedShots(
   const now = Date.now();
 
   for (const scene of scenes) {
-    if (!changedElementIds.has(scene.elementId)) continue;
     const shots = await ctx.db
       .query("shots")
       .withIndex("by_scene", (q) => q.eq("sceneId", scene._id))
       .collect();
     for (const shot of shots) {
-      if (shot.status === "done" || shot.status === "generating") {
-        await ctx.db.patch(shot._id, { status: "outdated", updatedAt: now });
+      if (!shot.dialogueLineId) continue;
+      if (!changedOrRemoved.has(shot.dialogueLineId)) continue;
+
+      const nextLine = nextLines.get(shot.dialogueLineId);
+      const patch: {
+        outdated: boolean;
+        updatedAt: number;
+        dialogue?: string;
+      } = {
+        outdated: true,
+        updatedAt: now,
+      };
+      if (nextLine) {
+        patch.dialogue = nextLine.dialogue;
       }
+      await ctx.db.patch(shot._id, patch);
     }
   }
 }

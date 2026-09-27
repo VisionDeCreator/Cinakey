@@ -18,7 +18,8 @@ type ProposalDoc = {
     | "entities"
     | "rules"
     | "character_details"
-    | "image_prompt";
+    | "image_prompt"
+    | "shot_list";
   status: string;
   payload?: unknown;
   diffSummary?: string;
@@ -232,6 +233,31 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
         <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-sm bg-zinc-950 p-2 text-[10px] text-zinc-400">
           {String(payload?.prompt ?? "")}
         </pre>
+      ) : null}
+
+      {proposal.kind === "shot_list" ? (
+        <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-[11px] text-zinc-400">
+          <li className="text-zinc-500">
+            Scene {String(payload?.sceneElementId ?? "?").slice(0, 8)}…
+          </li>
+          {(
+            (payload?.shots as Array<{
+              shotType?: string;
+              durationSec?: number;
+              cameraMove?: string;
+              dialogue?: string;
+              lensMm?: number;
+            }>) ?? []
+          ).map((s, i) => (
+            <li key={i}>
+              {i + 1}. {s.shotType ?? "shot"}
+              {s.lensMm ? ` · ${s.lensMm}mm` : ""}
+              {s.cameraMove ? ` · ${s.cameraMove}` : ""}
+              {s.durationSec !== undefined ? ` · ${s.durationSec}s` : ""}
+              {s.dialogue ? ` — “${s.dialogue.slice(0, 40)}”` : ""}
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {editing ? (

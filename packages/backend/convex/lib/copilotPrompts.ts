@@ -194,6 +194,57 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "propose_shot_list",
+      description:
+        "Break a scene into a planned shot list (coverage, framing, pacing). Replaces that scene's shots on Accept. Use sceneElementId from the script scene id (or live scenes summary). Prefer linking dialogueLineId when covering dialogue. User must Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          sceneElementId: {
+            type: "string",
+            description: "Stable script scene uuid (elementId)",
+          },
+          shots: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                shotType: {
+                  type: "string",
+                  description:
+                    "e.g. wide, medium, close-up, extreme close-up, insert, over-the-shoulder, two-shot",
+                },
+                lensMm: { type: "number" },
+                cameraMove: {
+                  type: "string",
+                  description:
+                    "e.g. static, pan, tilt, push, pull, tracking, handheld",
+                },
+                durationSec: { type: "number" },
+                characterNames: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+                locationName: { type: "string" },
+                dialogueLineId: {
+                  type: "string",
+                  description: "Stable dialogue line uuid when covering a line",
+                },
+                dialogue: { type: "string" },
+                notes: { type: "string" },
+              },
+              required: ["shotType", "durationSec"],
+            },
+          },
+        },
+        required: ["summary", "sceneElementId", "shots"],
+      },
+    },
+  },
 ];
 
 export type CopilotRole =
@@ -209,7 +260,7 @@ export type CopilotMode =
 
 const ROLE_PROMPTS: Record<CopilotRole, string> = {
   director:
-    "You are a film director copilot for Cinakey. Focus on coverage, framing, pacing, and how the script will shoot. Suggest concrete shot ideas when helpful, but do not invent production tools that are not available — use propose_* tools only.",
+    "You are a film director copilot for Cinakey. Focus on coverage, framing, pacing, and how the script will shoot. When the user asks for a shot list or coverage for a scene, call propose_shot_list. Suggest concrete shot ideas; use propose_* tools only.",
   screenwriter:
     "You are a screenwriter copilot for Cinakey. Draft and rewrite scripts in a clear cinematic voice, hit target runtime when asked, and preserve stable scene/beat/line ids when editing. ALWAYS call propose_script_edit to put scenes into the project — never only paste a screenplay in chat text.",
   character_designer:
@@ -236,6 +287,7 @@ export function buildSystemPrompt(args: {
   selectionIds: string[];
   scriptSummary?: string;
   entitiesSummary?: string;
+  scenesSummary?: string;
 }): string {
   const parts = [
     ROLE_PROMPTS[args.role],
@@ -243,6 +295,7 @@ export function buildSystemPrompt(args: {
     "Hard rule: never claim you changed the project. Tool results become proposal cards; the user Accepts, Edits, or Rejects.",
     "Hard rule: when the user describes a video, film, story, or asks you to draft/write/structure a script — you MUST call propose_script_edit with a full cinakey.script/1.0 document containing scenes, beats, and dialogue lines. A chat-only outline does not update the Script room.",
     "Hard rule: document.schema must be exactly \"cinakey.script/1.0\". Include format (\"screenplay\" or \"av\"), scenes[], and entityLinks[] (may be empty).",
+    "Hard rule: when the user asks for a shot list, coverage, or storyboard breakdown for a scene, call propose_shot_list with sceneElementId and shots[].",
     `Current view: ${args.view}.`,
   ];
   if (args.selectionIds.length > 0) {
@@ -268,6 +321,9 @@ export function buildSystemPrompt(args: {
   }
   if (args.entitiesSummary) {
     parts.push(`Entities:\n${args.entitiesSummary}`);
+  }
+  if (args.scenesSummary) {
+    parts.push(`Live scenes / shots:\n${args.scenesSummary}`);
   }
   return parts.join("\n\n");
 }

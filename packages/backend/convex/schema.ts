@@ -94,14 +94,19 @@ const schema = defineSchema(
     durationSec: v.number(),
     characterIds: v.array(v.id("entities")),
     locationId: v.optional(v.id("entities")),
+    /** Stable dialogue line uuid from cinakey.script/1.0. */
+    dialogueLineId: v.optional(v.string()),
+    /** Denormalized snapshot of linked dialogue text. */
     dialogue: v.optional(v.string()),
     status: v.union(
-      v.literal("todo"),
-      v.literal("blocked"),
+      v.literal("planned"),
+      v.literal("blocked_out"),
       v.literal("generating"),
-      v.literal("done"),
-      v.literal("outdated"),
+      v.literal("selected"),
     ),
+    /** True when linked script dialogue line changed or was removed. */
+    outdated: v.boolean(),
+    keyframeAssetId: v.optional(v.id("assets")),
     selectedTakeId: v.optional(v.id("takes")),
     blockoutFileId: v.optional(v.id("_storage")),
     notes: v.optional(v.string()),
@@ -207,7 +212,8 @@ const schema = defineSchema(
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
     .index("by_provider_job", ["providerJobId"])
-    .index("by_entity", ["entityId"]),
+    .index("by_entity", ["entityId"])
+    .index("by_shot", ["shotId"]),
 
   takes: defineTable({
     projectId: v.id("projects"),
@@ -319,6 +325,7 @@ const schema = defineSchema(
       v.literal("rules"),
       v.literal("character_details"),
       v.literal("image_prompt"),
+      v.literal("shot_list"),
     ),
     status: v.union(
       v.literal("pending"),
