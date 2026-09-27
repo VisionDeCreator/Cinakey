@@ -36,7 +36,7 @@ export function NewProjectDialog({
   const [logline, setLogline] = useState("");
   const [audience, setAudience] = useState("");
   const [tone, setTone] = useState("");
-  const [targetLengthSec, setTargetLengthSec] = useState("60");
+  const [targetLengthSec, setTargetLengthSec] = useState("30");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
   const [fps, setFps] = useState("24");
   const [busy, setBusy] = useState(false);
@@ -47,7 +47,7 @@ export function NewProjectDialog({
     setLogline("");
     setAudience("");
     setTone("");
-    setTargetLengthSec("60");
+    setTargetLengthSec("30");
     setAspectRatio("16:9");
     setFps("24");
     setError(null);

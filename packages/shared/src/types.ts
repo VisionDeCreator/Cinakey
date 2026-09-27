@@ -1,6 +1,7 @@
 /** Shared domain types used by both Convex and the frontend. */
 
 export type ProjectTab =
+  | "copilot"
   | "script"
   | "look-dev"
   | "blockout"

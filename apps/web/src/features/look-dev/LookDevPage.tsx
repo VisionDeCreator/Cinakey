@@ -16,10 +16,11 @@ import {
 import { useCopilotContext } from "@/features/copilot/CopilotContext";
 
 const SECTIONS: { kind: EntityKind; label: string }[] = [
+  { kind: "style", label: "Style" },
   { kind: "character", label: "Characters" },
+  { kind: "creature", label: "Creatures" },
   { kind: "location", label: "Locations" },
   { kind: "prop", label: "Props" },
-  { kind: "style", label: "Style" },
 ];
 
 export function LookDevPage() {
@@ -34,9 +35,9 @@ export function LookDevPage() {
   const { setContext } = useCopilotContext();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [createKind, setCreateKind] = useState<"character" | "location" | "prop">(
-    "character",
-  );
+  const [createKind, setCreateKind] = useState<
+    "character" | "creature" | "location" | "prop"
+  >("character");
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -146,10 +147,17 @@ export function LookDevPage() {
                 className="flex h-9 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm"
                 value={createKind}
                 onChange={(e) =>
-                  setCreateKind(e.target.value as "character" | "location" | "prop")
+                  setCreateKind(
+                    e.target.value as
+                      | "character"
+                      | "creature"
+                      | "location"
+                      | "prop",
+                  )
                 }
               >
                 <option value="character">Character</option>
+                <option value="creature">Creature</option>
                 <option value="location">Location</option>
                 <option value="prop">Prop</option>
               </select>

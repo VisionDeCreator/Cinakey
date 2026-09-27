@@ -104,7 +104,7 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
               properties: {
                 kind: {
                   type: "string",
-                  enum: ["character", "location", "prop"],
+                  enum: ["character", "creature", "location", "prop"],
                 },
                 name: { type: "string" },
                 description: { type: "string" },
@@ -245,6 +245,209 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "propose_story_treatment",
+      description:
+        "Save a story treatment (logline + structured script beats) to the Script room. Use when developing the story in the Copilot pipeline. User must Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          logline: { type: "string" },
+          audience: { type: "string" },
+          tone: { type: "string" },
+          document: SCRIPT_DOCUMENT_SCHEMA,
+        },
+        required: ["summary", "logline"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_style_block",
+      description:
+        "Propose the project ART STYLE paragraph stored on the Look Dev style sheet. Injected into every asset sheet and script prompt. User must Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          artStyleBlock: {
+            type: "string",
+            description: "Single ART STYLE paragraph, no heading prefix",
+          },
+        },
+        required: ["summary", "artStyleBlock"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_asset_list",
+      description:
+        "Propose the visual assets needed for the story (characters, creatures, locations, key props). Creates Look Dev entities on Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          entities: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                kind: {
+                  type: "string",
+                  enum: ["character", "creature", "location", "prop"],
+                },
+                name: { type: "string" },
+                description: { type: "string" },
+                sheetType: {
+                  type: "string",
+                  enum: ["character", "creature", "environment", "product"],
+                  description:
+                    "Which prompt-sheet template to use (environment→location, product→prop)",
+                },
+              },
+              required: ["kind", "name"],
+            },
+          },
+        },
+        required: ["summary", "entities"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_asset_sheet",
+      description:
+        "Draft a structured asset prompt sheet (character/creature/environment/product). Fill the schema fields only — the system renders the template text. User must Accept. Set approveAndGenerate true to queue GPT Image 2 after Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          type: {
+            type: "string",
+            enum: ["character", "creature", "environment", "product"],
+          },
+          entityId: { type: "string" },
+          entityName: { type: "string" },
+          approveAndGenerate: { type: "boolean" },
+          structured: {
+            type: "object",
+            description:
+              "Schema fields for the sheet type (subjectLine/views/faceAndHair/outfit/signatureDetail/colorPalette for character; analogous for other types)",
+          },
+        },
+        required: ["summary", "type", "structured"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_script_prompt",
+      description:
+        "Draft a structured Seedance script prompt for one sequence (≤30s, ≤30 refs). Cast descriptions should match approved asset sheets. On Accept creates the sequence and shots. User must Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          sequenceTitle: { type: "string" },
+          applyShots: {
+            type: "boolean",
+            description: "Default true — materialize sequence shots on Accept",
+          },
+          referenceMap: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                imageN: { type: "number" },
+                entityId: { type: "string" },
+              },
+              required: ["imageN", "entityId"],
+            },
+          },
+          sourceAssetSheetIds: {
+            type: "array",
+            items: { type: "string" },
+          },
+          structured: {
+            type: "object",
+            description: "ScriptPromptData fields (references, shots, consistency, etc.)",
+          },
+        },
+        required: ["summary", "structured"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "propose_blockout_sheet",
+      description:
+        "Draft a structured pre-viz blockout sheet for a sequence (derived from its script prompt). On Accept builds 3D blockouts for every shot. User must Accept.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          sequenceId: { type: "string" },
+          sourceScriptPromptId: { type: "string" },
+          applyBlockout: {
+            type: "boolean",
+            description: "Default true — build shot blockouts on Accept",
+          },
+          structured: {
+            type: "object",
+            description: "BlockoutSheetData (set, cast, props, light, shots)",
+          },
+        },
+        required: ["summary", "structured"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apply_blockout_sheet",
+      description:
+        "Apply an existing approved/draft blockout sheet to build or update all shot 3D blockouts. Prefer propose_blockout_sheet with applyBlockout for new sheets.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          promptSheetId: { type: "string" },
+        },
+        required: ["summary", "promptSheetId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "revise_asset_sheet",
+      description:
+        "Targeted revision of an existing asset sheet (e.g. make the scarf red). Pass the full updated structured object for that sheet type.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          promptSheetId: { type: "string" },
+          type: {
+            type: "string",
+            enum: ["character", "creature", "environment", "product"],
+          },
+          entityId: { type: "string" },
+          structured: { type: "object" },
+        },
+        required: ["summary", "type", "structured"],
+      },
+    },
+  },
 ];
 
 export type CopilotRole =
@@ -260,12 +463,12 @@ export type CopilotMode =
 
 const ROLE_PROMPTS: Record<CopilotRole, string> = {
   director:
-    "You are a film director copilot for Cinakey. Focus on coverage, framing, pacing, and how the script will shoot. When the user asks for a shot list or coverage for a scene, call propose_shot_list. Suggest concrete shot ideas; use propose_* tools only.",
+    "You are a film director copilot for Cinakey. Focus on coverage, framing, pacing, and how the film will shoot. Prefer the structured prompt pipeline (story treatment → asset sheets → Seedance script prompt → blockout) over free-form screenplay. Use propose_shot_list only for an existing Script-room scene's coverage table.",
   screenwriter:
-    "You are a screenwriter copilot for Cinakey. Draft and rewrite scripts in a clear cinematic voice, hit target runtime when asked, and preserve stable scene/beat/line ids when editing. ALWAYS call propose_script_edit to put scenes into the project — never only paste a screenplay in chat text.",
+    "You are a screenwriter/pipeline copilot for Cinakey. For new films and episode breakdowns, use the structured pipeline tools — NOT propose_script_edit. Start with propose_story_treatment, then propose_style_block and propose_asset_list / propose_asset_sheet. For shot-by-shot Seedance video prompts (REFERENCES, SHOTS with timings, CONSISTENCY, AUDIO…), call propose_script_prompt with full structured data. Only use propose_script_edit when the user explicitly wants a Script-room screenplay rewrite.",
   character_designer:
-    "You are a character designer copilot for Cinakey. Develop look, backstory, personality, wardrobe, and voice. Use propose_character_details to fill sheet fields from the script, propose_image_prompt for generation prompts, and propose_entities for new character/location/prop cards. Only use propose_script_edit when dialogue or action must change to match the design.",
-};
+    "You are a character designer copilot for Cinakey. Prefer propose_asset_sheet (structured character/creature sheets) and propose_style_block over free-form image prompts. Use propose_character_details for quick Look Dev field fills; propose_image_prompt only for ad-hoc Generate panel drafts.",
+}
 
 const MODE_PROMPTS: Record<CopilotMode, string> = {
   brainstorm: "Mode: brainstorm — explore options freely; generate alternatives.",
@@ -288,14 +491,22 @@ export function buildSystemPrompt(args: {
   scriptSummary?: string;
   entitiesSummary?: string;
   scenesSummary?: string;
+  pipelineSummary?: string;
+  artStyleBlock?: string;
 }): string {
+  const onCopilotTab = args.view === "copilot";
   const parts = [
     ROLE_PROMPTS[args.role],
     MODE_PROMPTS[args.mode],
     "Hard rule: never claim you changed the project. Tool results become proposal cards; the user Accepts, Edits, or Rejects.",
-    "Hard rule: when the user describes a video, film, story, or asks you to draft/write/structure a script — you MUST call propose_script_edit with a full cinakey.script/1.0 document containing scenes, beats, and dialogue lines. A chat-only outline does not update the Script room.",
-    "Hard rule: document.schema must be exactly \"cinakey.script/1.0\". Include format (\"screenplay\" or \"av\"), scenes[], and entityLinks[] (may be empty).",
-    "Hard rule: when the user asks for a shot list, coverage, or storyboard breakdown for a scene, call propose_shot_list with sceneElementId and shots[].",
+    onCopilotTab
+      ? "Hard rule (Copilot tab): you are running the structured prompt PIPELINE. Do NOT call propose_script_edit for new stories or episode breakdowns — that creates a screenplay, not a Seedance prompt. Use propose_story_treatment, propose_style_block, propose_asset_list, propose_asset_sheet, propose_script_prompt, propose_blockout_sheet."
+      : "Hard rule: use propose_script_edit only when the user explicitly wants a Script-room screenplay (Fountain-style scenes/beats/dialogue). For video episode / Seedance shot breakdowns, use propose_script_prompt instead.",
+    "Hard rule: when drafting a Seedance script prompt or \"full episode\" / shot-by-shot breakdown, call propose_script_prompt with complete structured data: references[], castBlocks[], location, shots[] (contiguous timings from 0, every shot), consistency, motionAndPhysics, lighting, technical, music, audioCues[]. Never paste the prompt as chat prose only.",
+    "Hard rule: asset sheets use structured fields only (subjectLine, views, faceAndHair/body, outfit/gear, signatureDetail, colorPalette, etc.) — never free-form template text. The system renders the template.",
+    "Hard rule: when the user asks for a shot list table for an existing Script-room scene, call propose_shot_list with sceneElementId.",
+    "Pipeline order: propose_story_treatment → propose_style_block → propose_asset_list → propose_asset_sheet (each asset) → after refs locked, propose_script_prompt (≤30s / ≤30 refs per sequence) → propose_blockout_sheet.",
+    "Pipeline rule: cast blocks in script prompts must be derived from approved asset sheet details, not invented fresh.",
     `Current view: ${args.view}.`,
   ];
   if (args.selectionIds.length > 0) {
@@ -311,6 +522,9 @@ export function buildSystemPrompt(args: {
   if (args.targetLengthSec !== undefined) {
     parts.push(`Target length: ${args.targetLengthSec} seconds.`);
   }
+  if (args.artStyleBlock) {
+    parts.push(`Project ART STYLE block:\n${args.artStyleBlock}`);
+  }
   if (args.rules.length > 0) {
     parts.push(`Project rules:\n- ${args.rules.join("\n- ")}`);
   } else {
@@ -325,28 +539,58 @@ export function buildSystemPrompt(args: {
   if (args.scenesSummary) {
     parts.push(`Live scenes / shots:\n${args.scenesSummary}`);
   }
+  if (args.pipelineSummary) {
+    parts.push(`Prompt pipeline:\n${args.pipelineSummary}`);
+  }
   return parts.join("\n\n");
 }
 
-/** True when this turn should produce a propose_script_edit tool call. */
-export function wantsScriptProposal(
-  userContent: string,
-  scriptHasScenes: boolean,
-): boolean {
+/**
+ * True when the user explicitly wants a Script-room screenplay
+ * (propose_script_edit) — not a Seedance pipeline prompt.
+ */
+export function wantsScriptProposal(userContent: string): boolean {
   const text = userContent.trim();
   if (text.length === 0) return false;
+  // Explicit screenplay / Script-room language
   if (
-    /script|draft|write|rewrite|scene|screenplay|storyboard|story|film|video|movie|make|create|outline|plot|chase|sequence/i.test(
+    /screenplay|fountain|av\s*script|script\s*room|rewrite\s+(the\s+)?(scene|dialogue)|dialogue\s+pass/i.test(
       text,
     )
   ) {
     return true;
   }
-  // Empty script + a substantial description → treat as a draft request.
-  if (!scriptHasScenes && text.length >= 40) {
+  // "edit the script" / "update scene 3" but not "script prompt" / "video script"
+  if (
+    /\b(edit|update|fix)\b.*\b(script|scene|dialogue)\b/i.test(text) &&
+    !/\b(script\s*prompt|seedance|shot[- ]?by[- ]?shot|episode\s+breakdown|prompt\s+sheet)\b/i.test(
+      text,
+    )
+  ) {
     return true;
   }
   return false;
+}
+
+/** True when the user wants the structured film pipeline / Seedance breakdown. */
+export function wantsPipelineProposal(userContent: string): boolean {
+  const text = userContent.trim();
+  if (text.length === 0) return false;
+  if (
+    /story|film|video|movie|episode|sequence|seedance|prompt\s*sheet|asset\s*sheet|look\s*dev|blockout|shot[- ]?by[- ]?shot|breakdown|treatment|logline|references|@image_|generate|make\s+(a|me|an)|create\s+(a|me|an)|savanna|chase|hunter/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  return text.length >= 40;
+}
+
+/** Prefer Seedance script prompt over story treatment when asking for shots. */
+export function wantsScriptPromptProposal(userContent: string): boolean {
+  return /\b(script\s*prompt|seedance|shot[- ]?by[- ]?shot|episode\s+breakdown|full\s+(episode|sequence|prompt|breakdown)|shot\s+breakdown|video\s+prompt|SHOTS\s*\(|@image_|shot\s+list\s+for\s+(the\s+)?(video|film|sequence))\b/i.test(
+    userContent,
+  );
 }
 
 export function scriptSummaryFromDocument(doc: {

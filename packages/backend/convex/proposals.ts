@@ -78,6 +78,7 @@ export const applyEntities = internalMutation({
       v.object({
         kind: v.union(
           v.literal("character"),
+          v.literal("creature"),
           v.literal("location"),
           v.literal("prop"),
         ),
@@ -166,6 +167,7 @@ export const findEntityByNameInternal = internalQuery({
     projectId: v.id("projects"),
     kind: v.union(
       v.literal("character"),
+      v.literal("creature"),
       v.literal("location"),
       v.literal("prop"),
       v.literal("style"),
@@ -357,7 +359,7 @@ export const accept = action({
       });
     } else if (proposal.kind === "entities") {
       const entities = (payload.entities ?? []) as Array<{
-        kind: "character" | "location" | "prop";
+        kind: "character" | "creature" | "location" | "prop";
         name: string;
         description?: string;
       }>;
@@ -479,6 +481,180 @@ export const accept = action({
           notes: typeof s.notes === "string" ? s.notes : undefined,
         })),
       });
+    } else if (proposal.kind === "story_treatment") {
+      const document =
+        normalizeProposedScript(payload.document) ??
+        (payload.document
+          ? withRuntimeEstimates(assertScriptDocument(payload.document))
+          : null);
+      if (document) {
+        await ctx.runAction(internal.scriptVersions.commitAsInternal, {
+          projectId: proposal.projectId,
+          userId,
+          document,
+          label: String(payload.summary ?? "Story treatment"),
+        });
+      }
+      if (typeof payload.logline === "string" && payload.logline.trim()) {
+        await ctx.runMutation(internal.proposals.patchBriefLogline, {
+          projectId: proposal.projectId,
+          logline: payload.logline.trim(),
+          audience:
+            typeof payload.audience === "string" ? payload.audience : undefined,
+          tone: typeof payload.tone === "string" ? payload.tone : undefined,
+        });
+      }
+    } else if (proposal.kind === "asset_list") {
+      const entities = (payload.entities ?? []) as Array<{
+        kind: "character" | "creature" | "location" | "prop";
+        name: string;
+        description?: string;
+      }>;
+      await ctx.runMutation(internal.proposals.applyEntities, {
+        projectId: proposal.projectId,
+        entities,
+      });
+    } else if (proposal.kind === "style_block") {
+      const artStyleBlock = String(payload.artStyleBlock ?? "").trim();
+      if (!artStyleBlock) throw new Error("style_block needs artStyleBlock");
+      const styleEntity = await ctx.runQuery(
+        internal.proposals.findStyleEntityInternal,
+        { projectId: proposal.projectId },
+      );
+      let entityId = styleEntity?._id;
+      if (!entityId) {
+        entityId = await ctx.runMutation(internal.proposals.ensureStyleEntity, {
+          projectId: proposal.projectId,
+        });
+      }
+      await ctx.runAction(api.entities.saveSheet, {
+        entityId,
+        patch: { artStyleBlock },
+      });
+      await ctx.runMutation(internal.promptSheets.markStyleStale, {
+        projectId: proposal.projectId,
+      });
+    } else if (proposal.kind === "asset_sheet") {
+      const type = String(payload.type ?? "") as
+        | "character"
+        | "creature"
+        | "environment"
+        | "product";
+      const structured = payload.structured;
+      if (!structured) throw new Error("asset_sheet needs structured data");
+      let entityId = payload.entityId as Id<"entities"> | undefined;
+      if (!entityId && typeof payload.entityName === "string") {
+        const kindMap = {
+          character: "character",
+          creature: "creature",
+          environment: "location",
+          product: "prop",
+        } as const;
+        const match = await ctx.runQuery(
+          internal.proposals.findEntityByNameInternal,
+          {
+            projectId: proposal.projectId,
+            kind: kindMap[type] ?? "character",
+            name: payload.entityName as string,
+          },
+        );
+        entityId = match?._id;
+      }
+      if (!entityId && typeof payload.entityName === "string") {
+        // Create the Look Dev entity if the list step was skipped.
+        const kindMap = {
+          character: "character",
+          creature: "creature",
+          environment: "location",
+          product: "prop",
+        } as const;
+        const createdIds = await ctx.runMutation(internal.proposals.applyEntities, {
+          projectId: proposal.projectId,
+          entities: [
+            {
+              kind: kindMap[type] ?? "character",
+              name: payload.entityName as string,
+            },
+          ],
+        });
+        entityId = createdIds[0];
+      }
+      if (!entityId) {
+        throw new Error("asset_sheet needs entityId or entityName");
+      }
+      const created = await ctx.runAction(api.promptSheets.createOrUpdateDraft, {
+        projectId: proposal.projectId,
+        type,
+        structured,
+        entityId,
+      });
+      // Keep Look Dev entity sheet in sync with the structured prompt sheet.
+      const { lookDevPatchFromAssetSheet } = await import("@cinakey/shared");
+      const lookDev = lookDevPatchFromAssetSheet(type, structured as never);
+      if (Object.keys(lookDev.sheetPatch).length > 0) {
+        await ctx.runAction(api.entities.saveSheet, {
+          entityId,
+          patch: lookDev.sheetPatch,
+        });
+      }
+      if (lookDev.description) {
+        await ctx.runMutation(internal.proposals.patchEntityDescription, {
+          entityId,
+          description: lookDev.description,
+        });
+      }
+      if (payload.approveAndGenerate === true) {
+        await ctx.runAction(api.promptSheets.approveAssetSheet, {
+          promptSheetId: created.promptSheetId,
+        });
+      }
+    } else if (proposal.kind === "script_prompt") {
+      const structured = payload.structured;
+      if (!structured) throw new Error("script_prompt needs structured data");
+      const referenceMap = (payload.referenceMap ?? []) as Array<{
+        imageN: number;
+        entityId: Id<"entities">;
+      }>;
+      const created = await ctx.runAction(api.promptSheets.createOrUpdateDraft, {
+        projectId: proposal.projectId,
+        type: "script",
+        structured,
+        referenceMap,
+        sourceAssetSheetIds: payload.sourceAssetSheetIds as
+          | Id<"promptSheets">[]
+          | undefined,
+        sequenceId: payload.sequenceId as Id<"sequences"> | undefined,
+        replaceTipId: payload.replaceTipId as Id<"promptSheets"> | undefined,
+      });
+      if (payload.applyShots !== false) {
+        await ctx.runAction(api.sequences.applyScriptPrompt, {
+          projectId: proposal.projectId,
+          promptSheetId: created.promptSheetId,
+          title:
+            typeof payload.sequenceTitle === "string"
+              ? payload.sequenceTitle
+              : undefined,
+        });
+      }
+    } else if (proposal.kind === "blockout_sheet") {
+      const structured = payload.structured;
+      if (!structured) throw new Error("blockout_sheet needs structured data");
+      const created = await ctx.runAction(api.promptSheets.createOrUpdateDraft, {
+        projectId: proposal.projectId,
+        type: "blockout",
+        structured,
+        sequenceId: payload.sequenceId as Id<"sequences"> | undefined,
+        sourceScriptPromptId: payload.sourceScriptPromptId as
+          | Id<"promptSheets">
+          | undefined,
+        replaceTipId: payload.replaceTipId as Id<"promptSheets"> | undefined,
+      });
+      if (payload.applyBlockout !== false) {
+        await ctx.runAction(api.sequences.applyBlockoutSheet, {
+          projectId: proposal.projectId,
+          promptSheetId: created.promptSheetId,
+        });
+      }
     }
 
     await ctx.runMutation(internal.proposals.markAccepted, {
@@ -486,6 +662,61 @@ export const accept = action({
     });
 
     return { ok: true as const };
+  },
+});
+
+export const patchBriefLogline = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    logline: v.string(),
+    audience: v.optional(v.string()),
+    tone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (project === null) throw new Error("Project not found");
+    await ctx.db.patch(args.projectId, {
+      brief: {
+        logline: args.logline,
+        audience: args.audience ?? project.brief?.audience,
+        tone: args.tone ?? project.brief?.tone,
+      },
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const findStyleEntityInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("entities")
+      .withIndex("by_project_kind", (q) =>
+        q.eq("projectId", args.projectId).eq("kind", "style"),
+      )
+      .first();
+  },
+});
+
+export const ensureStyleEntity = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("entities")
+      .withIndex("by_project_kind", (q) =>
+        q.eq("projectId", args.projectId).eq("kind", "style"),
+      )
+      .first();
+    if (existing) return existing._id;
+    const now = Date.now();
+    return await ctx.db.insert("entities", {
+      projectId: args.projectId,
+      kind: "style",
+      name: "Project style",
+      lockedReferenceAssetIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
   },
 });
 

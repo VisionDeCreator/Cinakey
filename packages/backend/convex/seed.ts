@@ -38,7 +38,7 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
     },
     aspectRatio: "16:9",
     fps: 24,
-    targetLengthSec: 60,
+    targetLengthSec: 30,
     styleNotes: "Warm natural light, handheld feel",
     rules: [
       "No extreme close-ups of faces",

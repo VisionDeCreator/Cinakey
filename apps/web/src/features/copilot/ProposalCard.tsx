@@ -19,7 +19,13 @@ type ProposalDoc = {
     | "rules"
     | "character_details"
     | "image_prompt"
-    | "shot_list";
+    | "shot_list"
+    | "story_treatment"
+    | "asset_list"
+    | "asset_sheet"
+    | "style_block"
+    | "script_prompt"
+    | "blockout_sheet";
   status: string;
   payload?: unknown;
   diffSummary?: string;
@@ -182,7 +188,7 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
         </pre>
       ) : null}
 
-      {proposal.kind === "entities" ? (
+      {proposal.kind === "entities" || proposal.kind === "asset_list" ? (
         <ul className="mt-2 space-y-1 text-[11px] text-zinc-400">
           {((payload?.entities as Array<{ kind: string; name: string; description?: string }>) ?? []).map(
             (e, i) => (
@@ -193,6 +199,73 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
             ),
           )}
         </ul>
+      ) : null}
+
+      {proposal.kind === "style_block" ? (
+        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-sm bg-zinc-950 p-2 text-[10px] text-zinc-400">
+          {String(payload?.artStyleBlock ?? "")}
+        </pre>
+      ) : null}
+
+      {proposal.kind === "story_treatment" ? (
+        <div className="mt-2 space-y-1 text-[11px] text-zinc-400">
+          <p className="text-amber-400/80">Story treatment (pipeline stage 1)</p>
+          <p>Logline: {String(payload?.logline ?? "")}</p>
+          <p className="text-zinc-600">
+            Next after Accept: art style → asset sheets → Seedance script prompt
+            (shot-by-shot), not a screenplay-only draft.
+          </p>
+        </div>
+      ) : null}
+
+      {proposal.kind === "asset_sheet" ||
+      proposal.kind === "script_prompt" ||
+      proposal.kind === "blockout_sheet" ? (
+        <div className="mt-2 space-y-1 text-[11px] text-zinc-400">
+          <p>
+            {proposal.kind === "asset_sheet"
+              ? `${String(payload?.type ?? "asset")} sheet`
+              : proposal.kind.replace("_", " ")}
+            {payload?.approveAndGenerate === true
+              ? " · will generate image"
+              : ""}
+            {payload?.applyShots !== false && proposal.kind === "script_prompt"
+              ? " · applies shots"
+              : ""}
+            {payload?.applyBlockout !== false &&
+            proposal.kind === "blockout_sheet"
+              ? " · builds 3D blockouts"
+              : ""}
+          </p>
+          {proposal.kind === "script_prompt" &&
+          payload?.structured &&
+          typeof payload.structured === "object" ? (
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm bg-zinc-950 p-2 text-[10px] text-zinc-500">
+              {(() => {
+                const s = payload.structured as {
+                  totalDurationSec?: number;
+                  shots?: Array<{
+                    n: number;
+                    startSec: number;
+                    endSec: number;
+                    shotType: string;
+                    action: string;
+                  }>;
+                  references?: unknown[];
+                };
+                const shots = s.shots ?? [];
+                const head = shots
+                  .slice(0, 6)
+                  .map(
+                    (sh) =>
+                      `Shot ${sh.n} (${sh.startSec}–${sh.endSec}s) — ${sh.shotType}: ${sh.action.slice(0, 80)}`,
+                  )
+                  .join("\n");
+                return `${s.references?.length ?? 0} refs · ${shots.length} shots · ${s.totalDurationSec ?? "?"}s\n${head}${shots.length > 6 ? "\n…" : ""}`;
+              })()}
+            </pre>
+          ) : null}
+        </div>
       ) : null}
 
       {proposal.kind === "rules" ? (

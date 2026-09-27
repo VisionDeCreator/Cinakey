@@ -6,6 +6,16 @@ import {
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCopilotContext } from "@/features/copilot/CopilotContext";
@@ -27,7 +37,9 @@ export function EntitySheetPage() {
   );
   const getWithSheet = useAction(api.entities.getWithSheet);
   const saveSheet = useAction(api.entities.saveSheet);
+  const autofillSheet = useAction(api.entities.autofillSheet);
   const updateEntity = useMutation(api.entities.update);
+  const autofillCost = useQuery(api.entities.estimateAutofillCost);
   const { setContext } = useCopilotContext();
 
   const [sheet, setSheet] = useState<SheetDocument | null>(null);
@@ -40,6 +52,9 @@ export function EntitySheetPage() {
   const [name, setName] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autofillOpen, setAutofillOpen] = useState(false);
+  const [autofilling, setAutofilling] = useState(false);
+  const [autofillError, setAutofillError] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<{
     assetId: string;
     url: string;
@@ -81,8 +96,22 @@ export function EntitySheetPage() {
     if (!entityId) return;
     setSaving(true);
     try {
-      const { look, age, build, wardrobe, personality, voiceNotes, notes, palette, lighting, lensLook, filmGrain, mood, draftPrompt } =
-        next;
+      const {
+        look,
+        age,
+        build,
+        wardrobe,
+        personality,
+        voiceNotes,
+        notes,
+        palette,
+        lighting,
+        lensLook,
+        filmGrain,
+        mood,
+        draftPrompt,
+        artStyleBlock,
+      } = next;
       await saveSheet({
         entityId: entityId as never,
         patch: {
@@ -99,6 +128,7 @@ export function EntitySheetPage() {
           filmGrain,
           mood,
           draftPrompt,
+          artStyleBlock,
         },
       });
       setReloadKey((k) => k + 1);
@@ -126,6 +156,25 @@ export function EntitySheetPage() {
     }
   }
 
+  async function runAutofill() {
+    if (!entityId) return;
+    setAutofilling(true);
+    setAutofillError(null);
+    try {
+      const result = await autofillSheet({ entityId: entityId as never });
+      setSheet(result.sheet);
+      if (result.description !== undefined) {
+        setDescription(result.description);
+      }
+      setAutofillOpen(false);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setAutofillError(err instanceof Error ? err.message : "Auto-fill failed");
+    } finally {
+      setAutofilling(false);
+    }
+  }
+
   if (!projectId || !entityId) return null;
 
   if (entity === undefined || sheet === null) {
@@ -141,6 +190,17 @@ export function EntitySheetPage() {
       <div className="p-6 text-sm text-red-400">Entity not found</div>
     );
   }
+
+  const canAutofill =
+    sheet.entityKind === "character" ||
+    sheet.entityKind === "creature" ||
+    sheet.entityKind === "location" ||
+    sheet.entityKind === "prop";
+  const creditEstimate = autofillCost?.credits ?? 2;
+  const autofillFieldBlurb =
+    sheet.entityKind === "location" || sheet.entityKind === "prop"
+      ? "This drafts the summary and notes from your story and script."
+      : "This drafts look, age, build, wardrobe, personality, and voice notes from your story and script.";
 
   return (
     <div className="space-y-8 p-6">
@@ -178,7 +238,22 @@ export function EntitySheetPage() {
       </div>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-medium text-zinc-200">Description</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium text-zinc-200">Description</h3>
+          {canAutofill ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setAutofillError(null);
+                setAutofillOpen(true);
+              }}
+            >
+              Auto-fill with AI
+            </Button>
+          ) : null}
+        </div>
         <SheetFields
           sheet={sheet}
           description={description}
@@ -252,6 +327,36 @@ export function EntitySheetPage() {
         onChanged={() => setReloadKey((k) => k + 1)}
         onSelectForEdit={(assetId, url) => setEditTarget({ assetId, url })}
       />
+
+      <AlertDialog open={autofillOpen} onOpenChange={setAutofillOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Auto-fill sheet with AI?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {autofillFieldBlurb} It uses about{" "}
+              <span className="text-zinc-200">{creditEstimate} credits</span>{" "}
+              (DeepSeek). Existing field text will be overwritten.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {autofillError ? (
+            <p className="text-sm text-red-400">{autofillError}</p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={autofilling}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={autofilling}
+              onClick={(e) => {
+                e.preventDefault();
+                void runAutofill();
+              }}
+            >
+              {autofilling
+                ? "Filling…"
+                : `Use ${creditEstimate} credits & fill`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

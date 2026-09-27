@@ -2,7 +2,7 @@ import { api } from "@cinakey/backend";
 import type { ProjectTab } from "@cinakey/shared";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
-import { NavLink, Navigate, Outlet, useParams } from "react-router-dom";
+import { NavLink, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { CopilotPanel } from "@/features/copilot/CopilotPanel";
 import {
   CopilotProvider,
@@ -12,6 +12,7 @@ import { StageProgressBar } from "@/features/projects/StageProgress";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: ProjectTab; label: string; path: string }[] = [
+  { id: "copilot", label: "Copilot", path: "copilot" },
   { id: "script", label: "Script", path: "script" },
   { id: "look-dev", label: "Look Dev", path: "look-dev" },
   { id: "blockout", label: "Blockout", path: "blockout" },
@@ -30,6 +31,7 @@ export function ProjectWorkspaceLayout() {
 
 function ProjectWorkspaceInner() {
   const { projectId } = useParams();
+  const location = useLocation();
   const project = useQuery(
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
@@ -55,6 +57,7 @@ function ProjectWorkspaceInner() {
   }
 
   const base = `/projects/${projectId}`;
+  const onCopilotTab = location.pathname.includes("/copilot");
 
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
@@ -106,19 +109,21 @@ function ProjectWorkspaceInner() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto p-6">
+          <div className={cn("min-h-0 flex-1", onCopilotTab ? "flex flex-col overflow-hidden p-0" : "overflow-auto p-6")}>
             <Outlet />
           </div>
         </div>
 
-        <aside className="hidden w-80 shrink-0 border-l border-zinc-800 bg-[var(--color-studio-panel)] lg:flex lg:flex-col">
-          <div className="border-b border-zinc-800 px-4 py-3">
-            <p className="text-sm font-medium text-zinc-200">AI copilot</p>
-          </div>
-          <div className="min-h-0 flex-1">
-            <CopilotPanel projectId={projectId} />
-          </div>
-        </aside>
+        {!onCopilotTab ? (
+          <aside className="hidden w-80 shrink-0 border-l border-zinc-800 bg-[var(--color-studio-panel)] lg:flex lg:flex-col">
+            <div className="border-b border-zinc-800 px-4 py-3">
+              <p className="text-sm font-medium text-zinc-200">AI copilot</p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <CopilotPanel projectId={projectId} />
+            </div>
+          </aside>
+        ) : null}
       </div>
     </div>
   );

@@ -23,11 +23,12 @@ import {
   buildSystemPrompt,
   COPILOT_TOOLS,
   scriptSummaryFromDocument,
+  wantsPipelineProposal,
+  wantsScriptPromptProposal,
   wantsScriptProposal,
   type CopilotMode,
   type CopilotRole,
-} from "./lib/copilotPrompts";
-import { normalizeProposedScript } from "./lib/normalizeScriptProposal";
+} from "./lib/copilotPrompts";import { normalizeProposedScript } from "./lib/normalizeScriptProposal";
 import { parseToolArguments } from "./lib/parseToolArguments";
 import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
 import { loadJson, saveJson } from "./storage";
@@ -207,6 +208,12 @@ export const createProposal = internalMutation({
       v.literal("character_details"),
       v.literal("image_prompt"),
       v.literal("shot_list"),
+      v.literal("story_treatment"),
+      v.literal("asset_list"),
+      v.literal("asset_sheet"),
+      v.literal("style_block"),
+      v.literal("script_prompt"),
+      v.literal("blockout_sheet"),
     ),
     payload: v.optional(v.any()),
     payloadFileId: v.optional(v.id("_storage")),
@@ -373,12 +380,60 @@ export const loadProjectContext = internalQuery({
             )
             .join("\n");
     const creditBalance = await getWorkspaceBalance(ctx, project.workspaceId);
+    const promptTips = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_project_tip", (q) =>
+        q.eq("projectId", args.projectId).eq("isTip", true),
+      )
+      .collect();
+    const sequences = await ctx.db
+      .query("sequences")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const styleEntity = entities.find((e) => e.kind === "style");
+    const assetEntities = entities.filter((e) => e.kind !== "style");
+    const sheetEntityIds = new Set(
+      promptTips
+        .filter(
+          (t) =>
+            t.type === "character" ||
+            t.type === "creature" ||
+            t.type === "environment" ||
+            t.type === "product",
+        )
+        .map((t) => t.entityId)
+        .filter((id): id is Id<"entities"> => id !== undefined),
+    );
+    const entitiesMissingSheets = assetEntities
+      .filter((e) => !sheetEntityIds.has(e._id))
+      .map((e) => ({
+        id: e._id as string,
+        name: e.name,
+        kind: e.kind as "character" | "creature" | "location" | "prop",
+      }));
+    const pipelineSummary =
+      promptTips.length === 0 && sequences.length === 0
+        ? "(no prompt sheets or sequences yet)"
+        : [
+            ...promptTips.map(
+              (t) =>
+                `- ${t.type} v${t.version} [${t.status}]${t.isCustom ? " custom" : ""}${t.entityId ? ` entity=${t.entityId}` : ""}${t.sequenceId ? ` seq=${t.sequenceId}` : ""}`,
+            ),
+            ...sequences.map(
+              (s) =>
+                `- sequence "${s.title}" ${s.durationSec}s shots=${s.shotIds.length}`,
+            ),
+          ].join("\n");
     return {
       project,
       entities,
       tip,
       creditBalance,
       scenesSummary,
+      pipelineSummary,
+      styleSheetFileId: styleEntity?.sheetFileId,
+      hasLogline: Boolean(project.brief?.logline?.trim()),
+      entitiesMissingSheets,
       messages: messages
         .filter((m) => m.role === "user" || m.role === "assistant")
         .sort((a, b) => a.createdAt - b.createdAt)
@@ -453,6 +508,19 @@ export const runTurn = action({
       }
     }
 
+    let artStyleBlock: string | undefined;
+    if (loaded.styleSheetFileId) {
+      try {
+        const styleSheet = (await loadJson(
+          ctx,
+          loaded.styleSheetFileId,
+        )) as { artStyleBlock?: string };
+        artStyleBlock = styleSheet.artStyleBlock;
+      } catch {
+        artStyleBlock = undefined;
+      }
+    }
+
     const system = buildSystemPrompt({
       role: args.role as CopilotRole,
       mode: args.mode as CopilotMode,
@@ -474,7 +542,19 @@ export const runTurn = action({
               )
               .join("\n"),
       scenesSummary: loaded.scenesSummary,
+      pipelineSummary: loaded.pipelineSummary,
+      artStyleBlock,
     });
+
+    const pipelineForce: PipelineForceState = {
+      hasLogline: loaded.hasLogline,
+      hasArtStyle: Boolean(artStyleBlock?.trim()),
+      entitiesMissingSheets: loaded.entitiesMissingSheets,
+      assetEntityCount: loaded.entities.filter(
+        (e: { kind: string }) => e.kind !== "style",
+      ).length,
+      selectionIds: args.selectionIds ?? [],
+    };
 
     const history: ChatMessage[] = [
       { role: "system", content: system },
@@ -511,9 +591,17 @@ export const runTurn = action({
     try {
       const useMock = convexEnv("USE_MOCK_ADAPTERS") === "true";
       let result: Awaited<ReturnType<typeof streamChat>>;
+      const forceKind = pickForcedTool(args.view, content, pipelineForce);
 
       if (useMock || !convexEnv("DEEPSEEK_API_KEY")) {
-        result = await mockStream(ctx, assistantId, scriptDoc, content);
+        result = await mockStream(
+          ctx,
+          assistantId,
+          scriptDoc,
+          content,
+          forceKind,
+          pipelineForce,
+        );
       } else {
         result = await streamChat({
           messages: history,
@@ -526,20 +614,31 @@ export const runTurn = action({
           },
         });
 
-        // DeepSeek often answers in prose without tools. Force a script proposal
-        // when the user clearly wants scenes and none were returned.
-        const needsScript = wantsScriptProposal(
-          content,
-          (scriptDoc?.scenes.length ?? 0) > 0,
-        );
-        const hasScriptTool = result.toolCalls.some(
-          (t) => t.name === "propose_script_edit",
-        );
-        if (needsScript && !hasScriptTool) {
-          const followUp = await forceScriptProposal(history, result.content);
+        // DeepSeek often answers in prose or wrongly calls propose_script_edit —
+        // force the pipeline/screenplay tool for the current stage.
+        result = {
+          ...result,
+          toolCalls: filterToolCallsForForce(result.toolCalls, forceKind),
+        };
+        if (forceKind && !toolSatisfiesForce(result.toolCalls, forceKind)) {
+          const followUp = await forceToolProposal(
+            history,
+            result.content,
+            forceKind,
+            pipelineForce,
+          );
           result = mergeFollowUp(result, followUp);
+          result = {
+            ...result,
+            toolCalls: filterToolCallsForForce(result.toolCalls, forceKind),
+          };
         }
       }
+
+      result = {
+        ...result,
+        toolCalls: filterToolCallsForForce(result.toolCalls, forceKind),
+      };
 
       let proposalIds: Id<"proposals">[] = [];
       let toolFailures: string[] = [];
@@ -559,20 +658,25 @@ export const runTurn = action({
       }
 
       // Tool call present but unusable (truncated / invalid JSON) — retry once.
-      const needsScript = wantsScriptProposal(
-        content,
-        (scriptDoc?.scenes.length ?? 0) > 0,
-      );
       if (
-        needsScript &&
+        forceKind &&
         proposalIds.length === 0 &&
         !useMock &&
         !!convexEnv("DEEPSEEK_API_KEY")
       ) {
-        const followUp = await forceScriptProposal(history, result.content);
+        const followUp = await forceToolProposal(
+          history,
+          result.content,
+          forceKind,
+          pipelineForce,
+        );
         result = mergeFollowUp(result, followUp);
+        result = {
+          ...result,
+          toolCalls: filterToolCallsForForce(result.toolCalls, forceKind),
+        };
         toolFailures = [];
-        for (const tc of followUp.toolCalls) {
+        for (const tc of result.toolCalls) {
           const outcome = await handleToolCall(ctx, {
             projectId: args.projectId,
             messageId: assistantId,
@@ -588,9 +692,11 @@ export const runTurn = action({
         }
       }
 
-      // Last resort for draft requests: build a local proposal from the user text
-      // so the UI always has an Accept card when we promised one.
-      if (needsScript && proposalIds.length === 0) {
+      // Last resort: local screenplay fallback ONLY for explicit Script-room asks.
+      if (
+        forceKind === "propose_script_edit" &&
+        proposalIds.length === 0
+      ) {
         const fallbackDoc = mockScriptFromBrief(content, scriptDoc);
         const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
           projectId: args.projectId,
@@ -678,18 +784,156 @@ export const runTurn = action({
   },
 });
 
+/** Early pipeline tools that count as progress toward a Copilot-tab ask. */
+const PIPELINE_PROGRESS_TOOLS = new Set([
+  "propose_story_treatment",
+  "propose_style_block",
+  "propose_asset_list",
+  "propose_asset_sheet",
+  "revise_asset_sheet",
+  "propose_script_prompt",
+  "propose_blockout_sheet",
+]);
+
+type ForcedToolName =
+  | "propose_script_edit"
+  | "propose_story_treatment"
+  | "propose_style_block"
+  | "propose_asset_list"
+  | "propose_asset_sheet"
+  | "propose_script_prompt";
+
+type PipelineForceState = {
+  hasLogline: boolean;
+  hasArtStyle: boolean;
+  entitiesMissingSheets: Array<{
+    id: string;
+    name: string;
+    kind: "character" | "creature" | "location" | "prop";
+  }>;
+  assetEntityCount: number;
+  selectionIds: string[];
+};
+
+function pickForcedTool(
+  view: string,
+  userContent: string,
+  pipeline: PipelineForceState,
+): ForcedToolName | null {
+  // Prefer Seedance / episode breakdown over screenplay when both could match.
+  if (wantsScriptPromptProposal(userContent)) {
+    return "propose_script_prompt";
+  }
+  // On Copilot tab, never force screenplay — that's Script-room only.
+  if (view !== "copilot" && wantsScriptProposal(userContent)) {
+    return "propose_script_edit";
+  }
+
+  const onPipelineSurface =
+    view === "copilot" || view === "look-dev" || wantsPipelineProposal(userContent);
+
+  if (onPipelineSurface) {
+    // Look Dev with a selected entity that still needs a sheet → fill it.
+    if (view === "look-dev" && pipeline.selectionIds.length > 0) {
+      const selectedMissing = pipeline.entitiesMissingSheets.filter((e) =>
+        pipeline.selectionIds.includes(e.id),
+      );
+      if (selectedMissing.length > 0) {
+        return "propose_asset_sheet";
+      }
+    }
+
+    if (!pipeline.hasLogline) {
+      return "propose_story_treatment";
+    }
+    if (!pipeline.hasArtStyle) {
+      return "propose_style_block";
+    }
+    if (pipeline.assetEntityCount === 0) {
+      return "propose_asset_list";
+    }
+    if (pipeline.entitiesMissingSheets.length > 0) {
+      return "propose_asset_sheet";
+    }
+    // Story + assets done: only force script prompt when asked.
+    if (view === "copilot" && wantsPipelineProposal(userContent)) {
+      return "propose_script_prompt";
+    }
+    return null;
+  }
+
+  if (wantsScriptProposal(userContent)) {
+    return "propose_script_edit";
+  }
+  return null;
+}
+
+/**
+ * Whether the model's tool calls already satisfy the forced pipeline/script tool.
+ * propose_script_edit must NOT count when we wanted a pipeline tool — that was
+ * producing truncated Fountain screenplays instead of Seedance script prompts.
+ */
+function toolSatisfiesForce(
+  toolCalls: Array<{ name: string }>,
+  forceKind: ForcedToolName,
+): boolean {
+  if (forceKind === "propose_script_edit") {
+    return toolCalls.some((t) => t.name === "propose_script_edit");
+  }
+  if (forceKind === "propose_script_prompt") {
+    return toolCalls.some((t) => t.name === "propose_script_prompt");
+  }
+  if (forceKind === "propose_asset_sheet") {
+    return toolCalls.some(
+      (t) =>
+        t.name === "propose_asset_sheet" || t.name === "revise_asset_sheet",
+    );
+  }
+  if (forceKind === "propose_asset_list") {
+    return toolCalls.some((t) => t.name === "propose_asset_list");
+  }
+  if (forceKind === "propose_style_block") {
+    return toolCalls.some((t) => t.name === "propose_style_block");
+  }
+  if (forceKind === "propose_story_treatment") {
+    return toolCalls.some((t) => t.name === "propose_story_treatment");
+  }
+  return toolCalls.some((t) => PIPELINE_PROGRESS_TOOLS.has(t.name));
+}
+
+/** Drop screenplay tool calls when the force target is a pipeline tool. */
+function filterToolCallsForForce(
+  toolCalls: Array<{ id: string; name: string; arguments: string }>,
+  forceKind: ForcedToolName | null,
+): Array<{ id: string; name: string; arguments: string }> {
+  if (forceKind && forceKind !== "propose_script_edit") {
+    return toolCalls.filter((t) => t.name !== "propose_script_edit");
+  }
+  return toolCalls;
+}
+
 async function mockStream(
   ctx: ActionCtx,
   assistantId: Id<"copilotMessages">,
   scriptDoc: ScriptDocument | null,
   userContent: string,
+  forceKind: ForcedToolName | null,
+  pipeline: PipelineForceState,
 ): Promise<Awaited<ReturnType<typeof streamChat>>> {
-  const wantsScript =
-    wantsScriptProposal(userContent, (scriptDoc?.scenes.length ?? 0) > 0) ||
-    !scriptDoc;
-  const text = wantsScript
-    ? "Here's a draft script proposal based on your brief. Review the card and Accept to apply it."
-    : "Mock DeepSeek reply: the scene works. I can propose a rewrite if you want.";
+  const text =
+    forceKind === "propose_script_prompt"
+      ? "Here's a structured Seedance script-prompt proposal. Accept to create the sequence and shots."
+      : forceKind === "propose_asset_sheet"
+        ? "Here's a structured asset sheet proposal for Look Dev. Accept to fill the character fields and prompt sheet."
+        : forceKind === "propose_asset_list"
+          ? "Here's an asset list proposal — Accept to create Look Dev entities, then we'll draft each sheet."
+          : forceKind === "propose_style_block"
+            ? "Here's an art-style block proposal to lock the look across every sheet."
+            : forceKind === "propose_story_treatment"
+              ? "Here's a story treatment proposal to start the pipeline. Accept, then we'll draft asset sheets and the Seedance script prompt."
+              : forceKind === "propose_script_edit"
+                ? "Here's a draft screenplay proposal. Review the card and Accept to apply it."
+                : "Mock DeepSeek reply: the scene works. I can propose a rewrite if you want.";
 
   for (const word of text.split(/(\s+)/)) {
     await ctx.runMutation(internal.copilot.appendAssistantDelta, {
@@ -699,7 +943,92 @@ async function mockStream(
   }
 
   const toolCalls: Array<{ id: string; name: string; arguments: string }> = [];
-  if (wantsScript) {
+  if (forceKind === "propose_script_prompt") {
+    toolCalls.push({
+      id: "mock_tool_1",
+      name: "propose_script_prompt",
+      arguments: JSON.stringify({
+        summary: "Seedance script prompt from brief (mock)",
+        sequenceTitle: "Sequence 1",
+        applyShots: true,
+        structured: mockScriptPromptFromBrief(userContent),
+        referenceMap: [],
+      }),
+    });
+  } else if (forceKind === "propose_asset_sheet") {
+    const targets =
+      pipeline.selectionIds.length > 0
+        ? pipeline.entitiesMissingSheets.filter((e) =>
+            pipeline.selectionIds.includes(e.id),
+          )
+        : pipeline.entitiesMissingSheets;
+    const list =
+      targets.length > 0
+        ? targets.slice(0, 4)
+        : [
+            {
+              id: "mock",
+              name: "Boy",
+              kind: "character" as const,
+            },
+          ];
+    for (const [i, ent] of list.entries()) {
+      const type =
+        ent.kind === "creature"
+          ? "creature"
+          : ent.kind === "location"
+            ? "environment"
+            : ent.kind === "prop"
+              ? "product"
+              : "character";
+      toolCalls.push({
+        id: `mock_asset_${i}`,
+        name: "propose_asset_sheet",
+        arguments: JSON.stringify({
+          summary: `${ent.name} asset sheet (mock)`,
+          type,
+          entityId: ent.id === "mock" ? undefined : ent.id,
+          entityName: ent.name,
+          structured: mockAssetSheetStructured(type, ent.name, userContent),
+        }),
+      });
+    }
+  } else if (forceKind === "propose_asset_list") {
+    toolCalls.push({
+      id: "mock_tool_1",
+      name: "propose_asset_list",
+      arguments: JSON.stringify({
+        summary: "Core cast and locations",
+        entities: [
+          {
+            kind: "character",
+            name: "Boy",
+            description: "Young savanna hunter",
+          },
+          {
+            kind: "creature",
+            name: "Cheetah",
+            description: "Giant riding cheetah",
+          },
+          {
+            kind: "location",
+            name: "Savanna",
+            description: "Golden hour grassland",
+          },
+        ],
+      }),
+    });
+  } else if (forceKind === "propose_style_block") {
+    toolCalls.push({
+      id: "mock_tool_1",
+      name: "propose_style_block",
+      arguments: JSON.stringify({
+        summary: "Project art style",
+        artStyleBlock:
+          "soft painted anime illustration with a warm watercolor-and-gouache texture, gentle faceted shading, soft but clean painterly edges, fine thin warm-dark outlines, subtle paper-like grain.",
+      }),
+    });
+  } else if (forceKind === "propose_script_edit") {
     const doc = mockScriptFromBrief(userContent, scriptDoc);
     toolCalls.push({
       id: "mock_tool_1",
@@ -709,12 +1038,158 @@ async function mockStream(
         document: doc,
       }),
     });
+  } else if (forceKind === "propose_story_treatment") {
+    const doc = mockScriptFromBrief(userContent, scriptDoc);
+    toolCalls.push({
+      id: "mock_tool_1",
+      name: "propose_story_treatment",
+      arguments: JSON.stringify({
+        summary: "Story treatment from your brief",
+        logline: userContent.slice(0, 200),
+        document: doc,
+      }),
+    });
   }
 
   return {
     content: text,
     toolCalls,
     usage: { total_tokens: 800 },
+  };
+}
+
+function mockAssetSheetStructured(
+  type: "character" | "creature" | "environment" | "product",
+  name: string,
+  brief: string,
+) {
+  const snippet = brief.slice(0, 120) || name;
+  if (type === "creature") {
+    return {
+      subjectLine: `a ${name}`,
+      views: ["full-body side view", "full-body front view", "head close-up"],
+      body: `Detailed creature design for ${name}. ${snippet}`,
+      colorPalette: "golden tan, cream, warm leather accents",
+    };
+  }
+  if (type === "environment") {
+    return {
+      place: name,
+      timeOfDay: "golden hour",
+      cameraAngle: "low angle just above the grass",
+      theLand: `Environment for ${name}. ${snippet}`,
+      skyAndLight: "Warm low sun, long shadows, apricot-to-violet sky.",
+      colorPalette: "golden grass, red earth, apricot sky",
+    };
+  }
+  if (type === "product") {
+    return {
+      objectName: name,
+      views: "three-quarter hero view and side profile",
+      theObject: {
+        heading: "THE OBJECT",
+        body: `Product design for ${name}. ${snippet}`,
+      },
+      feel: "tactile, story-worn, readable silhouette",
+      colorPalette: "wood, brass, cream accents",
+    };
+  }
+  return {
+    subjectLine: `an original character, ${name}`,
+    views: [
+      "full-body front view",
+      "full-body side view",
+      "three-quarter head close-up",
+    ],
+    faceAndHair: `Face and build for ${name}. ${snippet}`,
+    outfit: `Wardrobe for ${name}, story-worn and silhouette-clear.`,
+    signatureDetail: {
+      heading: "SIGNATURE",
+      body: `A memorable detail unique to ${name}.`,
+    },
+    colorPalette: "warm earth tones with one accent color",
+  };
+}
+
+function mockScriptPromptFromBrief(userContent: string) {
+  const brief = userContent.slice(0, 160) || "the scene";
+  return {
+    references: [
+      {
+        imageN: 1,
+        entityId: "lead",
+        entityLabel: "the lead",
+        useFor: "Use it for exact face, costume and proportions.",
+      },
+      {
+        imageN: 2,
+        entityId: "location",
+        entityLabel: "the location",
+        useFor: "Use it for exact environment, light and atmosphere.",
+      },
+    ],
+    artStyleBlock:
+      "soft painted anime illustration with warm watercolor texture and clean painterly edges.",
+    imageQuality:
+      "Every frame sharp and clean. No noise, flicker, warping or ghosting.",
+    castBlocks: [
+      {
+        name: "lead",
+        imageN: 1,
+        suffix: ", identical in every shot",
+        description: `Character matching the brief: ${brief}`,
+      },
+    ],
+    location: {
+      imageN: 2,
+      description: `Environment from the brief: ${brief}. No readable text.`,
+    },
+    totalDurationSec: 12,
+    aspectRatio: "16:9",
+    multiShot: true,
+    shots: [
+      {
+        n: 1,
+        startSec: 0,
+        endSec: 3,
+        shotType: "Extreme wide shot",
+        cameraMove: "slow drift forward",
+        action: `Establish the location; ${brief}`,
+      },
+      {
+        n: 2,
+        startSec: 3,
+        endSec: 6,
+        shotType: "Medium shot",
+        action: "The lead enters frame and settles, matching @image_1 exactly.",
+      },
+      {
+        n: 3,
+        startSec: 6,
+        endSec: 9,
+        shotType: "Close-up",
+        action: "Eyes lock on the target; scarf/hair moves in the wind.",
+      },
+      {
+        n: 4,
+        startSec: 9,
+        endSec: 12,
+        shotType: "Wide tracking shot",
+        cameraMove: "track alongside",
+        action: "Action beat from the brief resolves; last frame matches style.",
+      },
+    ],
+    consistency:
+      "Keep @image_1 and @image_2 locked. No costume or face drift across shots.",
+    motionAndPhysics:
+      "Natural weight and momentum; no melting limbs or smeared faces.",
+    lighting: "Match the locked location light direction and color.",
+    technical: "16:9, multi-shot, contiguous timings from 0.",
+    music: "Low pulse under wind; swell on the final beat.",
+    audioCues: [
+      { atSec: 0, description: "Ambient wind" },
+      { atSec: 9, description: "Action hit" },
+    ],
   };
 }
 
@@ -782,10 +1257,35 @@ function mockScriptFromBrief(
   return withRuntimeEstimates(doc);
 }
 
-async function forceScriptProposal(
+async function forceToolProposal(
   history: ChatMessage[],
   priorAssistantContent: string,
+  toolName: ForcedToolName,
+  pipeline: PipelineForceState,
 ): Promise<Awaited<ReturnType<typeof completeChat>>> {
+  const missing = pipeline.entitiesMissingSheets;
+  const selectedMissing =
+    pipeline.selectionIds.length > 0
+      ? missing.filter((e) => pipeline.selectionIds.includes(e.id))
+      : missing;
+  const sheetTargets =
+    selectedMissing.length > 0 ? selectedMissing : missing;
+
+  const nudge =
+    toolName === "propose_script_prompt"
+      ? "Call propose_script_prompt now with complete ScriptPromptData: references (one per locked asset), artStyleBlock, imageQuality, castBlocks derived from asset details, location, totalDurationSec, aspectRatio, shots[] covering the full sequence with contiguous startSec/endSec from 0, consistency, motionAndPhysics, lighting, technical, music, audioCues[]. Do not use propose_script_edit. Do not wrap arguments in markdown."
+      : toolName === "propose_asset_sheet"
+        ? `Call propose_asset_sheet now for EACH of these entities that still lack a sheet (one tool call per entity): ${sheetTargets
+            .map((e) => `${e.name} (${e.kind}, entityId=${e.id})`)
+            .join("; ") || "every named cast/location/prop from the story"}. Use type character|creature|environment|product matching the entity kind (location→environment, prop→product). Fill complete structured fields (subjectLine, views, faceAndHair/body, outfit/gear, signatureDetail, colorPalette, etc.). Set entityId when known. Do NOT call propose_script_edit. Do not wrap arguments in markdown.`
+        : toolName === "propose_asset_list"
+          ? "Call propose_asset_list now with every character, creature, location, and prop needed for the film (name + short description). Do NOT call propose_script_edit. Do not wrap arguments in markdown."
+          : toolName === "propose_style_block"
+            ? "Call propose_style_block now with a complete project artStyleBlock paragraph (medium, shading, edges, outlines, grain, palette locks, and what to avoid). Do NOT call propose_script_edit. Do not wrap arguments in markdown."
+            : toolName === "propose_story_treatment"
+              ? "Call propose_story_treatment now with a logline and a cinakey.script/1.0 treatment document (scenes as story beats). Then in the same turn also call propose_style_block and propose_asset_list when you can. Do NOT call propose_script_edit — that is for Script-room screenplays, not the video pipeline. Do not wrap arguments in markdown."
+              : "Call propose_script_edit now with a complete cinakey.script/1.0 JSON document. Keep the tool arguments compact but include at least 2–4 scenes with headings, beats, action, and dialogue lines. schema must be \"cinakey.script/1.0\". entityLinks may be []. Do not wrap the arguments in markdown.";
+
   return await completeChat({
     messages: [
       ...history,
@@ -795,14 +1295,13 @@ async function forceScriptProposal(
       },
       {
         role: "user",
-        content:
-          "Call propose_script_edit now with a complete cinakey.script/1.0 JSON document. Keep the tool arguments compact but include at least 2–4 scenes with headings, beats, action, and dialogue lines. schema must be \"cinakey.script/1.0\". entityLinks may be []. Do not wrap the arguments in markdown.",
+        content: nudge,
       },
     ],
     tools: COPILOT_TOOLS,
     toolChoice: {
       type: "function",
-      function: { name: "propose_script_edit" },
+      function: { name: toolName },
     },
   });
 }
@@ -966,6 +1465,180 @@ async function handleToolCall(
         shots,
       },
       diffSummary: `${summary} (${shots.length} shots)`,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_story_treatment") {
+    const summary = String(parsed.summary ?? "Story treatment");
+    const document = parsed.document
+      ? normalizeProposedScript(parsed.document)
+      : null;
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "story_treatment",
+      payload: {
+        summary,
+        logline: String(parsed.logline ?? ""),
+        audience: parsed.audience ? String(parsed.audience) : undefined,
+        tone: parsed.tone ? String(parsed.tone) : undefined,
+        document: document ?? undefined,
+      },
+      diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_style_block") {
+    const summary = String(parsed.summary ?? "Art style");
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "style_block",
+      payload: {
+        summary,
+        artStyleBlock: String(parsed.artStyleBlock ?? ""),
+      },
+      diffSummary: summary,
+      estimatedCostCredits: 0,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_asset_list") {
+    const summary = String(parsed.summary ?? "Asset list");
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "asset_list",
+      payload: {
+        summary,
+        entities: parsed.entities ?? [],
+      },
+      diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (
+    args.name === "propose_asset_sheet" ||
+    args.name === "revise_asset_sheet"
+  ) {
+    const summary = String(parsed.summary ?? "Asset sheet");
+    const type = String(parsed.type ?? "character");
+    const { validateStructured } = await import("./lib/promptRender");
+    const validated = validateStructured(
+      type as "character" | "creature" | "environment" | "product",
+      parsed.structured,
+    );
+    if (!validated.ok) {
+      return { proposalId: null, error: validated.error };
+    }
+    const gptEstimate = 10;
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "asset_sheet",
+      payload: {
+        summary,
+        type,
+        entityId: parsed.entityId ? String(parsed.entityId) : undefined,
+        entityName: parsed.entityName ? String(parsed.entityName) : undefined,
+        structured: validated.data,
+        approveAndGenerate: parsed.approveAndGenerate === true,
+        replaceTipId: parsed.promptSheetId
+          ? String(parsed.promptSheetId)
+          : undefined,
+      },
+      diffSummary: summary,
+      estimatedCostCredits:
+        parsed.approveAndGenerate === true ? gptEstimate : 0,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_script_prompt") {
+    const summary = String(parsed.summary ?? "Script prompt");
+    const { validateStructured } = await import("./lib/promptRender");
+    const validated = validateStructured("script", parsed.structured);
+    if (!validated.ok) {
+      return { proposalId: null, error: validated.error };
+    }
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "script_prompt",
+      payload: {
+        summary,
+        structured: validated.data,
+        sequenceTitle: parsed.sequenceTitle
+          ? String(parsed.sequenceTitle)
+          : undefined,
+        applyShots: parsed.applyShots !== false,
+        referenceMap: Array.isArray(parsed.referenceMap)
+          ? parsed.referenceMap
+          : [],
+        sourceAssetSheetIds: Array.isArray(parsed.sourceAssetSheetIds)
+          ? parsed.sourceAssetSheetIds
+          : undefined,
+      },
+      diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_blockout_sheet") {
+    const summary = String(parsed.summary ?? "Blockout sheet");
+    const { validateStructured } = await import("./lib/promptRender");
+    const validated = validateStructured("blockout", parsed.structured);
+    if (!validated.ok) {
+      return { proposalId: null, error: validated.error };
+    }
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "blockout_sheet",
+      payload: {
+        summary,
+        structured: validated.data,
+        sequenceId: parsed.sequenceId ? String(parsed.sequenceId) : undefined,
+        sourceScriptPromptId: parsed.sourceScriptPromptId
+          ? String(parsed.sourceScriptPromptId)
+          : undefined,
+        applyBlockout: parsed.applyBlockout !== false,
+      },
+      diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "apply_blockout_sheet") {
+    const summary = String(parsed.summary ?? "Apply blockout");
+    const promptSheetId = String(parsed.promptSheetId ?? "");
+    if (!promptSheetId) {
+      return { proposalId: null, error: "promptSheetId required" };
+    }
+    const sheet = await ctx.runQuery(internal.promptSheets.getInternal, {
+      promptSheetId: promptSheetId as Id<"promptSheets">,
+    });
+    if (sheet === null) {
+      return { proposalId: null, error: "Blockout sheet not found" };
+    }
+    const structured = await loadJson(ctx, sheet.structuredFileId);
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "blockout_sheet",
+      payload: {
+        summary,
+        structured,
+        sequenceId: sheet.sequenceId,
+        sourceScriptPromptId: sheet.sourceScriptPromptId,
+        applyBlockout: true,
+        replaceTipId: sheet._id,
+      },
+      diffSummary: summary,
     });
     return { proposalId };
   }

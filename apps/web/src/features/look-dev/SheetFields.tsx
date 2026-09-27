@@ -57,7 +57,7 @@ export function SheetFields({
   onFieldChange,
   onBlurSave,
 }: Props) {
-  if (sheet.entityKind === "character") {
+  if (sheet.entityKind === "character" || sheet.entityKind === "creature") {
     return (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
@@ -125,6 +125,16 @@ export function SheetFields({
           Style text is injected into every generation prompt in this project.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field
+              id="artStyleBlock"
+              label="ART STYLE (project)"
+              value={sheet.artStyleBlock ?? ""}
+              onChange={(v) => onFieldChange({ artStyleBlock: v })}
+              onBlur={onBlurSave}
+              multiline
+            />
+          </div>
           <Field
             id="palette"
             label="Palette"

@@ -110,6 +110,7 @@ export function BlockoutEditorPage() {
   );
   const getBlockout = useAction(api.blockouts.get);
   const saveBlockout = useAction(api.blockouts.save);
+  const writeBack = useAction(api.sequences.writeBackBlockoutFromShot);
   const { uploadFiles } = useAssetUpload(projectId);
 
   const [state, setState] = useState<EditorShotState | null>(null);
@@ -343,7 +344,13 @@ export function BlockoutEditorPage() {
   }
 
   async function persist(next: EditorShotState, message: string) {
-    await saveBlockout({ shotId: shot!._id, document: currentDocument(next) });
+    const document = currentDocument(next);
+    await saveBlockout({ shotId: shot!._id, document });
+    try {
+      await writeBack({ shotId: shot!._id, document });
+    } catch {
+      // Non-fatal: sheet may not exist
+    }
     setDirty(false);
     setStatus(message);
   }

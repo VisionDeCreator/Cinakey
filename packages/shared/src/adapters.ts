@@ -46,6 +46,10 @@ export type ModelCapabilities = {
   operations: ModelOperation[];
   inputs: ModelInput[];
   durations?: number[];
+  /** Max seconds per generation run (sequence splitting). */
+  maxDurationSec?: number;
+  /** Max reference images per run (sequence splitting). */
+  maxReferenceImages?: number;
   resolutions?: string[];
   aspectRatios?: string[];
   features: ModelFeature[];

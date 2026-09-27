@@ -332,6 +332,8 @@ export const update = mutation({
     lensMm: v.optional(v.union(v.number(), v.null())),
     cameraMove: v.optional(v.union(v.string(), v.null())),
     durationSec: v.optional(v.number()),
+    startSec: v.optional(v.number()),
+    endSec: v.optional(v.number()),
     characterIds: v.optional(v.array(v.id("entities"))),
     locationId: v.optional(v.union(v.id("entities"), v.null())),
     dialogueLineId: v.optional(v.union(v.string(), v.null())),
@@ -358,6 +360,8 @@ export const update = mutation({
     if (args.durationSec !== undefined) {
       patch.durationSec = Math.max(0.5, args.durationSec);
     }
+    if (args.startSec !== undefined) patch.startSec = args.startSec;
+    if (args.endSec !== undefined) patch.endSec = args.endSec;
     if (args.characterIds !== undefined) patch.characterIds = args.characterIds;
     if (args.locationId !== undefined) {
       patch.locationId =
@@ -388,6 +392,19 @@ export const update = mutation({
     }
 
     await ctx.db.patch(args.shotId, patch);
+
+    const affectsScript =
+      args.shotType !== undefined ||
+      args.cameraMove !== undefined ||
+      args.durationSec !== undefined ||
+      args.startSec !== undefined ||
+      args.endSec !== undefined ||
+      args.notes !== undefined;
+    if (affectsScript && shot.sequenceId) {
+      await ctx.scheduler.runAfter(0, internal.sequences.syncScriptShotsJob, {
+        sequenceId: shot.sequenceId,
+      });
+    }
   },
 });
 

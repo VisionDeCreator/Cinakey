@@ -9,6 +9,7 @@ import {
 
 export type CopilotView =
   | "overview"
+  | "copilot"
   | "script"
   | "look-dev"
   | "blockout"
@@ -42,7 +43,7 @@ type CopilotContextValue = {
 const CopilotContext = createContext<CopilotContextValue | null>(null);
 
 export function roleFromView(view: CopilotView): CopilotRole {
-  if (view === "script") return "screenwriter";
+  if (view === "script" || view === "copilot") return "screenwriter";
   if (view === "look-dev") return "character_designer";
   return "director";
 }

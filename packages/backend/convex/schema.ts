@@ -87,11 +87,16 @@ const schema = defineSchema(
   shots: defineTable({
     projectId: v.id("projects"),
     sceneId: v.id("scenes"),
+    /** Seedance generation unit (optional until a script prompt is accepted). */
+    sequenceId: v.optional(v.id("sequences")),
     order: v.number(),
     shotType: v.string(),
     lensMm: v.optional(v.number()),
     cameraMove: v.optional(v.string()),
     durationSec: v.number(),
+    /** Contiguous timing within the sequence (seconds from sequence start). */
+    startSec: v.optional(v.number()),
+    endSec: v.optional(v.number()),
     characterIds: v.array(v.id("entities")),
     locationId: v.optional(v.id("entities")),
     /** Stable dialogue line uuid from cinakey.script/1.0. */
@@ -115,12 +120,82 @@ const schema = defineSchema(
   })
     .index("by_project", ["projectId"])
     .index("by_scene", ["sceneId"])
-    .index("by_scene_order", ["sceneId", "order"]),
+    .index("by_scene_order", ["sceneId", "order"])
+    .index("by_sequence", ["sequenceId"]),
+
+  /** Seedance generation unit: consecutive shots ≤ maxDuration / max refs. */
+  sequences: defineTable({
+    projectId: v.id("projects"),
+    order: v.number(),
+    title: v.string(),
+    durationSec: v.number(),
+    scriptPromptId: v.optional(v.id("promptSheets")),
+    shotIds: v.array(v.id("shots")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_order", ["projectId", "order"]),
+
+  /**
+   * Structured prompt sheets (asset / script / blockout). Large structured
+   * JSON lives in storage; tip row points at current version via parent chain.
+   */
+  promptSheets: defineTable({
+    projectId: v.id("projects"),
+    type: v.union(
+      v.literal("character"),
+      v.literal("creature"),
+      v.literal("environment"),
+      v.literal("product"),
+      v.literal("script"),
+      v.literal("blockout"),
+    ),
+    entityId: v.optional(v.id("entities")),
+    sequenceId: v.optional(v.id("sequences")),
+    structuredFileId: v.id("_storage"),
+    /** Inline when small; otherwise use renderedFileId. */
+    renderedText: v.optional(v.string()),
+    renderedFileId: v.optional(v.id("_storage")),
+    templateVersion: v.string(),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("approved"),
+      v.literal("generating"),
+      v.literal("done"),
+      v.literal("out_of_date"),
+    ),
+    isCustom: v.boolean(),
+    parentId: v.optional(v.id("promptSheets")),
+    version: v.number(),
+    /** Script: @image_N → entity mapping. */
+    referenceMap: v.optional(
+      v.array(
+        v.object({
+          imageN: v.number(),
+          entityId: v.id("entities"),
+        }),
+      ),
+    ),
+    sourceAssetSheetIds: v.optional(v.array(v.id("promptSheets"))),
+    sourceScriptPromptId: v.optional(v.id("promptSheets")),
+    /** Tip pointer: only the current version row is listed in pipeline. */
+    isTip: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_type", ["projectId", "type"])
+    .index("by_entity", ["entityId"])
+    .index("by_sequence", ["sequenceId"])
+    .index("by_parent", ["parentId"])
+    .index("by_project_tip", ["projectId", "isTip"]),
 
   entities: defineTable({
     projectId: v.id("projects"),
     kind: v.union(
       v.literal("character"),
+      v.literal("creature"),
       v.literal("location"),
       v.literal("prop"),
       v.literal("style"),
@@ -183,6 +258,7 @@ const schema = defineSchema(
     projectId: v.id("projects"),
     shotId: v.optional(v.id("shots")),
     entityId: v.optional(v.id("entities")),
+    promptSheetId: v.optional(v.id("promptSheets")),
     model: v.string(),
     modelVersion: v.string(),
     /** Adapter operation, e.g. text-to-image, image-to-video. */
@@ -213,7 +289,8 @@ const schema = defineSchema(
     .index("by_status", ["status"])
     .index("by_provider_job", ["providerJobId"])
     .index("by_entity", ["entityId"])
-    .index("by_shot", ["shotId"]),
+    .index("by_shot", ["shotId"])
+    .index("by_prompt_sheet", ["promptSheetId"]),
 
   takes: defineTable({
     projectId: v.id("projects"),
@@ -326,6 +403,12 @@ const schema = defineSchema(
       v.literal("character_details"),
       v.literal("image_prompt"),
       v.literal("shot_list"),
+      v.literal("story_treatment"),
+      v.literal("asset_list"),
+      v.literal("asset_sheet"),
+      v.literal("style_block"),
+      v.literal("script_prompt"),
+      v.literal("blockout_sheet"),
     ),
     status: v.union(
       v.literal("pending"),

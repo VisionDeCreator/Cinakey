@@ -19,6 +19,7 @@ import { EntitySheetPage } from "@/features/look-dev/EntitySheetPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
 import { ScriptRoomPage } from "@/features/script/ScriptRoomPage";
+import { CopilotPage } from "@/features/copilot/CopilotPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 function AuthRedirect({ children }: { children: ReactNode }) {
@@ -67,6 +68,7 @@ export function AppRouter() {
             element={<ProjectWorkspaceLayout />}
           >
             <Route index element={<ProjectOverviewPage />} />
+            <Route path="copilot" element={<CopilotPage />} />
             <Route path="script" element={<ScriptRoomPage />} />
             <Route path="look-dev" element={<LookDevPage />} />
             <Route

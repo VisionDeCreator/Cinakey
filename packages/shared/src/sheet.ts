@@ -2,7 +2,12 @@
 
 export const SHEET_SCHEMA_ID = "cinakey.sheet/1.0" as const;
 
-export type EntityKind = "character" | "location" | "prop" | "style";
+export type EntityKind =
+  | "character"
+  | "creature"
+  | "location"
+  | "prop"
+  | "style";
 
 export type IdentitySlotKey =
   | "front"
@@ -69,6 +74,13 @@ export type SheetDocument = {
   filmGrain?: string;
   mood?: string;
   moodReferenceAssetIds?: string[];
+  /** Project ART STYLE paragraph injected into every prompt template. */
+  artStyleBlock?: string;
+  /**
+   * Locked composite reference sheet image (character/creature pipeline).
+   * Included in lockedReferenceAssetIds.
+   */
+  referenceSheetAssetId?: string;
   // Generation draft (copilot / UI)
   draftPrompt?: string;
 };
@@ -117,6 +129,9 @@ export function lockedIdsFromSheet(sheet: SheetDocument): string[] {
   for (const id of sheet.moodReferenceAssetIds ?? []) {
     if (id) ids.add(id);
   }
+  if (sheet.referenceSheetAssetId) {
+    ids.add(sheet.referenceSheetAssetId);
+  }
   return [...ids];
 }
 
@@ -161,6 +176,7 @@ function joinParts(parts: Array<string | undefined | null>): string {
 export function styleSheetToPromptText(sheet: SheetDocument | null | undefined): string {
   if (!sheet || sheet.entityKind !== "style") return "";
   return joinParts([
+    sheet.artStyleBlock ? `ART STYLE: ${sheet.artStyleBlock}` : null,
     sheet.palette ? `Palette: ${sheet.palette}` : null,
     sheet.lighting ? `Lighting: ${sheet.lighting}` : null,
     sheet.lensLook ? `Lens: ${sheet.lensLook}` : null,
@@ -180,9 +196,11 @@ export function entitySheetToPromptText(
       opts?.description,
     ]);
   }
-  if (sheet.entityKind === "character") {
+  if (sheet.entityKind === "character" || sheet.entityKind === "creature") {
     return joinParts([
-      opts?.name ? `Character: ${opts.name}` : null,
+      opts?.name
+        ? `${sheet.entityKind === "creature" ? "Creature" : "Character"}: ${opts.name}`
+        : null,
       opts?.description,
       sheet.look ? `Look: ${sheet.look}` : null,
       sheet.age ? `Age: ${sheet.age}` : null,
@@ -319,7 +337,7 @@ export function assembleShotKeyframePrompt(
 /** Short summary of sheet fields for copilot context. */
 export function sheetSummary(sheet: SheetDocument | null | undefined): string {
   if (!sheet) return "(no sheet)";
-  if (sheet.entityKind === "character") {
+  if (sheet.entityKind === "character" || sheet.entityKind === "creature") {
     return joinParts([
       sheet.look,
       sheet.age,
@@ -327,10 +345,14 @@ export function sheetSummary(sheet: SheetDocument | null | undefined): string {
       sheet.wardrobe,
       sheet.personality,
       sheet.voiceNotes,
-    ]) || "(empty character sheet)";
+    ]) || `(empty ${sheet.entityKind} sheet)`;
   }
   if (sheet.entityKind === "style") {
-    return styleSheetToPromptText(sheet) || "(empty style sheet)";
+    return (
+      sheet.artStyleBlock?.trim() ||
+      styleSheetToPromptText(sheet) ||
+      "(empty style sheet)"
+    );
   }
   return sheet.notes?.trim() || sheet.draftPrompt?.trim() || "(empty sheet)";
 }

@@ -126,6 +126,7 @@ export const createQueuedJob = internalMutation({
     workspaceId: v.id("workspaces"),
     shotId: v.optional(v.id("shots")),
     entityId: v.optional(v.id("entities")),
+    promptSheetId: v.optional(v.id("promptSheets")),
     model: v.string(),
     modelVersion: v.string(),
     kind: v.string(),
@@ -142,6 +143,7 @@ export const createQueuedJob = internalMutation({
       projectId: args.projectId,
       shotId: args.shotId,
       entityId: args.entityId,
+      promptSheetId: args.promptSheetId,
       model: args.model,
       modelVersion: args.modelVersion,
       kind: args.kind,
@@ -304,6 +306,7 @@ export const startGeneration = action({
     seed: v.optional(v.number()),
     shotId: v.optional(v.id("shots")),
     entityId: v.optional(v.id("entities")),
+    promptSheetId: v.optional(v.id("promptSheets")),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
     parentAssetIds: v.optional(v.array(v.id("assets"))),
     maskAssetId: v.optional(v.id("assets")),
@@ -404,6 +407,7 @@ export const startGeneration = action({
         workspaceId: project.workspaceId,
         shotId: args.shotId,
         entityId: args.entityId,
+        promptSheetId: args.promptSheetId,
         model: adapter.capabilities.id,
         modelVersion: adapter.capabilities.id,
         kind: args.kind,
@@ -764,6 +768,21 @@ async function finishSuccess(
           keyframeAssetId: assetId,
         });
       }
+    }
+
+    if (
+      job.promptSheetId &&
+      job.entityId &&
+      adapter.capabilities.kind === "image"
+    ) {
+      await ctx.runAction(internal.entities.lockReferenceFromJob, {
+        entityId: job.entityId,
+        assetId,
+      });
+      await ctx.runMutation(internal.promptSheets.completeAssetGeneration, {
+        promptSheetId: job.promptSheetId,
+        assetId,
+      });
     }
   }
 
