@@ -127,6 +127,7 @@ export const gptImage2Adapter: GenerationAdapter = {
       }
 
       // text-to-image
+      // gpt-image-1 does not use DALL·E's response_format; return url or b64_json.
       const res = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
@@ -137,7 +138,6 @@ export const gptImage2Adapter: GenerationAdapter = {
           model: request.model ?? "gpt-image-1",
           prompt: request.prompt,
           size: request.size ?? "1024x1024",
-          response_format: "b64_json",
         }),
       });
       if (!res.ok) {
@@ -148,14 +148,17 @@ export const gptImage2Adapter: GenerationAdapter = {
         data?: Array<{ b64_json?: string; url?: string }>;
       };
       const first = data.data?.[0];
+      if (!first?.b64_json && !first?.url) {
+        throw new Error("OpenAI returned no image data");
+      }
       inlineResults.set(providerJobId, {
         status: "succeeded",
         actualUnits: 1,
         outputs: [
           {
             type: "image",
-            base64: first?.b64_json,
-            url: first?.url,
+            base64: first.b64_json,
+            url: first.url,
             contentType: "image/png",
           },
         ],

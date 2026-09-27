@@ -1,8 +1,12 @@
 import { api } from "@cinakey/backend";
 import type { PipelineStage } from "@cinakey/shared";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import {
   firstEmptyStage,
   StageProgressBar,
@@ -16,6 +20,29 @@ export function ProjectOverviewPage() {
     api.projects.getOverview,
     projectId ? { projectId: projectId as never } : "skip",
   );
+  const update = useMutation(api.projects.update);
+  const { setContext } = useCopilotContext();
+
+  const [editingRules, setEditingRules] = useState(false);
+  const [rulesText, setRulesText] = useState("");
+  const [targetSec, setTargetSec] = useState("");
+
+  useEffect(() => {
+    if (projectId) {
+      setContext({ view: "overview", projectId, selectionIds: [] });
+    }
+  }, [projectId, setContext]);
+
+  useEffect(() => {
+    if (overview) {
+      setRulesText(overview.project.rules.join("\n"));
+      setTargetSec(
+        overview.project.targetLengthSec !== undefined
+          ? String(overview.project.targetLengthSec)
+          : "",
+      );
+    }
+  }, [overview]);
 
   if (overview === undefined) {
     return <p className="text-sm text-zinc-500">Loading overview…</p>;
@@ -61,13 +88,86 @@ export function ProjectOverviewPage() {
           <dd className="text-zinc-200">{project.aspectRatio}</dd>
           <dt className="text-zinc-500">FPS</dt>
           <dd className="text-zinc-200">{project.fps}</dd>
-          {project.targetLengthSec !== undefined ? (
-            <>
-              <dt className="text-zinc-500">Target length</dt>
-              <dd className="text-zinc-200">{project.targetLengthSec}s</dd>
-            </>
-          ) : null}
+          <dt className="text-zinc-500">Target length</dt>
+          <dd className="flex items-center gap-2 text-zinc-200">
+            <Input
+              type="number"
+              min={1}
+              className="h-8 w-24"
+              value={targetSec}
+              onChange={(e) => setTargetSec(e.target.value)}
+            />
+            <span className="text-zinc-500">sec</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (!projectId) return;
+                const n = Number(targetSec);
+                void update({
+                  projectId: projectId as never,
+                  targetLengthSec:
+                    Number.isFinite(n) && n > 0 ? n : undefined,
+                });
+              }}
+            >
+              Save
+            </Button>
+          </dd>
         </dl>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-100">
+            Project rules
+          </h2>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setEditingRules((v) => !v)}
+          >
+            {editingRules ? "Cancel" : "Edit"}
+          </Button>
+        </div>
+        {editingRules ? (
+          <div className="space-y-2">
+            <Textarea
+              value={rulesText}
+              onChange={(e) => setRulesText(e.target.value)}
+              placeholder="One rule per line — e.g. the hero never smiles"
+              className="min-h-28"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!projectId) return;
+                void update({
+                  projectId: projectId as never,
+                  rules: rulesText
+                    .split("\n")
+                    .map((r) => r.trim())
+                    .filter(Boolean),
+                }).then(() => setEditingRules(false));
+              }}
+            >
+              Save rules
+            </Button>
+          </div>
+        ) : project.rules.length === 0 ? (
+          <p className="text-sm text-zinc-500">
+            No rules yet. Add constraints the copilot should follow.
+          </p>
+        ) : (
+          <ul className="list-inside list-disc space-y-1 text-sm text-zinc-300">
+            {project.rules.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -84,9 +184,7 @@ export function ProjectOverviewPage() {
           <p className="text-sm text-zinc-300">
             Next up: {stageLabel(next as PipelineStage)}
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            {emptyCopy(next)}
-          </p>
+          <p className="mt-1 text-sm text-zinc-500">{emptyCopy(next)}</p>
           <Button asChild className="mt-4" size="sm">
             <Link to={nextHref}>Go to {stageLabel(next)}</Link>
           </Button>

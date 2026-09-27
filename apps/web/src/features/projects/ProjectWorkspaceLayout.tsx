@@ -1,7 +1,13 @@
 import { api } from "@cinakey/backend";
 import type { ProjectTab } from "@cinakey/shared";
 import { useQuery } from "convex/react";
+import { useEffect } from "react";
 import { NavLink, Navigate, Outlet, useParams } from "react-router-dom";
+import { CopilotPanel } from "@/features/copilot/CopilotPanel";
+import {
+  CopilotProvider,
+  useCopilotContext,
+} from "@/features/copilot/CopilotContext";
 import { StageProgressBar } from "@/features/projects/StageProgress";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +21,14 @@ const TABS: { id: ProjectTab; label: string; path: string }[] = [
 ];
 
 export function ProjectWorkspaceLayout() {
+  return (
+    <CopilotProvider>
+      <ProjectWorkspaceInner />
+    </CopilotProvider>
+  );
+}
+
+function ProjectWorkspaceInner() {
   const { projectId } = useParams();
   const project = useQuery(
     api.projects.get,
@@ -24,6 +38,13 @@ export function ProjectWorkspaceLayout() {
     api.projects.getOverview,
     projectId ? { projectId: projectId as never } : "skip",
   );
+  const { setContext } = useCopilotContext();
+
+  useEffect(() => {
+    if (projectId) {
+      setContext({ view: "overview", projectId, selectionIds: [] });
+    }
+  }, [projectId, setContext]);
 
   if (!projectId) {
     return <Navigate to="/projects" replace />;
@@ -94,10 +115,8 @@ export function ProjectWorkspaceLayout() {
           <div className="border-b border-zinc-800 px-4 py-3">
             <p className="text-sm font-medium text-zinc-200">AI copilot</p>
           </div>
-          <div className="flex flex-1 items-center justify-center p-6 text-center">
-            <p className="text-sm text-zinc-500">
-              Copilot panel reserved — coming in a later phase.
-            </p>
+          <div className="min-h-0 flex-1">
+            <CopilotPanel projectId={projectId} />
           </div>
         </aside>
       </div>

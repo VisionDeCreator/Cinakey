@@ -16,6 +16,7 @@ import type { Id } from "./_generated/dataModel";
 import {
   action,
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type ActionCtx,
@@ -229,11 +230,15 @@ export const createAssetFromUpload = mutation({
     format: v.optional(v.string()),
     sceneId: v.optional(v.id("scenes")),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
     jobId: v.optional(v.id("generationJobs")),
     tags: v.optional(v.array(v.string())),
     durationSec: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
+    /** True when the file depicts a real person's face. */
+    containsLikeness: v.optional(v.boolean()),
+    likenessConsent: v.optional(v.boolean()),
     lineage: v.optional(
       v.object({
         prompt: v.optional(v.string()),
@@ -254,6 +259,19 @@ export const createAssetFromUpload = mutation({
       throw new Error("Asset name is required");
     }
 
+    if (args.containsLikeness === true && args.likenessConsent !== true) {
+      throw new Error(
+        "Likeness consent is required when uploading a real person's face",
+      );
+    }
+
+    if (args.entityId !== undefined) {
+      const entity = await ctx.db.get(args.entityId);
+      if (entity === null || entity.projectId !== args.projectId) {
+        throw new Error("Entity not found in this project");
+      }
+    }
+
     const meta = await getStorageMeta(ctx, args.storageId);
     if (meta === null) {
       throw new Error("Uploaded file not found");
@@ -269,6 +287,7 @@ export const createAssetFromUpload = mutation({
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
+      entityId: args.entityId,
       jobId: args.jobId,
       type: args.type,
       name,
@@ -281,6 +300,8 @@ export const createAssetFromUpload = mutation({
       height: args.height,
       tags,
       lineage: args.lineage,
+      likenessConsent:
+        args.containsLikeness === true ? true : args.likenessConsent,
       starred: false,
       createdBy: user._id,
       createdAt: now,
@@ -313,6 +334,7 @@ export const createAssetFromGeneration = internalMutation({
     createdBy: v.id("users"),
     jobId: v.id("generationJobs"),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
     sceneId: v.optional(v.id("scenes")),
     durationSec: v.optional(v.number()),
     width: v.optional(v.number()),
@@ -330,6 +352,7 @@ export const createAssetFromGeneration = internalMutation({
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
+      entityId: args.entityId,
       jobId: args.jobId,
       type: args.type,
       name,
@@ -371,6 +394,13 @@ export const getAsset = query({
     }
     await requireProjectAccess(ctx, asset.projectId);
     return asset;
+  },
+});
+
+export const getAssetInternal = internalQuery({
+  args: { assetId: v.id("assets") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.assetId);
   },
 });
 

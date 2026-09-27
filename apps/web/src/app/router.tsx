@@ -9,10 +9,14 @@ import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
 import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
+import { DevHomePage } from "@/features/dev/DevHomePage";
 import { ProjectOverviewPage } from "@/features/projects/ProjectOverviewPage";
 import { ProjectStagePlaceholder } from "@/features/projects/ProjectStagePlaceholder";
 import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
+import { LookDevPage } from "@/features/look-dev/LookDevPage";
+import { EntitySheetPage } from "@/features/look-dev/EntitySheetPage";
+import { ScriptRoomPage } from "@/features/script/ScriptRoomPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 function AuthRedirect({ children }: { children: ReactNode }) {
@@ -61,13 +65,11 @@ export function AppRouter() {
             element={<ProjectWorkspaceLayout />}
           >
             <Route index element={<ProjectOverviewPage />} />
+            <Route path="script" element={<ScriptRoomPage />} />
+            <Route path="look-dev" element={<LookDevPage />} />
             <Route
-              path="script"
-              element={<ProjectStagePlaceholder stage="script" />}
-            />
-            <Route
-              path="look-dev"
-              element={<ProjectStagePlaceholder stage="look-dev" />}
+              path="look-dev/:entityId"
+              element={<EntitySheetPage />}
             />
             <Route
               path="blockout"
@@ -85,6 +87,7 @@ export function AppRouter() {
           </Route>
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/dev" element={<DevHomePage />} />
           <Route path="/dev/upload" element={<UploadTestPage />} />
           <Route path="/dev/generation" element={<GenerationTestPage />} />
         </Route>

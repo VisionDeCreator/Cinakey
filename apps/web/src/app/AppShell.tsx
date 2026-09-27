@@ -164,9 +164,11 @@ export function AppShell() {
               <DropdownMenuItem onSelect={() => navigate("/settings")}>
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/dev/generation">Dev: generation</Link>
-              </DropdownMenuItem>
+              {user?.isStaff === true ? (
+                <DropdownMenuItem asChild>
+                  <Link to="/dev">Dev tools</Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 onSelect={() => {
                   void signOut().then(() => navigate("/sign-in"));

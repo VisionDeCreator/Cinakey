@@ -1,0 +1,389 @@
+import {
+  assertScriptDocument,
+  normalizeEntityName,
+  withRuntimeEstimates,
+} from "@cinakey/shared";
+import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  type ActionCtx,
+} from "./_generated/server";
+import { requireProjectAccess, requireUser } from "./lib/access";
+import { normalizeProposedScript } from "./lib/normalizeScriptProposal";
+import { loadJson } from "./storage";
+
+async function requireActionUser(ctx: ActionCtx) {
+  const { getAuthUserId } = await import("@convex-dev/auth/server");
+  const userId = await getAuthUserId(ctx);
+  if (userId === null) throw new Error("Not authenticated");
+  return userId as Id<"users">;
+}
+
+export const reject = mutation({
+  args: { proposalId: v.id("proposals") },
+  handler: async (ctx, args) => {
+    await requireUser(ctx);
+    const proposal = await ctx.db.get(args.proposalId);
+    if (proposal === null) throw new Error("Proposal not found");
+    await requireProjectAccess(ctx, proposal.projectId);
+    if (proposal.status !== "pending" && proposal.status !== "edited") {
+      throw new Error("Proposal is not pending");
+    }
+    await ctx.db.patch(args.proposalId, {
+      status: "rejected",
+      resolvedAt: Date.now(),
+    });
+  },
+});
+
+export const updatePayload = mutation({
+  args: {
+    proposalId: v.id("proposals"),
+    payload: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await requireUser(ctx);
+    const proposal = await ctx.db.get(args.proposalId);
+    if (proposal === null) throw new Error("Proposal not found");
+    await requireProjectAccess(ctx, proposal.projectId);
+    if (proposal.status !== "pending" && proposal.status !== "edited") {
+      throw new Error("Proposal is not pending");
+    }
+    await ctx.db.patch(args.proposalId, {
+      payload: args.payload,
+      status: "edited",
+    });
+  },
+});
+
+export const markAccepted = internalMutation({
+  args: { proposalId: v.id("proposals") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.proposalId, {
+      status: "accepted",
+      resolvedAt: Date.now(),
+    });
+  },
+});
+
+export const applyEntities = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    entities: v.array(
+      v.object({
+        kind: v.union(
+          v.literal("character"),
+          v.literal("location"),
+          v.literal("prop"),
+        ),
+        name: v.string(),
+        description: v.optional(v.string()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("entities")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const now = Date.now();
+    const ids: Id<"entities">[] = [];
+
+    for (const ent of args.entities) {
+      const key = `${ent.kind}:${normalizeEntityName(ent.name)}`;
+      const found = existing.find(
+        (e) => `${e.kind}:${normalizeEntityName(e.name)}` === key,
+      );
+      if (found) {
+        await ctx.db.patch(found._id, {
+          name: ent.name.trim(),
+          description: ent.description ?? found.description,
+          updatedAt: now,
+        });
+        ids.push(found._id);
+      } else {
+        const id = await ctx.db.insert("entities", {
+          projectId: args.projectId,
+          kind: ent.kind,
+          name: ent.name.trim(),
+          description: ent.description,
+          lockedReferenceAssetIds: [],
+          createdAt: now,
+          updatedAt: now,
+        });
+        ids.push(id);
+      }
+    }
+    return ids;
+  },
+});
+
+export const applyRules = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    add: v.optional(v.array(v.string())),
+    remove: v.optional(v.array(v.string())),
+    replace: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (project === null) throw new Error("Project not found");
+
+    let rules = [...project.rules];
+    if (args.replace !== undefined) {
+      rules = args.replace.map((r) => r.trim()).filter(Boolean);
+    } else {
+      if (args.remove) {
+        const removeSet = new Set(
+          args.remove.map((r) => r.trim().toLowerCase()),
+        );
+        rules = rules.filter((r) => !removeSet.has(r.trim().toLowerCase()));
+      }
+      if (args.add) {
+        for (const r of args.add) {
+          const trimmed = r.trim();
+          if (!trimmed) continue;
+          if (
+            !rules.some((x) => x.trim().toLowerCase() === trimmed.toLowerCase())
+          ) {
+            rules.push(trimmed);
+          }
+        }
+      }
+    }
+    await ctx.db.patch(args.projectId, { rules, updatedAt: Date.now() });
+    return rules;
+  },
+});
+
+export const findEntityByNameInternal = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    kind: v.union(
+      v.literal("character"),
+      v.literal("location"),
+      v.literal("prop"),
+      v.literal("style"),
+    ),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const entities = await ctx.db
+      .query("entities")
+      .withIndex("by_project_kind", (q) =>
+        q.eq("projectId", args.projectId).eq("kind", args.kind),
+      )
+      .collect();
+    const key = normalizeEntityName(args.name);
+    return entities.find((e) => normalizeEntityName(e.name) === key) ?? null;
+  },
+});
+
+export const patchEntityDescription = internalMutation({
+  args: {
+    entityId: v.id("entities"),
+    description: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.entityId, {
+      description: args.description,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const getInternal = internalQuery({
+  args: { proposalId: v.id("proposals") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.proposalId);
+  },
+});
+
+/**
+ * Accept a proposal: materialize script / entities / rules.
+ */
+export const accept = action({
+  args: {
+    proposalId: v.id("proposals"),
+    /** Optional edited payload override (from Edit-then-Accept). */
+    payloadOverride: v.optional(v.any()),
+  },
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const userId = await requireActionUser(ctx);
+
+    const proposal = await ctx.runQuery(internal.proposals.getInternal, {
+      proposalId: args.proposalId,
+    });
+    if (!proposal) throw new Error("Proposal not found");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: proposal.projectId,
+      userId,
+    });
+    if (proposal.status !== "pending" && proposal.status !== "edited") {
+      throw new Error("Proposal is not pending");
+    }
+
+    let payload = (args.payloadOverride ?? proposal.payload) as
+      | Record<string, unknown>
+      | null
+      | undefined;
+    if (
+      (payload === null || payload === undefined) &&
+      proposal.payloadFileId !== undefined
+    ) {
+      payload = (await loadJson(ctx, proposal.payloadFileId)) as Record<
+        string,
+        unknown
+      >;
+    }
+    if (payload === null || payload === undefined) {
+      throw new Error("Proposal has no payload");
+    }
+
+    if (proposal.kind === "script_edit") {
+      const document =
+        normalizeProposedScript(payload.document) ??
+        withRuntimeEstimates(assertScriptDocument(payload.document));
+      await ctx.runAction(internal.scriptVersions.commitAsInternal, {
+        projectId: proposal.projectId,
+        userId,
+        document,
+        label: String(payload.summary ?? "Accepted script proposal"),
+      });
+    } else if (proposal.kind === "entities") {
+      const entities = (payload.entities ?? []) as Array<{
+        kind: "character" | "location" | "prop";
+        name: string;
+        description?: string;
+      }>;
+      await ctx.runMutation(internal.proposals.applyEntities, {
+        projectId: proposal.projectId,
+        entities,
+      });
+    } else if (proposal.kind === "rules") {
+      await ctx.runMutation(internal.proposals.applyRules, {
+        projectId: proposal.projectId,
+        add: payload.add as string[] | undefined,
+        remove: payload.remove as string[] | undefined,
+        replace: payload.replace as string[] | undefined,
+      });
+    } else if (proposal.kind === "character_details") {
+      const fields = (payload.fields ?? {}) as Record<string, string>;
+      let entityId = payload.entityId as Id<"entities"> | undefined;
+      if (!entityId && typeof payload.entityName === "string") {
+        const match = await ctx.runQuery(
+          internal.proposals.findEntityByNameInternal,
+          {
+            projectId: proposal.projectId,
+            kind: "character",
+            name: payload.entityName,
+          },
+        );
+        if (match === null) {
+          throw new Error(
+            `Character "${payload.entityName}" not found — open the sheet or create the entity first`,
+          );
+        }
+        entityId = match._id;
+      }
+      if (!entityId) {
+        throw new Error(
+          "character_details proposal needs entityId or entityName",
+        );
+      }
+      const sheetPatch: Record<string, string> = {};
+      for (const key of [
+        "look",
+        "age",
+        "build",
+        "wardrobe",
+        "personality",
+        "voiceNotes",
+      ] as const) {
+        if (fields[key]) sheetPatch[key] = fields[key];
+      }
+      if (Object.keys(sheetPatch).length > 0) {
+        await ctx.runAction(api.entities.saveSheet, {
+          entityId,
+          patch: sheetPatch,
+        });
+      }
+      if (fields.description) {
+        await ctx.runMutation(internal.proposals.patchEntityDescription, {
+          entityId,
+          description: fields.description,
+        });
+      }
+    } else if (proposal.kind === "image_prompt") {
+      let entityId = payload.entityId as Id<"entities"> | undefined;
+      if (!entityId && typeof payload.entityName === "string") {
+        const kinds = ["character", "location", "prop", "style"] as const;
+        let found = null as { _id: Id<"entities"> } | null;
+        for (const kind of kinds) {
+          found = await ctx.runQuery(
+            internal.proposals.findEntityByNameInternal,
+            {
+              projectId: proposal.projectId,
+              kind,
+              name: payload.entityName as string,
+            },
+          );
+          if (found) break;
+        }
+        if (found === null) {
+          throw new Error(
+            `Entity "${payload.entityName}" not found for image prompt`,
+          );
+        }
+        entityId = found._id;
+      }
+      if (!entityId) {
+        throw new Error("image_prompt proposal needs entityId or entityName");
+      }
+      await ctx.runAction(api.entities.saveSheet, {
+        entityId,
+        patch: { draftPrompt: String(payload.prompt ?? "") },
+      });
+    }
+
+    await ctx.runMutation(internal.proposals.markAccepted, {
+      proposalId: args.proposalId,
+    });
+
+    return { ok: true as const };
+  },
+});
+
+/** Resolve proposal payload (inline or from storage) for the UI. */
+export const getResolvedPayload = action({
+  args: { proposalId: v.id("proposals") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Record<string, unknown> | null> => {
+    const userId = await requireActionUser(ctx);
+    const proposal = await ctx.runQuery(internal.proposals.getInternal, {
+      proposalId: args.proposalId,
+    });
+    if (!proposal) throw new Error("Proposal not found");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: proposal.projectId,
+      userId,
+    });
+    if (proposal.payload !== undefined && proposal.payload !== null) {
+      return proposal.payload as Record<string, unknown>;
+    }
+    if (proposal.payloadFileId !== undefined) {
+      return (await loadJson(ctx, proposal.payloadFileId)) as Record<
+        string,
+        unknown
+      >;
+    }
+    return null;
+  },
+});

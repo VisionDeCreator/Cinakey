@@ -6,7 +6,7 @@ import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 
 /**
  * Seed a demo project for the signed-in user (local/dev).
- * Creates: 1 project, 2 scenes, 5 shots, 2 characters, 1 location.
+ * Creates: 1 project, 2 scenes, 5 shots, 2 characters, 1 location, 1 style.
  */
 export const seedDemoProject = mutation({
   args: {},
@@ -50,6 +50,7 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
 
   const scene1 = await ctx.db.insert("scenes", {
     projectId,
+    elementId: "seed-scene-cafe",
     order: 0,
     heading: "INT. CAFÉ - DAY",
     synopsis: "Maya waits; Jordan arrives late.",
@@ -59,6 +60,7 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
 
   const scene2 = await ctx.db.insert("scenes", {
     projectId,
+    elementId: "seed-scene-street",
     order: 1,
     heading: "EXT. STREET - DAY",
     synopsis: "They step outside into the rain.",
@@ -91,6 +93,16 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
     kind: "location",
     name: "Corner Café",
     description: "Sunlit corner café with wooden tables and large windows.",
+    lockedReferenceAssetIds: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const style = await ctx.db.insert("entities", {
+    projectId,
+    kind: "style",
+    name: "Project Style",
+    description: "Warm natural light, handheld feel, soft film grain",
     lockedReferenceAssetIds: [],
     createdAt: now,
     updatedAt: now,
@@ -178,6 +190,6 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
     projectId,
     sceneIds: [scene1, scene2],
     shotIds,
-    entityIds: { maya, jordan, cafe },
+    entityIds: { maya, jordan, cafe, style },
   };
 }

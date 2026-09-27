@@ -72,6 +72,8 @@ const schema = defineSchema(
 
   scenes: defineTable({
     projectId: v.id("projects"),
+    /** Stable id from cinakey.script/1.0 scene.id — keeps Convex _id stable across versions. */
+    elementId: v.string(),
     order: v.number(),
     heading: v.string(),
     synopsis: v.optional(v.string()),
@@ -79,7 +81,8 @@ const schema = defineSchema(
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    .index("by_project_order", ["projectId", "order"]),
+    .index("by_project_order", ["projectId", "order"])
+    .index("by_project_element", ["projectId", "elementId"]),
 
   shots: defineTable({
     projectId: v.id("projects"),
@@ -131,6 +134,7 @@ const schema = defineSchema(
     projectId: v.id("projects"),
     sceneId: v.optional(v.id("scenes")),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
     jobId: v.optional(v.id("generationJobs")),
     type: v.union(
       v.literal("video"),
@@ -152,6 +156,8 @@ const schema = defineSchema(
     height: v.optional(v.number()),
     tags: v.array(v.string()),
     lineage: v.optional(lineage),
+    /** Required true when upload contains a real person's face. */
+    likenessConsent: v.optional(v.boolean()),
     starred: v.boolean(),
     createdBy: v.id("users"),
     createdAt: v.number(),
@@ -160,6 +166,7 @@ const schema = defineSchema(
     .index("by_project", ["projectId"])
     .index("by_project_type", ["projectId", "type"])
     .index("by_shot", ["shotId"])
+    .index("by_entity", ["entityId"])
     .index("by_job", ["jobId"])
     .index("by_storage", ["storageId"])
     .searchIndex("search_name_tags", {
@@ -170,6 +177,7 @@ const schema = defineSchema(
   generationJobs: defineTable({
     projectId: v.id("projects"),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
     model: v.string(),
     modelVersion: v.string(),
     /** Adapter operation, e.g. text-to-image, image-to-video. */
@@ -198,7 +206,8 @@ const schema = defineSchema(
   })
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
-    .index("by_provider_job", ["providerJobId"]),
+    .index("by_provider_job", ["providerJobId"])
+    .index("by_entity", ["entityId"]),
 
   takes: defineTable({
     projectId: v.id("projects"),
@@ -266,6 +275,68 @@ const schema = defineSchema(
   })
     .index("by_user", ["userId"])
     .index("by_user_unread", ["userId", "read"]),
+
+  /** Linear copilot thread per project (one thread in MVP). */
+  copilotMessages: defineTable({
+    projectId: v.id("projects"),
+    role: v.union(
+      v.literal("user"),
+      v.literal("assistant"),
+      v.literal("system"),
+      v.literal("tool"),
+    ),
+    content: v.string(),
+    roleUsed: v.optional(
+      v.union(
+        v.literal("director"),
+        v.literal("screenwriter"),
+        v.literal("character_designer"),
+      ),
+    ),
+    mode: v.optional(
+      v.union(
+        v.literal("brainstorm"),
+        v.literal("critique"),
+        v.literal("pacing"),
+        v.literal("continuity"),
+      ),
+    ),
+    toolCalls: v.optional(v.any()),
+    proposalIds: v.optional(v.array(v.id("proposals"))),
+    jobId: v.optional(v.id("generationJobs")),
+    streaming: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  }).index("by_project", ["projectId"]),
+
+  /** Copilot tool results awaiting user Accept / Edit / Reject. */
+  proposals: defineTable({
+    projectId: v.id("projects"),
+    messageId: v.id("copilotMessages"),
+    kind: v.union(
+      v.literal("script_edit"),
+      v.literal("entities"),
+      v.literal("rules"),
+      v.literal("character_details"),
+      v.literal("image_prompt"),
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("rejected"),
+      v.literal("edited"),
+    ),
+    /** Inline payload when small; otherwise use payloadFileId. */
+    payload: v.optional(v.any()),
+    payloadFileId: v.optional(v.id("_storage")),
+    diffSummary: v.optional(v.string()),
+    estimatedCostCredits: v.optional(v.number()),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_message", ["messageId"])
+    .index("by_project_status", ["projectId", "status"]),
   },
   { schemaValidation: true },
 );

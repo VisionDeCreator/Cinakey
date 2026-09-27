@@ -74,9 +74,9 @@ Provider API keys and job flags are Convex env vars only (`npx convex env set` f
 | `DEEPSEEK_API_KEY` | DeepSeek chat |
 | `GENERATION_WEBHOOK_SECRET` | HMAC for `POST /webhooks/generation` |
 | `USE_MOCK_ADAPTERS` | `true` = delayed sample outputs (no spend) |
-| `ALLOW_DEV_CREDITS` | `true` = non-staff can use `grantDev` |
+| `ALLOW_DEV_CREDITS` | `true` = non-staff can use self `grantDev` |
 
-Dev pages (signed-in): `/dev/upload`, `/dev/generation`.
+Staff: set `users.isStaff = true` in the Convex dashboard. Dev hub (staff): `/dev` (grant credits by email). Other signed-in tools: `/dev/upload`, `/dev/generation`.
 
 ### Scripts (from repo root)
 

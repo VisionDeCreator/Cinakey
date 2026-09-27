@@ -8,7 +8,7 @@ import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
 import { getAdapter, listAdapters } from "./adapters";
 import { isDefaultTransientError } from "./adapters/cost";
 import { appendLedgerEntry } from "./credits";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   action,
@@ -21,7 +21,7 @@ import {
 } from "./_generated/server";
 import { requireProjectAccess } from "./lib/access";
 import { convexEnv } from "./lib/env";
-import { loadJson, saveFile, saveJson } from "./storage";
+import { loadJson, saveFile, saveJson, getFileUrl } from "./storage";
 
 const MAX_SUBMIT_ATTEMPTS = 3;
 const POLL_BACKOFF_MS = [2000, 5000, 10000, 30000, 60000] as const;
@@ -125,6 +125,7 @@ export const createQueuedJob = internalMutation({
     projectId: v.id("projects"),
     workspaceId: v.id("workspaces"),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
     model: v.string(),
     modelVersion: v.string(),
     kind: v.string(),
@@ -140,6 +141,7 @@ export const createQueuedJob = internalMutation({
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
       shotId: args.shotId,
+      entityId: args.entityId,
       model: args.model,
       modelVersion: args.modelVersion,
       kind: args.kind,
@@ -286,6 +288,11 @@ export const startGeneration = action({
     prompt: v.string(),
     seed: v.optional(v.number()),
     shotId: v.optional(v.id("shots")),
+    entityId: v.optional(v.id("entities")),
+    referenceAssetIds: v.optional(v.array(v.id("assets"))),
+    parentAssetIds: v.optional(v.array(v.id("assets"))),
+    maskAssetId: v.optional(v.id("assets")),
+    imageCount: v.optional(v.number()),
     input: v.optional(v.any()),
   },
   handler: async (
@@ -304,6 +311,15 @@ export const startGeneration = action({
       });
     const { user, project } = startCtx;
 
+    if (args.entityId !== undefined) {
+      const entity = await ctx.runQuery(internal.entities.getEntityInternal, {
+        entityId: args.entityId,
+      });
+      if (entity === null || entity.projectId !== args.projectId) {
+        throw new Error("Entity not found in this project");
+      }
+    }
+
     const adapter = getAdapter(args.adapterId);
     if (!adapter) {
       throw new Error(`Unknown adapter: ${args.adapterId}`);
@@ -314,18 +330,56 @@ export const startGeneration = action({
       );
     }
 
+    const referenceAssetIds = args.referenceAssetIds ?? [];
+    const parentAssetIds = args.parentAssetIds ?? [];
+
+    async function urlFor(assetId: Id<"assets">): Promise<string> {
+      const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
+        assetId,
+      });
+      if (asset === null || asset.projectId !== args.projectId) {
+        throw new Error(`Asset ${assetId} not found in this project`);
+      }
+      const url = await getFileUrl(ctx, asset.storageId);
+      if (!url) {
+        throw new Error(`Could not resolve URL for asset ${assetId}`);
+      }
+      return url;
+    }
+
+    // Adapter expects: first URL = base image (for edit), rest = references.
+    const referenceImageUrls: string[] = [];
+    for (const assetId of parentAssetIds) {
+      referenceImageUrls.push(await urlFor(assetId));
+    }
+    for (const assetId of referenceAssetIds) {
+      if (!parentAssetIds.includes(assetId)) {
+        referenceImageUrls.push(await urlFor(assetId));
+      }
+    }
+    const maskUrl = args.maskAssetId
+      ? await urlFor(args.maskAssetId)
+      : undefined;
+
     const buildInput: BuildRequestInput = {
       ...(args.input as BuildRequestInput | undefined),
       prompt: args.prompt,
       kind: args.kind,
       seed: args.seed,
+      imageCount: args.imageCount,
+      referenceImageUrls:
+        referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
+      maskUrl,
+      referenceAssetIds,
+      parentAssetIds,
+      maskAssetId: args.maskAssetId,
+      entityId: args.entityId,
     };
     const estimated = adapter.estimateCost(buildInput);
     if (estimated <= 0) {
       throw new Error("Estimated cost must be positive");
     }
 
-    // Persist inputs blob for lineage / debugging.
     const { storageId: inputsFileId } = await saveJson(ctx, buildInput);
 
     const jobId: Id<"generationJobs"> = await ctx.runMutation(
@@ -334,6 +388,7 @@ export const startGeneration = action({
         projectId: args.projectId,
         workspaceId: project.workspaceId,
         shotId: args.shotId,
+        entityId: args.entityId,
         model: adapter.capabilities.id,
         modelVersion: adapter.capabilities.id,
         kind: args.kind,
@@ -342,6 +397,7 @@ export const startGeneration = action({
         inputsFileId,
         estimatedCostCredits: estimated,
         createdBy: user._id,
+        referenceAssetIds,
       },
     );
 
@@ -350,6 +406,48 @@ export const startGeneration = action({
     });
 
     return { jobId, estimatedCostCredits: estimated };
+  },
+});
+
+/**
+ * Queue four text-to-image jobs for a character identity set (front, ¾, profile, full body).
+ */
+export const startIdentitySet = action({
+  args: {
+    projectId: v.id("projects"),
+    entityId: v.id("entities"),
+    basePrompt: v.string(),
+    referenceAssetIds: v.optional(v.array(v.id("assets"))),
+    adapterId: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    jobIds: Id<"generationJobs">[];
+    estimatedCostCredits: number;
+  }> => {
+    const { IDENTITY_SLOT_KEYS, IDENTITY_SLOT_PROMPTS } = await import(
+      "@cinakey/shared"
+    );
+    const adapterId = args.adapterId ?? "gpt-image-2";
+    const jobIds: Id<"generationJobs">[] = [];
+    let total = 0;
+    for (const slot of IDENTITY_SLOT_KEYS) {
+      const prompt = `${args.basePrompt.trim()}\n\n${IDENTITY_SLOT_PROMPTS[slot]}`;
+      const result = await ctx.runAction(api.generation.startGeneration, {
+        projectId: args.projectId,
+        adapterId,
+        kind: "text-to-image",
+        prompt,
+        entityId: args.entityId,
+        referenceAssetIds: args.referenceAssetIds,
+        input: { identitySlot: slot },
+      });
+      jobIds.push(result.jobId);
+      total += result.estimatedCostCredits;
+    }
+    return { jobIds, estimatedCostCredits: total };
   },
 });
 
@@ -413,10 +511,29 @@ export const submitAndTrack = internalAction({
       });
 
       if (result.completedInline) {
-        await ctx.scheduler.runAfter(0, internal.generation.pollJob, {
-          jobId: job._id,
-          pollAttempt: 0,
-        });
+        // Sync providers (GPT Image, mock) keep outputs in-process.
+        // Poll/collect must run in THIS action — a scheduled pollJob runs in a
+        // fresh isolate where the in-memory result map is empty.
+        const poll = await adapter.poll(result.providerJobId);
+        if (poll.status === "failed") {
+          await failAndRefund(
+            ctx,
+            { ...job, attempts: attempt, providerJobId: result.providerJobId },
+            poll.error ?? "Provider failed",
+          );
+          return;
+        }
+        await finishSuccess(
+          ctx,
+          {
+            ...job,
+            attempts: attempt,
+            providerJobId: result.providerJobId,
+            status: "submitted",
+          },
+          adapter,
+          poll.actualUnits,
+        );
       } else {
         await ctx.scheduler.runAfter(
           pollDelay(0),
@@ -578,6 +695,22 @@ async function finishSuccess(
           ? ("json" as const)
           : ("other" as const);
 
+    let parentAssetIds: Id<"assets">[] | undefined;
+    let referenceAssetIds: Id<"assets">[] | undefined;
+    if (job.inputsFileId) {
+      try {
+        const inputs = await loadJson<BuildRequestInput>(ctx, job.inputsFileId);
+        if (Array.isArray(inputs.parentAssetIds)) {
+          parentAssetIds = inputs.parentAssetIds as Id<"assets">[];
+        }
+        if (Array.isArray(inputs.referenceAssetIds)) {
+          referenceAssetIds = inputs.referenceAssetIds as Id<"assets">[];
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const assetId = await ctx.runMutation(
       internal.storage.createAssetFromGeneration,
       {
@@ -589,11 +722,14 @@ async function finishSuccess(
         createdBy: job.createdBy,
         jobId: job._id,
         shotId: job.shotId,
+        entityId: job.entityId,
         lineage: {
           prompt: job.prompt,
           model: job.model,
           modelVersion: job.modelVersion,
           seed: job.seed,
+          parentAssetIds,
+          referenceAssetIds,
         },
       },
     );
@@ -646,7 +782,9 @@ async function finishSuccess(
     kind: "job_succeeded",
     title: `Generation succeeded (${job.model})`,
     body: job.prompt.slice(0, 120),
-    href: `/dev/generation?jobId=${job._id}`,
+    href: job.entityId
+      ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+      : `/dev/generation?jobId=${job._id}`,
   });
 }
 
@@ -694,7 +832,9 @@ async function failAndRefund(
     kind: "job_failed",
     title: `Generation failed (${job.model})`,
     body: errorMessage.slice(0, 200),
-    href: `/dev/generation?jobId=${job._id}`,
+    href: job.entityId
+      ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+      : `/dev/generation?jobId=${job._id}`,
   });
 }
 

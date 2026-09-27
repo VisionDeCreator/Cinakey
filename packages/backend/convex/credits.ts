@@ -8,7 +8,7 @@ import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
-import { requireUser } from "./lib/access";
+import { requireStaff, requireUser } from "./lib/access";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { convexEnv } from "./lib/env";
 
@@ -88,7 +88,8 @@ export const listLedger = query({
 });
 
 /**
- * Dev-only grant. Requires staff OR ALLOW_DEV_CREDITS=true in Convex env.
+ * Dev-only self-grant. Requires staff OR ALLOW_DEV_CREDITS=true in Convex env.
+ * Prefer grantToEmail from the /dev admin page for production-like grants.
  */
 export const grantDev = mutation({
   args: { amount: v.number() },
@@ -112,6 +113,81 @@ export const grantDev = mutation({
     });
   },
 });
+
+/**
+ * Staff-only: grant credits to a user identified by email (their personal workspace).
+ */
+export const grantToEmail = mutation({
+  args: {
+    email: v.string(),
+    amount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    if (args.amount <= 0 || !Number.isFinite(args.amount)) {
+      throw new Error("Amount must be a positive number");
+    }
+    const email = args.email.trim().toLowerCase();
+    if (email.length === 0 || !email.includes("@")) {
+      throw new Error("A valid email is required");
+    }
+
+    const target = await findUserByEmail(ctx, email);
+    if (target === null) {
+      throw new Error(`No user found with email ${email}`);
+    }
+
+    const workspaceId = await ensurePersonalWorkspaceForUser(ctx, target._id);
+    const result = await appendLedgerEntry(ctx, {
+      workspaceId,
+      userId: target._id,
+      delta: args.amount,
+      reason: "grant",
+    });
+    return {
+      userId: target._id,
+      email: target.email ?? email,
+      balanceAfter: result.balanceAfter,
+    };
+  },
+});
+
+/** Staff-only preview: resolve a user by email and return their credit balance. */
+export const lookupByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    await requireStaff(ctx);
+    const email = args.email.trim().toLowerCase();
+    if (email.length === 0) return null;
+
+    const target = await findUserByEmail(ctx, email);
+    if (target === null) return null;
+
+    const balance =
+      target.personalWorkspaceId !== undefined
+        ? await getWorkspaceBalance(ctx, target.personalWorkspaceId)
+        : 0;
+
+    return {
+      userId: target._id,
+      email: target.email ?? email,
+      name: target.name,
+      isStaff: target.isStaff === true,
+      balance,
+      hasWorkspace: target.personalWorkspaceId !== undefined,
+    };
+  },
+});
+
+async function findUserByEmail(
+  ctx: MutationCtx | QueryCtx,
+  emailLower: string,
+) {
+  return await ctx.db
+    .query("users")
+    .withIndex("email", (q) => q.eq("email", emailLower))
+    .unique();
+}
 
 export const reserve = internalMutation({
   args: {

@@ -1,8 +1,8 @@
 import { api } from "@cinakey/backend";
+import type { AssetType } from "@cinakey/shared";
 import {
   ASSET_ALLOWED_MIME,
   ASSET_MAX_BYTES,
-  type AssetType,
 } from "@cinakey/shared";
 import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
@@ -13,12 +13,23 @@ export type UploadItem = {
   progress: number;
   status: "uploading" | "done" | "error";
   error?: string;
+  assetId?: string;
+};
+
+export type UploadOptions = {
+  entityId?: string;
+  containsLikeness?: boolean;
+  likenessConsent?: boolean;
+  tags?: string[];
 };
 
 function inferType(file: File): AssetType | null {
   const mime = file.type.toLowerCase();
   if (mime.startsWith("image/")) {
-    if (ASSET_ALLOWED_MIME.logo.includes(mime) && file.name.toLowerCase().includes("logo")) {
+    if (
+      ASSET_ALLOWED_MIME.logo.includes(mime) &&
+      file.name.toLowerCase().includes("logo")
+    ) {
       return "logo";
     }
     return "image";
@@ -47,11 +58,17 @@ export function useAssetUpload(projectId: string | undefined) {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
 
   const uploadFiles = useCallback(
-    async (files: FileList | File[]) => {
+    async (files: FileList | File[], options?: UploadOptions) => {
       if (!projectId) {
         throw new Error("Select a project before uploading");
       }
+      if (options?.containsLikeness && options.likenessConsent !== true) {
+        throw new Error(
+          "Likeness consent is required when uploading a real person's face",
+        );
+      }
       const list = Array.from(files);
+      const createdIds: string[] = [];
       for (const file of list) {
         const id = `${file.name}-${Date.now()}-${Math.random()}`;
         const type = inferType(file);
@@ -109,17 +126,24 @@ export function useAssetUpload(projectId: string | undefined) {
             prev.map((u) => (u.id === id ? { ...u, progress: 80 } : u)),
           );
 
-          await createAsset({
+          const assetId = await createAsset({
             projectId: projectId as never,
             storageId: storageId as never,
             type,
             name: file.name,
             format: file.type || "application/octet-stream",
+            entityId: options?.entityId as never,
+            containsLikeness: options?.containsLikeness,
+            likenessConsent: options?.likenessConsent,
+            tags: options?.tags,
           });
+          createdIds.push(assetId);
 
           setUploads((prev) =>
             prev.map((u) =>
-              u.id === id ? { ...u, progress: 100, status: "done" } : u,
+              u.id === id
+                ? { ...u, progress: 100, status: "done", assetId }
+                : u,
             ),
           );
         } catch (err) {
@@ -137,6 +161,7 @@ export function useAssetUpload(projectId: string | undefined) {
           );
         }
       }
+      return createdIds;
     },
     [projectId, createUploadUrl, createAsset],
   );
