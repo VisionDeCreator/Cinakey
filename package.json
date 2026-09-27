@@ -1,0 +1,21 @@
+{
+  "name": "cinakey",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@cinakey/config": "*",
+    "prettier": "^3.9.9",
+    "turbo": "^2.5.4"
+  },
+  "packageManager": "npm@11.9.0"
+}

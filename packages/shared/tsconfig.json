@@ -1,0 +1,9 @@
+{
+  "extends": "@cinakey/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "types": []
+  },
+  "include": ["src"]
+}

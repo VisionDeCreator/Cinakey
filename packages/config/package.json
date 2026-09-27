@@ -1,0 +1,11 @@
+{
+  "name": "@cinakey/config",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint/base.js": "./eslint/base.js",
+    "./prettier": "./prettier.cjs"
+  }
+}

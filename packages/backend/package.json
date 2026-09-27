@@ -1,0 +1,33 @@
+{
+  "name": "@cinakey/backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "convex dev",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p convex/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@auth/core": "^0.41.1",
+    "@cinakey/shared": "*",
+    "@convex-dev/auth": "^0.0.95",
+    "convex": "^1.46.0"
+  },
+  "devDependencies": {
+    "@cinakey/config": "*",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^4.1.11"
+  }
+}
