@@ -4,11 +4,14 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/app/AppShell";
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { AssetsPage } from "@/features/assets/AssetsPage";
+import { ProjectAssetsPage } from "@/features/assets/ProjectAssetsPage";
 import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
 import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
-import { ProjectPage } from "@/features/projects/ProjectPage";
+import { ProjectOverviewPage } from "@/features/projects/ProjectOverviewPage";
+import { ProjectStagePlaceholder } from "@/features/projects/ProjectStagePlaceholder";
+import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
@@ -53,7 +56,33 @@ export function AppRouter() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectId/*" element={<ProjectPage />} />
+          <Route
+            path="/projects/:projectId"
+            element={<ProjectWorkspaceLayout />}
+          >
+            <Route index element={<ProjectOverviewPage />} />
+            <Route
+              path="script"
+              element={<ProjectStagePlaceholder stage="script" />}
+            />
+            <Route
+              path="look-dev"
+              element={<ProjectStagePlaceholder stage="look-dev" />}
+            />
+            <Route
+              path="blockout"
+              element={<ProjectStagePlaceholder stage="blockout" />}
+            />
+            <Route
+              path="shots"
+              element={<ProjectStagePlaceholder stage="shots" />}
+            />
+            <Route
+              path="edit"
+              element={<ProjectStagePlaceholder stage="edit" />}
+            />
+            <Route path="assets" element={<ProjectAssetsPage />} />
+          </Route>
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/dev/upload" element={<UploadTestPage />} />

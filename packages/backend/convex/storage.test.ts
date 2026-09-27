@@ -40,12 +40,14 @@ describe("storage helpers", () => {
       projectId,
       storageId,
       type: "image",
+      name: "hello.png",
       format: "image/png",
     });
 
     const asset = await asUser.query(api.storage.getAsset, { assetId });
     expect(asset).not.toBeNull();
     expect(asset!.type).toBe("image");
+    expect(asset!.name).toBe("hello.png");
     expect(asset!.format).toBe("image/png");
     expect(asset!.sizeBytes).toBeGreaterThan(0);
 
@@ -70,6 +72,7 @@ describe("storage helpers", () => {
       projectId,
       storageId,
       type: "image",
+      name: "private.png",
     });
 
     await expect(
@@ -94,6 +97,7 @@ describe("storage helpers", () => {
       projectId,
       storageId,
       type: "image",
+      name: "delete-me.png",
     });
 
     await expect(

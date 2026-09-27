@@ -1,19 +1,33 @@
 import { render, screen } from "@testing-library/react";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 
+vi.mock("convex/react", async () => {
+  const actual = await vi.importActual<typeof import("convex/react")>(
+    "convex/react",
+  );
+  return {
+    ...actual,
+    useQuery: () => [],
+    useMutation: () => vi.fn(),
+  };
+});
+
 describe("ProjectsPage", () => {
-  it("renders the demo project", () => {
+  it("renders empty state when there are no projects", () => {
+    const client = new ConvexReactClient("https://example.convex.cloud");
     render(
-      <MemoryRouter>
-        <ProjectsPage />
-      </MemoryRouter>,
+      <ConvexProvider client={client}>
+        <MemoryRouter>
+          <ProjectsPage />
+        </MemoryRouter>
+      </ConvexProvider>,
     );
-    expect(screen.getByText("Demo Project")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute(
-      "href",
-      "/projects/demo/script",
-    );
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Create your first project/i }),
+    ).toBeInTheDocument();
   });
 });

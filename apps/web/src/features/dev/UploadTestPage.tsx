@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
  * Dev/test page: upload a file to Convex storage, create an asset, display it.
  */
 export function UploadTestPage() {
-  const projects = useQuery(api.projects.listMine);
+  const projects = useQuery(api.projects.listMine, {});
   const createProject = useMutation(api.projects.create);
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
@@ -29,7 +29,7 @@ export function UploadTestPage() {
   async function ensureProject(): Promise<string> {
     if (projectId) return projectId;
     if (projects && projects.length > 0) {
-      const id = projects[0]!._id;
+      const id = projects[0]!.project._id;
       setProjectId(id);
       return id;
     }
@@ -66,6 +66,7 @@ export function UploadTestPage() {
         projectId: pid as never,
         storageId: storageId as never,
         type,
+        name: file.name,
         format: file.type || "application/octet-stream",
       });
       setAssetId(id);

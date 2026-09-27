@@ -11,6 +11,7 @@
  */
 
 import { requireProjectAccess, requireUser } from "./lib/access";
+import { buildSearchText } from "./lib/assetSearch";
 import type { Id } from "./_generated/dataModel";
 import {
   action,
@@ -31,6 +32,60 @@ export const MAX_JSON_BYTES = 5 * 1024 * 1024;
 
 /** Documents must stay well under Convex's 1 MiB limit. */
 export const MAX_DOCUMENT_JSON_BYTES = 512 * 1024;
+
+export type AssetTypeValue =
+  | "video"
+  | "image"
+  | "audio"
+  | "music"
+  | "logo"
+  | "json"
+  | "other";
+
+export const ASSET_MAX_BYTES: Record<AssetTypeValue, number> = {
+  image: 25 * 1024 * 1024,
+  logo: 10 * 1024 * 1024,
+  audio: 50 * 1024 * 1024,
+  music: 50 * 1024 * 1024,
+  video: 500 * 1024 * 1024,
+  json: 5 * 1024 * 1024,
+  other: 25 * 1024 * 1024,
+};
+
+export const ASSET_ALLOWED_MIME: Record<AssetTypeValue, readonly string[]> = {
+  image: ["image/png", "image/jpeg", "image/webp", "image/gif"],
+  logo: ["image/png", "image/jpeg", "image/webp", "image/svg+xml"],
+  video: ["video/mp4", "video/webm", "video/quicktime"],
+  audio: ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm", "audio/mp4"],
+  music: ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm", "audio/mp4"],
+  json: ["application/json"],
+  other: [],
+};
+
+export function validateAssetUpload(
+  type: AssetTypeValue,
+  sizeBytes: number,
+  contentType: string | undefined,
+): void {
+  const max = ASSET_MAX_BYTES[type];
+  if (sizeBytes > max) {
+    throw new Error(
+      `File too large for ${type} (${sizeBytes} bytes; max ${max})`,
+    );
+  }
+  const allowed = ASSET_ALLOWED_MIME[type];
+  if (allowed.length === 0) {
+    throw new Error(`Uploads of type "${type}" are not allowed`);
+  }
+  if (contentType !== undefined && contentType.length > 0) {
+    const normalized = contentType.split(";")[0]!.trim().toLowerCase();
+    if (!allowed.includes(normalized)) {
+      throw new Error(
+        `Unsupported content type "${contentType}" for ${type}. Allowed: ${allowed.join(", ")}`,
+      );
+    }
+  }
+}
 
 export async function generateUploadUrl(ctx: StorageCtx): Promise<string> {
   return await ctx.storage.generateUploadUrl();
@@ -170,6 +225,7 @@ export const createAssetFromUpload = mutation({
     projectId: v.id("projects"),
     storageId: v.id("_storage"),
     type: assetType,
+    name: v.string(),
     format: v.optional(v.string()),
     sceneId: v.optional(v.id("scenes")),
     shotId: v.optional(v.id("shots")),
@@ -193,11 +249,21 @@ export const createAssetFromUpload = mutation({
     const user = await requireUser(ctx);
     await requireProjectAccess(ctx, args.projectId);
 
+    const name = args.name.trim();
+    if (name.length === 0) {
+      throw new Error("Asset name is required");
+    }
+
     const meta = await getStorageMeta(ctx, args.storageId);
     if (meta === null) {
       throw new Error("Uploaded file not found");
     }
 
+    const format =
+      args.format ?? meta.contentType ?? "application/octet-stream";
+    validateAssetUpload(args.type, meta.size, meta.contentType ?? args.format);
+
+    const tags = args.tags ?? [];
     const now = Date.now();
     const assetId = await ctx.db.insert("assets", {
       projectId: args.projectId,
@@ -205,13 +271,15 @@ export const createAssetFromUpload = mutation({
       shotId: args.shotId,
       jobId: args.jobId,
       type: args.type,
+      name,
+      searchText: buildSearchText(name, tags),
       storageId: args.storageId,
-      format: args.format ?? meta.contentType ?? "application/octet-stream",
+      format,
       sizeBytes: meta.size,
       durationSec: args.durationSec,
       width: args.width,
       height: args.height,
-      tags: args.tags ?? [],
+      tags,
       lineage: args.lineage,
       starred: false,
       createdBy: user._id,
@@ -250,22 +318,29 @@ export const createAssetFromGeneration = internalMutation({
     width: v.optional(v.number()),
     height: v.optional(v.number()),
     lineage: v.optional(lineageValidator),
+    name: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const name =
+      args.name?.trim() ||
+      `${args.lineage?.model ?? "gen"}-${args.type}-${now}`;
+    const tags: string[] = [];
     return await ctx.db.insert("assets", {
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
       jobId: args.jobId,
       type: args.type,
+      name,
+      searchText: buildSearchText(name, tags),
       storageId: args.storageId,
       format: args.format,
       sizeBytes: args.sizeBytes,
       durationSec: args.durationSec,
       width: args.width,
       height: args.height,
-      tags: [],
+      tags,
       lineage: args.lineage,
       starred: false,
       createdBy: args.createdBy,

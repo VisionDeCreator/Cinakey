@@ -31,7 +31,11 @@ async function seedForUser(ctx: MutationCtx, userId: Id<"users">) {
   const projectId = await ctx.db.insert("projects", {
     workspaceId,
     title: "Demo Project",
-    brief: "A short scene between two characters at a café.",
+    brief: {
+      logline: "A short scene between two characters at a café.",
+      audience: "Indie short-film viewers",
+      tone: "Warm, intimate, lightly tense",
+    },
     aspectRatio: "16:9",
     fps: 24,
     targetLengthSec: 60,

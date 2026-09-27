@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
  */
 export function GenerationTestPage() {
   const capabilities = useQuery(api.generation.listCapabilities);
-  const projects = useQuery(api.projects.listMine);
+  const projects = useQuery(api.projects.listMine, {});
   const balance = useQuery(api.credits.getBalance);
   const unread = useQuery(api.notifications.listUnread);
   const createProject = useMutation(api.projects.create);
@@ -69,7 +69,7 @@ export function GenerationTestPage() {
   async function ensureProject(): Promise<string> {
     if (projectId) return projectId;
     if (projects && projects.length > 0) {
-      const id = projects[0]!._id;
+      const id = projects[0]!.project._id;
       setProjectId(id);
       return id;
     }

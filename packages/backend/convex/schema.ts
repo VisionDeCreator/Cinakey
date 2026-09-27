@@ -11,7 +11,8 @@ const lineage = v.object({
   referenceAssetIds: v.optional(v.array(v.id("assets"))),
 });
 
-const schema = defineSchema({
+const schema = defineSchema(
+  {
   ...authTables,
 
   // Extend Convex Auth users with staff flag and personal workspace link.
@@ -39,12 +40,20 @@ const schema = defineSchema({
   projects: defineTable({
     workspaceId: v.id("workspaces"),
     title: v.string(),
-    brief: v.optional(v.string()),
+    brief: v.optional(
+      v.object({
+        logline: v.string(),
+        audience: v.optional(v.string()),
+        tone: v.optional(v.string()),
+      }),
+    ),
     aspectRatio: v.string(),
     fps: v.number(),
     targetLengthSec: v.optional(v.number()),
     styleNotes: v.optional(v.string()),
     rules: v.array(v.string()),
+    thumbnailAssetId: v.optional(v.id("assets")),
+    archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]),
@@ -132,6 +141,9 @@ const schema = defineSchema({
       v.literal("json"),
       v.literal("other"),
     ),
+    name: v.string(),
+    /** Denormalized name + tags for search index. */
+    searchText: v.string(),
     storageId: v.id("_storage"),
     format: v.string(),
     sizeBytes: v.number(),
@@ -146,9 +158,14 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
+    .index("by_project_type", ["projectId", "type"])
     .index("by_shot", ["shotId"])
     .index("by_job", ["jobId"])
-    .index("by_storage", ["storageId"]),
+    .index("by_storage", ["storageId"])
+    .searchIndex("search_name_tags", {
+      searchField: "searchText",
+      filterFields: ["projectId", "type", "starred"],
+    }),
 
   generationJobs: defineTable({
     projectId: v.id("projects"),
@@ -249,6 +266,8 @@ const schema = defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_unread", ["userId", "read"]),
-});
+  },
+  { schemaValidation: true },
+);
 
 export default schema;
