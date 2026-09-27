@@ -1,0 +1,12 @@
+{
+  "extends": "@cinakey/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "vitest/globals"],
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "convex", "vitest.config.ts", "eslint.config.js"],
+  "exclude": ["convex/_generated"]
+}

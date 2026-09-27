@@ -1,0 +1,5 @@
+dist
+node_modules
+.turbo
+**/convex/_generated
+package-lock.json

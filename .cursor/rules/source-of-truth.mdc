@@ -21,10 +21,11 @@ Built by a solo developer using AI-assisted coding.
 ## 3. Tech stack and hard rules
 - Front end: React + TypeScript (strict), Vite, hosted as a static site (Vercel, Netlify or Cloudflare Pages).
 - Back end: Convex (database, queries, mutations, actions, scheduled functions, HTTP actions, file storage, text and vector search). No separate API server.
+- Repository: npm workspaces monorepo (`apps/*`, `packages/*`) with Turborepo. `apps/web` is the creator app (`@cinakey/web`); `packages/backend` is the Convex project (`@cinakey/backend`); `packages/shared` holds cross-cutting types (`@cinakey/shared`); `packages/config` holds shared tsconfig / ESLint / Prettier (`@cinakey/config`). Later: `apps/admin` and `packages/ui` (not created yet).
 - Auth: Convex Auth (email and password, magic links, Google OAuth). Staff accounts are flagged separately from customers.
 - Secrets: provider keys (SEEDANCE_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, etc.) are Convex environment variables, read via process.env only inside actions. Nothing secret in VITE_ variables or the repo.
 - Providers: Seedance 2.5 via ByteDance's base API (video, upscale, extend); GPT Image 2 (images, edits); DeepSeek (copilot LLM).
-- Storage: Convex file storage behind ONE storage module (src and convex helpers). Nothing else touches storage directly, so video can later move to Cloudflare R2 (free egress) by changing that module only.
+- Storage: Convex file storage behind ONE storage module at `packages/backend/convex/storage` (and matching helpers). Nothing else touches storage directly, so video can later move to Cloudflare R2 (free egress) by changing that module only.
 - Convex documents are limited to 1 MiB: large JSON (blockout scenes, Theatre.js state, timeline snapshots) is stored as files; the database row holds the file ID.
 - Rendering happens in the browser: WebCodecs for encode/decode, WebGL/WebGPU for compositing, low-res proxies for playback. No render server in the MVP.
 - 3D blockout: three.js (scene, mannequins, props, lights, cameras) + Theatre.js (keyframed animation per shot).
@@ -43,7 +44,7 @@ MVP items are marked [MVP]; others note their phase.
 6. Asset library [MVP]: upload footage, photos, audio, music and logos; typed assets linked to project/scene/shot/job; lineage view (prompt, model, seed, references, parents); search by text, tag, character, shot; selected takes kept, rejected takes purged after a set period unless starred.
 7. AI copilot [MVP]: DeepSeek via its API behind an adapter; chat panel aware of current view, selection and project; primed as film director, screenwriter and character designer; acts through tools (edit script, create shots, write prompts, queue generations) shown as proposals with cost estimates; project rules list it follows (e.g. "no handheld shots").
 8. Platform essentials: cost estimates, batch confirmation, spend caps [MVP]; in-app and email job notifications, automatic retries and credit refunds [MVP]; guided starter template [MVP]; internal admin via Convex dashboard plus protected staff pages [MVP]; share links (phase 2); project members with Owner/Editor/Commenter/Viewer roles and shot locks (phase 2).
-9. Admin platform (phase 2): separate React app on the same Convex deployment; areas for users, projects, jobs/providers, billing/credits, moderation, models/pricing, analytics, admin users, audit log; RBAC roles (Super admin, Operations admin, Support, Moderator, Finance, Engineer, Analyst) built from fine-grained permissions; every admin function checks permissions server-side; append-only audit log.
+9. Admin platform (phase 2): separate React app in `apps/admin` on the same Convex deployment; areas for users, projects, jobs/providers, billing/credits, moderation, models/pricing, analytics, admin users, audit log; RBAC roles (Super admin, Operations admin, Support, Moderator, Finance, Engineer, Analyst) built from fine-grained permissions; every admin function checks permissions server-side; append-only audit log.
 
 ## 6. Data model (Convex tables)
 workspaces, users (with staff flag), projects (brief, aspect ratio, fps, target length, style, rules), scriptVersions (parent pointer), scenes, shots (order, type, lens, move, duration, characters, dialogue, status, selectedTakeId, blockoutFileId), entities (character/location/prop/style), assets (type, storageId, format, duration, tags, lineage), generationJobs (model, modelVersion, prompt, seed, inputs, cost, status, providerJobId, outputs), takes (shot, asset, job, rating, selected), timelineVersions (timeline JSON file ID), notes, creditLedger (append-only entries), notifications; later projectMembers, adminRoles, auditLog. Every write that changes user content creates a new version with a parent pointer.
@@ -68,9 +69,20 @@ Out of the MVP: own foundation model, models beyond Seedance 2.5 / GPT Image 2 /
 Moderation of prompts and outputs; likeness-consent checks for uploaded real faces; C2PA provenance on exports; clear commercial-use terms; documented data handling for ByteDance, OpenAI and DeepSeek.
 
 ## 12. Code conventions
-(Filled in during Phase 1: folder structure, naming, testing and UI conventions.)
+- **Monorepo folders:** `apps/web` (creator React + Vite app), `packages/backend` (Convex project), `packages/shared` (types used by web and backend), `packages/config` (shared tsconfig / ESLint / Prettier). Do not put web or Convex files at the repo root.
+- **Web (`apps/web`):** `src/app` (routes, shell, protected route), `src/features/<module>` (one folder per product module), `src/components` (shared UI, including `ui/` for shadcn-style primitives), `src/lib` (utilities). Path alias `@/` → `apps/web/src/`.
+- **Backend (`packages/backend`):** `convex/` (schema, auth, functions), `convex/adapters` (model adapters), `convex/storage` (sole storage module). Generated `api` / data model types are exported from `@cinakey/backend` for apps to import.
+- **Shared (`packages/shared`):** Cross-cutting types and schemas (e.g. model capability types, later `cinakey.blockout` JSON). Import as `@cinakey/shared` — no deep relative imports across packages.
+- **Adding a new app or package:** create `apps/<name>` or `packages/<name>` with its own `package.json` (scoped `@cinakey/...`), extend `@cinakey/config` for TS/ESLint/Prettier, add workspace deps with `"*"`, and ensure root Turborepo tasks (`dev`, `build`, `lint`, `typecheck`, `test`) pick it up via workspaces.
+- **Naming:** React components and files that export them use PascalCase (`ProjectsPage.tsx`). Functions, hooks, and variables use camelCase. Convex modules use camelCase filenames matching their export surface (`users.ts`, `auth.ts`). Adapter ids use kebab-case (`seedance-2.5`). CSS prefers Tailwind utilities; shared class merging via `cn()` in `apps/web/src/lib/utils.ts`.
+- **UI kit:** Tailwind CSS v4 + shadcn/ui-style Radix primitives. Dark-first zinc/neutral studio theme (IBM Plex Sans). App shell: left nav + top bar with user menu. Prefer composition over cards for chrome; cards only when they contain an interaction.
+- **Imports:** Web imports Convex `api` from `@cinakey/backend` and shared types from `@cinakey/shared`. Prefer named exports for components.
+- **Testing:** Vitest + Testing Library + jsdom (web). Colocate `*.test.ts(x)` next to the code under test. Run from root with `npm run test` (Turborepo) or per package. Lint with ESLint; format with Prettier; typecheck with `npm run typecheck` (strict TypeScript).
+- **Backend rules:** Provider secrets only via Convex env (`npx convex env set` from `packages/backend`). Never call Convex file storage outside `packages/backend/convex/storage`. AI model HTTP only through adapters.
 
 ## 13. Decision log
+- 2026-09-27: Repo converted to an npm workspaces + Turborepo monorepo (`apps/web`, `packages/backend`, `packages/shared`, `packages/config`) so future apps (admin) and packages (ui) can land without reshuffling. No product feature changes.
+- 2026-09-27: Phase 1 project setup. Vite + React + TypeScript (strict) + npm; ESLint, Prettier, Vitest; Tailwind v4 + shadcn-style UI, dark-first zinc theme; React Router; Convex Auth with Password + Google (magic links deferred); storage module stub; GenerationAdapter types and empty stubs for seedance-2.5, gpt-image-2, deepseek; placeholder projects/shell routes. Folder conventions recorded in §12.
 - 2026-09-26: Source of truth created. Stack: React + Convex + Convex Auth. Models: Seedance 2.5 (ByteDance base API), GPT Image 2, DeepSeek. 3D blockout with three.js + Theatre.js, JSON and MP4 export in MVP. In-house browser editor. Members, sharing and admin platform moved to phase 2.
 
 ## 14. How to update this file
