@@ -1,0 +1,77 @@
+---
+description: "Cinakey product source of truth: the full description of what is being built. Read before planning or building any feature."
+alwaysApply: false
+---
+
+# Cinakey — Source of Truth
+
+## 1. Product
+Cinakey is the studio pipeline for AI filmmaking: one browser workspace that takes a project from idea to exported cut. Competitors (LTX Studio, Google Flow, Higgsfield) sell access to models; Cinakey wins on pipeline depth: the film is structured, versioned data (script, shots, takes, assets, edit decisions) that the AI copilot can reason over and that can be exported cleanly.
+Users: solo creators first (YouTubers, indie filmmakers, ad and social makers); studios and agencies later (phase 3). Core job: "Turn my idea into a finished, consistent video without juggling ten tools or losing track of what worked."
+North-star metric: finished minutes exported per active workspace per month.
+Built by a solo developer using AI-assisted coding.
+
+## 2. Principles
+1. Pipeline over model count: one model per job at launch (Seedance 2.5 video, GPT Image 2 images, DeepSeek copilot) behind model-neutral adapters so more can be added without product changes.
+2. Everything is a linked record: every asset knows its project, scene, shot and the job, prompt and references that made it.
+3. Nothing is lost: scripts, sheets, shots, blockouts and timelines are versioned with parent pointers; users compare, branch and roll back.
+4. The AI works on the project: the copilot reads project data and proposes changes as diffs with cost estimates; the user accepts or rejects.
+5. Open at the edges: import any media; export MP4 and JSON (later OTIO/XML for Premiere, Resolve, Final Cut).
+
+## 3. Tech stack and hard rules
+- Front end: React + TypeScript (strict), Vite, hosted as a static site (Vercel, Netlify or Cloudflare Pages).
+- Back end: Convex (database, queries, mutations, actions, scheduled functions, HTTP actions, file storage, text and vector search). No separate API server.
+- Auth: Convex Auth (email and password, magic links, Google OAuth). Staff accounts are flagged separately from customers.
+- Secrets: provider keys (SEEDANCE_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY, etc.) are Convex environment variables, read via process.env only inside actions. Nothing secret in VITE_ variables or the repo.
+- Providers: Seedance 2.5 via ByteDance's base API (video, upscale, extend); GPT Image 2 (images, edits); DeepSeek (copilot LLM).
+- Storage: Convex file storage behind ONE storage module (src and convex helpers). Nothing else touches storage directly, so video can later move to Cloudflare R2 (free egress) by changing that module only.
+- Convex documents are limited to 1 MiB: large JSON (blockout scenes, Theatre.js state, timeline snapshots) is stored as files; the database row holds the file ID.
+- Rendering happens in the browser: WebCodecs for encode/decode, WebGL/WebGPU for compositing, low-res proxies for playback. No render server in the MVP.
+- 3D blockout: three.js (scene, mannequins, props, lights, cameras) + Theatre.js (keyframed animation per shot).
+- Real-time comes from Convex live queries (job status, notifications, later presence and shot locks). Yjs for co-editing in phase 3.
+
+## 4. Pipeline
+Brief -> Script -> Look development -> Blockout -> Shot generation -> Edit -> Review -> Export. Each stage's output is the next stage's structured input; users can enter at any stage (e.g. upload footage and start at Edit). Review notes loop back to single shots (regenerate or swap a take).
+
+## 5. Modules and features
+MVP items are marked [MVP]; others note their phase.
+1. Script room [MVP]: screenplay and A/V formats; scenes, beats and dialogue lines as records; runtime estimate; entity extraction (characters, locations, props) into look-dev cards; script versions with diff; shots flagged out of date when their lines change.
+2. Look development [MVP]: character, location, prop and style sheets; locked identity references; GPT Image 2 generation and edits inside sheets; import real photos as references.
+3. Blockout [MVP]: shot list table (type, lens, move, duration, characters, location, dialogue, status); storyboard with one keyframe per shot; 3D blockout (three.js + Theatre.js) with mannequins, props, lights and an animated camera; renders usable as depth/pose guides for generation; export one shot, a scene or all as JSON and/or MP4 (animatic with optional burn-in of shot number, scene and timecode). Animatic timeline is phase 2.
+4. Shot generation [MVP]: prompts assembled from shot, character, location and style data; multiple takes per shot, one selected; start/end frames, references and camera presets as far as Seedance 2.5 supports (controls come from the adapter's capability manifest); upscale and extend via Seedance; fixing = regenerate as a new take or trim in the editor; every take records model and version. Batch scene generation and lip sync are phase 2.
+5. Browser editor [MVP, in-house]: multi-track timeline (video, dialogue, music, SFX, titles); cut, trim, split, reorder; uploaded and generated clips side by side; swap take / regenerate from the timeline; music upload, captions; in-browser MP4 export. Aspect-ratio variants, colour/LUTs and OTIO/XML export are phase 2.
+6. Asset library [MVP]: upload footage, photos, audio, music and logos; typed assets linked to project/scene/shot/job; lineage view (prompt, model, seed, references, parents); search by text, tag, character, shot; selected takes kept, rejected takes purged after a set period unless starred.
+7. AI copilot [MVP]: DeepSeek via its API behind an adapter; chat panel aware of current view, selection and project; primed as film director, screenwriter and character designer; acts through tools (edit script, create shots, write prompts, queue generations) shown as proposals with cost estimates; project rules list it follows (e.g. "no handheld shots").
+8. Platform essentials: cost estimates, batch confirmation, spend caps [MVP]; in-app and email job notifications, automatic retries and credit refunds [MVP]; guided starter template [MVP]; internal admin via Convex dashboard plus protected staff pages [MVP]; share links (phase 2); project members with Owner/Editor/Commenter/Viewer roles and shot locks (phase 2).
+9. Admin platform (phase 2): separate React app on the same Convex deployment; areas for users, projects, jobs/providers, billing/credits, moderation, models/pricing, analytics, admin users, audit log; RBAC roles (Super admin, Operations admin, Support, Moderator, Finance, Engineer, Analyst) built from fine-grained permissions; every admin function checks permissions server-side; append-only audit log.
+
+## 6. Data model (Convex tables)
+workspaces, users (with staff flag), projects (brief, aspect ratio, fps, target length, style, rules), scriptVersions (parent pointer), scenes, shots (order, type, lens, move, duration, characters, dialogue, status, selectedTakeId, blockoutFileId), entities (character/location/prop/style), assets (type, storageId, format, duration, tags, lineage), generationJobs (model, modelVersion, prompt, seed, inputs, cost, status, providerJobId, outputs), takes (shot, asset, job, rating, selected), timelineVersions (timeline JSON file ID), notes, creditLedger (append-only entries), notifications; later projectMembers, adminRoles, auditLog. Every write that changes user content creates a new version with a parent pointer.
+
+## 7. Model adapters
+Each model is one adapter declaring a capability manifest: id, kind (video/image/llm), inputs (text, startFrame, endFrame, referenceImages, audio), durations, resolutions, aspect ratios, features (cameraControl, upscale, extend, inpaint...), and cost model. The UI shows only controls the manifest supports. Adapters implement: capabilities, buildRequest (shot + entities + style -> provider payload), submit, poll or webhook handling, collect outputs. Launch adapters: seedance-2.5, gpt-image-2, deepseek.
+
+## 8. Blockout JSON format
+Schema id "cinakey.blockout/1.0" (versioned; older exports stay readable). Contains project (id, title, aspectRatio, fps) and scenes[] -> shots[] with id, order, durationSec, shotType, lensMm, cameraMove, camera keyframes (t, position, rotation), characters (id, position, action), dialogue, keyframeImage reference, notes, and the three.js scene plus Theatre.js state. The stored blockout file IS the export.
+
+## 9. Credits and jobs
+Credits ledger is append-only. Flow: estimate cost -> reserve credits (mutation) -> action calls provider -> poll on a schedule or receive webhook (HTTP action with signature check) -> save outputs as assets and a take -> settle credits, or refund automatically on failure. Retries on provider errors. Provider cost vs price tracked per job.
+
+## 10. Roadmap
+Phase 1 MVP (solo creators): modules above marked [MVP]. Gate: 50 creators finish a video end to end; median idea-to-export under 3 hours; 40% start a second project.
+Phase 2 Pro and collaboration: project members, share links, admin platform with RBAC, animatic, lip sync and AI voice, batch generation, branching, aspect-ratio variants, OTIO/XML export, more templates, video to R2 when egress justifies it.
+Phase 3 Teams: workspace roles, shot assignment, client review and approval, real-time co-editing, brand kits, SSO, usage reports.
+Phase 4 Platform: public API, pipeline templates, custom model and identity training, more models via adapters, marketplace.
+Out of the MVP: own foundation model, models beyond Seedance 2.5 / GPT Image 2 / DeepSeek, frame interpolation and frame repair, members and sharing, full admin platform, server-side rendering, mobile editing, co-editing.
+
+## 11. Trust and safety
+Moderation of prompts and outputs; likeness-consent checks for uploaded real faces; C2PA provenance on exports; clear commercial-use terms; documented data handling for ByteDance, OpenAI and DeepSeek.
+
+## 12. Code conventions
+(Filled in during Phase 1: folder structure, naming, testing and UI conventions.)
+
+## 13. Decision log
+- 2026-09-26: Source of truth created. Stack: React + Convex + Convex Auth. Models: Seedance 2.5 (ByteDance base API), GPT Image 2, DeepSeek. 3D blockout with three.js + Theatre.js, JSON and MP4 export in MVP. In-house browser editor. Members, sharing and admin platform moved to phase 2.
+
+## 14. How to update this file
+Update this file in the same task as any significant change (see the north-star rule). Edit the affected section, keep it accurate rather than historical, and add a dated line to the Decision log saying what changed and why.
