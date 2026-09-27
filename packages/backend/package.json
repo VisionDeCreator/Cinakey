@@ -22,8 +22,10 @@
   },
   "devDependencies": {
     "@cinakey/config": "*",
+    "@edge-runtime/vm": "^5.0.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.3",
+    "convex-test": "^0.0.41",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
     "typescript": "~5.9.0",

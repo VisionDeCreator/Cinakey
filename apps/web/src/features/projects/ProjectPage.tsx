@@ -26,6 +26,7 @@ function ProjectTabPlaceholder({ label }: { label: string }) {
 
 export function ProjectPage() {
   const { projectId } = useParams();
+  const base = `/projects/${projectId ?? ""}`;
 
   return (
     <div className="space-y-6">
@@ -42,7 +43,8 @@ export function ProjectPage() {
         {TABS.map((tab) => (
           <NavLink
             key={tab.id}
-            to={tab.path}
+            to={`${base}/${tab.path}`}
+            end
             className={({ isActive }) =>
               cn(
                 "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100",
@@ -56,7 +58,7 @@ export function ProjectPage() {
       </div>
 
       <Routes>
-        <Route index element={<Navigate to="script" replace />} />
+        <Route index element={<Navigate to={`${base}/script`} replace />} />
         {TABS.map((tab) => (
           <Route
             key={tab.id}
@@ -64,7 +66,10 @@ export function ProjectPage() {
             element={<ProjectTabPlaceholder label={tab.label} />}
           />
         ))}
-        <Route path="*" element={<Navigate to="script" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to={`${base}/script`} replace />}
+        />
       </Routes>
     </div>
   );

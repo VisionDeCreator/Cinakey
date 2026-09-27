@@ -1,13 +1,27 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
+import { requireUser } from "./lib/access";
+import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 
 export const viewer = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
+    try {
+      return await requireUser(ctx);
+    } catch {
       return null;
     }
-    return await ctx.db.get(userId);
+  },
+});
+
+/**
+ * Idempotent: ensures the signed-in user has a personal workspace.
+ * Safe to call from the app shell after sign-in (covers users created
+ * before the Auth callback existed, and test setups).
+ */
+export const ensurePersonalWorkspace = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireUser(ctx);
+    return await ensurePersonalWorkspaceForUser(ctx, user._id);
   },
 });

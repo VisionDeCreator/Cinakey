@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { AssetsPage } from "@/features/assets/AssetsPage";
 import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
+import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { ProjectPage } from "@/features/projects/ProjectPage";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
@@ -54,6 +55,7 @@ export function AppRouter() {
           <Route path="/projects/:projectId/*" element={<ProjectPage />} />
           <Route path="/assets" element={<AssetsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/dev/upload" element={<UploadTestPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/projects" replace />} />

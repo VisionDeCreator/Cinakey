@@ -1,6 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Clapperboard, FolderKanban, Images, Settings } from "lucide-react";
+import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api } from "@cinakey/backend";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,8 +25,15 @@ const navItems = [
 
 export function AppShell() {
   const user = useQuery(api.users.viewer);
+  const ensureWorkspace = useMutation(api.users.ensurePersonalWorkspace);
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user !== undefined && user !== null && user.personalWorkspaceId === undefined) {
+      void ensureWorkspace();
+    }
+  }, [user, ensureWorkspace]);
 
   const email = user?.email ?? "Account";
   const initials = email.slice(0, 2).toUpperCase();

@@ -13,8 +13,16 @@ import type * as adapters_gptImage2 from "../adapters/gptImage2.js";
 import type * as adapters_index from "../adapters/index.js";
 import type * as adapters_seedance25 from "../adapters/seedance25.js";
 import type * as auth from "../auth.js";
+import type * as blockouts from "../blockouts.js";
 import type * as http from "../http.js";
-import type * as storage_index from "../storage/index.js";
+import type * as lib_access from "../lib/access.js";
+import type * as lib_versioning from "../lib/versioning.js";
+import type * as lib_workspaces from "../lib/workspaces.js";
+import type * as projects from "../projects.js";
+import type * as scriptVersions from "../scriptVersions.js";
+import type * as seed from "../seed.js";
+import type * as storage from "../storage.js";
+import type * as timelineVersions from "../timelineVersions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -29,8 +37,16 @@ declare const fullApi: ApiFromModules<{
   "adapters/index": typeof adapters_index;
   "adapters/seedance25": typeof adapters_seedance25;
   auth: typeof auth;
+  blockouts: typeof blockouts;
   http: typeof http;
-  "storage/index": typeof storage_index;
+  "lib/access": typeof lib_access;
+  "lib/versioning": typeof lib_versioning;
+  "lib/workspaces": typeof lib_workspaces;
+  projects: typeof projects;
+  scriptVersions: typeof scriptVersions;
+  seed: typeof seed;
+  storage: typeof storage;
+  timelineVersions: typeof timelineVersions;
   users: typeof users;
 }>;
 

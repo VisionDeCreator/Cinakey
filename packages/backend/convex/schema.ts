@@ -1,8 +1,243 @@
 import { authTables } from "@convex-dev/auth/server";
-import { defineSchema } from "convex/server";
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+const lineage = v.object({
+  prompt: v.optional(v.string()),
+  model: v.optional(v.string()),
+  modelVersion: v.optional(v.string()),
+  seed: v.optional(v.number()),
+  parentAssetIds: v.optional(v.array(v.id("assets"))),
+  referenceAssetIds: v.optional(v.array(v.id("assets"))),
+});
 
 const schema = defineSchema({
   ...authTables,
+
+  // Extend Convex Auth users with staff flag and personal workspace link.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    isStaff: v.optional(v.boolean()),
+    personalWorkspaceId: v.optional(v.id("workspaces")),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
+
+  workspaces: defineTable({
+    name: v.string(),
+    ownerUserId: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["ownerUserId"]),
+
+  projects: defineTable({
+    workspaceId: v.id("workspaces"),
+    title: v.string(),
+    brief: v.optional(v.string()),
+    aspectRatio: v.string(),
+    fps: v.number(),
+    targetLengthSec: v.optional(v.number()),
+    styleNotes: v.optional(v.string()),
+    rules: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]),
+
+  scriptVersions: defineTable({
+    projectId: v.id("projects"),
+    parentId: v.optional(v.id("scriptVersions")),
+    format: v.union(v.literal("screenplay"), v.literal("av")),
+    label: v.optional(v.string()),
+    contentFileId: v.id("_storage"),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_parent", ["parentId"]),
+
+  scenes: defineTable({
+    projectId: v.id("projects"),
+    order: v.number(),
+    heading: v.string(),
+    synopsis: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_order", ["projectId", "order"]),
+
+  shots: defineTable({
+    projectId: v.id("projects"),
+    sceneId: v.id("scenes"),
+    order: v.number(),
+    shotType: v.string(),
+    lensMm: v.optional(v.number()),
+    cameraMove: v.optional(v.string()),
+    durationSec: v.number(),
+    characterIds: v.array(v.id("entities")),
+    locationId: v.optional(v.id("entities")),
+    dialogue: v.optional(v.string()),
+    status: v.union(
+      v.literal("todo"),
+      v.literal("blocked"),
+      v.literal("generating"),
+      v.literal("done"),
+      v.literal("outdated"),
+    ),
+    selectedTakeId: v.optional(v.id("takes")),
+    blockoutFileId: v.optional(v.id("_storage")),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_scene", ["sceneId"])
+    .index("by_scene_order", ["sceneId", "order"]),
+
+  entities: defineTable({
+    projectId: v.id("projects"),
+    kind: v.union(
+      v.literal("character"),
+      v.literal("location"),
+      v.literal("prop"),
+      v.literal("style"),
+    ),
+    name: v.string(),
+    description: v.optional(v.string()),
+    lockedReferenceAssetIds: v.array(v.id("assets")),
+    sheetFileId: v.optional(v.id("_storage")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_kind", ["projectId", "kind"]),
+
+  assets: defineTable({
+    projectId: v.id("projects"),
+    sceneId: v.optional(v.id("scenes")),
+    shotId: v.optional(v.id("shots")),
+    jobId: v.optional(v.id("generationJobs")),
+    type: v.union(
+      v.literal("video"),
+      v.literal("image"),
+      v.literal("audio"),
+      v.literal("music"),
+      v.literal("logo"),
+      v.literal("json"),
+      v.literal("other"),
+    ),
+    storageId: v.id("_storage"),
+    format: v.string(),
+    sizeBytes: v.number(),
+    durationSec: v.optional(v.number()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    tags: v.array(v.string()),
+    lineage: v.optional(lineage),
+    starred: v.boolean(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_shot", ["shotId"])
+    .index("by_job", ["jobId"])
+    .index("by_storage", ["storageId"]),
+
+  generationJobs: defineTable({
+    projectId: v.id("projects"),
+    shotId: v.optional(v.id("shots")),
+    model: v.string(),
+    modelVersion: v.string(),
+    prompt: v.string(),
+    seed: v.optional(v.number()),
+    inputsFileId: v.optional(v.id("_storage")),
+    costCredits: v.number(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("succeeded"),
+      v.literal("failed"),
+      v.literal("cancelled"),
+    ),
+    providerJobId: v.optional(v.string()),
+    outputAssetIds: v.array(v.id("assets")),
+    errorMessage: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_status", ["status"])
+    .index("by_provider_job", ["providerJobId"]),
+
+  takes: defineTable({
+    projectId: v.id("projects"),
+    shotId: v.id("shots"),
+    assetId: v.id("assets"),
+    jobId: v.id("generationJobs"),
+    rating: v.optional(v.number()),
+    selected: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_shot", ["shotId"])
+    .index("by_job", ["jobId"]),
+
+  timelineVersions: defineTable({
+    projectId: v.id("projects"),
+    parentId: v.optional(v.id("timelineVersions")),
+    label: v.optional(v.string()),
+    timelineFileId: v.id("_storage"),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_parent", ["parentId"]),
+
+  notes: defineTable({
+    projectId: v.id("projects"),
+    shotId: v.optional(v.id("shots")),
+    takeId: v.optional(v.id("takes")),
+    body: v.string(),
+    authorId: v.id("users"),
+    resolved: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_shot", ["shotId"]),
+
+  creditLedger: defineTable({
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+    projectId: v.optional(v.id("projects")),
+    jobId: v.optional(v.id("generationJobs")),
+    delta: v.number(),
+    reason: v.string(),
+    balanceAfter: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_workspace", ["workspaceId"])
+    .index("by_workspace_time", ["workspaceId", "createdAt"]),
+
+  notifications: defineTable({
+    userId: v.id("users"),
+    projectId: v.optional(v.id("projects")),
+    kind: v.string(),
+    title: v.string(),
+    body: v.optional(v.string()),
+    href: v.optional(v.string()),
+    read: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_unread", ["userId", "read"]),
 });
 
 export default schema;

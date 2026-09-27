@@ -1,3 +1,15 @@
+# Dependencies
+node_modules
+
+# Builds & caches
+dist
+dist-ssr
+build
+out
+.turbo
+.vite
+*.tsbuildinfo
+
 # Logs
 logs
 *.log
@@ -7,26 +19,47 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Environment & secrets (keep .env.example committed)
+.env
+.env.*
+!.env.example
 *.local
-.env.local
-.env*.local
 
-# Editor directories and files
+# Test / coverage
+coverage
+*.lcov
+.nyc_output
+playwright-report
+test-results
+blob-report
+
+# Lint / format caches
+.eslintcache
+.prettiercache
+.stylelintcache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*~
 
-# Convex
+# Convex local state (generated API under convex/_generated is committed)
 .convex
 
-# Turbo
-.turbo
+# Misc
+*.pem
+*.tgz
+.cache
+tmp
+temp
