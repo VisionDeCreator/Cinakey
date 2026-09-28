@@ -50,7 +50,13 @@ export function ProjectStagePlaceholder({ stage }: { stage: string }) {
 
   useEffect(() => {
     if (!projectId) return;
-    const view = (stage === "look-dev" ? "look-dev" : stage) as CopilotView;
+    const view = (
+      stage === "look-dev"
+        ? "assets"
+        : stage === "shots"
+          ? "video"
+          : stage
+    ) as CopilotView;
     setContext({ view, projectId, selectionIds: [] });
   }, [projectId, stage, setContext]);
 

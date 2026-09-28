@@ -5,6 +5,8 @@
 
 import {
   assertSheetDocument,
+  normalizeEntityName,
+  validateAssetPromptText,
   type SheetDocument,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -456,6 +458,189 @@ export const completeAssetGeneration = internalMutation({
   },
 });
 
+const assetTypeValidator = v.union(
+  v.literal("character"),
+  v.literal("creature"),
+  v.literal("environment"),
+  v.literal("product"),
+);
+
+const entityKindForAssetType = {
+  character: "character",
+  creature: "creature",
+  environment: "location",
+  product: "prop",
+} as const;
+
+/** Save full Phase 7C template text as the tip asset prompt sheet (custom mode). */
+export const savePromptText = action({
+  args: {
+    projectId: v.id("projects"),
+    entityId: v.optional(v.id("entities")),
+    entityName: v.optional(v.string()),
+    type: assetTypeValidator,
+    promptText: v.string(),
+    name: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    promptSheetId: Id<"promptSheets">;
+    entityId: Id<"entities">;
+    version: number;
+    validationWarning?: string;
+  }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: args.projectId,
+      userId,
+    });
+
+    const promptText = args.promptText.trim();
+    if (promptText.length === 0) {
+      throw new Error("promptText is empty");
+    }
+
+    const validation = validateAssetPromptText(args.type, promptText);
+
+    let entityId = args.entityId;
+    const entityKind = entityKindForAssetType[args.type];
+    const displayName =
+      args.name?.trim() ||
+      args.entityName?.trim() ||
+      "Untitled asset";
+
+    if (!entityId && args.entityName?.trim()) {
+      const entities: Doc<"entities">[] = await ctx.runQuery(
+        internal.promptSheets.listEntitiesInternal,
+        { projectId: args.projectId },
+      );
+      const key = normalizeEntityName(args.entityName.trim());
+      const match = entities.find(
+        (e) =>
+          e.kind === entityKind &&
+          normalizeEntityName(e.name) === key,
+      );
+      entityId = match?._id;
+    }
+
+    if (!entityId) {
+      entityId = await ctx.runMutation(internal.promptSheets.createEntityInternal, {
+        projectId: args.projectId,
+        kind: entityKind,
+        name: displayName,
+      });
+    } else {
+      await ctx.runMutation(internal.promptSheets.patchEntityKindInternal, {
+        entityId,
+        kind: entityKind,
+        name: args.name?.trim() || args.entityName?.trim() || undefined,
+      });
+    }
+
+    const stub = {
+      schema: "cinakey.prompt/custom/1",
+      type: args.type,
+      customPrompt: true,
+    };
+    const { storageId: structuredFileId } = await saveJson(ctx, stub);
+    const renderedStore = await storeRendered(ctx, promptText);
+
+    let parentId: Id<"promptSheets"> | undefined;
+    let version = 1;
+    let demoteTipId: Id<"promptSheets"> | undefined;
+
+    const tips: Doc<"promptSheets">[] = await ctx.runQuery(
+      internal.promptSheets.listTipsInternal,
+      { projectId: args.projectId },
+    );
+    const existing = tips.find(
+      (t) => t.entityId === entityId && isAssetSheetType(t.type),
+    );
+    if (existing) {
+      demoteTipId = existing._id;
+      parentId = existing._id;
+      version = existing.version + 1;
+    }
+
+    const promptSheetId: Id<"promptSheets"> = await ctx.runMutation(
+      internal.promptSheets.insertTip,
+      {
+        projectId: args.projectId,
+        type: args.type,
+        entityId,
+        structuredFileId,
+        ...renderedStore,
+        status: "draft",
+        isCustom: true,
+        parentId,
+        version,
+        demoteTipId,
+      },
+    );
+
+    return {
+      promptSheetId,
+      entityId,
+      version,
+      validationWarning: validation.warning,
+    };
+  },
+});
+
+export const createEntityInternal = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    kind: v.union(
+      v.literal("character"),
+      v.literal("creature"),
+      v.literal("location"),
+      v.literal("prop"),
+    ),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("entities", {
+      projectId: args.projectId,
+      kind: args.kind,
+      name: args.name.trim(),
+      lockedReferenceAssetIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const patchEntityKindInternal = internalMutation({
+  args: {
+    entityId: v.id("entities"),
+    kind: v.union(
+      v.literal("character"),
+      v.literal("creature"),
+      v.literal("location"),
+      v.literal("prop"),
+    ),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const entity = await ctx.db.get(args.entityId);
+    if (entity === null || entity.kind === "style") return;
+    const patch: {
+      kind?: "character" | "creature" | "location" | "prop";
+      name?: string;
+      updatedAt: number;
+    } = { updatedAt: Date.now() };
+    if (entity.kind !== args.kind) patch.kind = args.kind;
+    if (args.name && args.name !== entity.name) patch.name = args.name;
+    if (Object.keys(patch).length > 1) {
+      await ctx.db.patch(args.entityId, patch);
+    }
+  },
+});
+
 /** Edit rendered text → custom mode. */
 export const setCustomRenderedText = action({
   args: {
@@ -575,3 +760,97 @@ export const pipelineSummary = query({
 });
 
 export type PromptSheetDoc = Doc<"promptSheets">;
+
+/** Tip asset prompt sheet for an entity, with resolved rendered text. */
+export const getTipForEntity = query({
+  args: { entityId: v.id("entities") },
+  handler: async (ctx, args) => {
+    const entity = await ctx.db.get(args.entityId);
+    if (entity === null) return null;
+    await requireProjectAccess(ctx, entity.projectId);
+    const tips = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_entity", (q) => q.eq("entityId", args.entityId))
+      .collect();
+    const tip = tips
+      .filter((t) => t.isTip && isAssetSheetType(t.type))
+      .sort((a, b) => b.version - a.version)[0];
+    if (!tip) return null;
+    return tip;
+  },
+});
+
+/** Version history for an entity's asset prompt sheets (newest first). */
+export const listVersionsForEntity = query({
+  args: { entityId: v.id("entities") },
+  handler: async (ctx, args) => {
+    const entity = await ctx.db.get(args.entityId);
+    if (entity === null) return [];
+    await requireProjectAccess(ctx, entity.projectId);
+    const rows = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_entity", (q) => q.eq("entityId", args.entityId))
+      .collect();
+    return rows
+      .filter((t) => isAssetSheetType(t.type))
+      .sort((a, b) => b.version - a.version)
+      .map((t) => ({
+        _id: t._id,
+        version: t.version,
+        status: t.status,
+        isTip: t.isTip,
+        isCustom: t.isCustom,
+        createdAt: t.createdAt,
+        preview: (t.renderedText ?? "").slice(0, 120),
+      }));
+  },
+});
+
+/** Restore a prior prompt sheet version as a new tip (Undo / version menu). */
+export const restorePromptVersion = action({
+  args: { promptSheetId: v.id("promptSheets") },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ promptSheetId: Id<"promptSheets">; version: number }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const sheet: Doc<"promptSheets"> | null = await ctx.runQuery(
+      internal.promptSheets.getInternal,
+      { promptSheetId: args.promptSheetId },
+    );
+    if (sheet === null) throw new Error("Prompt sheet not found");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: sheet.projectId,
+      userId,
+    });
+    if (!sheet.entityId || !isAssetSheetType(sheet.type)) {
+      throw new Error("Can only restore asset prompt sheets");
+    }
+
+    let rendered = sheet.renderedText ?? "";
+    if (sheet.renderedFileId) {
+      rendered = String(await loadJson(ctx, sheet.renderedFileId));
+    }
+    if (!rendered && sheet.structuredFileId) {
+      try {
+        const structured = await loadJson(ctx, sheet.structuredFileId);
+        const artStyle = await loadArtStyleBlock(ctx, sheet.projectId);
+        rendered = renderPromptSheetText(sheet.type, structured, artStyle);
+      } catch {
+        throw new Error("Could not restore prompt text from this version");
+      }
+    }
+
+    const result = await ctx.runAction(api.promptSheets.savePromptText, {
+      projectId: sheet.projectId,
+      entityId: sheet.entityId,
+      type: sheet.type,
+      promptText: rendered,
+    });
+    return {
+      promptSheetId: result.promptSheetId,
+      version: result.version,
+    };
+  },
+});

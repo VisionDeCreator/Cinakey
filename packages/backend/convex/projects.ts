@@ -22,56 +22,49 @@ const aspectRatioValidator = v.union(
 export type StageStatus = "empty" | "started";
 
 export type PipelineProgress = {
-  script: StageStatus;
-  lookDev: StageStatus;
-  blockout: StageStatus;
-  shots: StageStatus;
-  edit: StageStatus;
   assets: StageStatus;
+  script: StageStatus;
+  blockout: StageStatus;
+  video: StageStatus;
+  edit: StageStatus;
 };
 
 export async function computeProgress(
   ctx: QueryCtx,
   projectId: Id<"projects">,
 ): Promise<PipelineProgress> {
-  const [scripts, entities, shots, takes, timelines, assets] =
-    await Promise.all([
-      ctx.db
-        .query("scriptVersions")
-        .withIndex("by_project", (q) => q.eq("projectId", projectId))
-        .first(),
-      ctx.db
-        .query("entities")
-        .withIndex("by_project", (q) => q.eq("projectId", projectId))
-        .first(),
-      ctx.db
-        .query("shots")
-        .withIndex("by_project", (q) => q.eq("projectId", projectId))
-        .collect(),
-      ctx.db
-        .query("takes")
-        .filter((q) => q.eq(q.field("projectId"), projectId))
-        .first(),
-      ctx.db
-        .query("timelineVersions")
-        .withIndex("by_project", (q) => q.eq("projectId", projectId))
-        .first(),
-      ctx.db
-        .query("assets")
-        .withIndex("by_project", (q) => q.eq("projectId", projectId))
-        .first(),
-    ]);
+  const [scripts, entities, shots, takes, timelines] = await Promise.all([
+    ctx.db
+      .query("scriptVersions")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .first(),
+    ctx.db
+      .query("entities")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .first(),
+    ctx.db
+      .query("shots")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect(),
+    ctx.db
+      .query("takes")
+      .filter((q) => q.eq(q.field("projectId"), projectId))
+      .first(),
+    ctx.db
+      .query("timelineVersions")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .first(),
+  ]);
 
   const hasBlockout =
     shots.some((s) => s.blockoutFileId !== undefined) || shots.length > 0;
 
   return {
+    assets: entities !== null ? "started" : "empty",
     script: scripts !== null ? "started" : "empty",
-    lookDev: entities !== null ? "started" : "empty",
     blockout: hasBlockout ? "started" : "empty",
-    shots: takes !== null ? "started" : "empty",
+    video: takes !== null ? "started" : "empty",
     edit: timelines !== null ? "started" : "empty",
-    assets: assets !== null ? "started" : "empty",
   };
 }
 
@@ -237,6 +230,7 @@ export const update = mutation({
     styleNotes: v.optional(v.string()),
     rules: v.optional(v.array(v.string())),
     thumbnailAssetId: v.optional(v.id("assets")),
+    styleReferenceAssetId: v.optional(v.union(v.id("assets"), v.null())),
     spendCapCredits: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
@@ -254,6 +248,7 @@ export const update = mutation({
       styleNotes?: string;
       rules?: string[];
       thumbnailAssetId?: Id<"assets">;
+      styleReferenceAssetId?: Id<"assets"> | undefined;
       spendCapCredits?: number | undefined;
       updatedAt: number;
     } = { updatedAt: Date.now() };
@@ -269,11 +264,27 @@ export const update = mutation({
     if (args.thumbnailAssetId !== undefined) {
       patch.thumbnailAssetId = args.thumbnailAssetId;
     }
+    if (args.styleReferenceAssetId !== undefined) {
+      patch.styleReferenceAssetId =
+        args.styleReferenceAssetId === null
+          ? undefined
+          : args.styleReferenceAssetId;
+    }
     if (args.spendCapCredits !== undefined) {
       patch.spendCapCredits =
         args.spendCapCredits === null ? undefined : args.spendCapCredits;
     }
     await ctx.db.patch(args.projectId, patch);
+
+    if (
+      args.styleReferenceAssetId !== undefined &&
+      args.styleReferenceAssetId !== null
+    ) {
+      const { markSheetsStaleForStyleChange } = await import(
+        "./lib/promptSheetDeps"
+      );
+      await markSheetsStaleForStyleChange(ctx, args.projectId);
+    }
   },
 });
 

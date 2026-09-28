@@ -2,12 +2,11 @@ import type { PipelineProgress, PipelineStage } from "@cinakey/shared";
 import { cn } from "@/lib/utils";
 
 const STAGES: { key: PipelineStage; label: string }[] = [
-  { key: "script", label: "Script" },
-  { key: "lookDev", label: "Look" },
-  { key: "blockout", label: "Block" },
-  { key: "shots", label: "Shots" },
-  { key: "edit", label: "Edit" },
   { key: "assets", label: "Assets" },
+  { key: "script", label: "Script" },
+  { key: "blockout", label: "Block" },
+  { key: "video", label: "Video" },
+  { key: "edit", label: "Edit" },
 ];
 
 export function StageProgressBar({
@@ -49,12 +48,7 @@ export function firstEmptyStage(
 }
 
 export function stagePath(stage: PipelineStage): string {
-  switch (stage) {
-    case "lookDev":
-      return "look-dev";
-    default:
-      return stage;
-  }
+  return stage;
 }
 
 export function stageLabel(stage: PipelineStage): string {

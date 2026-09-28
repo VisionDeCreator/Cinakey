@@ -153,6 +153,7 @@ export {
   scriptPromptSchema,
   assembleSingleShotPrompt,
   COST_CONFIRM_THRESHOLD_CREDITS,
+  validateAssetPromptText,
 } from "./prompt-templates";
 export type {
   AssetSheetData,

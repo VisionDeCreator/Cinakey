@@ -13,12 +13,11 @@ import { cn } from "@/lib/utils";
 
 const TABS: { id: ProjectTab; label: string; path: string }[] = [
   { id: "copilot", label: "Copilot", path: "copilot" },
-  { id: "script", label: "Script", path: "script" },
-  { id: "look-dev", label: "Look Dev", path: "look-dev" },
-  { id: "blockout", label: "Blockout", path: "blockout" },
-  { id: "shots", label: "Shots", path: "shots" },
-  { id: "edit", label: "Edit", path: "edit" },
   { id: "assets", label: "Assets", path: "assets" },
+  { id: "script", label: "Script", path: "script" },
+  { id: "blockout", label: "Blockout", path: "blockout" },
+  { id: "video", label: "Video", path: "video" },
+  { id: "edit", label: "Edit", path: "edit" },
 ];
 
 export function ProjectWorkspaceLayout() {
@@ -48,7 +47,7 @@ function ProjectWorkspaceInner() {
 
   useEffect(() => {
     if (projectId) {
-      setContext({ view: "overview", projectId, selectionIds: [] });
+      setContext({ view: "copilot", projectId, selectionIds: [] });
     }
   }, [projectId, setContext]);
 
@@ -107,18 +106,6 @@ function ProjectWorkspaceInner() {
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-1">
-              <NavLink
-                to={base}
-                end
-                className={({ isActive }) =>
-                  cn(
-                    "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100",
-                    isActive && "border-zinc-100 text-zinc-50",
-                  )
-                }
-              >
-                Overview
-              </NavLink>
               {TABS.map((tab) => (
                 <NavLink
                   key={tab.id}
@@ -136,7 +123,14 @@ function ProjectWorkspaceInner() {
             </div>
           </div>
 
-          <div className={cn("min-h-0 flex-1", onCopilotTab ? "flex flex-col overflow-hidden p-0" : "overflow-auto p-6")}>
+          <div
+            className={cn(
+              "min-h-0 flex-1",
+              onCopilotTab
+                ? "flex flex-col overflow-hidden p-0"
+                : "overflow-auto p-6",
+            )}
+          >
             <Outlet />
           </div>
         </div>
@@ -144,7 +138,7 @@ function ProjectWorkspaceInner() {
         {!onCopilotTab ? (
           <aside className="hidden w-80 shrink-0 border-l border-zinc-800 bg-[var(--color-studio-panel)] lg:flex lg:flex-col">
             <div className="border-b border-zinc-800 px-4 py-3">
-              <p className="text-sm font-medium text-zinc-200">AI copilot</p>
+              <p className="text-sm font-medium text-zinc-200">Copilot</p>
             </div>
             <div className="min-h-0 flex-1">
               <CopilotPanel projectId={projectId} />

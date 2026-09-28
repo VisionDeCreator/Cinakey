@@ -456,7 +456,17 @@ export const startGeneration = action({
       );
     }
 
-    const referenceAssetIds = args.referenceAssetIds ?? [];
+    const styleRefId =
+      args.adapterId === "gpt-image-2" &&
+      project.styleReferenceAssetId !== undefined
+        ? project.styleReferenceAssetId
+        : undefined;
+    const referenceAssetIds = [
+      ...new Set([
+        ...(args.referenceAssetIds ?? []),
+        ...(styleRefId !== undefined ? [styleRefId] : []),
+      ]),
+    ];
     const parentAssetIds = args.parentAssetIds ?? [];
 
     const allRefIds = [
@@ -998,11 +1008,11 @@ async function finishSuccess(
   });
 
   const href = job.shotId
-    ? `/projects/${job.projectId}/shots/${job.shotId}`
+    ? `/projects/${job.projectId}/video/${job.shotId}`
     : job.sequenceId
-      ? `/projects/${job.projectId}/shots`
+      ? `/projects/${job.projectId}/video`
       : job.entityId
-        ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+        ? `/projects/${job.projectId}/assets/${job.entityId}`
         : `/dev/generation?jobId=${job._id}`;
 
   await ctx.runMutation(internal.notifications.createForUser, {
@@ -1076,11 +1086,11 @@ async function failAndRefund(
   }
 
   const href = job.shotId
-    ? `/projects/${job.projectId}/shots/${job.shotId}`
+    ? `/projects/${job.projectId}/video/${job.shotId}`
     : job.sequenceId
-      ? `/projects/${job.projectId}/shots`
+      ? `/projects/${job.projectId}/video`
       : job.entityId
-        ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+        ? `/projects/${job.projectId}/assets/${job.entityId}`
         : `/dev/generation?jobId=${job._id}`;
 
   await ctx.runMutation(internal.notifications.createForUser, {

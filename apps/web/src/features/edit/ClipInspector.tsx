@@ -218,7 +218,7 @@ export function ClipInspector({
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" asChild>
-              <Link to={`/projects/${projectId}/shots/${shotId}`}>
+              <Link to={`/projects/${projectId}/video/${shotId}`}>
                 Regenerate
               </Link>
             </Button>

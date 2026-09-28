@@ -58,6 +58,8 @@ const schema = defineSchema(
     styleNotes: v.optional(v.string()),
     rules: v.array(v.string()),
     thumbnailAssetId: v.optional(v.id("assets")),
+    /** Style reference image sent with every GPT Image 2 generation in the project. */
+    styleReferenceAssetId: v.optional(v.id("assets")),
     /** Optional per-project credit spend cap; blocks new jobs when reached. */
     spendCapCredits: v.optional(v.number()),
     /** Guided trailer template project. */
@@ -529,6 +531,7 @@ const schema = defineSchema(
       v.literal("blockout_sheet"),
       v.literal("shot_prompt"),
       v.literal("continuity"),
+      v.literal("generate_image"),
     ),
     status: v.union(
       v.literal("pending"),

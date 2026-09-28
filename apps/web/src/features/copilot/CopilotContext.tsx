@@ -8,21 +8,12 @@ import {
 } from "react";
 
 export type CopilotView =
-  | "overview"
   | "copilot"
+  | "assets"
   | "script"
-  | "look-dev"
   | "blockout"
-  | "shots"
-  | "edit"
-  | "assets";
-
-export type CopilotRole = "director" | "screenwriter" | "character_designer";
-export type CopilotMode =
-  | "brainstorm"
-  | "critique"
-  | "pacing"
-  | "continuity";
+  | "video"
+  | "edit";
 
 export type CopilotPageContext = {
   view: CopilotView;
@@ -33,31 +24,16 @@ export type CopilotPageContext = {
 type CopilotContextValue = {
   page: CopilotPageContext;
   setContext: (ctx: Partial<CopilotPageContext> & { view: CopilotView }) => void;
-  roleOverride: CopilotRole | "auto";
-  setRoleOverride: (role: CopilotRole | "auto") => void;
-  mode: CopilotMode;
-  setMode: (mode: CopilotMode) => void;
-  resolvedRole: CopilotRole;
 };
 
 const CopilotContext = createContext<CopilotContextValue | null>(null);
 
-export function roleFromView(view: CopilotView): CopilotRole {
-  if (view === "script" || view === "copilot") return "screenwriter";
-  if (view === "look-dev") return "character_designer";
-  return "director";
-}
-
 export function CopilotProvider({ children }: { children: ReactNode }) {
   const [page, setPage] = useState<CopilotPageContext>({
-    view: "overview",
+    view: "copilot",
     projectId: null,
     selectionIds: [],
   });
-  const [roleOverride, setRoleOverride] = useState<CopilotRole | "auto">(
-    "auto",
-  );
-  const [mode, setMode] = useState<CopilotMode>("brainstorm");
 
   const setContext = useCallback(
     (ctx: Partial<CopilotPageContext> & { view: CopilotView }) => {
@@ -74,20 +50,12 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const resolvedRole =
-    roleOverride === "auto" ? roleFromView(page.view) : roleOverride;
-
   const value = useMemo(
     () => ({
       page,
       setContext,
-      roleOverride,
-      setRoleOverride,
-      mode,
-      setMode,
-      resolvedRole,
     }),
-    [page, setContext, roleOverride, mode, resolvedRole],
+    [page, setContext],
   );
 
   return (

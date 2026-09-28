@@ -31,7 +31,7 @@ export function ProjectOverviewPage() {
 
   useEffect(() => {
     if (projectId) {
-      setContext({ view: "overview", projectId, selectionIds: [] });
+      setContext({ view: "copilot", projectId, selectionIds: [] });
     }
   }, [projectId, setContext]);
 
@@ -241,15 +241,15 @@ function emptyCopy(stage: PipelineStage): string {
   switch (stage) {
     case "script":
       return "Write your first scene and lock the story spine.";
-    case "lookDev":
-      return "Create character, location, and style sheets.";
+    case "assets":
+      return "Draft asset prompts and reference sheets for your cast and locations.";
     case "blockout":
       return "Build a shot list and block the scene.";
-    case "shots":
+    case "video":
       return "Generate takes for your shots.";
     case "edit":
       return "Assemble a timeline from selected takes.";
-    case "assets":
-      return "Upload footage, photos, or audio into the library.";
+    default:
+      return "Open this stage to get started.";
   }
 }

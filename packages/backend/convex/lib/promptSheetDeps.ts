@@ -19,14 +19,14 @@ export async function markSheetsStaleForStyleChange(
   let n = 0;
   const now = Date.now();
   for (const sheet of tips) {
-    if (sheet.isCustom) continue;
-    if (
+    const isAsset =
       sheet.type === "character" ||
       sheet.type === "creature" ||
       sheet.type === "environment" ||
-      sheet.type === "product" ||
-      sheet.type === "script"
-    ) {
+      sheet.type === "product";
+    // Asset prompts are text-first (often isCustom); still mark style-changed.
+    if (sheet.isCustom && !isAsset) continue;
+    if (isAsset || sheet.type === "script") {
       if (sheet.status !== "out_of_date" && sheet.status !== "draft") {
         await ctx.db.patch(sheet._id, { status: "out_of_date", updatedAt: now });
         n++;

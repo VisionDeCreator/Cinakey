@@ -666,6 +666,14 @@ export const accept = action({
         shotId,
         prompt: promptText,
       });
+    } else if (proposal.kind === "generate_image") {
+      const promptSheetId = payload.promptSheetId as Id<"promptSheets"> | undefined;
+      if (!promptSheetId) {
+        throw new Error("generate_image needs promptSheetId");
+      }
+      await ctx.runAction(api.promptSheets.approveAssetSheet, {
+        promptSheetId,
+      });
     } else if (proposal.kind === "continuity") {
       const flags = Array.isArray(payload.flags) ? payload.flags : [];
       const body = [

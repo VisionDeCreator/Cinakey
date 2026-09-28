@@ -2,24 +2,22 @@
 
 export type ProjectTab =
   | "copilot"
+  | "assets"
   | "script"
-  | "look-dev"
   | "blockout"
-  | "shots"
-  | "edit"
-  | "assets";
+  | "video"
+  | "edit";
 
 export type NavItemId = "projects" | "assets" | "settings";
 
 export type AspectRatio = "16:9" | "9:16" | "1:1";
 
 export type PipelineStage =
+  | "assets"
   | "script"
-  | "lookDev"
   | "blockout"
-  | "shots"
-  | "edit"
-  | "assets";
+  | "video"
+  | "edit";
 
 export type StageStatus = "empty" | "started";
 

@@ -22,13 +22,11 @@ import { convexEnv } from "./lib/env";
 import {
   buildSystemPrompt,
   COPILOT_TOOLS,
+  normalizeCopilotView,
   scriptSummaryFromDocument,
-  wantsPipelineProposal,
-  wantsScriptPromptProposal,
-  wantsScriptProposal,
-  type CopilotMode,
-  type CopilotRole,
-} from "./lib/copilotPrompts";import { normalizeProposedScript } from "./lib/normalizeScriptProposal";
+} from "./lib/copilotPrompts";
+import { normalizeProposedScript } from "./lib/normalizeScriptProposal";
+import { api } from "./_generated/api";
 import { parseToolArguments } from "./lib/parseToolArguments";
 import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
 import { loadJson, saveJson } from "./storage";
@@ -138,8 +136,8 @@ export const insertUserMessageInternal = internalMutation({
   args: {
     projectId: v.id("projects"),
     content: v.string(),
-    roleUsed: roleValidator,
-    mode: modeValidator,
+    roleUsed: v.optional(roleValidator),
+    mode: v.optional(modeValidator),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("copilotMessages", {
@@ -156,8 +154,8 @@ export const insertUserMessageInternal = internalMutation({
 export const createAssistantMessage = internalMutation({
   args: {
     projectId: v.id("projects"),
-    roleUsed: roleValidator,
-    mode: modeValidator,
+    roleUsed: v.optional(roleValidator),
+    mode: v.optional(modeValidator),
     jobId: v.optional(v.id("generationJobs")),
   },
   handler: async (ctx, args) => {
@@ -230,6 +228,7 @@ export const createProposal = internalMutation({
       v.literal("blockout_sheet"),
       v.literal("shot_prompt"),
       v.literal("continuity"),
+      v.literal("generate_image"),
     ),
     payload: v.optional(v.any()),
     payloadFileId: v.optional(v.id("_storage")),
@@ -465,8 +464,8 @@ export const runTurn = action({
   args: {
     projectId: v.id("projects"),
     content: v.string(),
-    role: roleValidator,
-    mode: modeValidator,
+    role: v.optional(roleValidator),
+    mode: v.optional(modeValidator),
     view: v.string(),
     selectionIds: v.optional(v.array(v.string())),
   },
@@ -517,6 +516,8 @@ export const runTurn = action({
       mode: args.mode,
     });
 
+    const copilotView = normalizeCopilotView(args.view);
+
     let scriptDoc: ScriptDocument | null = null;
     if (loaded.tip) {
       try {
@@ -542,12 +543,10 @@ export const runTurn = action({
     }
 
     const system = buildSystemPrompt({
-      role: args.role as CopilotRole,
-      mode: args.mode as CopilotMode,
       brief: loaded.project.brief ?? null,
       rules: loaded.project.rules,
       targetLengthSec: loaded.project.targetLengthSec,
-      view: args.view,
+      view: copilotView,
       selectionIds: args.selectionIds ?? [],
       scriptSummary: scriptDoc
         ? scriptSummaryFromDocument(scriptDoc)
@@ -662,6 +661,7 @@ export const runTurn = action({
 
       let proposalIds: Id<"proposals">[] = [];
       let toolFailures: string[] = [];
+      const directMessages: string[] = [];
       for (const tc of result.toolCalls) {
         const outcome = await handleToolCall(ctx, {
           projectId: args.projectId,
@@ -672,6 +672,8 @@ export const runTurn = action({
         });
         if (outcome.proposalId) {
           proposalIds.push(outcome.proposalId);
+        } else if (outcome.directMessage) {
+          directMessages.push(outcome.directMessage);
         } else if (outcome.error) {
           toolFailures.push(outcome.error);
         }
@@ -706,6 +708,8 @@ export const runTurn = action({
           });
           if (outcome.proposalId) {
             proposalIds.push(outcome.proposalId);
+          } else if (outcome.directMessage) {
+            directMessages.push(outcome.directMessage);
           } else if (outcome.error) {
             toolFailures.push(outcome.error);
           }
@@ -753,8 +757,12 @@ export const runTurn = action({
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
+      if (directMessages.length > 0) {
+        finalContent = [finalContent, ...directMessages].filter(Boolean).join("\n\n");
+      }
+
       if (proposalIds.length > 0) {
-        finalContent = `${finalContent}\n\nAccept the proposal card below to apply this to your script.`;
+        finalContent = `${finalContent}\n\nAccept the proposal card below to apply this to your project.`;
       } else if (toolFailures.length > 0) {
         finalContent = `${finalContent}\n\nI tried to prepare a script proposal but couldn't parse it (${toolFailures[0]}). Please ask me again to draft the script.`;
       }
@@ -836,55 +844,10 @@ type PipelineForceState = {
 };
 
 function pickForcedTool(
-  view: string,
-  userContent: string,
-  pipeline: PipelineForceState,
+  _view: string,
+  _userContent: string,
+  _pipeline: PipelineForceState,
 ): ForcedToolName | null {
-  // Prefer Seedance / episode breakdown over screenplay when both could match.
-  if (wantsScriptPromptProposal(userContent)) {
-    return "propose_script_prompt";
-  }
-  // On Copilot tab, never force screenplay — that's Script-room only.
-  if (view !== "copilot" && wantsScriptProposal(userContent)) {
-    return "propose_script_edit";
-  }
-
-  const onPipelineSurface =
-    view === "copilot" || view === "look-dev" || wantsPipelineProposal(userContent);
-
-  if (onPipelineSurface) {
-    // Look Dev with a selected entity that still needs a sheet → fill it.
-    if (view === "look-dev" && pipeline.selectionIds.length > 0) {
-      const selectedMissing = pipeline.entitiesMissingSheets.filter((e) =>
-        pipeline.selectionIds.includes(e.id),
-      );
-      if (selectedMissing.length > 0) {
-        return "propose_asset_sheet";
-      }
-    }
-
-    if (!pipeline.hasLogline) {
-      return "propose_story_treatment";
-    }
-    if (!pipeline.hasArtStyle) {
-      return "propose_style_block";
-    }
-    if (pipeline.assetEntityCount === 0) {
-      return "propose_asset_list";
-    }
-    if (pipeline.entitiesMissingSheets.length > 0) {
-      return "propose_asset_sheet";
-    }
-    // Story + assets done: only force script prompt when asked.
-    if (view === "copilot" && wantsPipelineProposal(userContent)) {
-      return "propose_script_prompt";
-    }
-    return null;
-  }
-
-  if (wantsScriptProposal(userContent)) {
-    return "propose_script_edit";
-  }
   return null;
 }
 
@@ -1354,12 +1317,119 @@ async function handleToolCall(
     argumentsJson: string;
     baseScript: ScriptDocument | null;
   },
-): Promise<{ proposalId: Id<"proposals"> | null; error?: string }> {
+): Promise<{
+  proposalId: Id<"proposals"> | null;
+  error?: string;
+  directMessage?: string;
+}> {
   const parsedResult = parseToolArguments(args.argumentsJson);
   if (!parsedResult.ok) {
     return { proposalId: null, error: parsedResult.error };
   }
   const parsed = parsedResult.value;
+
+  if (args.name === "write_or_revise_asset_prompt") {
+    const assetType = String(
+      parsed.assetType ?? parsed.type ?? "character",
+    ) as "character" | "creature" | "environment" | "product";
+    const promptText = String(parsed.promptText ?? "").trim();
+    if (!promptText) {
+      return { proposalId: null, error: "promptText required" };
+    }
+    try {
+      const saved = await ctx.runAction(api.promptSheets.savePromptText, {
+        projectId: args.projectId,
+        type: assetType,
+        promptText,
+        entityId: parsed.entityId
+          ? (String(parsed.entityId) as Id<"entities">)
+          : undefined,
+        entityName: parsed.entityName
+          ? String(parsed.entityName)
+          : undefined,
+        name: parsed.name ? String(parsed.name) : undefined,
+      });
+      const summary = String(parsed.summary ?? "Asset prompt updated");
+      let msg = `${summary} (sheet v${saved.version}).`;
+      if (saved.validationWarning) {
+        msg += ` Note: ${saved.validationWarning}`;
+      }
+      return { proposalId: null, directMessage: msg };
+    } catch (err) {
+      return {
+        proposalId: null,
+        error: err instanceof Error ? err.message : "savePromptText failed",
+      };
+    }
+  }
+
+  if (args.name === "update_rules") {
+    try {
+      await ctx.runMutation(internal.proposals.applyRules, {
+        projectId: args.projectId,
+        add: Array.isArray(parsed.add) ? (parsed.add as string[]) : undefined,
+        remove: Array.isArray(parsed.remove)
+          ? (parsed.remove as string[])
+          : undefined,
+        replace: Array.isArray(parsed.replace)
+          ? (parsed.replace as string[])
+          : undefined,
+      });
+      return {
+        proposalId: null,
+        directMessage: String(parsed.summary ?? "Project rules updated."),
+      };
+    } catch (err) {
+      return {
+        proposalId: null,
+        error: err instanceof Error ? err.message : "update_rules failed",
+      };
+    }
+  }
+
+  if (args.name === "generate_image") {
+    const summary = String(parsed.summary ?? "Generate image");
+    const gptEstimate = 10;
+    let promptSheetId = parsed.promptSheetId
+      ? String(parsed.promptSheetId)
+      : "";
+    if (!promptSheetId && parsed.entityId) {
+      const tips = await ctx.runQuery(internal.promptSheets.listTipsInternal, {
+        projectId: args.projectId,
+      });
+      const entityId = String(parsed.entityId) as Id<"entities">;
+      const match = tips
+        .filter(
+          (t) =>
+            t.entityId === entityId &&
+            (t.type === "character" ||
+              t.type === "creature" ||
+              t.type === "environment" ||
+              t.type === "product"),
+        )
+        .sort((a, b) => b.version - a.version)[0];
+      promptSheetId = match?._id ?? "";
+    }
+    if (!promptSheetId) {
+      return {
+        proposalId: null,
+        error:
+          "No prompt sheet found — use write_or_revise_asset_prompt first",
+      };
+    }
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "generate_image",
+      payload: {
+        summary,
+        promptSheetId,
+      },
+      diffSummary: summary,
+      estimatedCostCredits: gptEstimate,
+    });
+    return { proposalId };
+  }
 
   if (args.name === "propose_script_edit") {
     const documentRaw =

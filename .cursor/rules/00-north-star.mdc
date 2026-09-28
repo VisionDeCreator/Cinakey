@@ -4,9 +4,10 @@ alwaysApply: true
 ---
 
 # Cinakey north star
-- Cinakey is a browser-based AI video production pipeline: script -> look development -> blockout (incl. 3D) -> shot generation -> edit -> export, with every asset versioned and linked to its shot, and an AI copilot throughout.
+- Cinakey is a browser-based AI video production pipeline: script -> assets -> blockout (incl. 3D) -> video generation -> edit -> export, with every asset versioned and linked to its shot, and an AI copilot throughout.
 - The full product description is in .cursor/rules/source-of-truth.mdc. Read it before planning or building any feature. Never contradict it silently.
 - If a request conflicts with the source of truth, stop and ask which should win.
 - Stack: React + TypeScript (Vite) front end; Convex for database, functions, scheduled jobs, file storage and search; Convex Auth for sign-in. Monorepo with apps/* and packages/*; web app in apps/web, Convex in packages/backend.
-- Hard rules: provider API keys live only in Convex environment variables and are used only inside Convex actions; all file reads/writes go through the storage module; all AI models are called through model adapters; AI changes to user content are proposals the user accepts; content is versioned, never overwritten; stay inside the current phase's scope.
+- Hard rules: provider API keys live only in Convex environment variables and are used only inside Convex actions; all file reads/writes go through the storage module; all AI models are called through model adapters; AI prompt/content edits apply as new versions with Undo (credit-spending actions still confirm first); content is versioned, never overwritten; stay inside the current phase's scope.
+- Simple by default: one job and one main action per screen; minimal text; advanced options behind More; the copilot owns structure; fewer panels and tabs.
 - Keeping it current: when your work makes a significant change (new or removed feature, data model change, new model or provider, stack change, scope moved between phases, changed export format), update source-of-truth.mdc in the same task and add a dated entry to its Decision log. Tell me what you changed. For small implementation details, do not edit it.

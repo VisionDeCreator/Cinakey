@@ -486,9 +486,9 @@ export const getChecklist = query({
           done: scripts !== null,
         },
         {
-          id: "look",
-          label: "Explore look development",
-          href: "look-dev",
+          id: "assets",
+          label: "Create assets",
+          href: "assets",
           done: entities !== null,
         },
         {
@@ -500,7 +500,7 @@ export const getChecklist = query({
         {
           id: "takes",
           label: "Select takes (samples are ready)",
-          href: "shots",
+          href: "video",
           done: selectedTakes.length > 0,
         },
         {

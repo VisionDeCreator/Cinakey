@@ -1,23 +1,21 @@
 import { useConvexAuth } from "convex/react";
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AppShell } from "@/app/AppShell";
 import { ErrorBoundary } from "@/app/ErrorBoundary";
 import { NotFoundPage } from "@/app/NotFoundPage";
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { StaffRoute } from "@/app/StaffRoute";
 import { AssetsPage } from "@/features/assets/AssetsPage";
-import { ProjectAssetsPage } from "@/features/assets/ProjectAssetsPage";
+import { CreativeAssetsPage } from "@/features/assets/CreativeAssetsPage";
+import { AssetWorkbenchPage } from "@/features/assets/AssetWorkbenchPage";
 import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
 import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
 import { DevHomePage } from "@/features/dev/DevHomePage";
-import { ProjectOverviewPage } from "@/features/projects/ProjectOverviewPage";
 import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
-import { LookDevPage } from "@/features/look-dev/LookDevPage";
-import { EntitySheetPage } from "@/features/look-dev/EntitySheetPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
 import { ScriptRoomPage } from "@/features/script/ScriptRoomPage";
@@ -53,6 +51,29 @@ function AuthRedirect({ children }: { children: ReactNode }) {
   return children;
 }
 
+function RedirectToCopilot() {
+  const { projectId } = useParams();
+  return <Navigate to={`/projects/${projectId}/copilot`} replace />;
+}
+
+function RedirectLookDev() {
+  const { projectId, entityId } = useParams();
+  if (entityId) {
+    return (
+      <Navigate to={`/projects/${projectId}/assets/${entityId}`} replace />
+    );
+  }
+  return <Navigate to={`/projects/${projectId}/assets`} replace />;
+}
+
+function RedirectShots() {
+  const { projectId, shotId } = useParams();
+  if (shotId) {
+    return <Navigate to={`/projects/${projectId}/video/${shotId}`} replace />;
+  }
+  return <Navigate to={`/projects/${projectId}/video`} replace />;
+}
+
 export function AppRouter() {
   return (
     <ErrorBoundary>
@@ -81,23 +102,23 @@ export function AppRouter() {
               path="/projects/:projectId"
               element={<ProjectWorkspaceLayout />}
             >
-              <Route index element={<ProjectOverviewPage />} />
+              <Route index element={<RedirectToCopilot />} />
               <Route path="copilot" element={<CopilotPage />} />
+              <Route path="assets" element={<CreativeAssetsPage />} />
+              <Route path="assets/:assetId" element={<AssetWorkbenchPage />} />
               <Route path="script" element={<ScriptRoomPage />} />
-              <Route path="look-dev" element={<LookDevPage />} />
-              <Route
-                path="look-dev/:entityId"
-                element={<EntitySheetPage />}
-              />
+              <Route path="look-dev" element={<RedirectLookDev />} />
+              <Route path="look-dev/:entityId" element={<RedirectLookDev />} />
               <Route path="blockout" element={<BlockoutPage />} />
               <Route
                 path="blockout/shots/:shotId"
                 element={<BlockoutEditorPage />}
               />
-              <Route path="shots" element={<ShotsPage />} />
-              <Route path="shots/:shotId" element={<ShotDetailPage />} />
+              <Route path="video" element={<ShotsPage />} />
+              <Route path="video/:shotId" element={<ShotDetailPage />} />
+              <Route path="shots" element={<RedirectShots />} />
+              <Route path="shots/:shotId" element={<RedirectShots />} />
               <Route path="edit" element={<EditPage />} />
-              <Route path="assets" element={<ProjectAssetsPage />} />
             </Route>
             <Route path="/assets" element={<AssetsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

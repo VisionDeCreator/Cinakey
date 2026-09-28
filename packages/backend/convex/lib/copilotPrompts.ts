@@ -73,7 +73,7 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
     function: {
       name: "propose_script_edit",
       description:
-        "REQUIRED whenever you draft, rewrite, expand, or structure a script/story into scenes. Submits a proposal the user must Accept — nothing is applied until they accept. Prefer keeping stable scene/beat/line ids when rewriting an existing script.",
+        "Draft or rewrite a Script-room screenplay (cinakey.script/1.0). Submits a proposal the user must Accept. Prefer stable scene/beat/line ids when rewriting.",
       parameters: {
         type: "object",
         properties: {
@@ -90,39 +90,34 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "propose_entities",
+      name: "write_or_revise_asset_prompt",
       description:
-        "Propose character, location, or prop look-dev entities to create or update. User must Accept.",
+        "Write or update the full Phase 7C asset prompt template text for a character, creature, environment, or product. Applies immediately (no Accept card). Infer assetType from context — never ask the user to pick a type. Include ART STYLE, COLOR PALETTE, and type-specific sections (FACE AND HAIR + OUTFIT for character; BODY for creature; THE LAND or SKY AND LIGHT for environment; FEEL or THE OBJECT for product).",
       parameters: {
         type: "object",
         properties: {
           summary: { type: "string" },
-          entities: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                kind: {
-                  type: "string",
-                  enum: ["character", "creature", "location", "prop"],
-                },
-                name: { type: "string" },
-                description: { type: "string" },
-              },
-              required: ["kind", "name"],
-            },
+          assetType: {
+            type: "string",
+            enum: ["character", "creature", "environment", "product"],
+          },
+          entityId: { type: "string" },
+          entityName: { type: "string" },
+          promptText: {
+            type: "string",
+            description: "Full rendered prompt sheet text",
           },
         },
-        required: ["summary", "entities"],
+        required: ["summary", "assetType", "promptText"],
       },
     },
   },
   {
     type: "function",
     function: {
-      name: "propose_rules",
+      name: "update_rules",
       description:
-        "Propose additions, removals, or replacements to the project rules list. User must Accept.",
+        "Update project rules immediately (add, remove, or replace lines). Do not ask the user to Accept.",
       parameters: {
         type: "object",
         properties: {
@@ -138,59 +133,20 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "propose_character_details",
+      name: "generate_image",
       description:
-        "Fill character sheet fields (look, age, build, wardrobe, personality, voiceNotes) from the script or conversation. Prefer the selected entity when selectionIds includes an entity id. User must Accept.",
+        "Queue GPT Image 2 for an asset prompt sheet. Creates a proposal with estimated credits; the user Accepts to run generation. Requires an existing prompt sheet (use write_or_revise_asset_prompt first if missing).",
       parameters: {
         type: "object",
         properties: {
           summary: { type: "string" },
+          promptSheetId: { type: "string" },
           entityId: {
             type: "string",
-            description: "Convex entity id when known from selection",
-          },
-          entityName: {
-            type: "string",
-            description: "Character name if entityId unknown",
-          },
-          fields: {
-            type: "object",
-            properties: {
-              look: { type: "string" },
-              age: { type: "string" },
-              build: { type: "string" },
-              wardrobe: { type: "string" },
-              personality: { type: "string" },
-              voiceNotes: { type: "string" },
-              description: {
-                type: "string",
-                description: "Short entity summary",
-              },
-            },
+            description: "Optional — resolve latest tip sheet for this entity",
           },
         },
-        required: ["summary", "fields"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "propose_image_prompt",
-      description:
-        "Propose an image generation prompt for the current look-dev entity sheet. Writes draftPrompt on Accept — does not run generation. User must Accept.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          entityId: { type: "string" },
-          entityName: { type: "string" },
-          prompt: {
-            type: "string",
-            description: "Full image prompt for the sheet Generate panel",
-          },
-        },
-        required: ["summary", "prompt"],
+        required: ["summary"],
       },
     },
   },
@@ -286,69 +242,6 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "propose_asset_list",
-      description:
-        "Propose the visual assets needed for the story (characters, creatures, locations, key props). Creates Look Dev entities on Accept.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          entities: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                kind: {
-                  type: "string",
-                  enum: ["character", "creature", "location", "prop"],
-                },
-                name: { type: "string" },
-                description: { type: "string" },
-                sheetType: {
-                  type: "string",
-                  enum: ["character", "creature", "environment", "product"],
-                  description:
-                    "Which prompt-sheet template to use (environment→location, product→prop)",
-                },
-              },
-              required: ["kind", "name"],
-            },
-          },
-        },
-        required: ["summary", "entities"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "propose_asset_sheet",
-      description:
-        "Draft a structured asset prompt sheet (character/creature/environment/product). Fill the schema fields only — the system renders the template text. User must Accept. Set approveAndGenerate true to queue GPT Image 2 after Accept.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          type: {
-            type: "string",
-            enum: ["character", "creature", "environment", "product"],
-          },
-          entityId: { type: "string" },
-          entityName: { type: "string" },
-          approveAndGenerate: { type: "boolean" },
-          structured: {
-            type: "object",
-            description:
-              "Schema fields for the sheet type (subjectLine/views/faceAndHair/outfit/signatureDetail/colorPalette for character; analogous for other types)",
-          },
-        },
-        required: ["summary", "type", "structured"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "propose_script_prompt",
       description:
         "Draft a structured Seedance script prompt for one sequence (≤30s, ≤30 refs). Cast descriptions should match approved asset sheets. On Accept creates the sequence and shots. User must Accept.",
@@ -429,28 +322,6 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "revise_asset_sheet",
-      description:
-        "Targeted revision of an existing asset sheet (e.g. make the scarf red). Pass the full updated structured object for that sheet type.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          promptSheetId: { type: "string" },
-          type: {
-            type: "string",
-            enum: ["character", "creature", "environment", "product"],
-          },
-          entityId: { type: "string" },
-          structured: { type: "object" },
-        },
-        required: ["summary", "type", "structured"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "propose_shot_prompt",
       description:
         "Rewrite the Seedance generation prompt for a single shot (same template as script prompts: REFERENCES, ART STYLE, entity blocks, one SHOTS line, CONSISTENCY, TECHNICAL, AUDIO). On Accept sets shots.generationPromptOverride. User must Accept; does not queue video.",
@@ -501,39 +372,15 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   },
 ];
 
-export type CopilotRole =
-  | "director"
-  | "screenwriter"
-  | "character_designer";
-
-export type CopilotMode =
-  | "brainstorm"
-  | "critique"
-  | "pacing"
-  | "continuity";
-
-const ROLE_PROMPTS: Record<CopilotRole, string> = {
-  director:
-    "You are a film director copilot for Cinakey. Focus on coverage, framing, pacing, and how the film will shoot. Prefer the structured prompt pipeline (story treatment → asset sheets → Seedance script prompt → blockout) over free-form screenplay. Use propose_shot_list only for an existing Script-room scene's coverage table.",
-  screenwriter:
-    "You are a screenwriter/pipeline copilot for Cinakey. For new films and episode breakdowns, use the structured pipeline tools — NOT propose_script_edit. Start with propose_story_treatment, then propose_style_block and propose_asset_list / propose_asset_sheet. For shot-by-shot Seedance video prompts (REFERENCES, SHOTS with timings, CONSISTENCY, AUDIO…), call propose_script_prompt with full structured data. Only use propose_script_edit when the user explicitly wants a Script-room screenplay rewrite.",
-  character_designer:
-    "You are a character designer copilot for Cinakey. Prefer propose_asset_sheet (structured character/creature sheets) and propose_style_block over free-form image prompts. Use propose_character_details for quick Look Dev field fills; propose_image_prompt only for ad-hoc Generate panel drafts.",
+/** Normalize legacy view names from older clients. */
+export function normalizeCopilotView(view: string): string {
+  if (view === "look-dev") return "assets";
+  if (view === "shots") return "video";
+  if (view === "overview") return "copilot";
+  return view;
 }
 
-const MODE_PROMPTS: Record<CopilotMode, string> = {
-  brainstorm: "Mode: brainstorm — explore options freely; generate alternatives.",
-  critique:
-    "Mode: critique — identify what is weak, unclear, or overlong; be specific.",
-  pacing:
-    "Mode: pacing — compare runtime estimates to the project target length; suggest cuts or expansions.",
-  continuity:
-    "Mode: continuity — check character names, locations, props, and rules for contradictions.",
-};
-
 export function buildSystemPrompt(args: {
-  role: CopilotRole;
-  mode: CopilotMode;
   brief?: { logline: string; audience?: string; tone?: string } | null;
   rules: string[];
   targetLengthSec?: number;
@@ -545,21 +392,16 @@ export function buildSystemPrompt(args: {
   pipelineSummary?: string;
   artStyleBlock?: string;
 }): string {
-  const onCopilotTab = args.view === "copilot";
+  const view = normalizeCopilotView(args.view);
   const parts = [
-    ROLE_PROMPTS[args.role],
-    MODE_PROMPTS[args.mode],
-    "Hard rule: never claim you changed the project. Tool results become proposal cards; the user Accepts, Edits, or Rejects.",
-    onCopilotTab
-      ? "Hard rule (Copilot tab): you are running the structured prompt PIPELINE. Do NOT call propose_script_edit for new stories or episode breakdowns — that creates a screenplay, not a Seedance prompt. Use propose_story_treatment, propose_style_block, propose_asset_list, propose_asset_sheet, propose_script_prompt, propose_blockout_sheet."
-      : "Hard rule: use propose_script_edit only when the user explicitly wants a Script-room screenplay (Fountain-style scenes/beats/dialogue). For video episode / Seedance shot breakdowns, use propose_script_prompt instead.",
-    "Hard rule: when drafting a Seedance script prompt or \"full episode\" / shot-by-shot breakdown, call propose_script_prompt with complete structured data: references[], castBlocks[], location, shots[] (contiguous timings from 0, every shot), consistency, motionAndPhysics, lighting, technical, music, audioCues[]. Never paste the prompt as chat prose only.",
-    "Hard rule: to rewrite a single-shot Seedance prompt for regeneration, call propose_shot_prompt with shotId and full promptText. To flag continuity issues on takes vs locked sheets/rules, call check_continuity with flags[].",
-    "Hard rule: asset sheets use structured fields only (subjectLine, views, faceAndHair/body, outfit/gear, signatureDetail, colorPalette, etc.) — never free-form template text. The system renders the template.",
-    "Hard rule: when the user asks for a shot list table for an existing Script-room scene, call propose_shot_list with sceneElementId.",
-    "Pipeline order: propose_story_treatment → propose_style_block → propose_asset_list → propose_asset_sheet (each asset) → after refs locked, propose_script_prompt (≤30s / ≤30 refs per sequence) → propose_blockout_sheet.",
-    "Pipeline rule: cast blocks in script prompts must be derived from approved asset sheet details, not invented fresh.",
-    `Current view: ${args.view}.`,
+    "You are Cinakey's production copilot — one assistant for script, asset prompts, Seedance script prompts, blockout, shots, and continuity.",
+    "Hard rule: never claim you changed the project unless a direct tool (write_or_revise_asset_prompt, update_rules) succeeded. Structural edits use proposal cards; the user Accepts, Edits, or Rejects.",
+    "Hard rule: for character/creature/environment/product look-dev, call write_or_revise_asset_prompt with full Phase 7C template text. Infer assetType from the user's language; never ask them to pick a type. Create or match entities via entityName/entityId.",
+    "Hard rule: use propose_script_edit only when the user wants a Script-room screenplay. For Seedance / video episode breakdowns, use propose_script_prompt with complete structured data (references, castBlocks, location, shots with contiguous timings, consistency, audio…).",
+    "Hard rule: project rules changes go through update_rules (immediate). Do not use proposals for rules.",
+    "Hard rule: image generation uses generate_image after a prompt sheet exists; mention credit cost — user Accepts the proposal to run.",
+    "Hard rule: propose_story_treatment for story development; propose_style_block for project ART STYLE; propose_shot_list for Script-room scene coverage; propose_shot_prompt for single-shot rewrites; check_continuity for take/sheet mismatches.",
+    `Current view: ${view}.`,
   ];
   if (args.selectionIds.length > 0) {
     parts.push(`Selection ids: ${args.selectionIds.join(", ")}.`);

@@ -27,7 +27,8 @@ type ProposalDoc = {
     | "script_prompt"
     | "blockout_sheet"
     | "shot_prompt"
-    | "continuity";
+    | "continuity"
+    | "generate_image";
   status: string;
   payload?: unknown;
   diffSummary?: string;
@@ -359,6 +360,15 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {proposal.kind === "generate_image" ? (
+        <p className="mt-2 text-[11px] text-zinc-400">
+          Generate reference image
+          {proposal.estimatedCostCredits !== undefined
+            ? ` · ~${proposal.estimatedCostCredits} credits`
+            : ""}
+        </p>
       ) : null}
 
       {editing ? (

@@ -61,6 +61,8 @@ export {
   lookDevPatchFromAssetSheet,
 } from "./derive";
 
+export { validateAssetPromptText } from "./validate";
+
 export { assembleSingleShotPrompt, COST_CONFIRM_THRESHOLD_CREDITS } from "./assembleSingleShot";
 
 export {

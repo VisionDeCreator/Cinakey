@@ -22,7 +22,7 @@ export function ShotsPage() {
 
   useEffect(() => {
     if (projectId) {
-      setContext({ view: "shots", projectId, selectionIds: [] });
+      setContext({ view: "video", projectId, selectionIds: [] });
     }
   }, [projectId, setContext]);
 
@@ -37,7 +37,7 @@ export function ShotsPage() {
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Shots</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">Video</h1>
           <p className="text-xs text-zinc-500">
             {totalShots} shots · Seedance 2.5 generation
           </p>
@@ -92,7 +92,7 @@ export function ShotsPage() {
                     </td>
                     <td className="px-3 py-2">
                       <Link
-                        to={`/projects/${projectId}/shots/${shot._id}`}
+                        to={`/projects/${projectId}/video/${shot._id}`}
                         className="block h-12 w-20 overflow-hidden bg-zinc-900"
                       >
                         {shot.keyframeUrl ? (
@@ -110,7 +110,7 @@ export function ShotsPage() {
                     </td>
                     <td className="px-3 py-2">
                       <Link
-                        to={`/projects/${projectId}/shots/${shot._id}`}
+                        to={`/projects/${projectId}/video/${shot._id}`}
                         className="block h-12 w-20 overflow-hidden bg-zinc-900"
                       >
                         {shot.selectedTakeThumb ? (
@@ -129,7 +129,7 @@ export function ShotsPage() {
                     </td>
                     <td className="px-3 py-2 text-zinc-200">
                       <Link
-                        to={`/projects/${projectId}/shots/${shot._id}`}
+                        to={`/projects/${projectId}/video/${shot._id}`}
                         className="hover:underline"
                       >
                         {shot.shotType}

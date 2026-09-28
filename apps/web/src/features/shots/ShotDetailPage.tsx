@@ -35,7 +35,7 @@ export function ShotDetailPage() {
   useEffect(() => {
     if (projectId && shotId) {
       setContext({
-        view: "shots",
+        view: "video",
         projectId,
         selectionIds: [shotId],
       });
@@ -106,7 +106,7 @@ export function ShotDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Link
-            to={`/projects/${projectId}/shots`}
+            to={`/projects/${projectId}/video`}
             className="text-xs text-zinc-500 hover:text-zinc-300"
           >
             ← Shots
@@ -181,7 +181,7 @@ export function ShotDetailPage() {
               c ? (
                 <li key={c._id}>
                   <Link
-                    to={`/projects/${projectId}/look-dev/${c._id}`}
+                    to={`/projects/${projectId}/assets/${c._id}`}
                     className="hover:underline"
                   >
                     {c.kind}: {c.name}
@@ -192,7 +192,7 @@ export function ShotDetailPage() {
             {location ? (
               <li>
                 <Link
-                  to={`/projects/${projectId}/look-dev/${location._id}`}
+                  to={`/projects/${projectId}/assets/${location._id}`}
                   className="hover:underline"
                 >
                   location: {location.name}
