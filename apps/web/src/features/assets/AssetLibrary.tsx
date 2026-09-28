@@ -293,17 +293,11 @@ export function AssetLibrary({
         <p className="text-sm text-zinc-500">Loading assets…</p>
       ) : assets.length === 0 ? (
         <div className="border border-dashed border-zinc-700 px-6 py-12 text-center">
-          <p className="text-sm text-zinc-300">No assets yet</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Upload footage, photos, or audio
-            {effectiveProjectId
-              ? ", or generate from the Dev generation page."
-              : ". Pick a project to upload."}
-          </p>
+          <p className="text-sm text-zinc-500">No assets yet.</p>
           {effectiveProjectId ? (
             <Button asChild variant="secondary" size="sm" className="mt-4">
-              <Link to={`/projects/${effectiveProjectId}`}>
-                Back to project overview
+              <Link to={`/projects/${effectiveProjectId}/assets`}>
+                Back to project
               </Link>
             </Button>
           ) : null}

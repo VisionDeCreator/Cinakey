@@ -191,6 +191,25 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "generate_video",
+      description:
+        "Queue Seedance 2.5 sequence video for a Part (script prompt + asset refs + style + blockout guides). Creates a proposal with estimated credits; user Accepts to run. Prefer sequenceId from the open Video Part tab.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          sequenceId: {
+            type: "string",
+            description: "Part/sequence to generate",
+          },
+        },
+        required: ["summary"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "propose_shot_list",
       description:
         "Break a scene into a planned shot list (coverage, framing, pacing). Replaces that scene's shots on Accept. Use sceneElementId from the script scene id (or live scenes summary). Prefer linking dialogueLineId when covering dialogue. User must Accept.",
@@ -357,57 +376,6 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
       },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: "propose_shot_prompt",
-      description:
-        "Rewrite the Seedance generation prompt for a single shot (same template as script prompts: REFERENCES, ART STYLE, entity blocks, one SHOTS line, CONSISTENCY, TECHNICAL, AUDIO). On Accept sets shots.generationPromptOverride. User must Accept; does not queue video.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          shotId: { type: "string" },
-          promptText: {
-            type: "string",
-            description: "Full rewritten single-shot Seedance prompt text",
-          },
-        },
-        required: ["summary", "shotId", "promptText"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "check_continuity",
-      description:
-        "Flag continuity issues where a take (or shot) contradicts locked character/location/style sheets or project rules. Creates suggestion proposals; Accept writes notes. Does not change takes.",
-      parameters: {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          shotId: { type: "string" },
-          takeId: { type: "string" },
-          flags: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                severity: {
-                  type: "string",
-                  enum: ["info", "warning", "error"],
-                },
-                message: { type: "string" },
-              },
-              required: ["message"],
-            },
-          },
-        },
-        required: ["summary", "flags"],
-      },
-    },
-  },
 ];
 
 /** Normalize legacy view names from older clients. */
@@ -437,8 +405,8 @@ export function buildSystemPrompt(args: {
     "Hard rule: for character/creature/environment/product look-dev, call write_or_revise_asset_prompt with full Phase 7C template text. Infer assetType from the user's language; never ask them to pick a type. Create or match entities via entityName/entityId.",
     "Hard rule: on the Script tab, call write_or_revise_script_prompt with full Seedance template text (REFERENCES with @image_N, ART STYLE locked to refs, IMAGE QUALITY, cast/creature/prop blocks copied from asset prompts, LOCATION, contiguous timed SHOTS, CONSISTENCY, MOTION AND PHYSICS, LIGHTING, TECHNICAL, MUSIC, AUDIO). Do not use propose_script_edit or propose_script_prompt for the Script workbench. Cap each part at 30 seconds; split longer stories into parts[]. Map story assets and the project style reference to @image_N.",
     "Hard rule: project rules changes go through update_rules (immediate). Do not use proposals for rules.",
-    "Hard rule: image generation uses generate_image after a prompt sheet exists; mention credit cost — user Accepts the proposal to run.",
-    "Hard rule: propose_story_treatment for story development; propose_style_block for project ART STYLE; propose_shot_prompt for single-shot rewrites on Video; check_continuity for take/sheet mismatches. Blockout updates happen via the Blockout tab Update button (not shot-list proposals).",
+    "Hard rule: image generation uses generate_image after a prompt sheet exists; video uses generate_video for a Part — both show credit cost and require Accept.",
+    "Hard rule: propose_story_treatment for story development; propose_style_block for project ART STYLE. On Video, prefer generate_video for the open Part. Blockout updates happen via the Blockout tab Update button.",
     `Current view: ${view}.`,
   ];
   if (args.selectionIds.length > 0) {

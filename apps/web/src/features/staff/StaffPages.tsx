@@ -22,7 +22,7 @@ export function StaffLayout() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Staff</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Internal tools for the first 50 creators. Full admin RBAC is phase 2.
+          Internal tools.
         </p>
       </div>
       <nav className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">

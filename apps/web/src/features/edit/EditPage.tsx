@@ -91,6 +91,7 @@ export function EditPage() {
   const [trimMode, setTrimMode] = useState<TrimMode>("ripple");
   const [exportOpen, setExportOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [showPanels, setShowPanels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [markIn, setMarkIn] = useState<number | null>(null);
   const [markOut, setMarkOut] = useState<number | null>(null);
@@ -502,19 +503,34 @@ export function EditPage() {
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => setHistoryOpen(true)}
+            disabled={!assembleRows || assembleRows.length === 0}
+            title={
+              !assembleRows || assembleRows.length === 0
+                ? "Choose a video first."
+                : undefined
+            }
+            onClick={() => void handleAssemble()}
           >
-            History
+            Assemble from script
           </Button>
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            disabled={!assembleRows || assembleRows.length === 0}
-            onClick={() => void handleAssemble()}
+            variant="ghost"
+            onClick={() => setShowPanels((v) => !v)}
           >
-            Assemble from shot list
+            {showPanels ? "Hide panels" : "More"}
           </Button>
+          {showPanels ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setHistoryOpen(true)}
+            >
+              History
+            </Button>
+          ) : null}
           <Button type="button" size="sm" onClick={() => setExportOpen(true)}>
             Export MP4
           </Button>
@@ -527,7 +543,21 @@ export function EditPage() {
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[1fr_220px_240px]">
+      {(!assembleRows || assembleRows.length === 0) &&
+      doc &&
+      !doc.tracks.some((t) => t.clips.length > 0) ? (
+        <p className="border-b border-zinc-800 px-4 py-2 text-xs text-zinc-500">
+          Choose a video first.
+        </p>
+      ) : null}
+
+      <div
+        className={
+          showPanels
+            ? "grid min-h-0 flex-1 grid-cols-[1fr_220px_240px]"
+            : "grid min-h-0 flex-1 grid-cols-1"
+        }
+      >
         <div className="flex min-h-0 flex-col">
           <div className="flex flex-1 items-center justify-center bg-black p-2">
             <canvas
@@ -567,7 +597,7 @@ export function EditPage() {
           )}
         </div>
 
-        {doc && (
+        {showPanels && doc ? (
           <MediaBin
             projectId={projectId}
             doc={doc}
@@ -579,25 +609,27 @@ export function EditPage() {
               setSelectedClipId(clip.id);
             }}
           />
-        )}
+        ) : null}
 
-        <ClipInspector
-          projectId={projectId}
-          clip={selectedClip}
-          onChange={(patch) => {
-            if (!selectedClipId) return;
-            apply((d) => updateClip(d, selectedClipId, patch));
-          }}
-          onSwapTake={(take) => {
-            if (!selectedClipId) return;
-            apply((d) => swapTakeOnClip(d, selectedClipId, take));
-          }}
-          onDelete={() => {
-            if (!selectedClipId) return;
-            apply((d) => deleteClip(d, selectedClipId));
-            setSelectedClipId(null);
-          }}
-        />
+        {showPanels ? (
+          <ClipInspector
+            projectId={projectId}
+            clip={selectedClip}
+            onChange={(patch) => {
+              if (!selectedClipId) return;
+              apply((d) => updateClip(d, selectedClipId, patch));
+            }}
+            onSwapTake={(take) => {
+              if (!selectedClipId) return;
+              apply((d) => swapTakeOnClip(d, selectedClipId, take));
+            }}
+            onDelete={() => {
+              if (!selectedClipId) return;
+              apply((d) => deleteClip(d, selectedClipId));
+              setSelectedClipId(null);
+            }}
+          />
+        ) : null}
       </div>
 
       {doc && (

@@ -28,7 +28,8 @@ type ProposalDoc = {
     | "blockout_sheet"
     | "shot_prompt"
     | "continuity"
-    | "generate_image";
+    | "generate_image"
+    | "generate_video";
   status: string;
   payload?: unknown;
   diffSummary?: string;
@@ -212,12 +213,7 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
 
       {proposal.kind === "story_treatment" ? (
         <div className="mt-2 space-y-1 text-[11px] text-zinc-400">
-          <p className="text-amber-400/80">Story treatment (pipeline stage 1)</p>
           <p>Logline: {String(payload?.logline ?? "")}</p>
-          <p className="text-zinc-600">
-            Next after Accept: art style → asset sheets → Seedance script prompt
-            (shot-by-shot), not a screenplay-only draft.
-          </p>
         </div>
       ) : null}
 
@@ -365,6 +361,15 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
       {proposal.kind === "generate_image" ? (
         <p className="mt-2 text-[11px] text-zinc-400">
           Generate reference image
+          {proposal.estimatedCostCredits !== undefined
+            ? ` · ~${proposal.estimatedCostCredits} credits`
+            : ""}
+        </p>
+      ) : null}
+
+      {proposal.kind === "generate_video" ? (
+        <p className="mt-2 text-[11px] text-zinc-400">
+          Generate video
           {proposal.estimatedCostCredits !== undefined
             ? ` · ~${proposal.estimatedCostCredits} credits`
             : ""}

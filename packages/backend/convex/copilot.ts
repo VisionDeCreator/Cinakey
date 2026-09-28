@@ -229,6 +229,7 @@ export const createProposal = internalMutation({
       v.literal("shot_prompt"),
       v.literal("continuity"),
       v.literal("generate_image"),
+      v.literal("generate_video"),
     ),
     payload: v.optional(v.any()),
     payloadFileId: v.optional(v.id("_storage")),
@@ -659,7 +660,7 @@ export const runTurn = action({
         toolCalls: filterToolCallsForForce(result.toolCalls, forceKind),
       };
 
-      let proposalIds: Id<"proposals">[] = [];
+      const proposalIds: Id<"proposals">[] = [];
       let toolFailures: string[] = [];
       const directMessages: string[] = [];
       for (const tc of result.toolCalls) {
@@ -1501,6 +1502,51 @@ async function handleToolCall(
       },
       diffSummary: summary,
       estimatedCostCredits: gptEstimate,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "generate_video") {
+    const summary = String(parsed.summary ?? "Generate video");
+    let sequenceId = parsed.sequenceId ? String(parsed.sequenceId) : "";
+    if (!sequenceId && args.selectionIds?.[0]) {
+      sequenceId = args.selectionIds[0];
+    }
+    if (!sequenceId) {
+      const sequences = await ctx.runQuery(internal.sequences.listInternal, {
+        projectId: args.projectId,
+      });
+      sequenceId = sequences[0]?._id ?? "";
+    }
+    if (!sequenceId) {
+      return {
+        proposalId: null,
+        error: "No Part/sequence found — write a script first",
+      };
+    }
+    const sequence = await ctx.runQuery(
+      internal.shotGeneration.getSequenceInternal,
+      { sequenceId: sequenceId as Id<"sequences"> },
+    );
+    if (!sequence || sequence.projectId !== args.projectId) {
+      return { proposalId: null, error: "Sequence not found" };
+    }
+    const adapter = getAdapter("seedance-2.5");
+    const durationSec = Math.min(sequence.durationSec, 30);
+    const estimate = adapter
+      ? adapter.estimateCost({
+          kind: "text-to-video",
+          durationSec,
+          prompt: "sequence",
+        })
+      : durationSec * 2;
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "generate_video",
+      payload: { summary, sequenceId },
+      diffSummary: summary,
+      estimatedCostCredits: estimate,
     });
     return { proposalId };
   }

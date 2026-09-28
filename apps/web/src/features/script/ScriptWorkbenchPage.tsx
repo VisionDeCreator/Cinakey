@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
 import { useAction, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { PromptWorkbench } from "@/features/prompt-workbench/PromptWorkbench";
@@ -21,20 +21,16 @@ export function ScriptWorkbenchPage() {
   const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    if (!parts || parts.length === 0) return;
-    if (
-      !activeSequenceId ||
-      !parts.some((p) => p.sequenceId === activeSequenceId)
-    ) {
-      setActiveSequenceId(parts[0]!.sequenceId);
-    }
-  }, [parts, activeSequenceId]);
-
   if (!projectId) return null;
 
+  const resolvedSequenceId =
+    activeSequenceId &&
+    parts?.some((p) => p.sequenceId === activeSequenceId)
+      ? activeSequenceId
+      : (parts?.[0]?.sequenceId ?? null);
+
   const active =
-    parts?.find((p) => p.sequenceId === activeSequenceId) ?? parts?.[0];
+    parts?.find((p) => p.sequenceId === resolvedSequenceId) ?? null;
 
   const ensurePart = async () => {
     if (creating) return;
@@ -42,36 +38,16 @@ export function ScriptWorkbenchPage() {
     try {
       const skeleton = [
         "REFERENCES",
-        "@image_1 = style. Use it for the project art style.",
+        "@image_1 = style.",
         "",
         "ART STYLE — LOCKED TO THE REFERENCE IMAGES:",
-        "Use the exact art style already defined in @image_1 for the entire video.",
-        "",
-        "IMAGE QUALITY — ALWAYS SHARP AND CLEAN:",
-        "Every frame sharp, crisp and clean.",
-        "",
-        "LOCATION — @image_1: Describe the location.",
+        "Match @image_1.",
         "",
         "SHOTS (5 seconds total, multi-shot, 16:9):",
         "Shot 1 (0.0s–5.0s) — Wide shot: opening beat.",
         "",
-        "CONSISTENCY:",
-        "Keep characters and style identical.",
-        "",
-        "MOTION AND PHYSICS:",
-        "Natural motion.",
-        "",
-        "LIGHTING:",
-        "Natural light.",
-        "",
         "TECHNICAL:",
         "16:9, 24fps.",
-        "",
-        "MUSIC:",
-        "Score TBD.",
-        "",
-        "AUDIO (native sound, synced to picture, no dialogue):",
-        "0.0s ambient.",
       ].join("\n");
       const result = await saveScript({
         projectId: projectId as never,
@@ -114,9 +90,7 @@ export function ScriptWorkbenchPage() {
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : !active ? (
         <div className="flex flex-1 flex-col items-start justify-center gap-3">
-          <p className="text-sm text-zinc-400">
-            Describe your video with the copilot. One part is up to 30 seconds.
-          </p>
+          <p className="text-sm text-zinc-400">No script yet.</p>
           <Button
             type="button"
             size="sm"

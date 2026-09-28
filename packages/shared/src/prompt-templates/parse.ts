@@ -11,7 +11,7 @@ const LOCATION =
 const SHOTS_HEADER =
   /^SHOTS\s*\(\s*([\d.]+)\s*seconds?\s+total\s*,\s*(multi-shot|single-shot)\s*,\s*([^)]+)\s*\)\s*:?\s*$/i;
 const SHOT_LINE =
-  /^Shot\s+(\d+)\s*\(\s*([\d.]+)s\s*[–\-]\s*([\d.]+)s\s*\)\s*[—\-]\s*(.+)$/i;
+  /^Shot\s+(\d+)\s*\(\s*([\d.]+)s\s*[–-]\s*([\d.]+)s\s*\)\s*[—-]\s*(.+)$/i;
 const AUDIO_CUE =
   /([\d.]+)s\s+([^0-9]+?)(?=\s+[\d.]+s\s+|$)/g;
 

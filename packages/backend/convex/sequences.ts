@@ -37,6 +37,16 @@ export const list = query({
   },
 });
 
+export const listInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("sequences")
+      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
+      .collect();
+  },
+});
+
 export const getInternal = internalQuery({
   args: { sequenceId: v.id("sequences") },
   handler: async (ctx, args) => ctx.db.get(args.sequenceId),

@@ -247,15 +247,14 @@ export function CopilotPanel({ projectId }: { projectId: string }) {
       {proposals && proposals.length > 0 ? (
         <div className="shrink-0 border-b border-amber-900/40 bg-amber-950/30 px-3 py-1.5">
           <p className="text-[10px] uppercase tracking-wider text-amber-400/90">
-            {proposals.length} pending proposal
-            {proposals.length === 1 ? "" : "s"} — Accept below to apply
+            {proposals.length} pending — Accept to apply
           </p>
         </div>
       ) : null}
 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto px-3 py-3">
         {!messages || messages.length === 0 ? (
-          <p className="text-xs text-zinc-500">Ask anything about this project.</p>
+          <p className="text-xs text-zinc-500">Ask about this project.</p>
         ) : (
           messages.map((m) => {
             const messageProposals = (

@@ -26,13 +26,12 @@ describe("ProjectsPage", () => {
         </MemoryRouter>
       </ConvexProvider>,
     );
-    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(screen.getByText("No projects yet.")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: /Start with trailer template/i })
-        .length,
+      screen.getAllByRole("button", { name: /Trailer template/i }).length,
     ).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("button", { name: /Create blank project/i }),
-    ).toBeInTheDocument();
+      screen.getAllByRole("button", { name: /New project/i }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 });

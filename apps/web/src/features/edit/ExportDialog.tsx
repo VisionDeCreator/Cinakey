@@ -84,7 +84,7 @@ export function ExportDialog({
         signal: ac.signal,
         onProgress: setProgress,
       });
-      const safe = projectTitle.replace(/[^\w\-]+/g, "-").slice(0, 40) || "edit";
+      const safe = projectTitle.replace(/[^\w-]+/g, "-").slice(0, 40) || "edit";
       downloadBlob(blob, `${safe}.mp4`);
       try {
         await recordExport({

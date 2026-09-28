@@ -17,6 +17,8 @@ export default [
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Syncing form/selection state from query props is intentional in several screens.
+      "react-hooks/set-state-in-effect": "warn",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true, allowExportNames: ["buttonVariants"] },

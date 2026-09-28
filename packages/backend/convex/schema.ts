@@ -159,6 +159,8 @@ const schema = defineSchema(
     shotIds: v.array(v.id("shots")),
     /** Browser-encoded animatic MP4 for this part (pre-viz). */
     previzAssetId: v.optional(v.id("assets")),
+    /** Chosen sequence-master asset for Edit assemble (trimmed takes selected). */
+    chosenMasterAssetId: v.optional(v.id("assets")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -538,6 +540,7 @@ const schema = defineSchema(
       v.literal("shot_prompt"),
       v.literal("continuity"),
       v.literal("generate_image"),
+      v.literal("generate_video"),
     ),
     status: v.union(
       v.literal("pending"),

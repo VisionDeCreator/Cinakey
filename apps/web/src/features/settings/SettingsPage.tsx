@@ -69,12 +69,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-10">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Profile, notifications, credits, and account.
-        </p>
-      </div>
+      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
 
       <form className="space-y-4" onSubmit={(e) => void saveProfile(e)}>
         <h2 className="text-sm font-semibold text-zinc-200">Profile</h2>
@@ -86,16 +81,14 @@ export function SettingsPage() {
             onChange={(e) => setName(e.target.value)}
           />
         </div>
-        <p className="text-xs text-zinc-500">
-          Email: {me.email ?? "—"} (managed by sign-in)
-        </p>
+        <p className="text-xs text-zinc-500">Email: {me.email ?? "—"}</p>
         <label className="flex items-center gap-2 text-sm text-zinc-300">
           <input
             type="checkbox"
             checked={emailEnabled}
             onChange={(e) => setEmailEnabled(e.target.checked)}
           />
-          Email me when jobs or exports finish or fail
+          Email job and export alerts
         </label>
         <Button type="submit" disabled={busy}>
           Save
@@ -105,11 +98,11 @@ export function SettingsPage() {
       </form>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-200">Credit history</h2>
+        <h2 className="text-sm font-semibold text-zinc-200">Credits</h2>
         {ledger === undefined ? (
           <p className="text-sm text-zinc-500">Loading…</p>
         ) : ledger.length === 0 ? (
-          <p className="text-sm text-zinc-500">No ledger entries yet.</p>
+          <p className="text-sm text-zinc-500">No entries.</p>
         ) : (
           <ul className="max-h-64 space-y-1 overflow-auto text-xs text-zinc-500">
             {ledger.map((row) => (
@@ -125,10 +118,7 @@ export function SettingsPage() {
 
       <section className="space-y-3 border border-red-900/40 p-4">
         <h2 className="text-sm font-semibold text-red-300">Delete account</h2>
-        <p className="text-xs text-zinc-500">
-          Permanently deletes your projects, assets, and workspace data. Type
-          DELETE to confirm.
-        </p>
+        <p className="text-xs text-zinc-500">Type DELETE to confirm.</p>
         <Input
           value={deleteConfirm}
           onChange={(e) => setDeleteConfirm(e.target.value)}
@@ -140,7 +130,7 @@ export function SettingsPage() {
           disabled={busy || deleteConfirm !== "DELETE"}
           onClick={() => void onDelete()}
         >
-          Delete my account
+          Delete account
         </Button>
       </section>
     </div>

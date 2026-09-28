@@ -176,7 +176,7 @@ export function CreativeAssetsPage() {
               />
             </div>
             <p className="max-w-xs pt-4 text-xs text-zinc-500">
-              Used on every image generation so assets match.
+              Applied to every image.
             </p>
           </div>
 

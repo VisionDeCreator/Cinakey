@@ -20,8 +20,7 @@ import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
 import { ScriptWorkbenchPage } from "@/features/script/ScriptWorkbenchPage";
 import { CopilotPage } from "@/features/copilot/CopilotPage";
-import { ShotsPage } from "@/features/shots/ShotsPage";
-import { ShotDetailPage } from "@/features/shots/ShotDetailPage";
+import { VideoPage } from "@/features/shots/VideoPage";
 import { EditPage } from "@/features/edit/EditPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import {
@@ -67,10 +66,7 @@ function RedirectLookDev() {
 }
 
 function RedirectShots() {
-  const { projectId, shotId } = useParams();
-  if (shotId) {
-    return <Navigate to={`/projects/${projectId}/video/${shotId}`} replace />;
-  }
+  const { projectId } = useParams();
   return <Navigate to={`/projects/${projectId}/video`} replace />;
 }
 
@@ -114,8 +110,8 @@ export function AppRouter() {
                 path="blockout/shots/:shotId"
                 element={<BlockoutEditorPage />}
               />
-              <Route path="video" element={<ShotsPage />} />
-              <Route path="video/:shotId" element={<ShotDetailPage />} />
+              <Route path="video" element={<VideoPage />} />
+              <Route path="video/:shotId" element={<RedirectShots />} />
               <Route path="shots" element={<RedirectShots />} />
               <Route path="shots/:shotId" element={<RedirectShots />} />
               <Route path="edit" element={<EditPage />} />

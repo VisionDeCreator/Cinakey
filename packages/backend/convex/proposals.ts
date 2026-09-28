@@ -674,6 +674,14 @@ export const accept = action({
       await ctx.runAction(api.promptSheets.approveAssetSheet, {
         promptSheetId,
       });
+    } else if (proposal.kind === "generate_video") {
+      const sequenceId = payload.sequenceId as Id<"sequences"> | undefined;
+      if (!sequenceId) {
+        throw new Error("generate_video needs sequenceId");
+      }
+      await ctx.runAction(api.shotGeneration.startSequenceGeneration, {
+        sequenceId,
+      });
     } else if (proposal.kind === "continuity") {
       const flags = Array.isArray(payload.flags) ? payload.flags : [];
       const body = [

@@ -43,18 +43,14 @@ export function BlockoutPage() {
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!parts || parts.length === 0) return;
-    if (
-      !activeSequenceId ||
-      !parts.some((p) => p.sequenceId === activeSequenceId)
-    ) {
-      setActiveSequenceId(parts[0]!.sequenceId);
-    }
-  }, [parts, activeSequenceId]);
+  const resolvedSequenceId =
+    activeSequenceId &&
+    parts?.some((p) => p.sequenceId === activeSequenceId)
+      ? activeSequenceId
+      : (parts?.[0]?.sequenceId ?? null);
 
   const active =
-    parts?.find((p) => p.sequenceId === activeSequenceId) ?? parts?.[0];
+    parts?.find((p) => p.sequenceId === resolvedSequenceId) ?? null;
 
   const previzUrl = useQuery(
     api.storage.getAssetUrl,
@@ -247,9 +243,7 @@ export function BlockoutPage() {
         ) : (
           <div className="px-6 text-center">
             <p className="text-sm text-zinc-400">
-              {active
-                ? "No pre-viz yet. Update blockout and pre-viz to build it from the script."
-                : "Write a script first, then build the blockout here."}
+              {active ? "No pre-viz yet." : "Write a script first."}
             </p>
             {active && !active.scriptChanged ? (
               <Button

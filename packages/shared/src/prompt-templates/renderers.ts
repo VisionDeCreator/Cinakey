@@ -360,7 +360,7 @@ export function splitAssetSheetSections(text: string): Record<string, string> {
       continue;
     }
     // Object heading like THE RIFLE:
-    const theMatch = /^(THE [A-Z0-9][A-Z0-9 \-]+):\s*(.*)$/.exec(line);
+    const theMatch = /^(THE [A-Z0-9][A-Z0-9 -]+):\s*(.*)$/.exec(line);
     if (theMatch) {
       flush();
       current = theMatch[1]!;
@@ -394,7 +394,7 @@ export function normalizePromptText(text: string): string {
 export function assetSheetSectionKeys(text: string): string[] {
   const keys: string[] = ["OPENING"];
   for (const line of text.split("\n")) {
-    const m = /^([A-Z][A-Z0-9 \-]+):\s*/.exec(line);
+    const m = /^([A-Z][A-Z0-9 -]+):\s*/.exec(line);
     if (m && !line.startsWith("Character ") && !line.startsWith("Creature ") && !line.startsWith("Wide ") && !line.startsWith("Product-")) {
       keys.push(m[1]!);
     }

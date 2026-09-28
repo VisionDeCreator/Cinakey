@@ -241,9 +241,7 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
         <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 py-2">
           {localMessages.length === 0 ? (
             <p className="text-xs text-zinc-500">
-              {isScript
-                ? "Describe the video you want."
-                : "Describe what you want."}
+              {isScript ? "Describe the video." : "Describe the asset."}
             </p>
           ) : (
             localMessages.map((m, i) => (

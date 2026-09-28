@@ -33,10 +33,13 @@ export async function computeProgress(
   ctx: QueryCtx,
   projectId: Id<"projects">,
 ): Promise<PipelineProgress> {
-  const [scripts, entities, shots, takes, timelines] = await Promise.all([
+  const [scriptTip, entities, shots, takes, timelines] = await Promise.all([
     ctx.db
-      .query("scriptVersions")
-      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .query("promptSheets")
+      .withIndex("by_project_tip", (q) =>
+        q.eq("projectId", projectId).eq("isTip", true),
+      )
+      .filter((q) => q.eq(q.field("type"), "script"))
       .first(),
     ctx.db
       .query("entities")
@@ -61,7 +64,7 @@ export async function computeProgress(
 
   return {
     assets: entities !== null ? "started" : "empty",
-    script: scripts !== null ? "started" : "empty",
+    script: scriptTip !== null ? "started" : "empty",
     blockout: hasBlockout ? "started" : "empty",
     video: takes !== null ? "started" : "empty",
     edit: timelines !== null ? "started" : "empty",

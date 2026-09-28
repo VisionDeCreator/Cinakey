@@ -21,7 +21,7 @@ export function ProjectsPage() {
   async function onStarter() {
     try {
       const id = await createStarter();
-      void navigate(`/projects/${id}`);
+      void navigate(`/projects/${id}/script`);
     } catch {
       // error surfaced via starterError
     }
@@ -30,19 +30,14 @@ export function ProjectsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Create a project from a brief and move it through the pipeline.
-          </p>
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             disabled={starterBusy}
             onClick={() => void onStarter()}
           >
-            {starterBusy ? "Starting…" : "Start with trailer template"}
+            {starterBusy ? "Starting…" : "Trailer template"}
           </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
@@ -56,20 +51,16 @@ export function ProjectsPage() {
       ) : null}
 
       {projects === undefined ? (
-        <p className="text-sm text-zinc-500">Loading projects…</p>
+        <p className="text-sm text-zinc-500">Loading…</p>
       ) : projects.length === 0 ? (
         <div className="border border-dashed border-zinc-700 px-6 py-16 text-center">
-          <p className="text-sm text-zinc-300">No projects yet</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Start with the 30-second trailer template (script, characters,
-            sample clips) or create a blank project from a brief.
-          </p>
+          <p className="text-sm text-zinc-500">No projects yet.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <Button disabled={starterBusy} onClick={() => void onStarter()}>
-              {starterBusy ? "Starting…" : "Start with trailer template"}
+              {starterBusy ? "Starting…" : "Trailer template"}
             </Button>
             <Button variant="outline" onClick={() => setCreateOpen(true)}>
-              Create blank project
+              New project
             </Button>
           </div>
         </div>

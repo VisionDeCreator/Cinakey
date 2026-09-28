@@ -21,7 +21,7 @@ import {
 } from "./_generated/server";
 import { getAdapter } from "./adapters";
 import { requireProjectAccess } from "./lib/access";
-import { loadJson, getFileUrl } from "./storage";
+import { loadJson, getFileUrl, deleteFile } from "./storage";
 
 const SEEDANCE_ID = "seedance-2.5";
 
@@ -150,9 +150,9 @@ export const resolveScriptPromptForRun = query({
       renderedText = "";
     }
 
-    let structured: ScriptPromptData | null = null;
+    const structured: ScriptPromptData | null = null;
     // Structured load needs action; expose sheet id for action path.
-    let singleShotPrompt: string | null = null;
+    const singleShotPrompt: string | null = null;
     let shotOverride: string | null = null;
 
     if (args.shotId) {
@@ -227,7 +227,7 @@ export const listShotsForGeneration = query({
           if (kf) keyframeUrl = await getFileUrl(ctx, kf.storageId);
         }
         let selectedTakeThumb: string | null = null;
-        let selectedTakeId: Id<"takes"> | null = shot.selectedTakeId ?? null;
+        const selectedTakeId: Id<"takes"> | null = shot.selectedTakeId ?? null;
         if (shot.selectedTakeId) {
           const take = await ctx.db.get(shot.selectedTakeId);
           if (take) {
@@ -535,6 +535,16 @@ export const getShotInternal = internalQuery({
   handler: async (ctx, args) => ctx.db.get(args.shotId),
 });
 
+export const listShotAssetsInternal = internalQuery({
+  args: { shotId: v.id("shots") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("assets")
+      .withIndex("by_shot", (q) => q.eq("shotId", args.shotId))
+      .collect();
+  },
+});
+
 /**
  * Assemble prompt text + refs for a sequence or single-shot run (action).
  */
@@ -616,6 +626,7 @@ export const assemblePromptAction = action({
           ctx,
           sheet,
           sequence.projectId,
+          args.sequenceId,
         );
         return {
           prompt: shot.generationPromptOverride,
@@ -636,6 +647,7 @@ export const assemblePromptAction = action({
       ctx,
       sheet,
       sequence.projectId,
+      args.sequenceId,
     );
 
     return {
@@ -653,21 +665,53 @@ async function resolveRefAssets(
   ctx: ActionCtx,
   sheet: Doc<"promptSheets">,
   projectId: Id<"projects">,
+  sequenceId: Id<"sequences">,
 ): Promise<Id<"assets">[]> {
   const maxRefs =
     getAdapter(SEEDANCE_ID)?.capabilities.maxReferenceImages ?? 30;
+  const seen = new Set<string>();
+  const ids: Id<"assets">[] = [];
+
+  const push = (assetId: Id<"assets"> | undefined | null) => {
+    if (!assetId || seen.has(assetId) || ids.length >= maxRefs) return;
+    seen.add(assetId);
+    ids.push(assetId);
+  };
+
   const map = [...(sheet.referenceMap ?? [])].sort(
     (a, b) => a.imageN - b.imageN,
   );
-  const ids: Id<"assets">[] = [];
-  for (const ref of map.slice(0, maxRefs)) {
+  for (const ref of map) {
+    if (ids.length >= maxRefs) break;
     const entity = await ctx.runQuery(internal.entities.getEntityInternal, {
       entityId: ref.entityId,
     });
     if (!entity || entity.projectId !== projectId) continue;
-    const assetId = entity.lockedReferenceAssetIds[0];
-    if (assetId) ids.push(assetId);
+    push(entity.lockedReferenceAssetIds[0]);
   }
+
+  const project = await ctx.runQuery(internal.entities.getProjectInternal, {
+    projectId,
+  });
+  if (project?.styleReferenceAssetId) {
+    push(project.styleReferenceAssetId);
+  }
+
+  const shots: Doc<"shots">[] = await ctx.runQuery(
+    internal.shotGeneration.getShotsForSequenceInternal,
+    { sequenceId },
+  );
+  shots.sort((a, b) => (a.startSec ?? a.order) - (b.startSec ?? b.order));
+  for (const shot of shots) {
+    if (ids.length >= maxRefs) break;
+    const assets: Doc<"assets">[] = await ctx.runQuery(
+      internal.shotGeneration.listShotAssetsInternal,
+      { shotId: shot._id },
+    );
+    const guide = assets.find((a) => a.tags.includes("blockout-keyframe"));
+    push(guide?._id);
+  }
+
   return ids;
 }
 
@@ -1005,6 +1049,312 @@ export const startTakeExtend = action({
     } catch (err) {
       await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
         shotIds: [take.shotId],
+      });
+      throw err;
+    }
+  },
+});
+
+/** Gallery of sequence-master videos for a Part, newest first. */
+export const listSequenceMasters = query({
+  args: { sequenceId: v.id("sequences") },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (sequence === null) return [];
+    await requireProjectAccess(ctx, sequence.projectId);
+
+    const jobs = await ctx.db
+      .query("generationJobs")
+      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+      .collect();
+
+    const masters = [];
+    for (const job of jobs) {
+      if (job.shotId) continue;
+      if (job.status !== "succeeded") continue;
+      const assetId = job.outputAssetIds[0];
+      if (!assetId) continue;
+      const asset = await ctx.db.get(assetId);
+      if (!asset) continue;
+      if (!asset.tags.includes("sequence-master")) continue;
+      const url = await getFileUrl(ctx, asset.storageId);
+      masters.push({
+        assetId: asset._id,
+        jobId: job._id,
+        url,
+        durationSec: asset.durationSec ?? sequence.durationSec,
+        estimatedCostCredits: job.estimatedCostCredits,
+        actualCostCredits: job.actualCostCredits ?? null,
+        createdAt: job.completedAt ?? job.createdAt,
+        kind: job.kind,
+        chosen: sequence.chosenMasterAssetId === asset._id,
+      });
+    }
+    masters.sort((a, b) => b.createdAt - a.createdAt);
+    return masters;
+  },
+});
+
+/**
+ * Mark a sequence-master as Chosen and select its trimmed takes on every shot.
+ */
+export const chooseMaster = mutation({
+  args: {
+    sequenceId: v.id("sequences"),
+    masterAssetId: v.id("assets"),
+  },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (sequence === null) throw new Error("Sequence not found");
+    await requireProjectAccess(ctx, sequence.projectId);
+
+    const asset = await ctx.db.get(args.masterAssetId);
+    if (asset === null || asset.projectId !== sequence.projectId) {
+      throw new Error("Master asset not found");
+    }
+    if (!asset.tags.includes("sequence-master")) {
+      throw new Error("Asset is not a sequence master");
+    }
+
+    const shots = await ctx.db
+      .query("shots")
+      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+      .collect();
+
+    const now = Date.now();
+    for (const shot of shots) {
+      const takes = await ctx.db
+        .query("takes")
+        .withIndex("by_shot", (q) => q.eq("shotId", shot._id))
+        .collect();
+      const match = takes.find((t) => t.assetId === args.masterAssetId);
+      if (!match) continue;
+      for (const sib of takes) {
+        if (sib.selected && sib._id !== match._id) {
+          await ctx.db.patch(sib._id, { selected: false });
+        }
+      }
+      await ctx.db.patch(match._id, { selected: true });
+      await ctx.db.patch(shot._id, {
+        selectedTakeId: match._id,
+        status: "selected",
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(args.sequenceId, {
+      chosenMasterAssetId: args.masterAssetId,
+      updatedAt: now,
+    });
+  },
+});
+
+/** Delete a sequence-master and its per-shot takes. */
+export const deleteMaster = mutation({
+  args: {
+    sequenceId: v.id("sequences"),
+    masterAssetId: v.id("assets"),
+  },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (sequence === null) throw new Error("Sequence not found");
+    await requireProjectAccess(ctx, sequence.projectId);
+
+    const asset = await ctx.db.get(args.masterAssetId);
+    if (asset === null || asset.projectId !== sequence.projectId) {
+      throw new Error("Master asset not found");
+    }
+
+    const shots = await ctx.db
+      .query("shots")
+      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+      .collect();
+
+    const now = Date.now();
+    const proxyIds = new Set<Id<"assets">>();
+
+    for (const shot of shots) {
+      const takes = await ctx.db
+        .query("takes")
+        .withIndex("by_shot", (q) => q.eq("shotId", shot._id))
+        .collect();
+      for (const take of takes) {
+        if (take.assetId !== args.masterAssetId) continue;
+        if (take.proxyAssetId) proxyIds.add(take.proxyAssetId);
+        const wasSelected = shot.selectedTakeId === take._id;
+        await ctx.db.delete(take._id);
+        if (wasSelected) {
+          await ctx.db.patch(shot._id, {
+            selectedTakeId: undefined,
+            status: shot.blockoutFileId ? "blocked_out" : "planned",
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    if (sequence.chosenMasterAssetId === args.masterAssetId) {
+      await ctx.db.patch(args.sequenceId, {
+        chosenMasterAssetId: undefined,
+        updatedAt: now,
+      });
+    }
+
+    for (const proxyId of proxyIds) {
+      const proxy = await ctx.db.get(proxyId);
+      if (!proxy || proxy.starred) continue;
+      const stillUsed = await ctx.db
+        .query("takes")
+        .filter((q) => q.eq(q.field("proxyAssetId"), proxyId))
+        .first();
+      if (stillUsed) continue;
+      await deleteFile(ctx, proxy.storageId);
+      await ctx.db.delete(proxyId);
+    }
+
+    if (!asset.starred) {
+      const stillUsed = await ctx.db
+        .query("takes")
+        .filter((q) => q.eq(q.field("assetId"), args.masterAssetId))
+        .first();
+      if (!stillUsed) {
+        await deleteFile(ctx, asset.storageId);
+        await ctx.db.delete(args.masterAssetId);
+      }
+    }
+  },
+});
+
+/** Upscale a sequence master → new master + trimmed takes. */
+export const startMasterUpscale = action({
+  args: {
+    sequenceId: v.id("sequences"),
+    masterAssetId: v.id("assets"),
+    resolution: v.optional(v.string()),
+    forceFail: v.optional(v.boolean()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+    const sequence: Doc<"sequences"> | null = await ctx.runQuery(
+      internal.shotGeneration.getSequenceInternal,
+      { sequenceId: args.sequenceId },
+    );
+    if (!sequence) throw new Error("Sequence not found");
+
+    const shots: Doc<"shots">[] = await ctx.runQuery(
+      internal.shotGeneration.getShotsForSequenceInternal,
+      { sequenceId: args.sequenceId },
+    );
+    const durationSec = sequence.durationSec;
+    const adapter = getAdapter(SEEDANCE_ID);
+    if (!adapter) throw new Error("Seedance adapter missing");
+    const estimated = adapter.estimateCost({
+      kind: "upscale",
+      durationSec,
+      prompt: "upscale",
+    });
+
+    const cap = await ctx.runQuery(
+      internal.shotGeneration.assertSpendCapInternal,
+      {
+        projectId: sequence.projectId,
+        estimatedCostCredits: estimated,
+      },
+    );
+    if (!cap.ok) throw new Error(cap.message);
+
+    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
+      shotIds: shots.map((s) => s._id),
+    });
+
+    try {
+      return await ctx.runAction(api.generation.startGeneration, {
+        projectId: sequence.projectId,
+        adapterId: SEEDANCE_ID,
+        kind: "upscale",
+        prompt: "upscale",
+        sequenceId: args.sequenceId,
+        parentAssetIds: [args.masterAssetId],
+        skipSpendCapCheck: true,
+        input: {
+          durationSec,
+          resolution: args.resolution ?? "1080p",
+          forceFail: args.forceFail,
+        },
+      });
+    } catch (err) {
+      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
+        shotIds: shots.map((s) => s._id),
+      });
+      throw err;
+    }
+  },
+});
+
+/** Extend a sequence master → new master + trimmed takes. */
+export const startMasterExtend = action({
+  args: {
+    sequenceId: v.id("sequences"),
+    masterAssetId: v.id("assets"),
+    extendSec: v.optional(v.number()),
+    prompt: v.optional(v.string()),
+    forceFail: v.optional(v.boolean()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+    const sequence: Doc<"sequences"> | null = await ctx.runQuery(
+      internal.shotGeneration.getSequenceInternal,
+      { sequenceId: args.sequenceId },
+    );
+    if (!sequence) throw new Error("Sequence not found");
+
+    const shots: Doc<"shots">[] = await ctx.runQuery(
+      internal.shotGeneration.getShotsForSequenceInternal,
+      { sequenceId: args.sequenceId },
+    );
+    const extendSec = args.extendSec ?? 5;
+    const adapter = getAdapter(SEEDANCE_ID);
+    if (!adapter) throw new Error("Seedance adapter missing");
+    const estimated = adapter.estimateCost({
+      kind: "extend",
+      durationSec: extendSec,
+      prompt: args.prompt ?? "extend",
+    });
+
+    const cap = await ctx.runQuery(
+      internal.shotGeneration.assertSpendCapInternal,
+      {
+        projectId: sequence.projectId,
+        estimatedCostCredits: estimated,
+      },
+    );
+    if (!cap.ok) throw new Error(cap.message);
+
+    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
+      shotIds: shots.map((s) => s._id),
+    });
+
+    try {
+      return await ctx.runAction(api.generation.startGeneration, {
+        projectId: sequence.projectId,
+        adapterId: SEEDANCE_ID,
+        kind: "extend",
+        prompt: args.prompt ?? "Continue the motion seamlessly.",
+        sequenceId: args.sequenceId,
+        parentAssetIds: [args.masterAssetId],
+        skipSpendCapCheck: true,
+        input: {
+          durationSec: extendSec,
+          forceFail: args.forceFail,
+        },
+      });
+    } catch (err) {
+      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
+        shotIds: shots.map((s) => s._id),
       });
       throw err;
     }
