@@ -448,6 +448,57 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "propose_shot_prompt",
+      description:
+        "Rewrite the Seedance generation prompt for a single shot (same template as script prompts: REFERENCES, ART STYLE, entity blocks, one SHOTS line, CONSISTENCY, TECHNICAL, AUDIO). On Accept sets shots.generationPromptOverride. User must Accept; does not queue video.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          shotId: { type: "string" },
+          promptText: {
+            type: "string",
+            description: "Full rewritten single-shot Seedance prompt text",
+          },
+        },
+        required: ["summary", "shotId", "promptText"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "check_continuity",
+      description:
+        "Flag continuity issues where a take (or shot) contradicts locked character/location/style sheets or project rules. Creates suggestion proposals; Accept writes notes. Does not change takes.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          shotId: { type: "string" },
+          takeId: { type: "string" },
+          flags: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                severity: {
+                  type: "string",
+                  enum: ["info", "warning", "error"],
+                },
+                message: { type: "string" },
+              },
+              required: ["message"],
+            },
+          },
+        },
+        required: ["summary", "flags"],
+      },
+    },
+  },
 ];
 
 export type CopilotRole =
@@ -503,6 +554,7 @@ export function buildSystemPrompt(args: {
       ? "Hard rule (Copilot tab): you are running the structured prompt PIPELINE. Do NOT call propose_script_edit for new stories or episode breakdowns — that creates a screenplay, not a Seedance prompt. Use propose_story_treatment, propose_style_block, propose_asset_list, propose_asset_sheet, propose_script_prompt, propose_blockout_sheet."
       : "Hard rule: use propose_script_edit only when the user explicitly wants a Script-room screenplay (Fountain-style scenes/beats/dialogue). For video episode / Seedance shot breakdowns, use propose_script_prompt instead.",
     "Hard rule: when drafting a Seedance script prompt or \"full episode\" / shot-by-shot breakdown, call propose_script_prompt with complete structured data: references[], castBlocks[], location, shots[] (contiguous timings from 0, every shot), consistency, motionAndPhysics, lighting, technical, music, audioCues[]. Never paste the prompt as chat prose only.",
+    "Hard rule: to rewrite a single-shot Seedance prompt for regeneration, call propose_shot_prompt with shotId and full promptText. To flag continuity issues on takes vs locked sheets/rules, call check_continuity with flags[].",
     "Hard rule: asset sheets use structured fields only (subjectLine, views, faceAndHair/body, outfit/gear, signatureDetail, colorPalette, etc.) — never free-form template text. The system renders the template.",
     "Hard rule: when the user asks for a shot list table for an existing Script-room scene, call propose_shot_list with sceneElementId.",
     "Pipeline order: propose_story_treatment → propose_style_block → propose_asset_list → propose_asset_sheet (each asset) → after refs locked, propose_script_prompt (≤30s / ≤30 refs per sequence) → propose_blockout_sheet.",

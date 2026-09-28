@@ -33,6 +33,8 @@ import { parseToolArguments } from "./lib/parseToolArguments";
 import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
 import { loadJson, saveJson } from "./storage";
 import { requireProjectAccess, requireUser } from "./lib/access";
+import { RATE_LIMITS } from "./lib/limits";
+import { assertRateLimit } from "./lib/rateLimit";
 
 async function requireActionUser(ctx: ActionCtx) {
   const { getAuthUserId } = await import("@convex-dev/auth/server");
@@ -40,6 +42,18 @@ async function requireActionUser(ctx: ActionCtx) {
   if (userId === null) throw new Error("Not authenticated");
   return userId as Id<"users">;
 }
+
+export const assertCopilotRateLimit = internalMutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await assertRateLimit(
+      ctx,
+      `copilotTurn:${args.userId}`,
+      RATE_LIMITS.copilotTurn.limit,
+      RATE_LIMITS.copilotTurn.windowMs,
+    );
+  },
+});
 
 const roleValidator = v.union(
   v.literal("director"),
@@ -214,6 +228,8 @@ export const createProposal = internalMutation({
       v.literal("style_block"),
       v.literal("script_prompt"),
       v.literal("blockout_sheet"),
+      v.literal("shot_prompt"),
+      v.literal("continuity"),
     ),
     payload: v.optional(v.any()),
     payloadFileId: v.optional(v.id("_storage")),
@@ -465,6 +481,10 @@ export const runTurn = action({
     const userId = await requireActionUser(ctx);
     await ctx.runQuery(internal.scriptVersions.assertAccess, {
       projectId: args.projectId,
+      userId,
+    });
+
+    await ctx.runMutation(internal.copilot.assertCopilotRateLimit, {
       userId,
     });
 
@@ -1639,6 +1659,44 @@ async function handleToolCall(
         replaceTipId: sheet._id,
       },
       diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "propose_shot_prompt") {
+    const summary = String(parsed.summary ?? "Shot prompt");
+    const shotId = String(parsed.shotId ?? "");
+    const promptText = String(parsed.promptText ?? "").trim();
+    if (!shotId || !promptText) {
+      return { proposalId: null, error: "shotId and promptText required" };
+    }
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "shot_prompt",
+      payload: { summary, shotId, promptText },
+      diffSummary: summary,
+    });
+    return { proposalId };
+  }
+
+  if (args.name === "check_continuity") {
+    const summary = String(parsed.summary ?? "Continuity check");
+    const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
+    if (flags.length === 0) {
+      return { proposalId: null, error: "flags required" };
+    }
+    const proposalId = await ctx.runMutation(internal.copilot.createProposal, {
+      projectId: args.projectId,
+      messageId: args.messageId,
+      kind: "continuity",
+      payload: {
+        summary,
+        shotId: parsed.shotId ? String(parsed.shotId) : undefined,
+        takeId: parsed.takeId ? String(parsed.takeId) : undefined,
+        flags,
+      },
+      diffSummary: `${summary} (${flags.length} flag${flags.length === 1 ? "" : "s"})`,
     });
     return { proposalId };
   }

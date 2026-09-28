@@ -16,9 +16,8 @@ describe("access control", () => {
       title: "Secret",
     });
 
-    await expect(t.query(api.projects.get, { projectId })).rejects.toThrow(
-      /Not authenticated/,
-    );
+    const denied = await t.query(api.projects.get, { projectId });
+    expect(denied).toBeNull();
   });
 
   it("allows the owner to read their project", async () => {
@@ -29,7 +28,8 @@ describe("access control", () => {
       title: "Mine",
     });
     const project = await asOwner.query(api.projects.get, { projectId });
-    expect(project.title).toBe("Mine");
+    expect(project).not.toBeNull();
+    expect(project!.title).toBe("Mine");
   });
 
   it("denies another user from reading or updating a project", async () => {
@@ -43,9 +43,8 @@ describe("access control", () => {
       title: "Private",
     });
 
-    await expect(
-      asOther.query(api.projects.get, { projectId }),
-    ).rejects.toThrow(/Project access denied/);
+    const denied = await asOther.query(api.projects.get, { projectId });
+    expect(denied).toBeNull();
 
     await expect(
       asOther.mutation(api.projects.update, {
@@ -68,6 +67,7 @@ describe("access control", () => {
       title: "Owned",
     });
     const project = await asStaff.query(api.projects.get, { projectId });
-    expect(project.title).toBe("Owned");
+    expect(project).not.toBeNull();
+    expect(project!.title).toBe("Owned");
   });
 });

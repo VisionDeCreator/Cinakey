@@ -50,6 +50,8 @@ export const seedance25Adapter: GenerationAdapter = {
       startFrameUrl: input.startFrameUrl,
       endFrameUrl: input.endFrameUrl,
       referenceImageUrls: input.referenceImageUrls ?? [],
+      // TODO(seedance-api): confirm camera_control / cameraPreset field name.
+      cameraPreset: input.cameraPreset,
       // TODO(seedance-api): assumption — model name string for base Seedance 2.5.
       model: "seedance-2.5",
     };
@@ -113,6 +115,10 @@ export const seedance25Adapter: GenerationAdapter = {
       resolution: request.resolution,
       ratio: request.aspectRatio,
     };
+    if (typeof request.cameraPreset === "string" && request.cameraPreset) {
+      // TODO(seedance-api): confirm camera control payload shape.
+      body.camera_control = { preset: request.cameraPreset };
+    }
     if (kind === "upscale") {
       body.operation = "upscale";
     }

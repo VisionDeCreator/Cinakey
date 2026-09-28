@@ -7,6 +7,7 @@ import type {
   SubmitResult,
 } from "@cinakey/shared";
 import { estimateImageCost, estimateTokenCost, estimateVideoCost } from "./cost";
+import { SAMPLE_MP4_BASE64 } from "./mockVideo";
 
 /** 1x1 PNG (transparent) as base64 for mock image outputs. */
 const SAMPLE_PNG_BASE64 =
@@ -141,14 +142,13 @@ export function createMockAdapter(
         };
       }
       if (kind === "video") {
-        // Tiny placeholder: reuse PNG bytes tagged as video for pipeline testing.
         return {
           outputs: [
             {
               type: "video",
-              base64: SAMPLE_PNG_BASE64,
+              base64: SAMPLE_MP4_BASE64,
               contentType: "video/mp4",
-              metadata: { mock: true, note: "placeholder bytes" },
+              metadata: { mock: true },
             },
           ],
         };

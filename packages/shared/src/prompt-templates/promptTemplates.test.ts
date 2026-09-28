@@ -18,6 +18,7 @@ import {
   renderProductSheet,
   renderScriptPrompt,
   assetSheetSectionKeys,
+  assembleSingleShotPrompt,
   CHARACTER_EXAMPLE_ART_STYLE,
   CREATURE_EXAMPLE_ART_STYLE,
   ENVIRONMENT_EXAMPLE_ART_STYLE,
@@ -144,6 +145,22 @@ describe("script prompt", () => {
     expect(text).toContain(
       "Shot 3 (3.0s–4.0s) — Extreme close-up, low in the grass:",
     );
+  });
+});
+
+describe("assembleSingleShotPrompt", () => {
+  it("slices to one remapped shot with multiShot false", () => {
+    const single = assembleSingleShotPrompt(scriptPromptFixture, 3);
+    expect(single.multiShot).toBe(false);
+    expect(single.shots).toHaveLength(1);
+    expect(single.shots[0]!.n).toBe(1);
+    expect(single.shots[0]!.startSec).toBe(0);
+    expect(single.shots[0]!.endSec).toBe(1);
+    expect(single.totalDurationSec).toBe(1);
+    expect(single.shots[0]!.action).toBe(scriptPromptFixture.shots[2]!.action);
+    const text = renderScriptPrompt(single);
+    expect(text).toContain("single-shot");
+    expect(text).toContain("Shot 1 (0.0s–1.0s)");
   });
 });
 

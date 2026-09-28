@@ -12,6 +12,7 @@ vi.mock("convex/react", async () => {
     ...actual,
     useQuery: () => [],
     useMutation: () => vi.fn(),
+    useAction: () => vi.fn(),
   };
 });
 
@@ -27,7 +28,11 @@ describe("ProjectsPage", () => {
     );
     expect(screen.getByText("No projects yet")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Create your first project/i }),
+      screen.getAllByRole("button", { name: /Start with trailer template/i })
+        .length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("button", { name: /Create blank project/i }),
     ).toBeInTheDocument();
   });
 });

@@ -102,6 +102,13 @@ export function ScriptRoomPage() {
   if (project === undefined || loaded === null) {
     return <p className="text-sm text-zinc-500">Loading script…</p>;
   }
+  if (project === null) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Project not found or access denied.
+      </p>
+    );
+  }
 
   const target = project.targetLengthSec;
   const overTarget =

@@ -25,7 +25,9 @@ type ProposalDoc = {
     | "asset_sheet"
     | "style_block"
     | "script_prompt"
-    | "blockout_sheet";
+    | "blockout_sheet"
+    | "shot_prompt"
+    | "continuity";
   status: string;
   payload?: unknown;
   diffSummary?: string;
@@ -328,6 +330,32 @@ export function ProposalCard({ proposal }: { proposal: ProposalDoc }) {
               {s.cameraMove ? ` · ${s.cameraMove}` : ""}
               {s.durationSec !== undefined ? ` · ${s.durationSec}s` : ""}
               {s.dialogue ? ` — “${s.dialogue.slice(0, 40)}”` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {proposal.kind === "shot_prompt" ? (
+        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-sm bg-zinc-950 p-2 text-[10px] text-zinc-400">
+          {String(payload?.promptText ?? "").slice(0, 2000)}
+        </pre>
+      ) : null}
+
+      {proposal.kind === "continuity" ? (
+        <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-[11px] text-zinc-400">
+          {(
+            (payload?.flags as Array<{
+              severity?: string;
+              message?: string;
+            }>) ?? []
+          ).map((f, i) => (
+            <li key={i}>
+              {f.severity ? (
+                <span className="uppercase text-amber-400/80">
+                  [{f.severity}]{" "}
+                </span>
+              ) : null}
+              {f.message}
             </li>
           ))}
         </ul>

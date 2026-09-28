@@ -307,6 +307,19 @@ export const createAssetFromUpload = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    const project = await ctx.db.get(args.projectId);
+    if (project !== null && meta.size > 0) {
+      await ctx.db.insert("egressEvents", {
+        userId: user._id,
+        workspaceId: project.workspaceId,
+        projectId: args.projectId,
+        bytes: meta.size,
+        kind: "storage_write",
+        createdAt: now,
+      });
+    }
+
     return assetId;
   },
 });
@@ -341,14 +354,15 @@ export const createAssetFromGeneration = internalMutation({
     height: v.optional(v.number()),
     lineage: v.optional(lineageValidator),
     name: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const name =
       args.name?.trim() ||
       `${args.lineage?.model ?? "gen"}-${args.type}-${now}`;
-    const tags: string[] = [];
-    return await ctx.db.insert("assets", {
+    const tags = args.tags ?? [];
+    const assetId = await ctx.db.insert("assets", {
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
@@ -370,6 +384,22 @@ export const createAssetFromGeneration = internalMutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    if (args.sizeBytes > 0) {
+      const project = await ctx.db.get(args.projectId);
+      if (project !== null) {
+        await ctx.db.insert("egressEvents", {
+          userId: args.createdBy,
+          workspaceId: project.workspaceId,
+          projectId: args.projectId,
+          bytes: args.sizeBytes,
+          kind: "storage_write",
+          createdAt: now,
+        });
+      }
+    }
+
+    return assetId;
   },
 });
 
@@ -382,6 +412,27 @@ export const getAssetUrl = query({
     }
     await requireProjectAccess(ctx, asset.projectId);
     return await getFileUrl(ctx, asset.storageId);
+  },
+});
+
+/** URLs + metadata for all project assets (editor media bin / playback). */
+export const listProjectAssetUrls = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await requireProjectAccess(ctx, args.projectId);
+    const assets = await ctx.db
+      .query("assets")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    return await Promise.all(
+      assets.map(async (asset) => ({
+        assetId: asset._id,
+        url: await getFileUrl(ctx, asset.storageId),
+        type: asset.type,
+        durationSec: asset.durationSec,
+        name: asset.name,
+      })),
+    );
   },
 });
 

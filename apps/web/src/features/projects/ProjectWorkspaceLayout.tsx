@@ -40,6 +40,10 @@ function ProjectWorkspaceInner() {
     api.projects.getOverview,
     projectId ? { projectId: projectId as never } : "skip",
   );
+  const activeJobs = useQuery(
+    api.shotGeneration.listActiveJobsForProject,
+    projectId ? { projectId: projectId as never } : "skip",
+  );
   const { setContext } = useCopilotContext();
 
   useEffect(() => {
@@ -54,6 +58,22 @@ function ProjectWorkspaceInner() {
 
   if (project === undefined) {
     return <p className="text-sm text-zinc-500">Loading project…</p>;
+  }
+
+  if (project === null) {
+    return (
+      <div className="space-y-2 py-12 text-center">
+        <h1 className="text-lg font-semibold text-zinc-100">
+          Project not found
+        </h1>
+        <p className="text-sm text-zinc-500">
+          This project does not exist or you do not have access.
+        </p>
+        <NavLink to="/projects" className="text-sm text-zinc-300 underline">
+          Back to projects
+        </NavLink>
+      </div>
+    );
   }
 
   const base = `/projects/${projectId}`;
@@ -73,11 +93,18 @@ function ProjectWorkspaceInner() {
                   {project.title}
                 </h1>
               </div>
-              {overview ? (
-                <div className="w-48">
-                  <StageProgressBar progress={overview.progress} />
-                </div>
-              ) : null}
+              <div className="flex items-center gap-3">
+                {activeJobs && activeJobs.length > 0 ? (
+                  <span className="rounded bg-amber-500/15 px-2 py-1 text-[11px] text-amber-300">
+                    {activeJobs.length} generating
+                  </span>
+                ) : null}
+                {overview ? (
+                  <div className="w-48">
+                    <StageProgressBar progress={overview.progress} />
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-1">
               <NavLink

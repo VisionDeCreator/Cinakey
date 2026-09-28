@@ -23,6 +23,8 @@ export type UploadOptions = {
   containsLikeness?: boolean;
   likenessConsent?: boolean;
   tags?: string[];
+  /** Override inferred asset type (e.g. music vs audio). */
+  type?: AssetType;
 };
 
 function inferType(file: File): AssetType | null {
@@ -73,7 +75,7 @@ export function useAssetUpload(projectId: string | undefined) {
       const createdIds: string[] = [];
       for (const file of list) {
         const id = `${file.name}-${Date.now()}-${Math.random()}`;
-        const type = inferType(file);
+        const type = options?.type ?? inferType(file);
         if (type === null) {
           setUploads((prev) => [
             ...prev,

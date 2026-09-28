@@ -26,6 +26,9 @@ const schema = defineSchema(
     isAnonymous: v.optional(v.boolean()),
     isStaff: v.optional(v.boolean()),
     personalWorkspaceId: v.optional(v.id("workspaces")),
+    /** When false, skip outbound email for jobs/exports. Default true when unset. */
+    notificationEmailEnabled: v.optional(v.boolean()),
+    onboardingDismissedAt: v.optional(v.number()),
   })
     .index("email", ["email"])
     .index("phone", ["phone"]),
@@ -33,6 +36,8 @@ const schema = defineSchema(
   workspaces: defineTable({
     name: v.string(),
     ownerUserId: v.id("users"),
+    /** Set when the one-time starter credit grant has been applied. */
+    starterCreditsGrantedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_owner", ["ownerUserId"]),
@@ -53,6 +58,10 @@ const schema = defineSchema(
     styleNotes: v.optional(v.string()),
     rules: v.array(v.string()),
     thumbnailAssetId: v.optional(v.id("assets")),
+    /** Optional per-project credit spend cap; blocks new jobs when reached. */
+    spendCapCredits: v.optional(v.number()),
+    /** Guided trailer template project. */
+    isStarter: v.optional(v.boolean()),
     archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -115,6 +124,17 @@ const schema = defineSchema(
     selectedTakeId: v.optional(v.id("takes")),
     blockoutFileId: v.optional(v.id("_storage")),
     notes: v.optional(v.string()),
+    /** Accepted propose_shot_prompt override used by single-shot generation. */
+    generationPromptOverride: v.optional(v.string()),
+    /** Status before entering `generating`, restored on job failure. */
+    statusBeforeGenerating: v.optional(
+      v.union(
+        v.literal("planned"),
+        v.literal("blocked_out"),
+        v.literal("generating"),
+        v.literal("selected"),
+      ),
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -257,6 +277,7 @@ const schema = defineSchema(
   generationJobs: defineTable({
     projectId: v.id("projects"),
     shotId: v.optional(v.id("shots")),
+    sequenceId: v.optional(v.id("sequences")),
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     model: v.string(),
@@ -284,25 +305,40 @@ const schema = defineSchema(
     createdBy: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
+    /** Set when job reaches a terminal status (succeeded/failed/refunded). */
+    completedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
     .index("by_provider_job", ["providerJobId"])
     .index("by_entity", ["entityId"])
     .index("by_shot", ["shotId"])
-    .index("by_prompt_sheet", ["promptSheetId"]),
+    .index("by_sequence", ["sequenceId"])
+    .index("by_prompt_sheet", ["promptSheetId"])
+    .index("by_model", ["model"]),
 
   takes: defineTable({
     projectId: v.id("projects"),
     shotId: v.id("shots"),
     assetId: v.id("assets"),
-    jobId: v.id("generationJobs"),
+    /** Optional for starter-template sample takes (no generation job). */
+    jobId: v.optional(v.id("generationJobs")),
+    /** Trim window into a sequence master asset (seconds). */
+    trimStartSec: v.optional(v.number()),
+    trimEndSec: v.optional(v.number()),
+    /** Lightweight playback proxy (browser-encoded). */
+    proxyAssetId: v.optional(v.id("assets")),
+    /** Lineage for upscale/extend. */
+    parentTakeId: v.optional(v.id("takes")),
     rating: v.optional(v.number()),
     selected: v.boolean(),
     createdAt: v.number(),
   })
     .index("by_shot", ["shotId"])
-    .index("by_job", ["jobId"]),
+    .index("by_job", ["jobId"])
+    .index("by_parent", ["parentTakeId"])
+    .index("by_project_created", ["projectId", "createdAt"])
+    .index("by_created", ["createdAt"]),
 
   timelineVersions: defineTable({
     projectId: v.id("projects"),
@@ -349,7 +385,12 @@ const schema = defineSchema(
   notifications: defineTable({
     userId: v.id("users"),
     projectId: v.optional(v.id("projects")),
-    kind: v.union(v.literal("job_succeeded"), v.literal("job_failed")),
+    kind: v.union(
+      v.literal("job_succeeded"),
+      v.literal("job_failed"),
+      v.literal("export_succeeded"),
+      v.literal("export_failed"),
+    ),
     title: v.string(),
     body: v.optional(v.string()),
     href: v.optional(v.string()),
@@ -358,6 +399,83 @@ const schema = defineSchema(
   })
     .index("by_user", ["userId"])
     .index("by_user_unread", ["userId", "read"]),
+
+  /** Append-only staff action log. */
+  auditLog: defineTable({
+    actorUserId: v.id("users"),
+    action: v.string(),
+    targetType: v.optional(v.string()),
+    targetId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    meta: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_time", ["createdAt"]),
+
+  moderationFlags: defineTable({
+    projectId: v.optional(v.id("projects")),
+    jobId: v.optional(v.id("generationJobs")),
+    assetId: v.optional(v.id("assets")),
+    userId: v.id("users"),
+    stage: v.union(v.literal("prompt"), v.literal("output")),
+    verdict: v.union(v.literal("flagged"), v.literal("blocked")),
+    ruleId: v.string(),
+    snippet: v.optional(v.string()),
+    status: v.union(
+      v.literal("open"),
+      v.literal("resolved"),
+      v.literal("dismissed"),
+    ),
+    resolvedBy: v.optional(v.id("users")),
+    resolvedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status", "createdAt"])
+    .index("by_job", ["jobId"]),
+
+  egressEvents: defineTable({
+    userId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+    projectId: v.optional(v.id("projects")),
+    bytes: v.number(),
+    kind: v.union(
+      v.literal("storage_write"),
+      v.literal("playback"),
+      v.literal("download"),
+      v.literal("export"),
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_user_time", ["userId", "createdAt"])
+    .index("by_project_time", ["projectId", "createdAt"])
+    .index("by_workspace_time", ["workspaceId", "createdAt"]),
+
+  analyticsEvents: defineTable({
+    userId: v.optional(v.id("users")),
+    workspaceId: v.optional(v.id("workspaces")),
+    projectId: v.optional(v.id("projects")),
+    name: v.string(),
+    value: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_name_time", ["name", "createdAt"]),
+
+  exports: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+    durationSec: v.number(),
+    width: v.number(),
+    height: v.number(),
+    status: v.union(v.literal("succeeded"), v.literal("failed")),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user_time", ["userId", "createdAt"]),
+
+  rateLimitBuckets: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_key", ["key"]),
 
   /** Linear copilot thread per project (one thread in MVP). */
   copilotMessages: defineTable({
@@ -409,6 +527,8 @@ const schema = defineSchema(
       v.literal("style_block"),
       v.literal("script_prompt"),
       v.literal("blockout_sheet"),
+      v.literal("shot_prompt"),
+      v.literal("continuity"),
     ),
     status: v.union(
       v.literal("pending"),

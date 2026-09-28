@@ -18,7 +18,8 @@ describe("seed", () => {
     const project = await asUser.query(api.projects.get, {
       projectId: result.projectId,
     });
-    expect(project.title).toBe("Demo Project");
+    expect(project).not.toBeNull();
+    expect(project!.title).toBe("Demo Project");
 
     const user = await asUser.query(api.users.viewer, {});
     expect(user?.personalWorkspaceId).toBeTruthy();

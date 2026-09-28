@@ -36,7 +36,18 @@ async function withKeyframeUrl(ctx: DbCtx, shot: Doc<"shots">) {
       keyframeUrl = await getFileUrl(ctx, asset.storageId);
     }
   }
-  return { ...shot, keyframeUrl };
+  let selectedTakeThumbUrl: string | null = null;
+  if (shot.selectedTakeId) {
+    const take = await ctx.db.get(shot.selectedTakeId);
+    if (take) {
+      const assetId = take.proxyAssetId ?? take.assetId;
+      const asset = await ctx.db.get(assetId);
+      if (asset) {
+        selectedTakeThumbUrl = await getFileUrl(ctx, asset.storageId);
+      }
+    }
+  }
+  return { ...shot, keyframeUrl, selectedTakeThumbUrl };
 }
 
 async function reindexScene(ctx: MutationCtx, sceneId: Id<"scenes">) {

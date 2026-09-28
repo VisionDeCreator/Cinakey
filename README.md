@@ -1,6 +1,6 @@
 # Cinakey
 
-Browser-based AI video production pipeline. Phase 1 is an empty signed-in studio shell on Vite + React + Convex, structured as an npm workspaces + Turborepo monorepo.
+Browser-based AI video production pipeline (script → look → blockout → shot generation → edit → export). Monorepo: Vite + React front end, Convex back end.
 
 ## Prerequisites
 
@@ -8,6 +8,8 @@ Browser-based AI video production pipeline. Phase 1 is an empty signed-in studio
 - npm
 - A [Convex](https://convex.dev) account
 - (Optional) Google Cloud OAuth client for Google sign-in
+- (Optional) [Resend](https://resend.com) API key for email notifications
+- (Production) Vercel account (or another static host) and a custom domain
 
 ## Setup
 
@@ -52,7 +54,7 @@ npx convex env set JWT_PRIVATE_KEY -- "<paste PKCS8 key with spaces for newlines
 npx convex env set JWKS -- '<paste JWKS JSON>'
 ```
 
-Google OAuth (optional for Phase 1; email/password works without it):
+Google OAuth (optional; email/password works without it):
 
 1. Create a Google Cloud OAuth client (Web application).
 2. Authorized JavaScript origins: `http://localhost:5173`
@@ -73,10 +75,12 @@ Provider API keys and job flags are Convex env vars only (`npx convex env set` f
 | `SEEDANCE_API_BASE_URL` | Optional API host override |
 | `DEEPSEEK_API_KEY` | DeepSeek chat |
 | `GENERATION_WEBHOOK_SECRET` | HMAC for `POST /webhooks/generation` |
+| `RESEND_API_KEY` | Outbound email (job/export notifications) |
+| `EMAIL_FROM` | From address, e.g. `Cinakey <noreply@yourdomain.com>` |
 | `USE_MOCK_ADAPTERS` | `true` = delayed sample outputs (no spend) |
 | `ALLOW_DEV_CREDITS` | `true` = non-staff can use self `grantDev` |
 
-Staff: set `users.isStaff = true` in the Convex dashboard. Dev hub (staff): `/dev` (grant credits by email). Other signed-in tools: `/dev/upload`, `/dev/generation`.
+Staff: set `users.isStaff = true` in the Convex dashboard. Staff UI: `/staff`. Dev tools: `/dev`.
 
 ### Scripts (from repo root)
 
@@ -104,12 +108,75 @@ Later (not yet): `apps/admin`, `packages/ui`.
 
 ## Deployment
 
-- **Static hosting** (Vercel / Netlify / Cloudflare Pages): build `apps/web` with `turbo run build --filter=@cinakey/web` (or set the project root / filter to `apps/web`). Inject `VITE_CONVEX_URL` at build time (e.g. `npx convex deploy --cmd '…' --cmd-url-env-var-name VITE_CONVEX_URL` from `packages/backend`).
-- **Convex**: deploy from `packages/backend` (`cd packages/backend && npx convex deploy`).
+### Production Convex
+
+1. Create a **separate** Convex production deployment (do not reuse the `convex dev` deploy).
+2. From `packages/backend`, deploy and set env for **production**:
+
+```bash
+cd packages/backend
+npx convex deploy
+npx convex env set SITE_URL https://your.domain
+npx convex env set JWT_PRIVATE_KEY -- "..."
+npx convex env set JWKS -- '...'
+npx convex env set OPENAI_API_KEY ...
+npx convex env set SEEDANCE_API_KEY ...
+npx convex env set DEEPSEEK_API_KEY ...
+npx convex env set GENERATION_WEBHOOK_SECRET ...
+npx convex env set RESEND_API_KEY ...
+npx convex env set EMAIL_FROM "Cinakey <noreply@yourdomain.com>"
+npx convex env set USE_MOCK_ADAPTERS false
+npx convex env set ALLOW_DEV_CREDITS false
+# Google OAuth if used — update redirect URIs to the prod convex.site URL
+```
+
+3. Confirm the generation webhook URL is `https://<prod-deployment>.convex.site/webhooks/generation`.
+4. Confirm the daily purge cron appears in the Convex dashboard.
+
+### Static hosting (Vercel)
+
+1. Create a Vercel project for this repo.
+2. Set root directory to `apps/web` (or use Turborepo filter).
+3. Build command (from monorepo root if configured that way):
+
+```bash
+npx turbo run build --filter=@cinakey/web
+```
+
+4. Output directory: `apps/web/dist` (or Vercel’s default for Vite when root is `apps/web`: `dist`).
+5. Set build-time env `VITE_CONVEX_URL` to the **production** Convex URL.
+6. Attach your custom domain. SPA rewrites are in `apps/web/vercel.json`.
+7. Update Google OAuth origins/redirects to the custom domain and prod Convex callback.
+
+Alternatively from `packages/backend`:
+
+```bash
+npx convex deploy --cmd 'npm run build -w @cinakey/web' --cmd-url-env-var-name VITE_CONVEX_URL
+```
+
+### Security pass (before launch)
+
+- [ ] No secrets in `VITE_*` or client bundles (only `VITE_CONVEX_URL`).
+- [ ] Every public Convex function checks auth / project access / `requireStaff` as appropriate.
+- [ ] `ALLOW_DEV_CREDITS=false` and `USE_MOCK_ADAPTERS=false` on production.
+- [ ] Webhook HMAC secret set; Resend domain verified.
+
+### Launch checklist (manual)
+
+1. Prod Convex deployment + all secrets above.
+2. Vercel (or other host) deploy with custom domain + `VITE_CONVEX_URL`.
+3. Set your user `isStaff: true` in the **prod** dashboard.
+4. Smoke: sign up → starter template → export MP4.
+5. Staff: grant credits with a reason; open a moderation flag; check provider health.
+6. Confirm non-staff gets an error calling staff functions.
+7. Test a job-failure email via Resend.
+8. One real Seedance job and one GPT Image job on a throwaway project.
 
 ## Notes
 
 - `apps/web/.env.local` should only contain `VITE_CONVEX_URL`.
 - `packages/backend/.env.local` must contain `CONVEX_DEPLOYMENT`. The Convex CLI may also write public `CONVEX_URL` / `CONVEX_SITE_URL` there; do not rely on those from the web app.
-- Storage goes through `packages/backend/convex/storage` only. Model calls go through `packages/backend/convex/adapters` (stubs in Phase 1).
+- Storage goes through `packages/backend/convex/storage.ts` only. Model calls go through `packages/backend/convex/adapters`.
 - Web imports Convex `api` from `@cinakey/backend` and shared types from `@cinakey/shared`.
+- New users receive **100 starter credits** once per workspace. Rejected (unselected, unstarred) takes older than **30 days** are purged daily.
+- Email notifications can be turned off in Settings.

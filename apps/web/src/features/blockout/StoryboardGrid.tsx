@@ -50,7 +50,14 @@ function SortableCard({
       {...listeners}
     >
       <div className="aspect-video bg-zinc-900">
-        {shot.keyframeUrl ? (
+        {shot.selectedTakeThumbUrl ? (
+          <video
+            src={shot.selectedTakeThumbUrl}
+            className="h-full w-full object-cover"
+            muted
+            playsInline
+          />
+        ) : shot.keyframeUrl ? (
           <img
             src={shot.keyframeUrl}
             alt=""

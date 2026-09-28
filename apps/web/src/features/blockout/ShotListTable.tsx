@@ -47,6 +47,7 @@ export type ShotListItem = {
   outdated: boolean;
   notes?: string;
   keyframeUrl: string | null;
+  selectedTakeThumbUrl?: string | null;
   blockoutFileId?: string;
 };
 

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useCopilotContext } from "@/features/copilot/CopilotContext";
+import { OnboardingChecklist } from "@/features/onboarding/OnboardingChecklist";
 import {
   firstEmptyStage,
   StageProgressBar,
@@ -26,6 +27,7 @@ export function ProjectOverviewPage() {
   const [editingRules, setEditingRules] = useState(false);
   const [rulesText, setRulesText] = useState("");
   const [targetSec, setTargetSec] = useState("");
+  const [spendCap, setSpendCap] = useState("");
 
   useEffect(() => {
     if (projectId) {
@@ -39,6 +41,11 @@ export function ProjectOverviewPage() {
       setTargetSec(
         overview.project.targetLengthSec !== undefined
           ? String(overview.project.targetLengthSec)
+          : "",
+      );
+      setSpendCap(
+        overview.project.spendCapCredits !== undefined
+          ? String(overview.project.spendCapCredits)
           : "",
       );
     }
@@ -57,6 +64,8 @@ export function ProjectOverviewPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
+      {projectId ? <OnboardingChecklist projectId={projectId} /> : null}
+
       <section className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-100">Brief</h2>
         {project.brief ? (
@@ -109,6 +118,36 @@ export function ProjectOverviewPage() {
                   projectId: projectId as never,
                   targetLengthSec:
                     Number.isFinite(n) && n > 0 ? n : undefined,
+                });
+              }}
+            >
+              Save
+            </Button>
+          </dd>
+          <dt className="text-zinc-500">Spend cap</dt>
+          <dd className="flex items-center gap-2 text-zinc-200">
+            <Input
+              type="number"
+              min={0}
+              className="h-8 w-28"
+              placeholder="None"
+              value={spendCap}
+              onChange={(e) => setSpendCap(e.target.value)}
+            />
+            <span className="text-zinc-500">credits</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (!projectId) return;
+                const n = Number(spendCap);
+                void update({
+                  projectId: projectId as never,
+                  spendCapCredits:
+                    spendCap.trim() === "" || !Number.isFinite(n) || n < 0
+                      ? null
+                      : n,
                 });
               }}
             >

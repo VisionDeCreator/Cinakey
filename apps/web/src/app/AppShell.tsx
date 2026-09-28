@@ -165,9 +165,14 @@ export function AppShell() {
                 Settings
               </DropdownMenuItem>
               {user?.isStaff === true ? (
-                <DropdownMenuItem asChild>
-                  <Link to="/dev">Dev tools</Link>
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link to="/staff">Staff</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dev">Dev tools</Link>
+                  </DropdownMenuItem>
+                </>
               ) : null}
               <DropdownMenuItem
                 onSelect={() => {

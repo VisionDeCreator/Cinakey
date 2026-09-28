@@ -5,6 +5,7 @@ import {
   createTestUser,
   makeTest,
 } from "../test/helpers";
+import { STARTER_CREDITS } from "./lib/limits";
 
 describe("credits ledger", () => {
   beforeEach(() => {
@@ -18,13 +19,13 @@ describe("credits ledger", () => {
 
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
     const before = await asUser.query(api.credits.getBalance, {});
-    expect(before.balance).toBe(0);
+    expect(before.balance).toBe(STARTER_CREDITS);
 
     const grant = await asUser.mutation(api.credits.grantDev, { amount: 100 });
-    expect(grant.balanceAfter).toBe(100);
+    expect(grant.balanceAfter).toBe(STARTER_CREDITS + 100);
 
     const after = await asUser.query(api.credits.getBalance, {});
-    expect(after.balance).toBe(100);
+    expect(after.balance).toBe(STARTER_CREDITS + 100);
   });
 
   it("rejects reserve that would go negative", async () => {
@@ -45,7 +46,7 @@ describe("credits ledger", () => {
         modelVersion: "gpt-image-2",
         kind: "text-to-image",
         prompt: "x",
-        estimatedCostCredits: 50,
+        estimatedCostCredits: STARTER_CREDITS + 50,
         status: "queued",
         outputAssetIds: [],
         attempts: 0,
@@ -61,7 +62,7 @@ describe("credits ledger", () => {
         userId,
         projectId,
         jobId,
-        amount: 50,
+        amount: STARTER_CREDITS + 50,
       }),
     ).rejects.toThrow(/Insufficient credits/);
   });
@@ -94,6 +95,7 @@ describe("credits ledger", () => {
       });
     });
 
+    const base = STARTER_CREDITS + 100;
     await t.mutation(internal.credits.reserve, {
       workspaceId: workspaceId!,
       userId,
@@ -101,7 +103,9 @@ describe("credits ledger", () => {
       jobId,
       amount: 10,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(90);
+    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+      base - 10,
+    );
 
     await t.mutation(internal.credits.settle, {
       workspaceId: workspaceId!,
@@ -111,7 +115,9 @@ describe("credits ledger", () => {
       estimated: 10,
       actual: 7,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(93);
+    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+      base - 7,
+    );
   });
 
   it("refund restores the full reserve", async () => {
@@ -142,6 +148,7 @@ describe("credits ledger", () => {
       });
     });
 
+    const base = STARTER_CREDITS + 50;
     await t.mutation(internal.credits.reserve, {
       workspaceId: workspaceId!,
       userId,
@@ -156,7 +163,7 @@ describe("credits ledger", () => {
       jobId,
       amount: 10,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(50);
+    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(base);
   });
 });
 
@@ -208,8 +215,9 @@ describe("generation jobs with mock adapter", () => {
     expect(job?.actualCostCredits).toBeDefined();
 
     const bal = await asUser.query(api.credits.getBalance, {});
-    // 100 - actual (10 for 1 image at 10 credits)
-    expect(bal.balance).toBe(100 - (job?.actualCostCredits ?? 10));
+    expect(bal.balance).toBe(
+      STARTER_CREDITS + 100 - (job?.actualCostCredits ?? 10),
+    );
 
     const notes = await asUser.query(api.notifications.listUnread, {});
     expect(notes.some((n: { kind: string }) => n.kind === "job_succeeded")).toBe(
@@ -241,7 +249,7 @@ describe("generation jobs with mock adapter", () => {
     expect(job?.status).toBe("refunded");
 
     const bal = await asUser.query(api.credits.getBalance, {});
-    expect(bal.balance).toBe(100);
+    expect(bal.balance).toBe(STARTER_CREDITS + 100);
 
     const notes = await asUser.query(api.notifications.listUnread, {});
     expect(notes.some((n: { kind: string }) => n.kind === "job_failed")).toBe(

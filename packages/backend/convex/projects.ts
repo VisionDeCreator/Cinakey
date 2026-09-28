@@ -3,6 +3,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
+import { RATE_LIMITS } from "./lib/limits";
+import { assertRateLimit } from "./lib/rateLimit";
 import { getFileUrl } from "./storage";
 
 const briefValidator = v.object({
@@ -131,7 +133,11 @@ export const listMine = query({
 export const get = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    return await requireProjectAccess(ctx, args.projectId);
+    try {
+      return await requireProjectAccess(ctx, args.projectId);
+    } catch {
+      return null;
+    }
   },
 });
 
@@ -197,6 +203,12 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    await assertRateLimit(
+      ctx,
+      `createProject:${user._id}`,
+      RATE_LIMITS.createProject.limit,
+      RATE_LIMITS.createProject.windowMs,
+    );
     const workspaceId = await ensurePersonalWorkspaceForUser(ctx, user._id);
     const now = Date.now();
     return await ctx.db.insert("projects", {
@@ -225,6 +237,7 @@ export const update = mutation({
     styleNotes: v.optional(v.string()),
     rules: v.optional(v.array(v.string())),
     thumbnailAssetId: v.optional(v.id("assets")),
+    spendCapCredits: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
@@ -241,6 +254,7 @@ export const update = mutation({
       styleNotes?: string;
       rules?: string[];
       thumbnailAssetId?: Id<"assets">;
+      spendCapCredits?: number | undefined;
       updatedAt: number;
     } = { updatedAt: Date.now() };
     if (args.title !== undefined) patch.title = args.title.trim();
@@ -254,6 +268,10 @@ export const update = mutation({
     if (args.rules !== undefined) patch.rules = args.rules;
     if (args.thumbnailAssetId !== undefined) {
       patch.thumbnailAssetId = args.thumbnailAssetId;
+    }
+    if (args.spendCapCredits !== undefined) {
+      patch.spendCapCredits =
+        args.spendCapCredits === null ? undefined : args.spendCapCredits;
     }
     await ctx.db.patch(args.projectId, patch);
   },

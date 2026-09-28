@@ -21,6 +21,9 @@ import {
 } from "./_generated/server";
 import { requireProjectAccess } from "./lib/access";
 import { convexEnv } from "./lib/env";
+import { RATE_LIMITS } from "./lib/limits";
+import { assertRateLimit } from "./lib/rateLimit";
+import { scanText } from "./moderation";
 import { loadJson, saveFile, saveJson, getFileUrl } from "./storage";
 
 const MAX_SUBMIT_ATTEMPTS = 3;
@@ -125,6 +128,7 @@ export const createQueuedJob = internalMutation({
     projectId: v.id("projects"),
     workspaceId: v.id("workspaces"),
     shotId: v.optional(v.id("shots")),
+    sequenceId: v.optional(v.id("sequences")),
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     model: v.string(),
@@ -142,6 +146,7 @@ export const createQueuedJob = internalMutation({
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
       shotId: args.shotId,
+      sequenceId: args.sequenceId,
       entityId: args.entityId,
       promptSheetId: args.promptSheetId,
       model: args.model,
@@ -211,11 +216,13 @@ export const markSucceeded = internalMutation({
     actualCostCredits: v.number(),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
       outputAssetIds: args.outputAssetIds,
       actualCostCredits: args.actualCostCredits,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      completedAt: now,
       errorMessage: undefined,
     });
   },
@@ -227,10 +234,12 @@ export const markFailed = internalMutation({
     errorMessage: v.string(),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     await ctx.db.patch(args.jobId, {
       status: "failed",
       errorMessage: args.errorMessage,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      completedAt: now,
     });
   },
 });
@@ -241,10 +250,12 @@ export const markRefunded = internalMutation({
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     await ctx.db.patch(args.jobId, {
       status: "refunded",
       errorMessage: args.errorMessage,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      completedAt: now,
     });
   },
 });
@@ -259,12 +270,100 @@ export const bumpAttempts = internalMutation({
   },
 });
 
+/** Rate-limit + likeness check before queuing a job. */
+export const assertStartAllowed = internalMutation({
+  args: {
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    prompt: v.string(),
+    referenceAssetIds: v.array(v.id("assets")),
+  },
+  handler: async (ctx, args) => {
+    await assertRateLimit(
+      ctx,
+      `startGeneration:${args.userId}`,
+      RATE_LIMITS.startGeneration.limit,
+      RATE_LIMITS.startGeneration.windowMs,
+    );
+
+    for (const assetId of args.referenceAssetIds) {
+      const asset = await ctx.db.get(assetId);
+      if (asset === null || asset.projectId !== args.projectId) {
+        throw new Error(`Asset ${assetId} not found in this project`);
+      }
+      if (asset.likenessConsent === false) {
+        throw new Error(
+          "Reference asset is missing likeness consent for a real face",
+        );
+      }
+    }
+
+    const scan = scanText(args.prompt);
+    if (scan.verdict === "blocked") {
+      await ctx.db.insert("moderationFlags", {
+        userId: args.userId,
+        projectId: args.projectId,
+        stage: "prompt",
+        verdict: "blocked",
+        ruleId: scan.ruleId ?? "block.unknown",
+        snippet: scan.snippet,
+        status: "open",
+        createdAt: Date.now(),
+      });
+      throw new Error(
+        `Prompt blocked by safety rules (${scan.ruleId ?? "policy"})`,
+      );
+    }
+    if (scan.verdict === "flagged") {
+      await ctx.db.insert("moderationFlags", {
+        userId: args.userId,
+        projectId: args.projectId,
+        stage: "prompt",
+        verdict: "flagged",
+        ruleId: scan.ruleId ?? "flag.unknown",
+        snippet: scan.snippet,
+        status: "open",
+        createdAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const flagOutputIfNeeded = internalMutation({
+  args: {
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    jobId: v.id("generationJobs"),
+    prompt: v.string(),
+    assetIds: v.array(v.id("assets")),
+  },
+  handler: async (ctx, args) => {
+    const scan = scanText(args.prompt);
+    if (scan.verdict === "allow") return;
+    await ctx.db.insert("moderationFlags", {
+      userId: args.userId,
+      projectId: args.projectId,
+      jobId: args.jobId,
+      assetId: args.assetIds[0],
+      stage: "output",
+      verdict: scan.verdict === "blocked" ? "flagged" : "flagged",
+      ruleId: scan.ruleId ?? "flag.output",
+      snippet: scan.snippet,
+      status: "open",
+      createdAt: Date.now(),
+    });
+  },
+});
+
 export const createTake = internalMutation({
   args: {
     projectId: v.id("projects"),
     shotId: v.id("shots"),
     assetId: v.id("assets"),
     jobId: v.id("generationJobs"),
+    parentTakeId: v.optional(v.id("takes")),
+    trimStartSec: v.optional(v.number()),
+    trimEndSec: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("takes", {
@@ -272,6 +371,9 @@ export const createTake = internalMutation({
       shotId: args.shotId,
       assetId: args.assetId,
       jobId: args.jobId,
+      parentTakeId: args.parentTakeId,
+      trimStartSec: args.trimStartSec,
+      trimEndSec: args.trimEndSec,
       selected: false,
       createdAt: Date.now(),
     });
@@ -305,13 +407,19 @@ export const startGeneration = action({
     prompt: v.string(),
     seed: v.optional(v.number()),
     shotId: v.optional(v.id("shots")),
+    sequenceId: v.optional(v.id("sequences")),
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
     parentAssetIds: v.optional(v.array(v.id("assets"))),
     maskAssetId: v.optional(v.id("assets")),
+    startFrameAssetId: v.optional(v.id("assets")),
+    endFrameAssetId: v.optional(v.id("assets")),
+    parentTakeId: v.optional(v.id("takes")),
     imageCount: v.optional(v.number()),
     input: v.optional(v.any()),
+    /** Skip spend-cap check when already validated by a wrapper action. */
+    skipSpendCapCheck: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -351,6 +459,25 @@ export const startGeneration = action({
     const referenceAssetIds = args.referenceAssetIds ?? [];
     const parentAssetIds = args.parentAssetIds ?? [];
 
+    const allRefIds = [
+      ...new Set([
+        ...referenceAssetIds,
+        ...parentAssetIds,
+        ...(args.maskAssetId !== undefined ? [args.maskAssetId] : []),
+        ...(args.startFrameAssetId !== undefined
+          ? [args.startFrameAssetId]
+          : []),
+        ...(args.endFrameAssetId !== undefined ? [args.endFrameAssetId] : []),
+      ]),
+    ];
+
+    await ctx.runMutation(internal.generation.assertStartAllowed, {
+      userId: user._id,
+      projectId: args.projectId,
+      prompt: args.prompt,
+      referenceAssetIds: allRefIds,
+    });
+
     async function urlFor(assetId: Id<"assets">): Promise<string> {
       const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
         assetId,
@@ -379,6 +506,13 @@ export const startGeneration = action({
       ? await urlFor(args.maskAssetId)
       : undefined;
 
+    const startFrameUrl = args.startFrameAssetId
+      ? await urlFor(args.startFrameAssetId)
+      : (args.input as BuildRequestInput | undefined)?.startFrameUrl;
+    const endFrameUrl = args.endFrameAssetId
+      ? await urlFor(args.endFrameAssetId)
+      : (args.input as BuildRequestInput | undefined)?.endFrameUrl;
+
     const buildInput: BuildRequestInput = {
       ...(args.input as BuildRequestInput | undefined),
       prompt: args.prompt,
@@ -388,14 +522,32 @@ export const startGeneration = action({
       referenceImageUrls:
         referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
       maskUrl,
+      startFrameUrl,
+      endFrameUrl,
       referenceAssetIds,
       parentAssetIds,
       maskAssetId: args.maskAssetId,
+      startFrameAssetId: args.startFrameAssetId,
+      endFrameAssetId: args.endFrameAssetId,
+      parentTakeId: args.parentTakeId,
       entityId: args.entityId,
     };
     const estimated = adapter.estimateCost(buildInput);
     if (estimated <= 0) {
       throw new Error("Estimated cost must be positive");
+    }
+
+    if (args.skipSpendCapCheck !== true) {
+      const cap = await ctx.runQuery(
+        internal.shotGeneration.assertSpendCapInternal,
+        {
+          projectId: args.projectId,
+          estimatedCostCredits: estimated,
+        },
+      );
+      if (!cap.ok) {
+        throw new Error(cap.message);
+      }
     }
 
     const { storageId: inputsFileId } = await saveJson(ctx, buildInput);
@@ -406,6 +558,7 @@ export const startGeneration = action({
         projectId: args.projectId,
         workspaceId: project.workspaceId,
         shotId: args.shotId,
+        sequenceId: args.sequenceId,
         entityId: args.entityId,
         promptSheetId: args.promptSheetId,
         model: adapter.capabilities.id,
@@ -716,6 +869,7 @@ async function finishSuccess(
 
     let parentAssetIds: Id<"assets">[] | undefined;
     let referenceAssetIds: Id<"assets">[] | undefined;
+    let parentTakeId: Id<"takes"> | undefined;
     if (job.inputsFileId) {
       try {
         const inputs = await loadJson<BuildRequestInput>(ctx, job.inputsFileId);
@@ -724,6 +878,9 @@ async function finishSuccess(
         }
         if (Array.isArray(inputs.referenceAssetIds)) {
           referenceAssetIds = inputs.referenceAssetIds as Id<"assets">[];
+        }
+        if (typeof inputs.parentTakeId === "string") {
+          parentTakeId = inputs.parentTakeId as Id<"takes">;
         }
       } catch {
         // ignore
@@ -742,6 +899,10 @@ async function finishSuccess(
         jobId: job._id,
         shotId: job.shotId,
         entityId: job.entityId,
+        tags:
+          job.sequenceId && adapter.capabilities.kind === "video" && !job.shotId
+            ? ["sequence-master", "video"]
+            : undefined,
         lineage: {
           prompt: job.prompt,
           model: job.model,
@@ -754,13 +915,32 @@ async function finishSuccess(
     );
     outputAssetIds.push(assetId);
 
-    if (job.shotId) {
+    if (job.sequenceId && adapter.capabilities.kind === "video" && !job.shotId) {
+      // Sequence master: split into per-shot takes with trim windows.
+      await ctx.runMutation(internal.shotGeneration.createSequenceTakes, {
+        projectId: job.projectId,
+        sequenceId: job.sequenceId,
+        masterAssetId: assetId,
+        jobId: job._id,
+      });
+      const seqShots = await ctx.runQuery(
+        internal.shotGeneration.getShotsForSequenceInternal,
+        { sequenceId: job.sequenceId },
+      );
+      await ctx.runMutation(internal.shotGeneration.clearGeneratingStatus, {
+        shotIds: seqShots.map((s: Doc<"shots">) => s._id),
+      });
+    } else if (job.shotId) {
       if (adapter.capabilities.kind === "video") {
         await ctx.runMutation(internal.generation.createTake, {
           projectId: job.projectId,
           shotId: job.shotId,
           assetId,
           jobId: job._id,
+          parentTakeId,
+        });
+        await ctx.runMutation(internal.shotGeneration.clearGeneratingStatus, {
+          shotIds: [job.shotId],
         });
       } else if (adapter.capabilities.kind === "image") {
         await ctx.runMutation(internal.generation.setShotKeyframeInternal, {
@@ -817,17 +997,29 @@ async function finishSuccess(
     actualCostCredits: actualCost,
   });
 
+  const href = job.shotId
+    ? `/projects/${job.projectId}/shots/${job.shotId}`
+    : job.sequenceId
+      ? `/projects/${job.projectId}/shots`
+      : job.entityId
+        ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+        : `/dev/generation?jobId=${job._id}`;
+
   await ctx.runMutation(internal.notifications.createForUser, {
     userId: job.createdBy,
     projectId: job.projectId,
     kind: "job_succeeded",
     title: `Generation succeeded (${job.model})`,
     body: job.prompt.slice(0, 120),
-    href: job.entityId
-      ? `/projects/${job.projectId}/look-dev/${job.entityId}`
-      : job.shotId
-        ? `/projects/${job.projectId}/blockout`
-        : `/dev/generation?jobId=${job._id}`,
+    href,
+  });
+
+  await ctx.runMutation(internal.generation.flagOutputIfNeeded, {
+    userId: job.createdBy,
+    projectId: job.projectId,
+    jobId: job._id,
+    prompt: job.prompt,
+    assetIds: outputAssetIds,
   });
 }
 
@@ -869,15 +1061,35 @@ async function failAndRefund(
     errorMessage,
   });
 
+  if (job.sequenceId && !job.shotId) {
+    const seqShots = await ctx.runQuery(
+      internal.shotGeneration.getShotsForSequenceInternal,
+      { sequenceId: job.sequenceId },
+    );
+    await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
+      shotIds: seqShots.map((s: Doc<"shots">) => s._id),
+    });
+  } else if (job.shotId) {
+    await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
+      shotIds: [job.shotId],
+    });
+  }
+
+  const href = job.shotId
+    ? `/projects/${job.projectId}/shots/${job.shotId}`
+    : job.sequenceId
+      ? `/projects/${job.projectId}/shots`
+      : job.entityId
+        ? `/projects/${job.projectId}/look-dev/${job.entityId}`
+        : `/dev/generation?jobId=${job._id}`;
+
   await ctx.runMutation(internal.notifications.createForUser, {
     userId: job.createdBy,
     projectId: job.projectId,
     kind: "job_failed",
     title: `Generation failed (${job.model})`,
     body: errorMessage.slice(0, 200),
-    href: job.entityId
-      ? `/projects/${job.projectId}/look-dev/${job.entityId}`
-      : `/dev/generation?jobId=${job._id}`,
+    href,
   });
 }
 

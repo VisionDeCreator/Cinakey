@@ -2,13 +2,30 @@ import { api } from "@cinakey/backend";
 import { useQuery } from "convex/react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useCreateStarterProject } from "@/features/onboarding/useCreateStarterProject";
 import { NewProjectDialog } from "@/features/projects/NewProjectDialog";
 import { ProjectCard } from "@/features/projects/ProjectCard";
 
 export function ProjectsPage() {
   const projects = useQuery(api.projects.listMine, {});
   const [createOpen, setCreateOpen] = useState(false);
+  const {
+    run: createStarter,
+    busy: starterBusy,
+    error: starterError,
+  } = useCreateStarterProject();
+  const navigate = useNavigate();
+
+  async function onStarter() {
+    try {
+      const id = await createStarter();
+      void navigate(`/projects/${id}`);
+    } catch {
+      // error surfaced via starterError
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -19,11 +36,24 @@ export function ProjectsPage() {
             Create a project from a brief and move it through the pipeline.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          New project
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={starterBusy}
+            onClick={() => void onStarter()}
+          >
+            {starterBusy ? "Starting…" : "Start with trailer template"}
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            New project
+          </Button>
+        </div>
       </div>
+
+      {starterError ? (
+        <p className="text-sm text-red-400">{starterError}</p>
+      ) : null}
 
       {projects === undefined ? (
         <p className="text-sm text-zinc-500">Loading projects…</p>
@@ -31,12 +61,17 @@ export function ProjectsPage() {
         <div className="border border-dashed border-zinc-700 px-6 py-16 text-center">
           <p className="text-sm text-zinc-300">No projects yet</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Start with a brief — logline, audience, tone, and format — then
-            open the workspace.
+            Start with the 30-second trailer template (script, characters,
+            sample clips) or create a blank project from a brief.
           </p>
-          <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-            Create your first project
-          </Button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button disabled={starterBusy} onClick={() => void onStarter()}>
+              {starterBusy ? "Starting…" : "Start with trailer template"}
+            </Button>
+            <Button variant="outline" onClick={() => setCreateOpen(true)}>
+              Create blank project
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

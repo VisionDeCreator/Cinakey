@@ -655,6 +655,36 @@ export const accept = action({
           promptSheetId: created.promptSheetId,
         });
       }
+    } else if (proposal.kind === "shot_prompt") {
+      const shotId = payload.shotId as Id<"shots"> | undefined;
+      const promptText =
+        typeof payload.promptText === "string" ? payload.promptText.trim() : "";
+      if (!shotId || !promptText) {
+        throw new Error("shot_prompt needs shotId and promptText");
+      }
+      await ctx.runMutation(api.shotGeneration.setGenerationPromptOverride, {
+        shotId,
+        prompt: promptText,
+      });
+    } else if (proposal.kind === "continuity") {
+      const flags = Array.isArray(payload.flags) ? payload.flags : [];
+      const body = [
+        typeof payload.summary === "string" ? payload.summary : "Continuity",
+        ...flags.map((f: { severity?: string; message?: string }) => {
+          const sev = f.severity ? `[${f.severity}] ` : "";
+          return `• ${sev}${f.message ?? ""}`;
+        }),
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const userId = await requireActionUser(ctx);
+      await ctx.runMutation(internal.proposals.createContinuityNote, {
+        projectId: proposal.projectId,
+        shotId: payload.shotId as Id<"shots"> | undefined,
+        takeId: payload.takeId as Id<"takes"> | undefined,
+        body,
+        authorId: userId,
+      });
     }
 
     await ctx.runMutation(internal.proposals.markAccepted, {
@@ -746,5 +776,28 @@ export const getResolvedPayload = action({
       >;
     }
     return null;
+  },
+});
+
+export const createContinuityNote = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    shotId: v.optional(v.id("shots")),
+    takeId: v.optional(v.id("takes")),
+    body: v.string(),
+    authorId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("notes", {
+      projectId: args.projectId,
+      shotId: args.shotId,
+      takeId: args.takeId,
+      body: args.body,
+      authorId: args.authorId,
+      resolved: false,
+      createdAt: now,
+      updatedAt: now,
+    });
   },
 });
