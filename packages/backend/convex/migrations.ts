@@ -326,3 +326,425 @@ export const migratePhase11A = action({
     return { entitiesMigrated, tipsCreated, styleRefsCopied, skipped };
   },
 });
+
+/**
+ * Phase 11B: ensure script tips have rendered text; wire sequences as parts;
+ * backfill shot timings / sequenceId; mark blockout tips stale.
+ * Run: `npx convex run migrations:migratePhase11B`
+ */
+export const migratePhase11B = action({
+  args: {},
+  handler: async (ctx) => {
+    const {
+      parseScriptPromptText,
+      renderScriptPrompt,
+      scriptPromptSchema,
+      scriptShotFingerprint,
+    } = await import("@cinakey/shared");
+
+    const projects: Doc<"projects">[] = await ctx.runQuery(
+      internal.migrations.listProjectsInternal,
+      {},
+    );
+
+    let scriptsEnsured = 0;
+    let sequencesCreated = 0;
+    let shotsPatched = 0;
+    let blockoutsStaled = 0;
+
+    for (const project of projects) {
+      const tips: Doc<"promptSheets">[] = await ctx.runQuery(
+        internal.migrations.listTipSheetsInternal,
+        { projectId: project._id },
+      );
+      const sequences = await ctx.runQuery(internal.migrations.listSequencesInternal, {
+        projectId: project._id,
+      });
+
+      const scriptTips = tips.filter((t) => t.type === "script");
+
+      for (const tip of scriptTips) {
+        let rendered = tip.renderedText?.trim() ?? "";
+        if (!rendered && tip.renderedFileId) {
+          try {
+            rendered = String(await loadJson(ctx, tip.renderedFileId));
+          } catch {
+            /* ignore */
+          }
+        }
+        if (!rendered && tip.structuredFileId) {
+          try {
+            const structured = scriptPromptSchema.parse(
+              await loadJson(ctx, tip.structuredFileId),
+            );
+            rendered = renderScriptPrompt(structured);
+            const stored = await saveJson(ctx, rendered);
+            await ctx.runMutation(internal.migrations.patchScriptTipRenderedInternal, {
+              promptSheetId: tip._id,
+              renderedText:
+                rendered.length <= INLINE_RENDERED_MAX ? rendered : undefined,
+              renderedFileId:
+                rendered.length > INLINE_RENDERED_MAX
+                  ? stored.storageId
+                  : undefined,
+            });
+            scriptsEnsured += 1;
+          } catch {
+            /* ignore */
+          }
+        } else if (rendered) {
+          scriptsEnsured += 1;
+        }
+
+        // Ensure sequence linked
+        if (!tip.sequenceId && sequences.length === 0) {
+          const seqId = await ctx.runMutation(
+            internal.migrations.ensureSequenceForScriptInternal,
+            {
+              projectId: project._id,
+              scriptPromptId: tip._id,
+              title: "Part 1",
+              durationSec: 30,
+            },
+          );
+          sequencesCreated += 1;
+          await ctx.runMutation(internal.sequences.linkSequenceOnSheet, {
+            promptSheetId: tip._id,
+            sequenceId: seqId,
+          });
+        } else if (!tip.sequenceId && sequences[0]) {
+          await ctx.runMutation(internal.sequences.linkSequenceOnSheet, {
+            promptSheetId: tip._id,
+            sequenceId: sequences[0]._id,
+          });
+          await ctx.runMutation(internal.migrations.patchSequenceScriptInternal, {
+            sequenceId: sequences[0]._id,
+            scriptPromptId: tip._id,
+          });
+        }
+      }
+
+      // Backfill shot timings from script tips
+      const seqsAfter = await ctx.runQuery(
+        internal.migrations.listSequencesInternal,
+        { projectId: project._id },
+      );
+      for (const seq of seqsAfter) {
+        if (!seq.scriptPromptId) continue;
+        const tip = await ctx.runQuery(internal.promptSheets.getInternal, {
+          promptSheetId: seq.scriptPromptId,
+        });
+        if (!tip) continue;
+        let text = tip.renderedText?.trim() ?? "";
+        if (!text && tip.renderedFileId) {
+          try {
+            text = String(await loadJson(ctx, tip.renderedFileId));
+          } catch {
+            continue;
+          }
+        }
+        if (!text) continue;
+        let parsed;
+        try {
+          parsed = parseScriptPromptText(text);
+        } catch {
+          continue;
+        }
+        const n = await ctx.runMutation(
+          internal.migrations.backfillSequenceShotsInternal,
+          {
+            sequenceId: seq._id,
+            projectId: project._id,
+            shots: parsed.shots.map((s) => ({
+              n: s.n,
+              shotType: s.shotType,
+              cameraMove: s.cameraMove,
+              startSec: s.startSec,
+              endSec: s.endSec,
+              durationSec: s.endSec - s.startSec,
+              notes: s.action,
+              scriptLineKey: scriptShotFingerprint({
+                n: s.n,
+                startSec: s.startSec,
+                endSec: s.endSec,
+                shotType: s.shotType,
+                cameraMove: s.cameraMove,
+                action: s.action,
+              }),
+            })),
+          },
+        );
+        shotsPatched += n;
+      }
+
+      // Mark blockout tips out_of_date
+      for (const tip of tips.filter((t) => t.type === "blockout")) {
+        if (tip.status !== "out_of_date" && tip.status !== "draft") {
+          await ctx.runMutation(internal.promptSheets.patchStatus, {
+            promptSheetId: tip._id,
+            status: "out_of_date",
+          });
+          blockoutsStaled += 1;
+        }
+      }
+
+      // If no script tip but has shots — create a skeleton part
+      if (scriptTips.length === 0) {
+        const shots = await ctx.runQuery(internal.migrations.listShotsInternal, {
+          projectId: project._id,
+        });
+        if (shots.length > 0) {
+          let seqId = seqsAfter[0]?._id;
+          if (!seqId) {
+            seqId = await ctx.runMutation(
+              internal.migrations.ensureSequenceForScriptInternal,
+              {
+                projectId: project._id,
+                title: "Part 1",
+                durationSec: Math.min(
+                  30,
+                  shots.reduce((a, s) => a + s.durationSec, 0) || 30,
+                ),
+              },
+            );
+            sequencesCreated += 1;
+          }
+          const skeleton = [
+            "REFERENCES",
+            "@image_1 = style. Use it for the project art style.",
+            "",
+            "ART STYLE — LOCKED TO THE REFERENCE IMAGES:",
+            "Use the exact art style already defined in @image_1.",
+            "",
+            "IMAGE QUALITY — ALWAYS SHARP AND CLEAN:",
+            "Every frame sharp.",
+            "",
+            "LOCATION — @image_1: Location TBD.",
+            "",
+            `SHOTS (${Math.min(30, shots.reduce((a, s) => a + s.durationSec, 0) || 5)} seconds total, multi-shot, 16:9):`,
+            ...shots.slice(0, 24).map((s, i) => {
+              const start = shots
+                .slice(0, i)
+                .reduce((a, x) => a + x.durationSec, 0);
+              const end = start + s.durationSec;
+              return `Shot ${i + 1} (${start}s–${end}s) — ${s.shotType}${s.cameraMove ? `, ${s.cameraMove}` : ""}: ${s.notes ?? s.dialogue ?? "action"}`;
+            }),
+            "",
+            "CONSISTENCY:",
+            "Keep characters consistent.",
+            "",
+            "MOTION AND PHYSICS:",
+            "Natural motion.",
+            "",
+            "LIGHTING:",
+            "Natural light.",
+            "",
+            "TECHNICAL:",
+            "16:9, 24fps.",
+            "",
+            "MUSIC:",
+            "Score TBD.",
+            "",
+            "AUDIO (native sound, synced to picture, no dialogue):",
+            "0.0s ambient.",
+          ].join("\n");
+          const stub = { schema: "cinakey.prompt/script/1", customPrompt: true };
+          const structuredStore = await saveJson(ctx, stub);
+          const renderedStore = await saveJson(ctx, skeleton);
+          await ctx.runMutation(internal.migrations.insertScriptTipInternal, {
+            projectId: project._id,
+            sequenceId: seqId,
+            structuredFileId: structuredStore.storageId,
+            renderedFileId: renderedStore.storageId,
+            renderedText:
+              skeleton.length <= INLINE_RENDERED_MAX ? skeleton : undefined,
+          });
+          scriptsEnsured += 1;
+        }
+      }
+    }
+
+    return {
+      scriptsEnsured,
+      sequencesCreated,
+      shotsPatched,
+      blockoutsStaled,
+    };
+  },
+});
+
+export const listSequencesInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("sequences")
+      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
+      .collect();
+  },
+});
+
+export const listShotsInternal = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("shots")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+  },
+});
+
+export const patchScriptTipRenderedInternal = internalMutation({
+  args: {
+    promptSheetId: v.id("promptSheets"),
+    renderedText: v.optional(v.string()),
+    renderedFileId: v.optional(v.id("_storage")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.promptSheetId, {
+      ...(args.renderedText !== undefined
+        ? { renderedText: args.renderedText }
+        : {}),
+      ...(args.renderedFileId !== undefined
+        ? { renderedFileId: args.renderedFileId }
+        : {}),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const ensureSequenceForScriptInternal = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    scriptPromptId: v.optional(v.id("promptSheets")),
+    title: v.string(),
+    durationSec: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("sequences")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    return await ctx.db.insert("sequences", {
+      projectId: args.projectId,
+      order: existing.length,
+      title: args.title,
+      durationSec: args.durationSec,
+      scriptPromptId: args.scriptPromptId,
+      shotIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const patchSequenceScriptInternal = internalMutation({
+  args: {
+    sequenceId: v.id("sequences"),
+    scriptPromptId: v.id("promptSheets"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.sequenceId, {
+      scriptPromptId: args.scriptPromptId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const insertScriptTipInternal = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    sequenceId: v.id("sequences"),
+    structuredFileId: v.id("_storage"),
+    renderedFileId: v.optional(v.id("_storage")),
+    renderedText: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const tipId = await ctx.db.insert("promptSheets", {
+      projectId: args.projectId,
+      type: "script",
+      sequenceId: args.sequenceId,
+      structuredFileId: args.structuredFileId,
+      renderedText: args.renderedText,
+      renderedFileId: args.renderedFileId,
+      templateVersion: PROMPT_TEMPLATE_VERSION,
+      status: "draft",
+      isCustom: true,
+      version: 1,
+      isTip: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.patch(args.sequenceId, {
+      scriptPromptId: tipId,
+      updatedAt: now,
+    });
+    return tipId;
+  },
+});
+
+export const backfillSequenceShotsInternal = internalMutation({
+  args: {
+    sequenceId: v.id("sequences"),
+    projectId: v.id("projects"),
+    shots: v.array(
+      v.object({
+        n: v.number(),
+        shotType: v.string(),
+        cameraMove: v.optional(v.string()),
+        startSec: v.number(),
+        endSec: v.number(),
+        durationSec: v.number(),
+        notes: v.optional(v.string()),
+        scriptLineKey: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const existing = (
+      await ctx.db
+        .query("shots")
+        .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+        .collect()
+    ).sort((a, b) => a.order - b.order);
+
+    // Also gather unsequenced project shots if sequence has none
+    let pool = existing;
+    if (pool.length === 0) {
+      pool = (
+        await ctx.db
+          .query("shots")
+          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+          .collect()
+      ).sort((a, b) => a.order - b.order);
+    }
+
+    const now = Date.now();
+    let patched = 0;
+    const ids: Id<"shots">[] = [];
+    for (const [i, shot] of args.shots.entries()) {
+      const prev = pool[i];
+      if (!prev) break;
+      await ctx.db.patch(prev._id, {
+        sequenceId: args.sequenceId,
+        order: i,
+        startSec: shot.startSec,
+        endSec: shot.endSec,
+        durationSec: shot.durationSec,
+        scriptLineKey: shot.scriptLineKey,
+        notes: shot.notes ?? prev.notes,
+        updatedAt: now,
+      });
+      ids.push(prev._id);
+      patched += 1;
+    }
+    if (ids.length > 0) {
+      await ctx.db.patch(args.sequenceId, {
+        shotIds: ids,
+        updatedAt: now,
+      });
+    }
+    return patched;
+  },
+});

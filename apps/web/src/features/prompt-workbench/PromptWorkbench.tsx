@@ -2,6 +2,7 @@ import { api } from "@cinakey/backend";
 import {
   COST_CONFIRM_THRESHOLD_CREDITS,
   validateAssetPromptText,
+  validateScriptPromptText,
   type AssetSheetType,
 } from "@cinakey/shared";
 import { useAction, useQuery } from "convex/react";
@@ -17,29 +18,56 @@ const TYPE_LABEL: Record<AssetSheetType, string> = {
   product: "product",
 };
 
-export function PromptWorkbench({
-  projectId,
-  entityId,
-  entityName,
-  assetType,
-  onTypeDetected,
-}: {
+type AssetProps = {
+  mode?: "asset";
   projectId: string;
   entityId: string;
   entityName: string;
   assetType: AssetSheetType;
   onTypeDetected?: (type: AssetSheetType) => void;
-}) {
-  const tip = useQuery(api.promptSheets.getTipForEntity, {
-    entityId: entityId as never,
-  });
-  const versions = useQuery(api.promptSheets.listVersionsForEntity, {
-    entityId: entityId as never,
-  });
-  const entityAssets = useQuery(api.entities.listAssetsForEntity, {
-    entityId: entityId as never,
-  });
+};
+
+type ScriptProps = {
+  mode: "script";
+  projectId: string;
+  sequenceId: string;
+  partLabel: string;
+  referenceMap?: { imageN: number; entityId: string }[];
+  styleReferenceAssetId?: string | null;
+};
+
+export type PromptWorkbenchProps = AssetProps | ScriptProps;
+
+export function PromptWorkbench(props: PromptWorkbenchProps) {
+  const isScript = props.mode === "script";
+
+  const tipAsset = useQuery(
+    api.promptSheets.getTipForEntity,
+    !isScript ? { entityId: props.entityId as never } : "skip",
+  );
+  const tipScript = useQuery(
+    api.promptSheets.getTipForSequence,
+    isScript ? { sequenceId: props.sequenceId as never } : "skip",
+  );
+  const tip = isScript ? tipScript : tipAsset;
+
+  const versionsAsset = useQuery(
+    api.promptSheets.listVersionsForEntity,
+    !isScript ? { entityId: props.entityId as never } : "skip",
+  );
+  const versionsScript = useQuery(
+    api.promptSheets.listVersionsForSequence,
+    isScript ? { sequenceId: props.sequenceId as never } : "skip",
+  );
+  const versions = isScript ? versionsScript : versionsAsset;
+
+  const entityAssets = useQuery(
+    api.entities.listAssetsForEntity,
+    !isScript ? { entityId: props.entityId as never } : "skip",
+  );
+
   const savePromptText = useAction(api.promptSheets.savePromptText);
+  const saveScriptPromptText = useAction(api.promptSheets.saveScriptPromptText);
   const restoreVersion = useAction(api.promptSheets.restorePromptVersion);
   const approveSheet = useAction(api.promptSheets.approveAssetSheet);
   const lockReference = useAction(api.entities.lockReference);
@@ -58,30 +86,54 @@ export function PromptWorkbench({
   const promptSynced = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!tip) return;
+    if (!tip) {
+      if (isScript && !dirty && promptSynced.current !== "empty") {
+        setPrompt("");
+        promptSynced.current = "empty";
+      }
+      return;
+    }
     const text = tip.renderedText ?? "";
     if (!dirty && promptSynced.current !== tip._id) {
       setPrompt(text);
       promptSynced.current = tip._id;
     }
-    if (tip.type && tip.type !== assetType && isAssetType(tip.type)) {
-      onTypeDetected?.(tip.type);
+    if (
+      !isScript &&
+      tip.type &&
+      tip.type !== props.assetType &&
+      isAssetType(tip.type)
+    ) {
+      props.onTypeDetected?.(tip.type);
     }
-  }, [tip, dirty, assetType, onTypeDetected]);
+  }, [tip, dirty, isScript, props]);
 
   const validation = prompt.trim()
-    ? validateAssetPromptText(assetType, prompt)
+    ? isScript
+      ? validateScriptPromptText(prompt)
+      : validateAssetPromptText(props.assetType, prompt)
     : { ok: true };
 
   const imageResults = (entityAssets ?? []).filter((a) => a.type === "image");
 
   const saveDirect = async (text: string) => {
+    if (isScript) {
+      const result = await saveScriptPromptText({
+        projectId: props.projectId as never,
+        sequenceId: props.sequenceId as never,
+        promptText: text,
+        title: props.partLabel,
+      });
+      setDirty(false);
+      promptSynced.current = result.promptSheetId;
+      return result;
+    }
     const result = await savePromptText({
-      projectId: projectId as never,
-      entityId: entityId as never,
-      type: assetType,
+      projectId: props.projectId as never,
+      entityId: props.entityId as never,
+      type: props.assetType,
       promptText: text,
-      name: entityName,
+      name: props.entityName,
     });
     setDirty(false);
     promptSynced.current = result.promptSheetId;
@@ -96,22 +148,27 @@ export function PromptWorkbench({
     setChatDraft("");
     setLocalMessages((m) => [...m, { role: "user", content }]);
     try {
-      // Persist any local edits first so the copilot revises from current text.
       if (dirty && prompt.trim()) {
         await saveDirect(prompt);
       }
-      await runTurn({
-        projectId: projectId as never,
-        content: `For asset "${entityName}" (${assetType}): ${content}`,
-        view: "assets",
-        selectionIds: [entityId],
-      });
+      if (isScript) {
+        await runTurn({
+          projectId: props.projectId as never,
+          content: `For script ${props.partLabel}: ${content}`,
+          view: "script",
+          selectionIds: [props.sequenceId],
+        });
+      } else {
+        await runTurn({
+          projectId: props.projectId as never,
+          content: `For asset "${props.entityName}" (${props.assetType}): ${content}`,
+          view: "assets",
+          selectionIds: [props.entityId],
+        });
+      }
       setLocalMessages((m) => [
         ...m,
-        {
-          role: "assistant",
-          content: "Updated the prompt.",
-        },
+        { role: "assistant", content: "Updated the prompt." },
       ]);
       setDirty(false);
       promptSynced.current = null;
@@ -124,26 +181,27 @@ export function PromptWorkbench({
   };
 
   const onGenerate = async () => {
-    if (genBusy) return;
+    if (isScript || genBusy) return;
     setGenBusy(true);
     setError(null);
     try {
       let sheetId = tip?._id;
-      if (dirty || !sheetId || (prompt.trim() && prompt !== (tip?.renderedText ?? ""))) {
+      if (
+        dirty ||
+        !sheetId ||
+        (prompt.trim() && prompt !== (tip?.renderedText ?? ""))
+      ) {
         const saved = await saveDirect(prompt);
-        sheetId = saved.promptSheetId;
+        sheetId = "promptSheetId" in saved ? saved.promptSheetId : sheetId;
       }
       if (!sheetId) throw new Error("Save a prompt first");
       const est = 10;
       if (
-        est >= COST_CONFIRM_THRESHOLD_CREDITS &&
-        !window.confirm(`Generate image for ~${est} credits?`)
-      ) {
-        return;
-      }
-      if (
-        est < COST_CONFIRM_THRESHOLD_CREDITS &&
-        !window.confirm(`Generate (~${est} credits)?`)
+        !window.confirm(
+          est >= COST_CONFIRM_THRESHOLD_CREDITS
+            ? `Generate image for ~${est} credits?`
+            : `Generate (~${est} credits)?`,
+        )
       ) {
         return;
       }
@@ -170,6 +228,10 @@ export function PromptWorkbench({
     }
   };
 
+  const refMap = isScript
+    ? (props.referenceMap ?? tip?.referenceMap ?? [])
+    : [];
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
       <div className="flex min-h-0 w-full flex-col border border-zinc-800 lg:w-[22rem]">
@@ -178,7 +240,11 @@ export function PromptWorkbench({
         </div>
         <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 py-2">
           {localMessages.length === 0 ? (
-            <p className="text-xs text-zinc-500">Describe what you want.</p>
+            <p className="text-xs text-zinc-500">
+              {isScript
+                ? "Describe the video you want."
+                : "Describe what you want."}
+            </p>
           ) : (
             localMessages.map((m, i) => (
               <div
@@ -223,9 +289,9 @@ export function PromptWorkbench({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
-            {TYPE_LABEL[assetType]}
+            {isScript ? "script" : TYPE_LABEL[props.assetType]}
           </span>
-          {tip?.status === "out_of_date" ? (
+          {!isScript && tip?.status === "out_of_date" ? (
             <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">
               style changed
             </span>
@@ -280,17 +346,27 @@ export function PromptWorkbench({
                 </div>
               ) : null}
             </div>
-            <Button
-              type="button"
-              size="sm"
-              className="h-7"
-              disabled={genBusy || !prompt.trim()}
-              onClick={() => void onGenerate()}
-            >
-              {genBusy ? "Generating…" : "Generate · 10"}
-            </Button>
+            {!isScript ? (
+              <Button
+                type="button"
+                size="sm"
+                className="h-7"
+                disabled={genBusy || !prompt.trim()}
+                onClick={() => void onGenerate()}
+              >
+                {genBusy ? "Generating…" : "Generate · 10"}
+              </Button>
+            ) : null}
           </div>
         </div>
+
+        {isScript ? (
+          <ReferenceStrip
+            projectId={props.projectId}
+            referenceMap={refMap}
+            styleReferenceAssetId={props.styleReferenceAssetId}
+          />
+        ) : null}
 
         {validation.warning ? (
           <p className="mb-1 text-[11px] text-amber-400/90">{validation.warning}</p>
@@ -312,11 +388,15 @@ export function PromptWorkbench({
               );
             }
           }}
-          placeholder="Prompt appears here after you describe the asset…"
+          placeholder={
+            isScript
+              ? "Script prompt appears here after you describe the video…"
+              : "Prompt appears here after you describe the asset…"
+          }
           className="min-h-[20rem] flex-1 resize-y font-mono text-sm leading-relaxed"
         />
 
-        {imageResults.length > 0 ? (
+        {!isScript && imageResults.length > 0 ? (
           <div className="mt-3 space-y-2">
             <p className="text-xs text-zinc-500">Results — pick a reference</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -325,14 +405,9 @@ export function PromptWorkbench({
                   key={asset._id}
                   assetId={asset._id}
                   name={asset.name}
-                  selected={
-                    tip?.entityId
-                      ? undefined
-                      : undefined
-                  }
                   onSelect={() => {
                     void lockReference({
-                      entityId: entityId as never,
+                      entityId: props.entityId as never,
                       assetId: asset._id as never,
                       referenceSheet: true,
                     });
@@ -343,7 +418,7 @@ export function PromptWorkbench({
           </div>
         ) : null}
 
-        {tip?.status === "out_of_date" ? (
+        {!isScript && tip?.status === "out_of_date" ? (
           <Button
             type="button"
             size="sm"
@@ -356,6 +431,73 @@ export function PromptWorkbench({
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ReferenceStrip({
+  projectId,
+  referenceMap,
+  styleReferenceAssetId,
+}: {
+  projectId: string;
+  referenceMap: { imageN: number; entityId: string }[];
+  styleReferenceAssetId?: string | null;
+}) {
+  const entities = useQuery(api.entities.listForProject, {
+    projectId: projectId as never,
+  });
+
+  const items: { key: string; label: string; assetId?: string }[] = [];
+  for (const ref of [...referenceMap].sort((a, b) => a.imageN - b.imageN)) {
+    const ent = entities?.find((e) => e._id === ref.entityId);
+    const assetId = ent?.lockedReferenceAssetIds?.[0];
+    items.push({
+      key: `img-${ref.imageN}`,
+      label: `@image_${ref.imageN}`,
+      assetId,
+    });
+  }
+  if (styleReferenceAssetId) {
+    items.push({
+      key: "style",
+      label: "style",
+      assetId: styleReferenceAssetId,
+    });
+  }
+
+  if (items.length === 0) {
+    return (
+      <p className="mb-2 text-[11px] text-zinc-600">
+        References appear when the copilot maps assets to @image_N.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mb-2 flex flex-wrap gap-2">
+      {items.map((item) => (
+        <RefThumb key={item.key} label={item.label} assetId={item.assetId} />
+      ))}
+    </div>
+  );
+}
+
+function RefThumb({ label, assetId }: { label: string; assetId?: string }) {
+  const url = useQuery(
+    api.storage.getAssetUrl,
+    assetId ? { assetId: assetId as never } : "skip",
+  );
+  return (
+    <div className="w-14 shrink-0">
+      <div className="aspect-square overflow-hidden border border-zinc-800 bg-zinc-950">
+        {url ? (
+          <img src={url} alt={label} className="h-full w-full object-cover" />
+        ) : null}
+      </div>
+      <p className="mt-0.5 truncate text-center text-[9px] text-zinc-500">
+        {label}
+      </p>
     </div>
   );
 }

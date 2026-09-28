@@ -13,6 +13,7 @@ import {
 import { requireProjectAccess, requireUser } from "./lib/access";
 import { trackEvent } from "./lib/analytics";
 import { RATE_LIMITS } from "./lib/limits";
+import { PROMPT_TEMPLATE_VERSION } from "./lib/promptRender";
 import { assertRateLimit } from "./lib/rateLimit";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { saveJson } from "./storage";
@@ -114,6 +115,24 @@ export const createStarterProject = action({
       document,
     });
 
+    const promptText = starterScriptPromptText();
+    const structured = {
+      schema: "cinakey.prompt/script/1",
+      customPrompt: true,
+      totalDurationSec: 30,
+    };
+    const structuredStore = await saveJson(ctx, structured);
+    const renderedStore = await saveJson(ctx, promptText);
+    await ctx.runMutation(internal.onboarding.attachStarterScriptPrompt, {
+      projectId: shell.projectId,
+      sequenceId: shell.sequenceId,
+      structuredFileId: structuredStore.storageId,
+      renderedFileId: renderedStore.storageId,
+      mayaId: shell.entityIds.maya,
+      jordanId: shell.entityIds.jordan,
+      cafeId: shell.entityIds.cafe,
+    });
+
     await ctx.runMutation(internal.onboarding.trackStarterCreated, {
       userId,
       projectId: shell.projectId,
@@ -123,6 +142,55 @@ export const createStarterProject = action({
     return shell;
   },
 });
+
+function starterScriptPromptText(): string {
+  return [
+    "REFERENCES",
+    "@image_1 = Maya. Use it for her exact face, hair, green coat and proportions.",
+    "@image_2 = Jordan. Use it for his exact face, hair, backpack and proportions.",
+    "@image_3 = Corner Café. Use it for the exact café interior and street outside.",
+    "",
+    "ART STYLE — LOCKED TO THE REFERENCE IMAGES:",
+    "Use the exact art style already defined in @image_1, @image_2 and @image_3 for the entire video. Warm natural light, handheld feel, soft film grain. The last frame matches the first in style.",
+    "",
+    "IMAGE QUALITY — ALWAYS SHARP AND CLEAN:",
+    "Every frame sharp, crisp and clean. Faces stay readable.",
+    "",
+    "THE MAYA — @image_1, identical in every shot:",
+    "Early 30s, thoughtful, wears a green coat.",
+    "",
+    "THE JORDAN — @image_2, identical in every shot:",
+    "Late 20s, restless energy, backpack always on.",
+    "",
+    "LOCATION — @image_3: Sunlit corner café with wooden tables and large windows; street outside in light rain.",
+    "",
+    "SHOTS (30 seconds total, multi-shot, 16:9):",
+    "Shot 1 (0.0s–4.0s) — Wide shot, static: Maya waits alone at a wooden table in the café.",
+    "Shot 2 (4.0s–9.0s) — Medium shot, slow push: Maya says you're late again.",
+    "Shot 3 (9.0s–13.0s) — Close-up, static: Jordan answers about traffic.",
+    "Shot 4 (13.0s–17.0s) — Medium shot, static: Maya asks him to walk with her.",
+    "Shot 5 (17.0s–23.0s) — Wide shot, pan left: They step onto the wet street in the rain.",
+    "Shot 6 (23.0s–30.0s) — Medium shot, tracking: They walk together under the rain.",
+    "",
+    "CONSISTENCY:",
+    "Maya and Jordan match their references in every shot.",
+    "",
+    "MOTION AND PHYSICS:",
+    "Natural handheld motion; rain falls with realistic weight.",
+    "",
+    "LIGHTING:",
+    "Warm café light; cooler daylight outside.",
+    "",
+    "TECHNICAL:",
+    "16:9, 24fps, soft film grain, no subtitles.",
+    "",
+    "MUSIC:",
+    "Quiet indie score under dialogue; swells slightly in the rain.",
+    "",
+    "AUDIO (native sound, synced to picture, no dialogue):",
+    "0.0s café murmur. 4.0s soft dialogue bed. 17.0s rain and traffic.",
+  ].join("\n");
+}
 
 export const createStarterShell = internalMutation({
   args: { userId: v.id("users") },
@@ -295,7 +363,19 @@ export const createStarterShell = internalMutation({
     ];
 
     const shotIds: Id<"shots">[] = [];
+    let t = 0;
     for (const def of shotDefs) {
+      const startSec = t;
+      const endSec = t + def.durationSec;
+      t = endSec;
+      const scriptLineKey = [
+        shotIds.length + 1,
+        startSec,
+        endSec,
+        def.shotType,
+        def.cameraMove ?? "",
+        def.dialogue ?? "",
+      ].join("|");
       const shotId = await ctx.db.insert("shots", {
         projectId,
         sceneId: def.sceneId,
@@ -304,16 +384,33 @@ export const createStarterShell = internalMutation({
         lensMm: def.lensMm,
         cameraMove: def.cameraMove,
         durationSec: def.durationSec,
+        startSec,
+        endSec,
         characterIds: def.characterIds,
         locationId: def.locationId,
         dialogue: def.dialogue,
         dialogueLineId: def.dialogueLineId,
         status: "planned",
         outdated: false,
+        scriptLineKey,
         createdAt: now,
         updatedAt: now,
       });
       shotIds.push(shotId);
+    }
+
+    const sequenceId = await ctx.db.insert("sequences", {
+      projectId,
+      order: 0,
+      title: "Part 1",
+      durationSec: 30,
+      shotIds,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    for (const shotId of shotIds) {
+      await ctx.db.patch(shotId, { sequenceId, updatedAt: now });
     }
 
     return {
@@ -321,6 +418,7 @@ export const createStarterShell = internalMutation({
       workspaceId,
       sceneIds: [scene1, scene2],
       shotIds,
+      sequenceId,
       entityIds: { maya, jordan, cafe, style },
     };
   },
@@ -348,6 +446,44 @@ export const attachStarterScript = internalMutation({
       contentFileId: args.contentFileId,
       createdBy: args.userId,
       createdAt: Date.now(),
+    });
+  },
+});
+
+export const attachStarterScriptPrompt = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    sequenceId: v.id("sequences"),
+    structuredFileId: v.id("_storage"),
+    renderedFileId: v.id("_storage"),
+    mayaId: v.id("entities"),
+    jordanId: v.id("entities"),
+    cafeId: v.id("entities"),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const tipId = await ctx.db.insert("promptSheets", {
+      projectId: args.projectId,
+      type: "script",
+      sequenceId: args.sequenceId,
+      structuredFileId: args.structuredFileId,
+      renderedFileId: args.renderedFileId,
+      templateVersion: PROMPT_TEMPLATE_VERSION,
+      status: "approved",
+      isCustom: true,
+      version: 1,
+      referenceMap: [
+        { imageN: 1, entityId: args.mayaId },
+        { imageN: 2, entityId: args.jordanId },
+        { imageN: 3, entityId: args.cafeId },
+      ],
+      isTip: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.patch(args.sequenceId, {
+      scriptPromptId: tipId,
+      updatedAt: now,
     });
   },
 });

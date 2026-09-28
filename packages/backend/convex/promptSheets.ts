@@ -6,7 +6,9 @@
 import {
   assertSheetDocument,
   normalizeEntityName,
+  parseScriptPromptText,
   validateAssetPromptText,
+  validateScriptPromptText,
   type SheetDocument,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -590,6 +592,186 @@ export const savePromptText = action({
   },
 });
 
+function resolveEntityId(
+  entities: Doc<"entities">[],
+  label: string,
+): Id<"entities"> | undefined {
+  const key = normalizeEntityName(label.replace(/^the\s+/i, ""));
+  const match = entities.find(
+    (e) =>
+      e.kind !== "style" &&
+      (normalizeEntityName(e.name) === key ||
+        normalizeEntityName(e.name) === normalizeEntityName(label) ||
+        key.includes(normalizeEntityName(e.name)) ||
+        normalizeEntityName(e.name).includes(key)),
+  );
+  return match?._id;
+}
+
+/** Save script prompt text as tip SoT; syncs sequence shots and marks blockout stale. */
+export const saveScriptPromptText = action({
+  args: {
+    projectId: v.id("projects"),
+    sequenceId: v.optional(v.id("sequences")),
+    promptText: v.string(),
+    title: v.optional(v.string()),
+    applyShots: v.optional(v.boolean()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    promptSheetId: Id<"promptSheets">;
+    sequenceId: Id<"sequences">;
+    version: number;
+    validationWarning?: string;
+    shotCount: number;
+  }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: args.projectId,
+      userId,
+    });
+
+    const promptText = args.promptText.trim();
+    if (promptText.length === 0) {
+      throw new Error("promptText is empty");
+    }
+
+    const validation = validateScriptPromptText(promptText);
+    const parsed = parseScriptPromptText(promptText);
+
+    const entities: Doc<"entities">[] = await ctx.runQuery(
+      internal.promptSheets.listEntitiesInternal,
+      { projectId: args.projectId },
+    );
+
+    const referenceMap: { imageN: number; entityId: Id<"entities"> }[] = [];
+    const resolvedRefs = parsed.references.map((r) => {
+      const entityId = resolveEntityId(entities, r.entityLabel);
+      if (entityId) {
+        referenceMap.push({ imageN: r.imageN, entityId });
+        return { ...r, entityId: entityId as string };
+      }
+      return r;
+    });
+    parsed.references = resolvedRefs;
+
+    const { storageId: structuredFileId } = await saveJson(ctx, parsed);
+    const renderedStore = await storeRendered(ctx, promptText);
+
+    let parentId: Id<"promptSheets"> | undefined;
+    let version = 1;
+    let demoteTipId: Id<"promptSheets"> | undefined;
+    let sequenceId = args.sequenceId;
+
+    const tips: Doc<"promptSheets">[] = await ctx.runQuery(
+      internal.promptSheets.listTipsInternal,
+      { projectId: args.projectId },
+    );
+
+    let existing: Doc<"promptSheets"> | undefined;
+    if (sequenceId) {
+      existing = tips.find(
+        (t) => t.type === "script" && t.sequenceId === sequenceId,
+      );
+    }
+    if (!existing && !sequenceId) {
+      existing = tips
+        .filter((t) => t.type === "script")
+        .sort((a, b) => b.version - a.version)[0];
+      if (existing?.sequenceId) sequenceId = existing.sequenceId;
+    }
+    if (existing) {
+      demoteTipId = existing._id;
+      parentId = existing._id;
+      version = existing.version + 1;
+      if (!sequenceId && existing.sequenceId) sequenceId = existing.sequenceId;
+    }
+
+    const title =
+      args.title?.trim() ||
+      "Part 1";
+
+    const sequences = await ctx.runQuery(api.sequences.list, {
+      projectId: args.projectId,
+    });
+
+    if (!sequenceId) {
+      const order = sequences.length;
+      sequenceId = await ctx.runMutation(
+        internal.sequences.upsertFromScriptPrompt,
+        {
+          projectId: args.projectId,
+          title: title || `Part ${order + 1}`,
+          durationSec: parsed.totalDurationSec,
+          order,
+        },
+      );
+    }
+
+    const promptSheetId: Id<"promptSheets"> = await ctx.runMutation(
+      internal.promptSheets.insertTip,
+      {
+        projectId: args.projectId,
+        type: "script",
+        sequenceId,
+        structuredFileId,
+        ...renderedStore,
+        status: "approved",
+        isCustom: true,
+        parentId,
+        version,
+        referenceMap: referenceMap.length > 0 ? referenceMap : undefined,
+        demoteTipId,
+      },
+    );
+
+    const partIndex =
+      sequences.findIndex((s) => s._id === sequenceId) >= 0
+        ? sequences.findIndex((s) => s._id === sequenceId)
+        : sequences.length;
+
+    await ctx.runMutation(internal.sequences.upsertFromScriptPrompt, {
+      projectId: args.projectId,
+      scriptPromptId: promptSheetId,
+      title: args.title?.trim() || `Part ${partIndex + 1}`,
+      durationSec: parsed.totalDurationSec,
+      order: partIndex,
+      existingSequenceId: sequenceId,
+    });
+
+    await ctx.runMutation(internal.sequences.linkSequenceOnSheet, {
+      promptSheetId,
+      sequenceId,
+    });
+
+    let shotCount = 0;
+    if (args.applyShots !== false) {
+      const applied = await ctx.runAction(api.sequences.applyScriptPrompt, {
+        projectId: args.projectId,
+        promptSheetId,
+        title: args.title?.trim() || `Part ${partIndex + 1}`,
+      });
+      shotCount = applied.shotCount;
+      sequenceId = applied.sequenceId;
+    } else {
+      await ctx.runMutation(internal.promptSheets.markScriptDependentsStale, {
+        promptSheetId,
+      });
+    }
+
+    return {
+      promptSheetId,
+      sequenceId,
+      version,
+      validationWarning: validation.warning,
+      shotCount,
+    };
+  },
+});
+
 export const createEntityInternal = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -761,6 +943,106 @@ export const pipelineSummary = query({
 
 export type PromptSheetDoc = Doc<"promptSheets">;
 
+/** Tip script prompt sheet for a sequence (part). */
+export const getTipForSequence = query({
+  args: { sequenceId: v.id("sequences") },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (sequence === null) return null;
+    await requireProjectAccess(ctx, sequence.projectId);
+    if (sequence.scriptPromptId) {
+      const tip = await ctx.db.get(sequence.scriptPromptId);
+      if (tip?.isTip && tip.type === "script") return tip;
+    }
+    const tips = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+      .collect();
+    return (
+      tips
+        .filter((t) => t.isTip && t.type === "script")
+        .sort((a, b) => b.version - a.version)[0] ?? null
+    );
+  },
+});
+
+/** Ordered script parts (sequences) with tip + previz + stale flags. */
+export const listScriptParts = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await requireProjectAccess(ctx, args.projectId);
+    const sequences = await ctx.db
+      .query("sequences")
+      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const tips = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_project_tip", (q) =>
+        q.eq("projectId", args.projectId).eq("isTip", true),
+      )
+      .collect();
+    return sequences.map((seq, i) => {
+      const scriptTip =
+        (seq.scriptPromptId
+          ? tips.find((t) => t._id === seq.scriptPromptId)
+          : undefined) ??
+        tips.find((t) => t.type === "script" && t.sequenceId === seq._id);
+      const blockoutTip = tips.find(
+        (t) => t.type === "blockout" && t.sequenceId === seq._id,
+      );
+      const scriptChanged =
+        !blockoutTip ||
+        blockoutTip.status === "out_of_date" ||
+        blockoutTip.status === "draft" ||
+        (scriptTip != null &&
+          blockoutTip.sourceScriptPromptId !== undefined &&
+          blockoutTip.sourceScriptPromptId !== scriptTip._id);
+      return {
+        sequenceId: seq._id,
+        order: seq.order,
+        label: seq.title?.trim() || `Part ${i + 1}`,
+        durationSec: seq.durationSec,
+        previzAssetId: seq.previzAssetId ?? null,
+        scriptTipId: scriptTip?._id ?? null,
+        scriptVersion: scriptTip?.version ?? null,
+        scriptStatus: scriptTip?.status ?? null,
+        renderedText: scriptTip?.renderedText ?? null,
+        referenceMap: scriptTip?.referenceMap ?? [],
+        blockoutTipId: blockoutTip?._id ?? null,
+        blockoutStatus: blockoutTip?.status ?? null,
+        scriptChanged,
+        shotIds: seq.shotIds,
+      };
+    });
+  },
+});
+
+/** Version history for a sequence's script prompt (newest first). */
+export const listVersionsForSequence = query({
+  args: { sequenceId: v.id("sequences") },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (sequence === null) return [];
+    await requireProjectAccess(ctx, sequence.projectId);
+    const rows = await ctx.db
+      .query("promptSheets")
+      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+      .collect();
+    return rows
+      .filter((t) => t.type === "script")
+      .sort((a, b) => b.version - a.version)
+      .map((t) => ({
+        _id: t._id,
+        version: t.version,
+        status: t.status,
+        isTip: t.isTip,
+        isCustom: t.isCustom,
+        createdAt: t.createdAt,
+        preview: (t.renderedText ?? "").slice(0, 120),
+      }));
+  },
+});
+
 /** Tip asset prompt sheet for an entity, with resolved rendered text. */
 export const getTipForEntity = query({
   args: { entityId: v.id("entities") },
@@ -824,8 +1106,8 @@ export const restorePromptVersion = action({
       projectId: sheet.projectId,
       userId,
     });
-    if (!sheet.entityId || !isAssetSheetType(sheet.type)) {
-      throw new Error("Can only restore asset prompt sheets");
+    if (!isAssetSheetType(sheet.type) && sheet.type !== "script") {
+      throw new Error("Can only restore asset or script prompt sheets");
     }
 
     let rendered = sheet.renderedText ?? "";
@@ -835,11 +1117,32 @@ export const restorePromptVersion = action({
     if (!rendered && sheet.structuredFileId) {
       try {
         const structured = await loadJson(ctx, sheet.structuredFileId);
-        const artStyle = await loadArtStyleBlock(ctx, sheet.projectId);
-        rendered = renderPromptSheetText(sheet.type, structured, artStyle);
+        if (sheet.type === "script") {
+          const { renderScriptPrompt } = await import("@cinakey/shared");
+          rendered = renderScriptPrompt(structured as never);
+        } else {
+          const artStyle = await loadArtStyleBlock(ctx, sheet.projectId);
+          rendered = renderPromptSheetText(sheet.type, structured, artStyle);
+        }
       } catch {
         throw new Error("Could not restore prompt text from this version");
       }
+    }
+
+    if (sheet.type === "script") {
+      const result = await ctx.runAction(api.promptSheets.saveScriptPromptText, {
+        projectId: sheet.projectId,
+        sequenceId: sheet.sequenceId,
+        promptText: rendered,
+      });
+      return {
+        promptSheetId: result.promptSheetId,
+        version: result.version,
+      };
+    }
+
+    if (!sheet.entityId) {
+      throw new Error("Asset prompt sheet missing entity");
     }
 
     const result = await ctx.runAction(api.promptSheets.savePromptText, {

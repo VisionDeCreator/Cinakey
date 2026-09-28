@@ -115,6 +115,44 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
   {
     type: "function",
     function: {
+      name: "write_or_revise_script_prompt",
+      description:
+        "Write or revise the Seedance script prompt (Phase 7C text) for the Script tab. Applies immediately with Undo. Include REFERENCES (@image_N mapped to project assets + style), ART STYLE locked to refs, IMAGE QUALITY, one block per cast/creature/prop copied from asset prompts, LOCATION, timed contiguous SHOTS, CONSISTENCY, MOTION AND PHYSICS, LIGHTING, TECHNICAL, MUSIC, AUDIO. One part ≤30s (Seedance maxDurationSec). If the story is longer, pass parts[] (Part 1, Part 2, …) each ≤30s. Prefer sequenceId from the open Script part tab when revising one part.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          sequenceId: {
+            type: "string",
+            description: "Existing sequence/part to revise",
+          },
+          promptText: {
+            type: "string",
+            description: "Full script prompt text for a single part",
+          },
+          title: { type: "string" },
+          parts: {
+            type: "array",
+            description:
+              "When splitting a long story: one entry per ≤30s part",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                promptText: { type: "string" },
+                sequenceId: { type: "string" },
+              },
+              required: ["promptText"],
+            },
+          },
+        },
+        required: ["summary"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_rules",
       description:
         "Update project rules immediately (add, remove, or replace lines). Do not ask the user to Accept.",
@@ -395,12 +433,12 @@ export function buildSystemPrompt(args: {
   const view = normalizeCopilotView(args.view);
   const parts = [
     "You are Cinakey's production copilot — one assistant for script, asset prompts, Seedance script prompts, blockout, shots, and continuity.",
-    "Hard rule: never claim you changed the project unless a direct tool (write_or_revise_asset_prompt, update_rules) succeeded. Structural edits use proposal cards; the user Accepts, Edits, or Rejects.",
+    "Hard rule: never claim you changed the project unless a direct tool (write_or_revise_asset_prompt, write_or_revise_script_prompt, update_rules) succeeded. Remaining structural tools may still use proposal cards; the user Accepts, Edits, or Rejects.",
     "Hard rule: for character/creature/environment/product look-dev, call write_or_revise_asset_prompt with full Phase 7C template text. Infer assetType from the user's language; never ask them to pick a type. Create or match entities via entityName/entityId.",
-    "Hard rule: use propose_script_edit only when the user wants a Script-room screenplay. For Seedance / video episode breakdowns, use propose_script_prompt with complete structured data (references, castBlocks, location, shots with contiguous timings, consistency, audio…).",
+    "Hard rule: on the Script tab, call write_or_revise_script_prompt with full Seedance template text (REFERENCES with @image_N, ART STYLE locked to refs, IMAGE QUALITY, cast/creature/prop blocks copied from asset prompts, LOCATION, contiguous timed SHOTS, CONSISTENCY, MOTION AND PHYSICS, LIGHTING, TECHNICAL, MUSIC, AUDIO). Do not use propose_script_edit or propose_script_prompt for the Script workbench. Cap each part at 30 seconds; split longer stories into parts[]. Map story assets and the project style reference to @image_N.",
     "Hard rule: project rules changes go through update_rules (immediate). Do not use proposals for rules.",
     "Hard rule: image generation uses generate_image after a prompt sheet exists; mention credit cost — user Accepts the proposal to run.",
-    "Hard rule: propose_story_treatment for story development; propose_style_block for project ART STYLE; propose_shot_list for Script-room scene coverage; propose_shot_prompt for single-shot rewrites; check_continuity for take/sheet mismatches.",
+    "Hard rule: propose_story_treatment for story development; propose_style_block for project ART STYLE; propose_shot_prompt for single-shot rewrites on Video; check_continuity for take/sheet mismatches. Blockout updates happen via the Blockout tab Update button (not shot-list proposals).",
     `Current view: ${view}.`,
   ];
   if (args.selectionIds.length > 0) {

@@ -18,7 +18,7 @@ import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayo
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
-import { ScriptRoomPage } from "@/features/script/ScriptRoomPage";
+import { ScriptWorkbenchPage } from "@/features/script/ScriptWorkbenchPage";
 import { CopilotPage } from "@/features/copilot/CopilotPage";
 import { ShotsPage } from "@/features/shots/ShotsPage";
 import { ShotDetailPage } from "@/features/shots/ShotDetailPage";
@@ -106,7 +106,7 @@ export function AppRouter() {
               <Route path="copilot" element={<CopilotPage />} />
               <Route path="assets" element={<CreativeAssetsPage />} />
               <Route path="assets/:assetId" element={<AssetWorkbenchPage />} />
-              <Route path="script" element={<ScriptRoomPage />} />
+              <Route path="script" element={<ScriptWorkbenchPage />} />
               <Route path="look-dev" element={<RedirectLookDev />} />
               <Route path="look-dev/:entityId" element={<RedirectLookDev />} />
               <Route path="blockout" element={<BlockoutPage />} />

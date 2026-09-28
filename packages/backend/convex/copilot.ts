@@ -669,6 +669,7 @@ export const runTurn = action({
           name: tc.name,
           argumentsJson: tc.arguments,
           baseScript: scriptDoc,
+          selectionIds: args.selectionIds ?? [],
         });
         if (outcome.proposalId) {
           proposalIds.push(outcome.proposalId);
@@ -705,6 +706,7 @@ export const runTurn = action({
             name: tc.name,
             argumentsJson: tc.arguments,
             baseScript: scriptDoc,
+            selectionIds: args.selectionIds ?? [],
           });
           if (outcome.proposalId) {
             proposalIds.push(outcome.proposalId);
@@ -1316,6 +1318,7 @@ async function handleToolCall(
     name: string;
     argumentsJson: string;
     baseScript: ScriptDocument | null;
+    selectionIds?: string[];
   },
 ): Promise<{
   proposalId: Id<"proposals"> | null;
@@ -1359,6 +1362,77 @@ async function handleToolCall(
       return {
         proposalId: null,
         error: err instanceof Error ? err.message : "savePromptText failed",
+      };
+    }
+  }
+
+  if (args.name === "write_or_revise_script_prompt") {
+    type PartArg = {
+      promptText?: string;
+      title?: string;
+      sequenceId?: string;
+    };
+    const partsRaw = Array.isArray(parsed.parts)
+      ? (parsed.parts as PartArg[])
+      : null;
+    const singleText = String(parsed.promptText ?? "").trim();
+    const parts: PartArg[] =
+      partsRaw && partsRaw.length > 0
+        ? partsRaw
+        : singleText
+          ? [
+              {
+                promptText: singleText,
+                title: parsed.title ? String(parsed.title) : undefined,
+                sequenceId: parsed.sequenceId
+                  ? String(parsed.sequenceId)
+                  : args.selectionIds?.[0],
+              },
+            ]
+          : [];
+    if (parts.length === 0) {
+      return {
+        proposalId: null,
+        error: "promptText or parts[] required",
+      };
+    }
+    try {
+      const messages: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]!;
+        const text = String(part.promptText ?? "").trim();
+        if (!text) continue;
+        const saved = await ctx.runAction(
+          api.promptSheets.saveScriptPromptText,
+          {
+            projectId: args.projectId,
+            sequenceId: part.sequenceId
+              ? (part.sequenceId as Id<"sequences">)
+              : undefined,
+            promptText: text,
+            title:
+              part.title?.trim() ||
+              (parts.length > 1 ? `Part ${i + 1}` : undefined),
+          },
+        );
+        let line = `Part ${i + 1} saved (v${saved.version}, ${saved.shotCount} shots).`;
+        if (saved.validationWarning) {
+          line += ` Note: ${saved.validationWarning}`;
+        }
+        messages.push(line);
+      }
+      const summary = String(parsed.summary ?? "Script prompt updated");
+      return {
+        proposalId: null,
+        directMessage: `${summary} ${messages.join(" ")}`.trim(),
+      };
+    } catch (err) {
+      return {
+        proposalId: null,
+        error:
+          err instanceof Error
+            ? err.message
+            : "saveScriptPromptText failed",
       };
     }
   }

@@ -118,3 +118,33 @@ export async function runExport(input: {
     downloadBlob(await zip.generateAsync({ type: "blob" }), `${base}.zip`);
   }
 }
+
+/** Encode a sequence-mode MP4 without downloading (for pre-viz upload). */
+export async function encodePrevizMp4(input: {
+  document: BlockoutDocument;
+  signal: AbortSignal;
+  onProgress: (p: ExportProgress) => void;
+}): Promise<Blob> {
+  const pairs = input.document.scenes.flatMap((scene) =>
+    scene.shots.map((shot) => ({ scene, shot })),
+  );
+  if (pairs.length === 0) {
+    throw new Error("Nothing to render: no blocked-out shots");
+  }
+  const fps = input.document.project.fps;
+  const aspect = parseAspect(input.document.project.aspectRatio);
+  return await encodeClipsToMp4({
+    clips: pairs.map((p) => clipFor(p.scene, p.shot)),
+    fps,
+    aspect,
+    burnIn: false,
+    signal: input.signal,
+    onProgress: (p: VideoProgress) => {
+      const within = p.totalFrames ? p.frame / p.totalFrames : 1;
+      input.onProgress({
+        label: `Rendering frame ${p.frame} of ${p.totalFrames}`,
+        fraction: within,
+      });
+    },
+  });
+}

@@ -61,7 +61,14 @@ export {
   lookDevPatchFromAssetSheet,
 } from "./derive";
 
-export { validateAssetPromptText } from "./validate";
+export { validateAssetPromptText, validateScriptPromptText } from "./validate";
+
+export {
+  parseScriptPromptText,
+  scriptShotFingerprint,
+} from "./parse";
+
+export { buildBlockoutSheetFromScript } from "./buildBlockoutFromScript";
 
 export { assembleSingleShotPrompt, COST_CONFIRM_THRESHOLD_CREDITS } from "./assembleSingleShot";
 

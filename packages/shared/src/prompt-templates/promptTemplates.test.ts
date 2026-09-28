@@ -32,6 +32,8 @@ import {
   deriveCastBlockFromAssetSheet,
   deriveDescription,
   lookDevPatchFromAssetSheet,
+  parseScriptPromptText,
+  validateScriptPromptText,
 } from "./index";
 
 const examplesDir = join(
@@ -145,6 +147,59 @@ describe("script prompt", () => {
     expect(text).toContain(
       "Shot 3 (3.0s–4.0s) — Extreme close-up, low in the grass:",
     );
+  });
+
+  it("parses rendered fixture shots and references", () => {
+    const text = renderScriptPrompt(scriptPromptFixture);
+    const parsed = parseScriptPromptText(text);
+    expect(parsed.references).toHaveLength(scriptPromptFixture.references.length);
+    expect(parsed.references[0]!.entityLabel).toBe("the boy");
+    expect(parsed.shots).toHaveLength(scriptPromptFixture.shots.length);
+    expect(parsed.shots[2]!.shotType).toBe("Extreme close-up");
+    expect(parsed.shots[2]!.cameraMove).toBe("low in the grass");
+    expect(parsed.shots[0]!.startSec).toBe(0);
+    expect(parsed.shots[0]!.endSec).toBe(1.5);
+    expect(parsed.totalDurationSec).toBe(30);
+    expect(parsed.multiShot).toBe(true);
+    expect(parsed.location.imageN).toBe(3);
+    expect(parsed.castBlocks.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("parses golden example shot count and validates", () => {
+    const example = loadExample("script-prompt.txt");
+    const parsed = parseScriptPromptText(example);
+    expect(parsed.shots.length).toBe(24);
+    expect(parsed.shots[23]!.n).toBe(24);
+    expect(parsed.references).toHaveLength(6);
+    expect(validateScriptPromptText(example)).toEqual({ ok: true });
+  });
+
+  it("warns on non-contiguous shots and unknown refs", () => {
+    const badTimes = renderScriptPrompt({
+      ...scriptPromptFixture,
+      shots: [
+        {
+          n: 1,
+          startSec: 0,
+          endSec: 1,
+          shotType: "Wide",
+          action: "a",
+        },
+        {
+          n: 2,
+          startSec: 2,
+          endSec: 3,
+          shotType: "Wide",
+          action: "b",
+        },
+      ],
+      totalDurationSec: 3,
+    });
+    expect(validateScriptPromptText(badTimes).ok).toBe(false);
+    expect(validateScriptPromptText(badTimes).warning).toMatch(/contiguous/i);
+
+    const withUnknown = `${renderScriptPrompt(scriptPromptFixture)}\nExtra @image_99 mention.`;
+    expect(validateScriptPromptText(withUnknown).warning).toMatch(/@image_99/);
   });
 });
 

@@ -5,7 +5,9 @@
 import {
   blockoutSheetSchema,
   blockoutSheetToDocuments,
+  parseScriptPromptText,
   scriptPromptSchema,
+  scriptShotFingerprint,
   type BlockoutSheetData,
   type ScriptPromptData,
 } from "@cinakey/shared";
@@ -43,7 +45,7 @@ export const getInternal = internalQuery({
 export const upsertFromScriptPrompt = internalMutation({
   args: {
     projectId: v.id("projects"),
-    scriptPromptId: v.id("promptSheets"),
+    scriptPromptId: v.optional(v.id("promptSheets")),
     title: v.string(),
     durationSec: v.number(),
     order: v.number(),
@@ -55,7 +57,9 @@ export const upsertFromScriptPrompt = internalMutation({
       await ctx.db.patch(args.existingSequenceId, {
         title: args.title,
         durationSec: args.durationSec,
-        scriptPromptId: args.scriptPromptId,
+        ...(args.scriptPromptId
+          ? { scriptPromptId: args.scriptPromptId }
+          : {}),
         updatedAt: now,
       });
       return args.existingSequenceId;
@@ -120,9 +124,17 @@ export const applyScriptPrompt = action({
       throw new Error("Script prompt sheet not found");
     }
 
-    const structured = scriptPromptSchema.parse(
-      await loadJson(ctx, sheet.structuredFileId),
-    ) as ScriptPromptData;
+    let structured: ScriptPromptData;
+    if (sheet.renderedText?.trim()) {
+      structured = parseScriptPromptText(sheet.renderedText);
+    } else if (sheet.renderedFileId) {
+      const text = String(await loadJson(ctx, sheet.renderedFileId));
+      structured = parseScriptPromptText(text);
+    } else {
+      structured = scriptPromptSchema.parse(
+        await loadJson(ctx, sheet.structuredFileId),
+      ) as ScriptPromptData;
+    }
 
     const title =
       args.title ??
@@ -180,6 +192,14 @@ export const applyScriptPrompt = action({
           endSec: s.endSec,
           durationSec: s.endSec - s.startSec,
           notes: s.action,
+          scriptLineKey: scriptShotFingerprint({
+            n: s.n,
+            startSec: s.startSec,
+            endSec: s.endSec,
+            shotType: s.shotType,
+            cameraMove: s.cameraMove,
+            action: s.action,
+          }),
           characterIds: characterIdsFromCast,
           locationId,
         })),
@@ -276,53 +296,84 @@ export const replaceSequenceShots = internalMutation({
         endSec: v.number(),
         durationSec: v.number(),
         notes: v.optional(v.string()),
+        scriptLineKey: v.optional(v.string()),
         characterIds: v.array(v.id("entities")),
         locationId: v.optional(v.id("entities")),
       }),
     ),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("shots")
-      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
-      .collect();
-    for (const s of existing) {
-      await ctx.db.delete(s._id);
+    const existing = (
+      await ctx.db
+        .query("shots")
+        .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
+        .collect()
+    ).sort((a, b) => a.order - b.order);
+
+    const now = Date.now();
+    const ids: Id<"shots">[] = [];
+    const used = new Set<Id<"shots">>();
+
+    for (const [i, shot] of args.shots.entries()) {
+      const lineKey =
+        shot.scriptLineKey ??
+        [
+          shot.n,
+          shot.startSec,
+          shot.endSec,
+          shot.shotType.trim(),
+          (shot.cameraMove ?? "").trim(),
+          (shot.notes ?? "").trim(),
+        ].join("|");
+      const prev = existing[i];
+      if (prev) {
+        used.add(prev._id);
+        await ctx.db.patch(prev._id, {
+          sceneId: args.sceneId,
+          order: i,
+          shotType: shot.shotType,
+          cameraMove: shot.cameraMove,
+          durationSec: shot.durationSec,
+          startSec: shot.startSec,
+          endSec: shot.endSec,
+          characterIds: shot.characterIds,
+          locationId: shot.locationId,
+          notes: shot.notes,
+          scriptLineKey: lineKey,
+          outdated: false,
+          updatedAt: now,
+        });
+        ids.push(prev._id);
+      } else {
+        const id = await ctx.db.insert("shots", {
+          projectId: args.projectId,
+          sceneId: args.sceneId,
+          sequenceId: args.sequenceId,
+          order: i,
+          shotType: shot.shotType,
+          cameraMove: shot.cameraMove,
+          durationSec: shot.durationSec,
+          startSec: shot.startSec,
+          endSec: shot.endSec,
+          characterIds: shot.characterIds,
+          locationId: shot.locationId,
+          status: "planned",
+          outdated: false,
+          notes: shot.notes,
+          scriptLineKey: lineKey,
+          createdAt: now,
+          updatedAt: now,
+        });
+        ids.push(id);
+      }
     }
-    // Also clear scene shots that belong to this scene if sequence was empty
-    const sceneShots = await ctx.db
-      .query("shots")
-      .withIndex("by_scene", (q) => q.eq("sceneId", args.sceneId))
-      .collect();
-    for (const s of sceneShots) {
-      if (!s.sequenceId || s.sequenceId === args.sequenceId) {
+
+    for (const s of existing) {
+      if (!used.has(s._id)) {
         await ctx.db.delete(s._id);
       }
     }
 
-    const now = Date.now();
-    const ids: Id<"shots">[] = [];
-    for (const [i, shot] of args.shots.entries()) {
-      const id = await ctx.db.insert("shots", {
-        projectId: args.projectId,
-        sceneId: args.sceneId,
-        sequenceId: args.sequenceId,
-        order: i,
-        shotType: shot.shotType,
-        cameraMove: shot.cameraMove,
-        durationSec: shot.durationSec,
-        startSec: shot.startSec,
-        endSec: shot.endSec,
-        characterIds: shot.characterIds,
-        locationId: shot.locationId,
-        status: "planned",
-        outdated: false,
-        notes: shot.notes,
-        createdAt: now,
-        updatedAt: now,
-      });
-      ids.push(id);
-    }
     return ids;
   },
 });
@@ -408,11 +459,30 @@ export const applyBlockoutSheet = action({
     );
 
     const saved: string[] = [];
+    let keptCount = 0;
     for (const [shotId, document] of docs) {
+      const shotDoc = await ctx.runQuery(internal.sequences.getShotInternal, {
+        shotId: shotId as Id<"shots">,
+      });
+      const lineKey = shotDoc?.scriptLineKey;
+      const canKeep =
+        Boolean(shotDoc?.blockoutFileId) &&
+        Boolean(lineKey) &&
+        shotDoc?.blockoutScriptLineKey === lineKey;
+      if (canKeep) {
+        keptCount += 1;
+        continue;
+      }
       await ctx.runAction(api.blockouts.save, {
         shotId: shotId as Id<"shots">,
         document,
       });
+      if (lineKey) {
+        await ctx.runMutation(internal.sequences.markShotBlockoutSynced, {
+          shotId: shotId as Id<"shots">,
+          blockoutScriptLineKey: lineKey,
+        });
+      }
       saved.push(shotId);
     }
 
@@ -421,7 +491,61 @@ export const applyBlockoutSheet = action({
       status: "done",
     });
 
-    return { savedShotIds: saved, count: saved.length };
+    return {
+      savedShotIds: saved,
+      count: saved.length,
+      rebuiltCount: saved.length,
+      keptCount,
+    };
+  },
+});
+
+export const markShotBlockoutSynced = internalMutation({
+  args: {
+    shotId: v.id("shots"),
+    blockoutScriptLineKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.shotId, {
+      blockoutScriptLineKey: args.blockoutScriptLineKey,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const setPrevizAssetId = internalMutation({
+  args: {
+    sequenceId: v.id("sequences"),
+    previzAssetId: v.id("assets"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.sequenceId, {
+      previzAssetId: args.previzAssetId,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const setPrevizAsset = action({
+  args: {
+    sequenceId: v.id("sequences"),
+    previzAssetId: v.id("assets"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const seq = await ctx.runQuery(internal.sequences.getInternal, {
+      sequenceId: args.sequenceId,
+    });
+    if (!seq) throw new Error("Sequence not found");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: seq.projectId,
+      userId,
+    });
+    await ctx.runMutation(internal.sequences.setPrevizAssetId, {
+      sequenceId: args.sequenceId,
+      previzAssetId: args.previzAssetId,
+    });
   },
 });
 
@@ -555,5 +679,108 @@ export const markBlockoutStale = internalMutation({
     if (seq?.scriptPromptId) {
       await markBlockoutStaleForScriptPrompt(ctx, seq.scriptPromptId);
     }
+  },
+});
+
+/**
+ * Rewrite blockout sheet from current script tip and selectively rebuild 3D.
+ * Browser still refreshes guides / encodes pre-viz after this returns.
+ */
+export const updateBlockoutFromScript = action({
+  args: {
+    projectId: v.id("projects"),
+    sequenceId: v.id("sequences"),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    blockoutSheetId: Id<"promptSheets">;
+    rebuiltCount: number;
+    keptCount: number;
+    savedShotIds: string[];
+  }> => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    await ctx.runQuery(internal.scriptVersions.assertAccess, {
+      projectId: args.projectId,
+      userId,
+    });
+
+    const sequence = await ctx.runQuery(internal.sequences.getInternal, {
+      sequenceId: args.sequenceId,
+    });
+    if (!sequence) throw new Error("Sequence not found");
+    if (!sequence.scriptPromptId) {
+      throw new Error("Sequence has no script prompt");
+    }
+
+    const scriptSheet = await ctx.runQuery(internal.promptSheets.getInternal, {
+      promptSheetId: sequence.scriptPromptId,
+    });
+    if (!scriptSheet || scriptSheet.type !== "script") {
+      throw new Error("Script prompt not found");
+    }
+
+    let script: ScriptPromptData;
+    if (scriptSheet.renderedText?.trim()) {
+      script = parseScriptPromptText(scriptSheet.renderedText);
+    } else if (scriptSheet.renderedFileId) {
+      script = parseScriptPromptText(
+        String(await loadJson(ctx, scriptSheet.renderedFileId)),
+      );
+    } else {
+      script = scriptPromptSchema.parse(
+        await loadJson(ctx, scriptSheet.structuredFileId),
+      ) as ScriptPromptData;
+    }
+
+    // Ensure live shots match script before building blockout.
+    await ctx.runAction(api.sequences.applyScriptPrompt, {
+      projectId: args.projectId,
+      promptSheetId: scriptSheet._id,
+      title: sequence.title,
+    });
+
+    const project = await ctx.runQuery(internal.generation.getProjectWorkspace, {
+      projectId: args.projectId,
+    });
+
+    const { buildBlockoutSheetFromScript } = await import("@cinakey/shared");
+    const structured = buildBlockoutSheetFromScript(script, {
+      sequenceTitle: sequence.title,
+      scriptPromptVersion: scriptSheet.version,
+      aspectRatio: project.aspectRatio,
+      fps: project.fps,
+    });
+
+    const tips: Doc<"promptSheets">[] = await ctx.runQuery(
+      internal.promptSheets.listTipsInternal,
+      { projectId: args.projectId, type: "blockout" },
+    );
+    const existingBlockout = tips.find(
+      (t) => t.sequenceId === args.sequenceId && t.isTip,
+    );
+
+    const draft = await ctx.runAction(api.promptSheets.createOrUpdateDraft, {
+      projectId: args.projectId,
+      type: "blockout",
+      structured,
+      sequenceId: args.sequenceId,
+      sourceScriptPromptId: scriptSheet._id,
+      replaceTipId: existingBlockout?._id,
+    });
+
+    const applied = await ctx.runAction(api.sequences.applyBlockoutSheet, {
+      projectId: args.projectId,
+      promptSheetId: draft.promptSheetId,
+    });
+
+    return {
+      blockoutSheetId: draft.promptSheetId,
+      rebuiltCount: applied.rebuiltCount ?? applied.count,
+      keptCount: applied.keptCount ?? 0,
+      savedShotIds: applied.savedShotIds,
+    };
   },
 });

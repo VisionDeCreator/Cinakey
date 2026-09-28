@@ -125,6 +125,10 @@ const schema = defineSchema(
     keyframeAssetId: v.optional(v.id("assets")),
     selectedTakeId: v.optional(v.id("takes")),
     blockoutFileId: v.optional(v.id("_storage")),
+    /** Fingerprint of the script SHOT line last synced from the script prompt. */
+    scriptLineKey: v.optional(v.string()),
+    /** scriptLineKey at the time the current blockout was built (selective rebuild). */
+    blockoutScriptLineKey: v.optional(v.string()),
     notes: v.optional(v.string()),
     /** Accepted propose_shot_prompt override used by single-shot generation. */
     generationPromptOverride: v.optional(v.string()),
@@ -153,6 +157,8 @@ const schema = defineSchema(
     durationSec: v.number(),
     scriptPromptId: v.optional(v.id("promptSheets")),
     shotIds: v.array(v.id("shots")),
+    /** Browser-encoded animatic MP4 for this part (pre-viz). */
+    previzAssetId: v.optional(v.id("assets")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
