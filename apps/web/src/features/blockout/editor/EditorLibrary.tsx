@@ -1,101 +1,79 @@
-import {
-  BLOCKOUT_LIGHT_ROLES,
-  BLOCKOUT_PROP_TYPES,
-  type BlockoutLightRole,
-  type BlockoutNode,
-  type BlockoutPropType,
-} from "@cinakey/shared";
-import { Plus } from "lucide-react";
-import type { ReactNode } from "react";
+import type { BlockoutLightRole, BlockoutObjectType } from "@cinakey/shared";
+import { LIGHT_ADD_ROLES, PROP_ADD_TYPES } from "./editorModel";
+import { LIGHT_DEFAULTS } from "./runtime/objects";
 import { cn } from "@/lib/utils";
-import { LIGHT_DEFAULTS, PROP_LABELS } from "./editorModel";
+
+type Entity = { id: string; name: string; kind: string };
 
 type Props = {
-  characters: Array<{ id: string; name: string }>;
-  nodes: BlockoutNode[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onAddMannequin: (character?: { id: string; name: string }) => void;
-  onAddProp: (type: BlockoutPropType) => void;
-  onAddSet: () => void;
+  characters: Entity[];
+  onAddCharacter: (entity?: Entity) => void;
+  onAddProp: (type: BlockoutObjectType) => void;
   onAddLight: (role: BlockoutLightRole) => void;
 };
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="border-b border-zinc-800 px-3 py-3">
-      <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">{title}</p>
-      {children}
-    </div>
-  );
-}
-
-function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+function Chip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-1.5 px-1.5 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+      className="border border-zinc-800 px-2 py-1 text-left text-[11px] text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-900 hover:text-zinc-100"
     >
-      <Plus className="size-3 text-zinc-500" />
-      <span className="truncate">{label}</span>
+      + {label}
     </button>
   );
 }
 
-const KIND_ORDER: BlockoutNode["kind"][] = ["camera", "mannequin", "prop", "set", "light", "ground"];
-
 export function EditorLibrary({
   characters,
-  nodes,
-  selectedId,
-  onSelect,
-  onAddMannequin,
+  onAddCharacter,
   onAddProp,
-  onAddSet,
   onAddLight,
 }: Props) {
-  const outline = [...nodes].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-      <Section title="Characters">
-        {characters.map((c) => (
-          <AddButton key={c.id} label={c.name} onClick={() => onAddMannequin(c)} />
-        ))}
-        <AddButton label="Untagged figure" onClick={() => onAddMannequin()} />
-      </Section>
-      <Section title="Props">
-        <div className="grid grid-cols-2">
-          {BLOCKOUT_PROP_TYPES.map((t) => (
-            <AddButton key={t} label={PROP_LABELS[t]} onClick={() => onAddProp(t)} />
+    <aside className="flex w-44 shrink-0 flex-col gap-3 overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-2 text-xs">
+      <section>
+        <h3 className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Characters
+        </h3>
+        <div className="flex flex-col gap-1">
+          {characters.map((c) => (
+            <Chip key={c.id} label={c.name} onClick={() => onAddCharacter(c)} />
           ))}
-          <AddButton label="Wall" onClick={onAddSet} />
+          <Chip label="Untagged figure" onClick={() => onAddCharacter()} />
         </div>
-      </Section>
-      <Section title="Lights">
-        {BLOCKOUT_LIGHT_ROLES.map((r) => (
-          <AddButton key={r} label={LIGHT_DEFAULTS[r].name} onClick={() => onAddLight(r)} />
-        ))}
-      </Section>
-      <Section title="Scene">
-        <ul>
-          {outline.map((n) => (
-            <li key={n.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(n.id)}
-                className={cn(
-                  "flex w-full items-center justify-between gap-2 px-1.5 py-1 text-left text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100",
-                  n.id === selectedId && "bg-zinc-800 text-zinc-50",
-                )}
-              >
-                <span className="truncate">{n.name}</span>
-                <span className="shrink-0 text-[10px] text-zinc-600">{n.kind}</span>
-              </button>
-            </li>
+      </section>
+      <section>
+        <h3 className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Props
+        </h3>
+        <div className="flex flex-col gap-1">
+          {PROP_ADD_TYPES.map((p) => (
+            <Chip
+              key={p.type}
+              label={p.label}
+              onClick={() => onAddProp(p.type)}
+            />
           ))}
-        </ul>
-      </Section>
-    </div>
+        </div>
+      </section>
+      <section>
+        <h3 className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Lights
+        </h3>
+        <div className="flex flex-col gap-1">
+          {LIGHT_ADD_ROLES.map((role) => (
+            <Chip
+              key={role}
+              label={LIGHT_DEFAULTS[role].name}
+              onClick={() => onAddLight(role)}
+            />
+          ))}
+        </div>
+      </section>
+      <p className={cn("mt-auto text-[10px] leading-snug text-zinc-600")}>
+        + places in front of the shot camera
+      </p>
+    </aside>
   );
 }

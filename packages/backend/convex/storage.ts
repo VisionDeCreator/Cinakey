@@ -5,7 +5,7 @@
  * may call `ctx.storage.*` directly. Route all file reads/writes through this
  * module so storage can later move to Cloudflare R2 by changing this file only.
  *
- * Large JSON (blockouts, Theatre.js state, timeline snapshots) is always stored
+ * Large JSON (blockouts, timeline snapshots) is always stored
  * as files; the database row holds only the storage ID. Documents must stay
  * well under Convex's 1 MiB limit — never embed large payloads inline.
  */

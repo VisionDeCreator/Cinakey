@@ -245,7 +245,7 @@ function AssetCard({
         <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500">
           {kind}
           {stale ? (
-            <span className="text-amber-400">· style changed</span>
+            <span className="text-amber-400">· needs update</span>
           ) : null}
         </p>
       </div>

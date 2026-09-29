@@ -1,93 +1,148 @@
 import {
-  blockoutTransform,
-  finalizeShot,
-  singleShotDocument,
-  tracksFromShot,
-  type BlockoutTracks,
+  createPartDocument,
+  type BlockoutDocument,
 } from "@cinakey/shared";
 import { describe, expect, it } from "vitest";
 import { api } from "./_generated/api";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
-const pushIn: BlockoutTracks = {
-  cam: [
-    { t: 0, position: [0, 1.6, 6], rotation: [0, 0, 0], scale: [1, 1, 1] },
-    { t: 2, position: [0, 1.6, 3], rotation: [0, 0, 0], scale: [1, 1, 1] },
-  ],
-};
-
-function editorDocument(shotId: string, sceneId: string) {
-  const shot = finalizeShot(
+function partDocument(sequenceId: string): BlockoutDocument {
+  const doc = createPartDocument(
+    { id: "p", title: "t", aspectRatio: "16:9", fps: 24 },
+    sequenceId,
+    { name: "Part 1" },
+  );
+  doc.frames = 48;
+  doc.camera.keys = [
     {
-      id: shotId,
-      sceneId,
-      order: 0,
-      durationSec: 2,
+      id: "k0",
+      f: 0,
+      pos: [0, 1.6, 6],
+      target: [0, 1.4, 0],
+      focal: 50,
+      roll: 0,
+      ease: "inOut",
+    },
+    {
+      id: "k1",
+      f: 48,
+      pos: [0, 1.6, 3],
+      target: [0, 1.4, 0],
+      focal: 50,
+      roll: 0,
+      ease: "inOut",
+    },
+  ];
+  doc.objects = [
+    {
+      id: "m1",
+      type: "character",
+      name: "A",
+      color: "#8cbf7a",
+      size: [0.5, 1.75, 0.5],
+      pos: [-1, 0],
+      rot: 0,
+      keys: [],
+    },
+    {
+      id: "m2",
+      type: "character",
+      name: "B",
+      color: "#6aa3c8",
+      size: [0.5, 1.75, 0.5],
+      pos: [1, 0],
+      rot: 180,
+      keys: [],
+    },
+  ];
+  doc.shots = [
+    {
+      n: 1,
+      start: 0,
+      end: 48,
+      desc: "MS push",
       shotType: "MS",
       lensMm: 50,
-      characterIds: [],
-      camera: { nodeId: "cam" },
-      scene: {
-        nodes: [
-          { id: "cam", kind: "camera", name: "Shot camera", transform: blockoutTransform([0, 1.6, 6]) },
-          { id: "m1", kind: "mannequin", name: "A", pose: "standing", transform: blockoutTransform([-1, 0, 0]) },
-          { id: "m2", kind: "mannequin", name: "B", pose: "walking", transform: blockoutTransform([1, 0, 0]) },
-        ],
-      },
     },
-    pushIn,
-    24,
-  );
-  return singleShotDocument(
-    { id: "p", title: "t", aspectRatio: "16:9", fps: 24 },
-    { id: sceneId, order: 0 },
-    shot,
-  );
+  ];
+  return doc;
 }
 
 describe("blockouts", () => {
-  it("saves versioned files, reloads exactly, exports and re-imports", async () => {
+  it("saves versioned part files, reloads, exports and re-imports", async () => {
     const t = makeTest();
     const userId = await createTestUser(t, "blk@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     const seeded = await asUser.mutation(api.seed.seedDemoProject, {});
     const [shotA, shotB] = seeded.shotIds;
-    const a = await t.run(async (ctx) => ctx.db.get(shotA!));
 
-    const first = await asUser.action(api.blockouts.save, {
-      shotId: shotA!,
-      document: editorDocument(shotA!, a!.sceneId),
+    // Ensure a sequence exists for the part-scoped API
+    const sequenceId = await t.run(async (ctx) => {
+      const existing = await ctx.db
+        .query("sequences")
+        .withIndex("by_project", (q) => q.eq("projectId", seeded.projectId))
+        .first();
+      if (existing) {
+        await ctx.db.patch(shotA!, {
+          sequenceId: existing._id,
+          updatedAt: Date.now(),
+        });
+        if (shotB) {
+          await ctx.db.patch(shotB, {
+            sequenceId: existing._id,
+            updatedAt: Date.now(),
+          });
+        }
+        return existing._id;
+      }
+      const now = Date.now();
+      const id = await ctx.db.insert("sequences", {
+        projectId: seeded.projectId,
+        order: 0,
+        title: "Part 1",
+        durationSec: 2,
+        shotIds: seeded.shotIds,
+        createdAt: now,
+        updatedAt: now,
+      });
+      for (const sid of seeded.shotIds) {
+        await ctx.db.patch(sid, { sequenceId: id, updatedAt: now });
+      }
+      return id;
     });
-    const second = await asUser.action(api.blockouts.save, {
-      shotId: shotA!,
+
+    const first = await asUser.action(api.blockouts.saveForSequence, {
+      sequenceId,
+      document: partDocument(sequenceId),
+    });
+    const second = await asUser.action(api.blockouts.saveForSequence, {
+      sequenceId,
       document: first.document,
     });
     expect(second.document.version).toBe(first.document.version + 1);
     expect(second.document.parentFileId).toBe(first.fileId);
 
-    const loaded = await asUser.action(api.blockouts.get, { shotId: shotA! });
-    const shot = loaded!.document.scenes[0]!.shots[0]!;
-    expect(shot.lensMm).toBe(50);
-    expect(shot.scene.nodes.map((n) => n.id)).toEqual(["cam", "m1", "m2"]);
-    expect(tracksFromShot(shot).cam!.map((k) => k.position[2])).toEqual([6, 3]);
+    const loaded = await asUser.action(api.blockouts.getForSequence, {
+      sequenceId,
+    });
+    expect(loaded!.document.schema).toBe("cinakey.blockout/2.0");
+    expect(loaded!.document.camera.keys.map((k) => k.pos[2])).toEqual([6, 3]);
+    expect(loaded!.document.objects.map((o) => o.id)).toEqual(["m1", "m2"]);
 
     const after = await t.run(async (ctx) => ctx.db.get(shotA!));
     expect(after!.status).toBe("blocked_out");
-    expect(after!.lensMm).toBe(50);
 
     const exported = await asUser.action(api.blockouts.exportDocument, {
       projectId: seeded.projectId,
-      sceneId: a!.sceneId,
+      sequenceId,
     });
-    expect(exported.document.scenes[0]!.shots.map((s) => s.id)).toContain(shotA);
+    expect(exported.document.camera.keys.length).toBeGreaterThan(0);
 
     const imported = await asUser.action(api.blockouts.importToShot, {
       shotId: shotB!,
       document: JSON.parse(JSON.stringify(exported.document)),
-      sourceShotId: shotA!,
     });
-    const importedShot = imported.document.scenes[0]!.shots[0]!;
-    expect(importedShot.id).toBe(shotB);
-    expect(importedShot.scene.nodes).toHaveLength(3);
+    expect(imported.document.schema).toBe("cinakey.blockout/2.0");
+    expect(imported.document.objects).toHaveLength(2);
   });
 });

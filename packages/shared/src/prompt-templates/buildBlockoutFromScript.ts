@@ -1,4 +1,14 @@
 import type { BlockoutSheetData, ScriptPromptData } from "./schemas";
+import { inferAssetTypeFromScriptRef } from "./scriptAssets";
+
+const CAST_COLORS = [
+  "#8cbf7a",
+  "#cdb48f",
+  "#7a9ccb",
+  "#c97a8c",
+  "#c9a44f",
+  "#7abfb0",
+];
 
 function lensForShotType(shotType: string): number {
   const t = shotType.toLowerCase();
@@ -24,6 +34,63 @@ function moveType(cameraMove?: string): string {
   return "track";
 }
 
+function setPrimitiveFromLocation(description: string): {
+  primitive: string;
+  size: [number, number, number];
+  name: string;
+} {
+  const d = description.toLowerCase();
+  if (d.includes("campfire") || d.includes("fire")) {
+    return { primitive: "campfire", size: [0.5, 0.6, 0.5], name: "Campfire" };
+  }
+  if (d.includes("tree") || d.includes("forest") || d.includes("savanna")) {
+    return { primitive: "tree", size: [1.2, 4, 1.2], name: "Landmark tree" };
+  }
+  if (d.includes("building") || d.includes("room") || d.includes("interior")) {
+    return { primitive: "box", size: [6, 3, 6], name: "Set shell" };
+  }
+  return { primitive: "box", size: [2, 0.2, 2], name: "Location mark" };
+}
+
+function castEntryFromName(
+  name: string,
+  imageN: number,
+  entityId: string | undefined,
+  colorI: number,
+): BlockoutSheetData["cast"][number] {
+  const n = name.toLowerCase();
+  const isHuman =
+    n.includes("boy") ||
+    n.includes("girl") ||
+    n.includes("man") ||
+    n.includes("woman") ||
+    n.includes("person") ||
+    n.includes("rider");
+  const isQuad =
+    n.includes("cheetah") ||
+    n.includes("horse") ||
+    n.includes("antelope") ||
+    n.includes("lion") ||
+    n.includes("dog");
+  return {
+    id: `cast-${imageN}`,
+    name: name.replace(/^the\s+/i, "").trim() || name,
+    proxy: (isHuman
+      ? "humanoid mannequin"
+      : isQuad
+        ? "quadruped"
+        : "creature proxy") as
+      | "humanoid mannequin"
+      | "quadruped"
+      | "creature proxy",
+    imageN,
+    entityId,
+    heightM: isHuman ? 1.7 : isQuad ? 1.2 : 2,
+    lengthM: isQuad ? 2.5 : undefined,
+    colorCode: CAST_COLORS[colorI % CAST_COLORS.length],
+  };
+}
+
 /**
  * Deterministic Phase 7C blockout sheet from a script prompt.
  * Used by Update blockout — hand-tuned shots are preserved via scriptLineKey.
@@ -37,36 +104,58 @@ export function buildBlockoutSheetFromScript(
     fps: number;
   },
 ): BlockoutSheetData {
-  const cast = script.castBlocks.map((c, i) => {
-    const name = c.name.toLowerCase();
-    const isHuman =
-      name.includes("boy") ||
-      name.includes("girl") ||
-      name.includes("man") ||
-      name.includes("woman") ||
-      name.includes("person") ||
-      name.includes("rider");
-    const isQuad =
-      name.includes("cheetah") ||
-      name.includes("horse") ||
-      name.includes("antelope") ||
-      name.includes("lion") ||
-      name.includes("dog");
-    return {
-      id: `cast-${c.imageN}`,
-      name: c.name,
-      proxy: (isHuman
-        ? "humanoid mannequin"
-        : isQuad
-          ? "quadruped"
-          : "creature proxy") as "humanoid mannequin" | "quadruped" | "creature proxy",
-      imageN: c.imageN,
-      entityId: script.references.find((r) => r.imageN === c.imageN)?.entityId,
-      heightM: isHuman ? 1.7 : isQuad ? 1.2 : 2,
-      lengthM: isQuad ? 2.5 : undefined,
-      colorCode: `C${i + 1}`,
-    };
-  });
+  const cast: BlockoutSheetData["cast"] = [];
+  const seen = new Set<number>();
+
+  for (const [i, c] of script.castBlocks.entries()) {
+    seen.add(c.imageN);
+    cast.push(
+      castEntryFromName(
+        c.name,
+        c.imageN,
+        script.references.find((r) => r.imageN === c.imageN)?.entityId,
+        i,
+      ),
+    );
+  }
+
+  for (const [i, ref] of script.references.entries()) {
+    if (seen.has(ref.imageN)) continue;
+    const isLocation = ref.imageN === script.location.imageN;
+    const assetType = inferAssetTypeFromScriptRef({
+      entityLabel: ref.entityLabel,
+      useFor: ref.useFor,
+      isLocation,
+    });
+    if (assetType === "environment") continue;
+    if (
+      assetType === "character" ||
+      assetType === "creature" ||
+      assetType === "product"
+    ) {
+      seen.add(ref.imageN);
+      cast.push(
+        castEntryFromName(
+          ref.entityLabel,
+          ref.imageN,
+          ref.entityId,
+          cast.length + i,
+        ),
+      );
+    }
+  }
+
+  const loc = setPrimitiveFromLocation(script.location.description);
+  const set = [
+    {
+      id: `set-loc-${script.location.imageN}`,
+      name: loc.name,
+      primitive: loc.primitive,
+      position: [0, 0, 0] as [number, number, number],
+      size: loc.size,
+      notes: script.location.description.slice(0, 160),
+    },
+  ];
 
   const shots = script.shots.map((s, i) => {
     const z = i * 2;
@@ -116,7 +205,7 @@ export function buildBlockoutSheetFromScript(
       entityLabel: r.entityLabel,
       standInId: `stand-${r.imageN}`,
     })),
-    set: [],
+    set,
     cast,
     props: [],
     light: {

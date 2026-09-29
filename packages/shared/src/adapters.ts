@@ -12,6 +12,7 @@ export type ModelInput =
   | "startFrame"
   | "endFrame"
   | "referenceImages"
+  | "referenceVideo"
   | "audio";
 
 export type ModelFeature =
@@ -48,6 +49,8 @@ export type ModelCapabilities = {
   durations?: number[];
   /** Max seconds per generation run (sequence splitting). */
   maxDurationSec?: number;
+  /** Min seconds per generation run (Seedance 2.5: 4). */
+  minDurationSec?: number;
   /** Max reference images per run (sequence splitting). */
   maxReferenceImages?: number;
   resolutions?: string[];
@@ -70,6 +73,8 @@ export type BuildRequestInput = {
   startFrameUrl?: string;
   endFrameUrl?: string;
   referenceImageUrls?: string[];
+  /** Optional pre-viz / reference video URL for Seedance. */
+  referenceVideoUrl?: string;
   maskUrl?: string;
   /** Mock / test: force a failure for refund path. */
   forceFail?: boolean;

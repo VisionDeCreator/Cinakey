@@ -1,240 +1,304 @@
 import {
-  blockoutTransform,
-  finalizeShot,
-  normalizeKeyframes,
-  singleShotDocument,
+  DEFAULT_OBJECT_DEFS,
+  applyCameraPreset,
+  defaultEase,
+  emptyPartDocument,
+  objAt,
+  retimeDocument,
+  round2,
+  type BlockoutCameraKey,
   type BlockoutDocument,
-  type BlockoutKeyframe,
+  type BlockoutEase,
   type BlockoutLightRole,
-  type BlockoutNode,
+  type BlockoutObject,
+  type BlockoutObjectKey,
+  type BlockoutObjectType,
   type BlockoutProject,
-  type BlockoutPropType,
-  type BlockoutShot,
-  type BlockoutTracks,
-  type BlockoutTransform,
+  type CameraMovePresetId,
+  type CameraPose,
+  type Vec3,
 } from "@cinakey/shared";
+import { LIGHT_DEFAULTS } from "./runtime/objects";
 
-export const DEFAULT_LENS_MM = 35;
-
-export type EditorShotState = {
-  nodes: BlockoutNode[];
-  cameraNodeId: string;
-  tracks: BlockoutTracks;
-  lensMm: number;
-  guides?: BlockoutShot["guides"];
-};
-
-export type ShotMeta = {
-  _id: string;
-  sceneId: string;
-  order: number;
-  durationSec: number;
-  shotType: string;
-  lensMm?: number;
-  cameraMove?: string;
-  dialogue?: string;
-  notes?: string;
-  characterIds: string[];
-  keyframeAssetId?: string;
-};
-
-export function newNodeId(kind: string): string {
-  return `${kind}-${Math.random().toString(36).slice(2, 8)}`;
+let uid = 100;
+export function nid(prefix: string): string {
+  return `${prefix}${uid++}`;
 }
 
-export const PROP_LABELS: Record<BlockoutPropType, string> = {
-  box: "Box",
-  chair: "Chair",
-  table: "Table",
-  door: "Door",
-  car: "Car",
-};
+export function formatTimecode(frame: number, fps: number): string {
+  const ff = ((frame % fps) + fps) % fps;
+  const s = Math.floor(frame / fps);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}:${p(ff)}`;
+}
 
-export const LIGHT_DEFAULTS: Record<BlockoutLightRole, { name: string; position: [number, number, number] }> = {
-  key: { name: "Key light", position: [4, 6, 4] },
-  fill: { name: "Fill light", position: [-5, 3, 3] },
-  back: { name: "Back light", position: [0, 5, -6] },
-};
+export function cloneDoc(doc: BlockoutDocument): BlockoutDocument {
+  return structuredClone(doc);
+}
 
-export function createMannequin(
-  index: number,
-  character?: { id: string; name: string },
-): BlockoutNode {
+export function createEmptyEditorDoc(
+  project: BlockoutProject,
+  sequenceId: string,
+): BlockoutDocument {
+  return emptyPartDocument(project, sequenceId);
+}
+
+export function currentCut(doc: BlockoutDocument, frame: number) {
+  return (
+    doc.shots.find((s) => frame >= s.start && frame < s.end) ??
+    doc.shots[doc.shots.length - 1] ??
+    null
+  );
+}
+
+export function placeInFrontOfCamera(
+  live: CameraPose,
+  distance = 4,
+): { x: number; z: number; facing: number } {
+  const fx = live.target[0] - live.pos[0];
+  const fz = live.target[2] - live.pos[2];
+  const len = Math.hypot(fx, fz);
+  const nx = len < 1e-4 ? 0 : fx / len;
+  const nz = len < 1e-4 ? -1 : fz / len;
+  const dist = Math.min(distance, Math.hypot(fx, fz) || distance);
   return {
-    id: newNodeId("mannequin"),
-    kind: "mannequin",
-    name: character?.name ?? `Figure ${index + 1}`,
-    ...(character ? { entityId: character.id } : {}),
-    pose: "standing",
-    transform: blockoutTransform([((index % 6) - 2.5) * 1.1, 0, -Math.floor(index / 6) * 1.2]),
+    x: round2(live.pos[0] + nx * dist),
+    z: round2(live.pos[2] + nz * dist),
+    facing: Math.round((Math.atan2(-nx, -nz) * 180) / Math.PI),
   };
 }
 
-export function createProp(type: BlockoutPropType, offset = 0): BlockoutNode {
+export function createObject(
+  type: BlockoutObjectType,
+  live: CameraPose,
+  opts?: {
+    name?: string;
+    entityId?: string;
+    color?: string;
+    size?: Vec3;
+    lightRole?: BlockoutLightRole;
+  },
+): BlockoutObject {
+  const def =
+    type in DEFAULT_OBJECT_DEFS
+      ? DEFAULT_OBJECT_DEFS[type as keyof typeof DEFAULT_OBJECT_DEFS]
+      : { label: type, size: [0.5, 1.75, 0.5] as Vec3, color: "#8cbf7a" };
+  const at = placeInFrontOfCamera(live);
+  const light =
+    type === "light" && opts?.lightRole ? LIGHT_DEFAULTS[opts.lightRole] : null;
   return {
-    id: newNodeId("prop"),
-    kind: "prop",
-    name: PROP_LABELS[type],
-    propType: type,
-    transform: blockoutTransform([1.5 + (offset % 4) * 0.6, 0, -1 - Math.floor(offset / 4) * 0.8]),
+    id: nid("o"),
+    type,
+    name: opts?.name ?? light?.name ?? `${def.label}`,
+    color: opts?.color ?? light?.color ?? def.color,
+    size: opts?.size ?? light?.size ?? ([...def.size] as Vec3),
+    pos: [at.x, at.z],
+    rot: type === "character" || type === "creature" ? at.facing : 0,
+    keys: [],
+    entityId: opts?.entityId,
+    lightRole: opts?.lightRole,
+    intensity: light?.intensity,
   };
 }
 
-export function createSetPiece(): BlockoutNode {
+export function setObjectTransform(
+  o: BlockoutObject,
+  frame: number,
+  x: number,
+  z: number,
+  rot: number,
+  y: number,
+): BlockoutObject {
+  if (!o.keys.length) {
+    return { ...o, pos: [x, z], rot, y };
+  }
+  const keys = [...o.keys];
+  const idx = keys.findIndex((k) => k.f === frame);
+  const next: BlockoutObjectKey = {
+    f: frame,
+    x,
+    z,
+    y,
+    rot,
+    ease: defaultEase(),
+  };
+  if (idx >= 0) keys[idx] = { ...keys[idx]!, ...next };
+  else keys.push(next);
+  keys.sort((a, b) => a.f - b.f);
+  return { ...o, keys };
+}
+
+export function keyObjectAtFrame(
+  o: BlockoutObject,
+  frame: number,
+): BlockoutObject {
+  const s = objAt(o, frame);
+  const keys = [...o.keys];
+  const idx = keys.findIndex((k) => k.f === frame);
+  const next: BlockoutObjectKey = {
+    f: frame,
+    x: round2(s.x),
+    z: round2(s.z),
+    y: round2(s.y),
+    rot: Math.round(s.rot),
+    ease: defaultEase(),
+  };
+  if (idx >= 0) keys[idx] = next;
+  else keys.push(next);
+  keys.sort((a, b) => a.f - b.f);
+  return { ...o, keys };
+}
+
+export function keyCameraAtFrame(
+  doc: BlockoutDocument,
+  frame: number,
+  live: CameraPose,
+  existingId?: string,
+): { doc: BlockoutDocument; key: BlockoutCameraKey } {
+  const keys = [...doc.camera.keys];
+  const data = {
+    pos: live.pos.map(round2) as Vec3,
+    target: live.target.map(round2) as Vec3,
+    focal: Math.round(live.focal * 10) / 10,
+    roll: Math.round(live.roll),
+  };
+  let key = keys.find((k) => k.f === frame);
+  if (key) {
+    key = { ...key, ...data };
+    const i = keys.findIndex((k) => k.id === key!.id);
+    keys[i] = key;
+  } else {
+    key = {
+      id: existingId ?? nid("k"),
+      f: frame,
+      ease: defaultEase(),
+      ...data,
+    };
+    keys.push(key);
+  }
+  keys.sort((a, b) => a.f - b.f);
   return {
-    id: newNodeId("set"),
-    kind: "set",
-    name: "Wall",
-    transform: blockoutTransform([0, 0, -2], [0, 0, 0], [4, 3, 0.2]),
+    doc: { ...doc, camera: { ...doc.camera, keys } },
+    key,
   };
 }
 
-export function createLight(role: BlockoutLightRole): BlockoutNode {
-  const d = LIGHT_DEFAULTS[role];
-  return {
-    id: newNodeId("light"),
-    kind: "light",
-    name: d.name,
-    lightRole: role,
-    transform: blockoutTransform(d.position),
-  };
+export function applyPresetToDoc(
+  doc: BlockoutDocument,
+  presetId: CameraMovePresetId,
+  live: CameraPose,
+): BlockoutDocument {
+  const keys = applyCameraPreset(presetId, doc.frames, live);
+  return { ...doc, camera: { ...doc.camera, keys } };
 }
 
-/** Starting scene for a shot with no blockout yet. */
-export function createDefaultShotState(
-  shot: ShotMeta,
-  characters: Array<{ id: string; name: string }>,
-): EditorShotState {
-  const cameraNodeId = "shot-camera";
-  const count = characters.length;
-  const mannequins: BlockoutNode[] = characters.map((c, i) => ({
-    id: newNodeId("mannequin"),
-    kind: "mannequin",
-    name: c.name,
-    entityId: c.id,
-    pose: "standing",
-    transform: blockoutTransform([(i - (count - 1) / 2) * 1.2, 0, 0]),
-  }));
-  return {
-    cameraNodeId,
-    lensMm: shot.lensMm ?? DEFAULT_LENS_MM,
-    tracks: {},
-    nodes: [
-      { id: "ground", kind: "ground", name: "Ground", transform: blockoutTransform() },
-      {
-        id: "set-back-wall",
-        kind: "set",
-        name: "Back wall",
-        transform: blockoutTransform([0, 0, -4], [0, 0, 0], [10, 3, 0.2]),
-      },
-      { ...createLight("key"), id: "light-key" },
-      { ...createLight("fill"), id: "light-fill" },
-      { ...createLight("back"), id: "light-back" },
-      {
-        id: cameraNodeId,
-        kind: "camera",
-        name: "Shot camera",
-        transform: blockoutTransform([0, 1.6, 6], [-0.05, 0, 0]),
-      },
-      ...mannequins,
-    ],
-  };
-}
-
-export function stateFromShot(shot: BlockoutShot, tracks: BlockoutTracks): EditorShotState {
-  return {
-    nodes: shot.scene.nodes,
-    cameraNodeId: shot.camera.nodeId,
-    tracks,
-    lensMm: shot.lensMm,
-    ...(shot.guides ? { guides: shot.guides } : {}),
-  };
-}
-
-export function hasKeyframes(tracks: BlockoutTracks, nodeId: string): boolean {
-  return (tracks[nodeId]?.length ?? 0) > 0;
-}
-
-export function upsertKeyframe(
-  tracks: BlockoutTracks,
-  nodeId: string,
-  t: number,
-  transform: BlockoutTransform,
-): BlockoutTracks {
-  const k: BlockoutKeyframe = { t, ...transform };
-  return { ...tracks, [nodeId]: normalizeKeyframes([...(tracks[nodeId] ?? []), k]) };
-}
-
-export function removeKeyframe(tracks: BlockoutTracks, nodeId: string, t: number): BlockoutTracks {
-  const rest = (tracks[nodeId] ?? []).filter((k) => Math.abs(k.t - t) > 1e-3);
-  const next = { ...tracks };
-  if (rest.length) next[nodeId] = rest;
-  else delete next[nodeId];
+export function updateShotTiming(
+  doc: BlockoutDocument,
+  opts: { durationSec?: number; fps?: number; aspect?: string },
+): BlockoutDocument {
+  let next = doc;
+  if (opts.fps != null || opts.durationSec != null) {
+    const fps = opts.fps ?? doc.fps;
+    const frames =
+      opts.durationSec != null
+        ? Math.max(1, Math.round(opts.durationSec * fps))
+        : doc.frames;
+    next = retimeDocument(doc, { fps, frames });
+  }
+  if (opts.aspect) {
+    next = {
+      ...next,
+      aspect: opts.aspect,
+      project: { ...next.project, aspectRatio: opts.aspect },
+    };
+  }
   return next;
 }
 
-export function keyframeAt(tracks: BlockoutTracks, nodeId: string, t: number): BlockoutKeyframe | undefined {
-  return tracks[nodeId]?.find((k) => Math.abs(k.t - t) <= 1e-3);
-}
-
-/**
- * Apply a transform edit at time `t`: animated nodes get a keyframe at the
- * playhead (auto-key); static nodes change their base transform.
- */
-export function applyTransformEdit(
-  state: EditorShotState,
-  nodeId: string,
-  t: number,
-  transform: BlockoutTransform,
-): EditorShotState {
-  if (hasKeyframes(state.tracks, nodeId)) {
-    return { ...state, tracks: upsertKeyframe(state.tracks, nodeId, t, transform) };
-  }
+export function deleteCameraKey(
+  doc: BlockoutDocument,
+  keyId: string,
+): BlockoutDocument {
   return {
-    ...state,
-    nodes: state.nodes.map((n) => (n.id === nodeId ? { ...n, transform } : n)),
+    ...doc,
+    camera: {
+      ...doc.camera,
+      keys: doc.camera.keys.filter((k) => k.id !== keyId),
+    },
   };
 }
 
-export function snapToFrame(t: number, fps: number): number {
-  return Math.round(t * fps) / fps;
+export function deleteObjectKey(
+  o: BlockoutObject,
+  frame: number,
+): BlockoutObject {
+  const keys = o.keys.filter((k) => k.f !== frame);
+  if (keys.length === 0 && o.keys.length === 1) {
+    const k = o.keys[0]!;
+    return {
+      ...o,
+      pos: [k.x, k.z],
+      rot: k.rot,
+      y: k.y,
+      keys: [],
+    };
+  }
+  return { ...o, keys };
 }
 
-export function formatTimecode(t: number, fps: number): string {
-  const totalFrames = Math.round(t * fps);
-  const f = Math.max(1, Math.round(fps));
-  const frames = totalFrames % f;
-  const totalSec = Math.floor(totalFrames / f);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(Math.floor(totalSec / 3600))}:${pad(Math.floor(totalSec / 60) % 60)}:${pad(totalSec % 60)}:${pad(frames)}`;
-}
-
-/** Build the single-shot document the editor saves. */
-export function buildEditorDocument(
-  project: BlockoutProject,
-  scene: { id: string; order: number; heading?: string },
-  shot: ShotMeta,
-  state: EditorShotState,
+export function updateKeyEase(
+  doc: BlockoutDocument,
+  sel: SelKey,
+  ease: BlockoutEase,
 ): BlockoutDocument {
-  const finalized = finalizeShot(
-    {
-      id: shot._id,
-      sceneId: shot.sceneId,
-      order: shot.order,
-      durationSec: shot.durationSec,
-      shotType: shot.shotType,
-      lensMm: state.lensMm,
-      characterIds: shot.characterIds,
-      ...(shot.cameraMove ? { cameraMove: shot.cameraMove } : {}),
-      ...(shot.dialogue ? { dialogue: shot.dialogue } : {}),
-      ...(shot.notes ? { notes: shot.notes } : {}),
-      ...(shot.keyframeAssetId ? { keyframeImage: { assetId: shot.keyframeAssetId } } : {}),
-      camera: { nodeId: state.cameraNodeId },
-      scene: { nodes: state.nodes },
-      ...(state.guides ? { guides: state.guides } : {}),
-    },
-    state.tracks,
-    project.fps,
-  );
-  return singleShotDocument(project, scene, finalized);
+  if (sel.kind === "cam") {
+    return {
+      ...doc,
+      camera: {
+        ...doc.camera,
+        keys: doc.camera.keys.map((k) =>
+          k.id === sel.id ? { ...k, ease } : k,
+        ),
+      },
+    };
+  }
+  return {
+    ...doc,
+    objects: doc.objects.map((o) =>
+      o.id !== sel.objectId
+        ? o
+        : {
+            ...o,
+            keys: o.keys.map((k) => (k.f === sel.f ? { ...k, ease } : k)),
+          },
+    ),
+  };
 }
+
+export type SelKey =
+  { kind: "cam"; id: string } | { kind: "obj"; objectId: string; f: number };
+
+export const PROP_ADD_TYPES: Array<{
+  type: BlockoutObjectType;
+  label: string;
+}> = [
+  { type: "box", label: "Box" },
+  { type: "chair", label: "Chair" },
+  { type: "table", label: "Table" },
+  { type: "door", label: "Door" },
+  { type: "car", label: "Car" },
+  { type: "wall", label: "Wall" },
+  { type: "column", label: "Column" },
+  { type: "tree", label: "Tree" },
+  { type: "sphere", label: "Sphere" },
+  { type: "strip", label: "Path strip" },
+  { type: "mark", label: "Mark" },
+  { type: "fire", label: "Campfire" },
+];
+
+export const LIGHT_ADD_ROLES: BlockoutLightRole[] = [
+  "key",
+  "fill",
+  "back",
+  "sun",
+];

@@ -1,409 +1,360 @@
 import * as THREE from "three";
-import type {
-  BlockoutNode,
-  BlockoutPropType,
-  BlockoutTransform,
-  MannequinPose,
-} from "@cinakey/shared";
+import type { BlockoutObject, BlockoutLightRole } from "@cinakey/shared";
+import { LAYER_CONTENT, LAYER_LABELS } from "./layers";
 
-/** Layer for editor-only helpers (labels, light/camera bodies, grid). */
-export const HELPER_LAYER = 1;
-
-export const SENSOR_WIDTH_MM = 36;
-
-// Shared geometry/materials keep 10 mannequins + 20 props cheap.
-const unitBox = new THREE.BoxGeometry(1, 1, 1);
-const limb = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
-const head = new THREE.SphereGeometry(0.5, 16, 12);
-const wheel = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
-const helperSphere = new THREE.SphereGeometry(0.15, 12, 8);
-const groundPlane = new THREE.PlaneGeometry(1, 1);
-
-const materials = new Map<string, THREE.MeshStandardMaterial>();
-function material(color: string): THREE.MeshStandardMaterial {
-  let m = materials.get(color);
+const matCache = new Map<string, THREE.MeshLambertMaterial>();
+function mat(color: string | number): THREE.MeshLambertMaterial {
+  const key = String(color);
+  let m = matCache.get(key);
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0 });
-    materials.set(color, m);
+    // Invalid CSS colour strings (e.g. legacy "C1") become white in three.js;
+    // prefer a clay stand-in grey so unknown codes stay readable.
+    const resolved =
+      typeof color === "string" && !/^#|^0x|^rgb|^hsl|^[a-z]/i.test(color)
+        ? 0x9aa0a8
+        : color;
+    m = new THREE.MeshLambertMaterial({ color: resolved });
+    matCache.set(key, m);
   }
   return m;
 }
-const helperMaterial = new THREE.MeshBasicMaterial({ color: "#facc15" });
-const cameraBodyMaterial = new THREE.MeshBasicMaterial({ color: "#38bdf8" });
 
-export const MANNEQUIN_COLORS = [
-  "#e07a5f",
-  "#81b29a",
-  "#f2cc8f",
-  "#6d9dc5",
-  "#c77dff",
-  "#ef476f",
-  "#06d6a0",
-  "#ffd166",
-  "#118ab2",
-  "#b5838d",
-];
-
-export const DEFAULT_COLORS: Record<string, string> = {
-  ground: "#3f3f46",
-  set: "#71717a",
-  prop: "#a1a1aa",
-};
-
-function mesh(
-  geometry: THREE.BufferGeometry,
-  color: string,
-  size: [number, number, number],
-  position: [number, number, number],
-): THREE.Mesh {
-  const m = new THREE.Mesh(geometry, material(color));
-  m.scale.set(...size);
-  m.position.set(...position);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  return m;
+function roundRect(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
 }
 
-function markHelper(obj: THREE.Object3D): THREE.Object3D {
-  obj.traverse((o) => o.layers.set(HELPER_LAYER));
-  obj.userData.helper = true;
-  return obj;
-}
-
-function labelSprite(text: string): THREE.Sprite {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 64;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "rgba(9,9,11,0.75)";
-  ctx.fillRect(0, 0, 256, 64);
-  ctx.fillStyle = "#fafafa";
-  ctx.font = "600 30px 'IBM Plex Sans', sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text.slice(0, 16), 128, 32);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }),
+function labelSprite(text: string, color: string): THREE.Sprite {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const g = c.getContext("2d")!;
+  g.font = '600 30px "IBM Plex Sans Condensed", "Arial Narrow", sans-serif';
+  const w = Math.min(248, g.measureText(text).width + 24);
+  g.fillStyle = "rgba(12,15,19,.82)";
+  roundRect(g, (256 - w) / 2, 10, w, 44, 6);
+  g.fill();
+  g.fillStyle = color;
+  g.fillRect((256 - w) / 2, 10, 4, 44);
+  g.fillStyle = "#e8ecf2";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(text.slice(0, 18), 128, 33);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: tex,
+      depthWrite: false,
+      transparent: true,
+    }),
   );
-  sprite.scale.set(0.8, 0.2, 1);
-  sprite.renderOrder = 10;
-  return sprite;
+  s.scale.set(1.4, 0.35, 1);
+  s.layers.set(LAYER_LABELS);
+  s.userData.label = true;
+  return s;
 }
 
-// ---------------------------------------------------------------------------
-// Mannequin
-// ---------------------------------------------------------------------------
-
-type Joints = {
-  hips: THREE.Group;
-  leftHip: THREE.Group;
-  rightHip: THREE.Group;
-  leftKnee: THREE.Group;
-  rightKnee: THREE.Group;
-  leftShoulder: THREE.Group;
-  rightShoulder: THREE.Group;
-  leftElbow: THREE.Group;
-  rightElbow: THREE.Group;
-};
-
-function limbSegment(color: string, length: number, radius: number): THREE.Mesh {
-  // Capsule total height = radius*2 + body; hangs down from the pivot.
-  const m = mesh(limb, color, [radius * 2, length / 2, radius * 2], [0, -length / 2, 0]);
-  return m;
+function setContentLayers(root: THREE.Object3D) {
+  root.traverse((c) => {
+    if (!c.userData.label) c.layers.set(LAYER_CONTENT);
+  });
 }
 
-function buildMannequin(color: string): { root: THREE.Group; joints: Joints } {
-  const root = new THREE.Group();
-  const hips = new THREE.Group();
-  hips.position.y = 0.95;
-  root.add(hips);
-
-  hips.add(mesh(unitBox, color, [0.34, 0.14, 0.2], [0, 0, 0]));
-  const torso = mesh(unitBox, color, [0.4, 0.5, 0.22], [0, 0.32, 0]);
-  hips.add(torso);
-  hips.add(mesh(limb, color, [0.1, 0.06, 0.1], [0, 0.62, 0]));
-  hips.add(mesh(head, color, [0.22, 0.26, 0.24], [0, 0.8, 0]));
-  // Nose marks the facing direction (+Z).
-  hips.add(mesh(unitBox, color, [0.05, 0.05, 0.06], [0, 0.8, 0.13]));
-
-  const joint = (parent: THREE.Object3D, x: number, y: number) => {
-    const g = new THREE.Group();
-    g.position.set(x, y, 0);
-    parent.add(g);
-    return g;
-  };
-  const leftHip = joint(hips, 0.1, -0.05);
-  const rightHip = joint(hips, -0.1, -0.05);
-  leftHip.add(limbSegment(color, 0.45, 0.07));
-  rightHip.add(limbSegment(color, 0.45, 0.07));
-  const leftKnee = joint(leftHip, 0, -0.45);
-  const rightKnee = joint(rightHip, 0, -0.45);
-  leftKnee.add(limbSegment(color, 0.43, 0.06));
-  rightKnee.add(limbSegment(color, 0.43, 0.06));
-
-  const leftShoulder = joint(hips, 0.26, 0.54);
-  const rightShoulder = joint(hips, -0.26, 0.54);
-  leftShoulder.add(limbSegment(color, 0.3, 0.05));
-  rightShoulder.add(limbSegment(color, 0.3, 0.05));
-  const leftElbow = joint(leftShoulder, 0, -0.3);
-  const rightElbow = joint(rightShoulder, 0, -0.3);
-  leftElbow.add(limbSegment(color, 0.28, 0.045));
-  rightElbow.add(limbSegment(color, 0.28, 0.045));
-
-  return {
-    root,
-    joints: {
-      hips,
-      leftHip,
-      rightHip,
-      leftKnee,
-      rightKnee,
-      leftShoulder,
-      rightShoulder,
-      leftElbow,
-      rightElbow,
-    },
-  };
-}
-
-function applyPose(j: Joints, pose: MannequinPose) {
-  for (const g of Object.values(j)) g.rotation.set(0, 0, 0);
-  j.hips.position.y = 0.95;
-  j.leftShoulder.rotation.z = 0.08;
-  j.rightShoulder.rotation.z = -0.08;
-  if (pose === "walking") {
-    j.leftHip.rotation.x = -0.45;
-    j.rightHip.rotation.x = 0.35;
-    j.rightKnee.rotation.x = 0.5;
-    j.leftShoulder.rotation.x = 0.4;
-    j.rightShoulder.rotation.x = -0.4;
-    j.leftElbow.rotation.x = -0.3;
-    j.rightElbow.rotation.x = -0.5;
-  } else if (pose === "sitting") {
-    j.hips.position.y = 0.5;
-    j.leftHip.rotation.x = -Math.PI / 2;
-    j.rightHip.rotation.x = -Math.PI / 2;
-    j.leftKnee.rotation.x = Math.PI / 2;
-    j.rightKnee.rotation.x = Math.PI / 2;
-    j.leftShoulder.rotation.x = -0.5;
-    j.rightShoulder.rotation.x = -0.5;
-    j.leftElbow.rotation.x = -0.6;
-    j.rightElbow.rotation.x = -0.6;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
-function buildProp(type: BlockoutPropType, color: string): THREE.Group {
+/** Build a three.js stand-in group for a blockout object. */
+export function buildObjectMesh(o: BlockoutObject): THREE.Group {
   const g = new THREE.Group();
+  g.userData.objId = o.id;
+  g.userData.pick = "object";
+  const [w, h, d] = o.size;
+  let labelY = h + 0.35;
+
   const add = (
     geo: THREE.BufferGeometry,
-    size: [number, number, number],
-    pos: [number, number, number],
-    c = color,
-  ) => {
-    const m = mesh(geo, c, size, pos);
-    g.add(m);
-    return m;
+    material: THREE.Material,
+    y: number,
+  ): THREE.Mesh => {
+    const me = new THREE.Mesh(geo, material);
+    me.position.y = y;
+    me.castShadow = true;
+    me.receiveShadow = true;
+    g.add(me);
+    return me;
   };
-  switch (type) {
-    case "box":
-      add(unitBox, [1, 1, 1], [0, 0.5, 0]);
-      break;
-    case "chair":
-      add(unitBox, [0.46, 0.05, 0.46], [0, 0.45, 0]);
-      add(unitBox, [0.46, 0.5, 0.05], [0, 0.72, -0.2]);
-      for (const [x, z] of [
-        [0.2, 0.2],
-        [-0.2, 0.2],
-        [0.2, -0.2],
-        [-0.2, -0.2],
-      ] as const)
-        add(unitBox, [0.04, 0.45, 0.04], [x, 0.225, z]);
-      break;
-    case "table":
-      add(unitBox, [1.4, 0.05, 0.8], [0, 0.75, 0]);
-      for (const [x, z] of [
-        [0.64, 0.34],
-        [-0.64, 0.34],
-        [0.64, -0.34],
-        [-0.64, -0.34],
-      ] as const)
-        add(unitBox, [0.06, 0.73, 0.06], [x, 0.365, z]);
-      break;
-    case "door":
-      add(unitBox, [0.08, 2.2, 0.12], [-0.49, 1.1, 0], "#52525b");
-      add(unitBox, [0.08, 2.2, 0.12], [0.49, 1.1, 0], "#52525b");
-      add(unitBox, [1.06, 0.08, 0.12], [0, 2.24, 0], "#52525b");
-      add(unitBox, [0.9, 2.1, 0.05], [0, 1.05, 0]);
-      add(unitBox, [0.06, 0.06, 0.08], [0.35, 1.0, 0.05], "#27272a");
-      break;
-    case "car": {
-      add(unitBox, [1.8, 0.7, 4.2], [0, 0.6, 0]);
-      add(unitBox, [1.6, 0.55, 2.1], [0, 1.22, -0.2], "#27272a");
-      for (const [x, z] of [
-        [0.85, 1.3],
-        [-0.85, 1.3],
-        [0.85, -1.3],
-        [-0.85, -1.3],
-      ] as const) {
-        const w = add(wheel, [0.66, 0.25, 0.66], [x, 0.33, z], "#18181b");
-        w.rotation.z = Math.PI / 2;
+
+  if (o.type === "character" || o.type === "creature") {
+    const r = Math.max(0.12, w / 2);
+    add(
+      new THREE.CapsuleGeometry(r, Math.max(0.1, h - 2 * r), 6, 16),
+      mat(o.color),
+      h / 2,
+    );
+    const nose = add(
+      new THREE.BoxGeometry(r * 0.7, r * 0.45, r * 0.9),
+      mat(0x20242b),
+      h - r * 0.9,
+    );
+    nose.position.z = r * 0.75;
+  } else if (o.type === "box" || o.type === "wall" || o.type === "door") {
+    add(new THREE.BoxGeometry(w, h, d), mat(o.color), h / 2);
+  } else if (o.type === "chair") {
+    add(new THREE.BoxGeometry(w, h * 0.08, d), mat(o.color), h * 0.45);
+    add(new THREE.BoxGeometry(w, h * 0.45, d * 0.08), mat(o.color), h * 0.72);
+    for (const sx of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        const leg = add(
+          new THREE.BoxGeometry(0.05, h * 0.45, 0.05),
+          mat(o.color),
+          h * 0.225,
+        );
+        leg.position.set(sx * (w / 2 - 0.06), 0, sz * (d / 2 - 0.06));
       }
-      break;
     }
+  } else if (o.type === "table") {
+    add(new THREE.BoxGeometry(w, 0.06, d), mat(o.color), h);
+    for (const sx of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        const leg = add(
+          new THREE.BoxGeometry(0.06, h, 0.06),
+          mat(o.color),
+          h / 2,
+        );
+        leg.position.set(sx * (w / 2 - 0.08), 0, sz * (d / 2 - 0.08));
+      }
+    }
+  } else if (o.type === "column") {
+    add(new THREE.CylinderGeometry(w / 2, w / 2, h, 24), mat(o.color), h / 2);
+  } else if (o.type === "car") {
+    add(new THREE.BoxGeometry(w, h * 0.5, d), mat(o.color), h * 0.25 + 0.18);
+    const cab = add(
+      new THREE.BoxGeometry(w * 0.9, h * 0.42, d * 0.5),
+      mat(o.color),
+      h * 0.5 + 0.18 + h * 0.21,
+    );
+    cab.position.z = -d * 0.06;
+    for (const sx of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        const wh = add(
+          new THREE.CylinderGeometry(0.33, 0.33, 0.24, 16),
+          mat(0x15181d),
+          0.33,
+        );
+        wh.rotation.z = Math.PI / 2;
+        wh.position.set(sx * (w / 2 - 0.1), 0, sz * (d / 2 - 0.8));
+      }
+    }
+  } else if (o.type === "mark") {
+    const m = new THREE.MeshBasicMaterial({ color: o.color });
+    for (const a of [Math.PI / 4, -Math.PI / 4]) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(w, 0.01, 0.07), m);
+      t.rotation.y = a;
+      t.position.y = 0.006;
+      g.add(t);
+    }
+    labelY = 0.5;
+  } else if (o.type === "hare") {
+    const M = mat(o.color);
+    const legH = h * 0.36;
+    const bodyY = legH + 0.22;
+    const bodyL = d * 0.62;
+    const body = add(
+      new THREE.CapsuleGeometry(w * 0.36, bodyL, 6, 12),
+      M,
+      bodyY,
+    );
+    body.rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        const lg = add(
+          new THREE.CapsuleGeometry(0.06, legH, 4, 8),
+          M,
+          legH / 2 + 0.03,
+        );
+        lg.position.set(sx * w * 0.22, 0, sz * bodyL * 0.42);
+      }
+    }
+    const neck = add(
+      new THREE.CapsuleGeometry(0.1, h * 0.26, 4, 8),
+      M,
+      bodyY + h * 0.2,
+    );
+    neck.position.z = bodyL * 0.55;
+    neck.rotation.x = 0.25;
+    const head = add(
+      new THREE.SphereGeometry(0.16, 12, 10),
+      M,
+      bodyY + h * 0.36,
+    );
+    head.position.z = bodyL * 0.62 + 0.12;
+    for (const sx of [-1, 1] as const) {
+      const ear = add(
+        new THREE.CapsuleGeometry(0.04, h * 0.17, 3, 6),
+        M,
+        bodyY + h * 0.5,
+      );
+      ear.position.set(sx * 0.07, 0, bodyL * 0.62 + 0.06);
+      ear.rotation.x = -0.18;
+    }
+    labelY = h + 0.3;
+  } else if (o.type === "raptor") {
+    const M = mat(o.color);
+    const S = mat(0xe2c23a);
+    const legH = h * 0.42;
+    const bodyY = legH + 0.3;
+    const body = add(
+      new THREE.CapsuleGeometry(w * 0.4, d * 0.3, 6, 12),
+      M,
+      bodyY,
+    );
+    body.rotation.x = Math.PI / 2 - 0.25;
+    for (const sx of [-1, 1] as const) {
+      const lg = add(
+        new THREE.CapsuleGeometry(0.09, legH, 4, 8),
+        M,
+        legH / 2 + 0.05,
+      );
+      lg.position.x = sx * w * 0.22;
+    }
+    const tail = add(
+      new THREE.CylinderGeometry(0.03, w * 0.28, d * 0.52, 8),
+      M,
+      bodyY + 0.12,
+    );
+    tail.rotation.x = -Math.PI / 2 + 0.08;
+    tail.position.z = -d * 0.38;
+    const neck = add(
+      new THREE.CapsuleGeometry(0.1, 0.45, 4, 8),
+      M,
+      bodyY + 0.42,
+    );
+    neck.position.z = d * 0.2;
+    neck.rotation.x = 0.6;
+    const head = add(new THREE.BoxGeometry(0.22, 0.2, 0.46), M, bodyY + 0.66);
+    head.position.z = d * 0.3;
+    for (const zz of [-0.1, 0.12]) {
+      const st = add(
+        new THREE.CylinderGeometry(w * 0.42, w * 0.42, 0.09, 14),
+        S,
+        bodyY,
+      );
+      st.rotation.x = Math.PI / 2;
+      st.position.z = zz;
+    }
+    labelY = h + 0.3;
+  } else if (o.type === "tree") {
+    add(
+      new THREE.CylinderGeometry(w / 2, (w / 2) * 1.15, h, 10),
+      mat(o.color),
+      h / 2,
+    );
+    add(
+      new THREE.CylinderGeometry(d / 2, d / 2, 0.45, 18),
+      mat(o.color2 || "#2e4632"),
+      h,
+    );
+    labelY = h + 0.6;
+  } else if (o.type === "sphere") {
+    const m = o.glow
+      ? new THREE.MeshBasicMaterial({ color: o.color })
+      : mat(o.color);
+    const s = add(new THREE.SphereGeometry(w / 2, 24, 16), m, w / 2);
+    if (o.glow || w > 4) s.castShadow = false;
+    labelY = w + 0.3;
+  } else if (o.type === "fire") {
+    add(
+      new THREE.ConeGeometry(w / 2, h, 14),
+      new THREE.MeshBasicMaterial({ color: o.color }),
+      h / 2,
+    );
+    const stone = mat(0x6d7179);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const st = add(new THREE.SphereGeometry(0.1, 8, 6), stone, 0.07);
+      st.position.set(Math.cos(a) * w * 0.9, 0, Math.sin(a) * w * 0.9);
+    }
+    const log = add(new THREE.BoxGeometry(0.9, 0.2, 0.22), mat(0x6d7179), 0.1);
+    log.position.set(w * 1.8, 0, 0.2);
+    log.rotation.y = 0.4;
+    labelY = h + 0.4;
+  } else if (o.type === "strip") {
+    const s = new THREE.Mesh(
+      new THREE.BoxGeometry(w, Math.max(0.005, h), d),
+      mat(o.color),
+    );
+    s.position.y = 0.01;
+    s.receiveShadow = true;
+    g.add(s);
+    labelY = 0.5;
+  } else if (o.type === "light") {
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.25, 16, 12),
+      new THREE.MeshBasicMaterial({
+        color: o.color,
+        transparent: true,
+        opacity: 0.85,
+      }),
+    );
+    glow.position.y = Math.max(0.4, h);
+    glow.castShadow = false;
+    g.add(glow);
+    const pole = add(
+      new THREE.CylinderGeometry(0.03, 0.03, glow.position.y, 8),
+      mat("#5b6270"),
+      glow.position.y / 2,
+    );
+    pole.castShadow = false;
+    labelY = glow.position.y + 0.45;
+  } else {
+    add(new THREE.BoxGeometry(w, h, d), mat(o.color), h / 2);
   }
+
+  if (o.label !== false) {
+    const s = labelSprite(o.name, o.color);
+    s.position.y = labelY;
+    g.add(s);
+  }
+  setContentLayers(g);
   return g;
 }
 
-// ---------------------------------------------------------------------------
-// Nodes
-// ---------------------------------------------------------------------------
-
-/** Fields whose change needs a rebuild (transform-only edits do not). */
-export function structureKey(node: BlockoutNode): string {
-  return [
-    node.kind,
-    node.propType,
-    node.lightRole,
-    node.pose,
-    node.color,
-    node.intensity,
-    node.name,
-  ].join("|");
-}
-
-export function lensToCamera(camera: THREE.PerspectiveCamera, lensMm: number) {
-  camera.filmGauge = SENSOR_WIDTH_MM;
-  camera.setFocalLength(lensMm);
-  camera.updateProjectionMatrix();
-}
-
-export function applyTransform(obj: THREE.Object3D, t: BlockoutTransform) {
-  obj.position.set(...t.position);
-  obj.rotation.set(...t.rotation);
-  obj.scale.set(...t.scale);
-}
-
-export type BuiltNode = {
-  object: THREE.Object3D;
-  /** Directional light targets must be added to the scene separately. */
-  extra?: THREE.Object3D;
-};
-
-export function buildNodeObject(
-  node: BlockoutNode,
-  opts: { helpers: boolean; mannequinIndex?: number },
-): BuiltNode {
-  let object: THREE.Object3D;
-  let extra: THREE.Object3D | undefined;
-  switch (node.kind) {
-    case "ground": {
-      const m = new THREE.Mesh(groundPlane, material(node.color ?? DEFAULT_COLORS.ground!));
-      m.rotation.x = -Math.PI / 2;
-      m.scale.set(40, 40, 1);
-      m.receiveShadow = true;
-      const g = new THREE.Group();
-      g.add(m);
-      if (opts.helpers) {
-        const grid = new THREE.GridHelper(40, 40, "#52525b", "#3f3f46");
-        grid.position.y = 0.002;
-        g.add(markHelper(grid));
-      }
-      object = g;
-      break;
-    }
-    case "set": {
-      const g = new THREE.Group();
-      g.add(mesh(unitBox, node.color ?? DEFAULT_COLORS.set!, [1, 1, 1], [0, 0.5, 0]));
-      object = g;
-      break;
-    }
-    case "mannequin": {
-      const color =
-        node.color ??
-        MANNEQUIN_COLORS[(opts.mannequinIndex ?? 0) % MANNEQUIN_COLORS.length]!;
-      const { root, joints } = buildMannequin(color);
-      applyPose(joints, node.pose ?? "standing");
-      if (opts.helpers) {
-        const label = labelSprite(node.name);
-        label.position.y = 2.05;
-        root.add(markHelper(label));
-      }
-      object = root;
-      break;
-    }
-    case "prop":
-      object = buildProp(node.propType ?? "box", node.color ?? DEFAULT_COLORS.prop!);
-      break;
-    case "light": {
-      const role = node.lightRole ?? "key";
-      const defaults = { key: 2.4, fill: 0.8, back: 1.4 } as const;
-      const light = new THREE.DirectionalLight(
-        node.color ?? "#ffffff",
-        node.intensity ?? defaults[role],
-      );
-      if (role === "key") {
-        light.castShadow = true;
-        light.shadow.mapSize.set(1024, 1024);
-        const cam = light.shadow.camera;
-        cam.left = -10;
-        cam.right = 10;
-        cam.top = 10;
-        cam.bottom = -10;
-        cam.far = 60;
-        light.shadow.bias = -0.0005;
-      }
-      extra = light.target;
-      if (opts.helpers) {
-        const s = new THREE.Mesh(helperSphere, helperMaterial);
-        light.add(markHelper(s));
-      }
-      object = light;
-      break;
-    }
-    case "camera": {
-      const cam = new THREE.PerspectiveCamera(40, 16 / 9, 0.05, 200);
-      cam.layers.set(0);
-      if (opts.helpers) {
-        const body = new THREE.Group();
-        const box = new THREE.Mesh(unitBox, cameraBodyMaterial);
-        box.scale.set(0.2, 0.15, 0.3);
-        box.position.z = 0.15;
-        body.add(box);
-        const lens = new THREE.Mesh(wheel, cameraBodyMaterial);
-        lens.scale.set(0.12, 0.1, 0.12);
-        lens.rotation.x = Math.PI / 2;
-        lens.position.z = -0.05;
-        body.add(lens);
-        cam.add(markHelper(body));
-      }
-      object = cam;
-      break;
-    }
+export const LIGHT_DEFAULTS: Record<
+  BlockoutLightRole,
+  {
+    name: string;
+    color: string;
+    size: [number, number, number];
+    intensity: number;
   }
-  object.userData.nodeId = node.id;
-  object.traverse((o) => {
-    o.userData.nodeId = node.id;
-  });
-  applyTransform(object, node.transform);
-  return { object, extra };
-}
-
-export function disposeObject(obj: THREE.Object3D) {
-  obj.traverse((o) => {
-    if (o instanceof THREE.Sprite) {
-      o.material.map?.dispose();
-      o.material.dispose();
-    }
-    if (o instanceof THREE.DirectionalLight) o.shadow.map?.dispose();
-    if (o instanceof THREE.GridHelper) {
-      o.geometry.dispose();
-      (o.material as THREE.Material).dispose();
-    }
-  });
-}
+> = {
+  key: {
+    name: "Key light",
+    color: "#fff1dd",
+    size: [0.4, 2.4, 0.4],
+    intensity: 1.2,
+  },
+  fill: {
+    name: "Fill light",
+    color: "#c9d6e6",
+    size: [0.4, 2.0, 0.4],
+    intensity: 0.6,
+  },
+  back: {
+    name: "Back light",
+    color: "#ffe8c8",
+    size: [0.4, 2.2, 0.4],
+    intensity: 0.8,
+  },
+  sun: { name: "Sun", color: "#ffd9a0", size: [0.5, 3.0, 0.5], intensity: 1.5 },
+};

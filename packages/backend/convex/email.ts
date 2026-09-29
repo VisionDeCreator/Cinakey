@@ -1,11 +1,17 @@
 /**
  * Outbound email via Resend (Convex actions only; RESEND_API_KEY in env).
+ * Set EMAIL_ENABLED=false to disable sending (keeps RESEND_API_KEY unused).
  */
 
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction, internalMutation } from "./_generated/server";
 import { convexEnv } from "./lib/env";
+
+function emailSendingEnabled(): boolean {
+  // Explicit off switch — default is on when the key is present.
+  return convexEnv("EMAIL_ENABLED") !== "false";
+}
 
 export const sendNotificationEmail = internalAction({
   args: {
@@ -14,6 +20,13 @@ export const sendNotificationEmail = internalAction({
     text: v.string(),
   },
   handler: async (_ctx, args) => {
+    if (!emailSendingEnabled()) {
+      console.log(
+        `[email] skipped (EMAIL_ENABLED=false): to=${args.to} subject=${args.subject}`,
+      );
+      return { sent: false as const, reason: "disabled" as const };
+    }
+
     const apiKey = convexEnv("RESEND_API_KEY");
     const from = convexEnv("EMAIL_FROM") ?? "Cinakey <onboarding@resend.dev>";
     if (apiKey === undefined || apiKey.length === 0) {
@@ -55,6 +68,8 @@ export const maybeSendForNotification = internalMutation({
     href: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (!emailSendingEnabled()) return;
+
     const user = await ctx.db.get(args.userId);
     if (user === null) return;
     if (user.notificationEmailEnabled === false) return;

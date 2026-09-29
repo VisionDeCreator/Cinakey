@@ -266,6 +266,7 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
     .collect();
   for (const s of sequences) {
+    await tryDeleteStorage(ctx, s.blockoutFileId);
     await ctx.db.delete(s._id);
   }
 

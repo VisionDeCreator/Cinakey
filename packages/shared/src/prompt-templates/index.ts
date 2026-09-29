@@ -70,11 +70,21 @@ export {
 
 export { buildBlockoutSheetFromScript } from "./buildBlockoutFromScript";
 
+export {
+  inferAssetTypeFromScriptRef,
+  requiredAssetsFromScript,
+  scriptAssetLabelKey,
+  seedAssetPromptFromScriptDescription,
+} from "./scriptAssets";
+export type { ScriptRequiredAsset } from "./scriptAssets";
+
 export { assembleSingleShotPrompt, COST_CONFIRM_THRESHOLD_CREDITS } from "./assembleSingleShot";
 
 export {
   blockoutDocumentToSheetShotPatch,
   blockoutSheetToDocuments,
+  blockoutSheetToPartDocument,
+  createDefaultPartDocument,
 } from "./blockoutBridge";
 export type { LiveShotMeta } from "./blockoutBridge";
 

@@ -1,8 +1,18 @@
 import { api } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ShotRatingsPanel } from "@/features/blockout/ShotRatingsPanel";
 import { ExportDialog } from "@/features/blockout/export/ExportDialog";
 import {
   encodePrevizMp4,
@@ -38,25 +49,38 @@ export function BlockoutPage() {
   const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const resolvedSequenceId =
-    activeSequenceId &&
-    parts?.some((p) => p.sequenceId === activeSequenceId)
+    activeSequenceId && parts?.some((p) => p.sequenceId === activeSequenceId)
       ? activeSequenceId
       : (parts?.[0]?.sequenceId ?? null);
 
   const active =
     parts?.find((p) => p.sequenceId === resolvedSequenceId) ?? null;
 
+  const stagingCost = useQuery(
+    api.staging.estimateForSequence,
+    projectId && active
+      ? {
+          projectId: projectId as never,
+          sequenceId: active.sequenceId as never,
+        }
+      : "skip",
+  );
+  const costLabel =
+    stagingCost?.llm && stagingCost.credits > 0
+      ? ` · ~${stagingCost.credits} credits`
+      : "";
+
   const previzUrl = useQuery(
     api.storage.getAssetUrl,
-    active?.previzAssetId
-      ? { assetId: active.previzAssetId as never }
-      : "skip",
+    active?.previzAssetId ? { assetId: active.previzAssetId as never } : "skip",
   );
 
   const blockoutRendered = useMemo(() => {
@@ -78,24 +102,55 @@ export function BlockoutPage() {
 
   if (!projectId) return null;
 
-  const onUpdate = async () => {
+  /**
+   * `fresh` rebuilds every shot from the script instead of keeping unchanged
+   * ones; `reusePlan` recompiles the part's saved staging plan (free).
+   */
+  const onUpdate = async (fresh = false, reusePlan = false) => {
     if (!active || updating) return;
     setUpdating(true);
     setError(null);
     setStatusLine(null);
     const ac = new AbortController();
     try {
-      setProgress({ label: "Updating blockout…", fraction: 0.05 });
+      setProgress({
+        label: reusePlan
+          ? "Rebuilding from saved plan…"
+          : fresh
+            ? "Regenerating blockout…"
+            : "Updating blockout…",
+        fraction: 0.05,
+      });
       const result = await updateBlockout({
         projectId: projectId as never,
         sequenceId: active.sequenceId as never,
+        fresh,
+        reusePlan,
       });
+      const how = reusePlan
+        ? "Rebuilt from the saved plan (no credits)."
+        : result.staging === "plan"
+          ? `Staged by AI${result.creditsSpent ? ` (${result.creditsSpent} credits)` : ""}.`
+          : `Staged by rules${result.stagingNote ? ` — ${result.stagingNote}` : ""}.`;
+      const fixed = result.repairedIssues
+        ? ` Fixed ${result.repairedIssues} shot${result.repairedIssues === 1 ? "" : "s"} automatically.`
+        : "";
+      const framing =
+        fixed +
+        (result.framingIssues
+          ? ` ${result.framingIssues} shot${result.framingIssues === 1 ? "" : "s"} may need a camera tweak.`
+          : "");
       setStatusLine(
-        `Rebuilt ${result.rebuiltCount} shots; kept ${result.keptCount}.`,
+        (fresh || result.staging === "plan"
+          ? `Rebuilt ${result.rebuiltCount} shots. `
+          : `Rebuilt ${result.rebuiltCount} shots; kept ${result.keptCount}. `) +
+          how +
+          framing,
       );
       setProgress({ label: "Exporting pre-viz…", fraction: 0.35 });
       const { document } = await exportDocument({
         projectId: projectId as never,
+        sequenceId: active.sequenceId as never,
       });
       const blob = await encodePrevizMp4({
         document,
@@ -137,8 +192,6 @@ export function BlockoutPage() {
     }
   };
 
-  const firstShotId = active?.shotIds?.[0];
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -162,7 +215,30 @@ export function BlockoutPage() {
             ))}
           </div>
         ) : null}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {active ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={updating}
+              onClick={() => setConfirmRegenerate(true)}
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", updating && "animate-spin")}
+              />
+              {updating ? "Working…" : "Regenerate"}
+            </Button>
+          ) : null}
+          {resolvedSequenceId ? (
+            <Button type="button" size="sm" asChild>
+              <Link
+                to={`/projects/${projectId}/blockout/edit?sequenceId=${resolvedSequenceId}`}
+              >
+                Open editor
+              </Link>
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" size="sm" variant="ghost" className="h-8">
@@ -171,18 +247,20 @@ export function BlockoutPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {firstShotId ? (
+              {resolvedSequenceId ? (
                 <DropdownMenuItem asChild>
                   <Link
-                    to={`/projects/${projectId}/blockout/shots/${firstShotId}`}
+                    to={`/projects/${projectId}/blockout/edit?sequenceId=${resolvedSequenceId}`}
                   >
-                    Open shot in 3D editor
+                    Open 3D editor
                   </Link>
                 </DropdownMenuItem>
               ) : null}
               {(active?.shotIds ?? []).slice(0, 8).map((id, i) => (
                 <DropdownMenuItem key={id} asChild>
-                  <Link to={`/projects/${projectId}/blockout/shots/${id}`}>
+                  <Link
+                    to={`/projects/${projectId}/blockout/edit?shotId=${id}`}
+                  >
                     Shot {i + 1}
                   </Link>
                 </DropdownMenuItem>
@@ -195,6 +273,18 @@ export function BlockoutPage() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setExportOpen(true)}>
                 Export JSON / MP4
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => void onUpdate(false, true)}
+                disabled={!active?.hasStagingPlan || updating}
+              >
+                Rebuild from saved plan
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setRatingOpen((v) => !v)}
+                disabled={!active}
+              >
+                {ratingOpen ? "Hide shot ratings" : "Rate shots"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -210,7 +300,7 @@ export function BlockoutPage() {
             disabled={updating}
             onClick={() => void onUpdate()}
           >
-            {updating ? "Updating…" : "Update blockout and pre-viz"}
+            {updating ? "Updating…" : `Update blockout and pre-viz${costLabel}`}
           </Button>
         </div>
       ) : null}
@@ -229,6 +319,12 @@ export function BlockoutPage() {
 
       {statusLine ? (
         <p className="text-[11px] text-zinc-400">{statusLine}</p>
+      ) : null}
+      {ratingOpen && active ? (
+        <ShotRatingsPanel
+          sequenceId={active.sequenceId}
+          shotCount={active.shotIds.length}
+        />
       ) : null}
       {error ? <p className="text-[11px] text-red-300">{error}</p> : null}
 
@@ -259,6 +355,27 @@ export function BlockoutPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={confirmRegenerate} onOpenChange={setConfirmRegenerate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Regenerate blockout and pre-viz?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Restages every shot from the script
+              {costLabel ? ` (${costLabel.slice(3)})` : ""}. Edits made in the
+              3D editor are replaced.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void onUpdate(true)}>
+              Regenerate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {exportOpen ? (
         <ExportDialog

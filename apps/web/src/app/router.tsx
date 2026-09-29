@@ -70,6 +70,16 @@ function RedirectShots() {
   return <Navigate to={`/projects/${projectId}/video`} replace />;
 }
 
+function RedirectBlockoutShot() {
+  const { projectId, shotId } = useParams();
+  return (
+    <Navigate
+      to={`/projects/${projectId}/blockout/edit?shotId=${shotId}`}
+      replace
+    />
+  );
+}
+
 export function AppRouter() {
   return (
     <ErrorBoundary>
@@ -106,9 +116,10 @@ export function AppRouter() {
               <Route path="look-dev" element={<RedirectLookDev />} />
               <Route path="look-dev/:entityId" element={<RedirectLookDev />} />
               <Route path="blockout" element={<BlockoutPage />} />
+              <Route path="blockout/edit" element={<BlockoutEditorPage />} />
               <Route
                 path="blockout/shots/:shotId"
-                element={<BlockoutEditorPage />}
+                element={<RedirectBlockoutShot />}
               />
               <Route path="video" element={<VideoPage />} />
               <Route path="video/:shotId" element={<RedirectShots />} />

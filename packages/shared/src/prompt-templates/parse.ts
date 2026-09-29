@@ -8,6 +8,8 @@ const CAST_BLOCK =
   /^THE\s+(.+?)\s+—\s+@image_(\d+)([^:]*)\s*:\s*(.*)$/is;
 const LOCATION =
   /^LOCATION\s+—\s+@image_(\d+)\s*:\s*(.+)$/is;
+/** Freeform: LOCATION — the @image_4 campfire…, then the @image_3 forest… */
+const LOCATION_FREEFORM = /^LOCATION\s+—\s*(.+)$/is;
 const SHOTS_HEADER =
   /^SHOTS\s*\(\s*([\d.]+)\s*seconds?\s+total\s*,\s*(multi-shot|single-shot)\s*,\s*([^)]+)\s*\)\s*:?\s*$/i;
 const SHOT_LINE =
@@ -104,8 +106,8 @@ function parseCastBlocks(
   text: string,
 ): ScriptPromptData["castBlocks"] {
   const blocks: ScriptPromptData["castBlocks"] = [];
-  // Find THE … — @image_N blocks between IMAGE QUALITY and LOCATION
-  const iqEnd = text.search(/\nLOCATION\s+—/i);
+  // Find THE … — @image_N blocks between IMAGE QUALITY and LOCATION(S)
+  const iqEnd = text.search(/\nLOCATIONS?\s*[—:]/i);
   const iqStart = text.search(/IMAGE QUALITY/i);
   if (iqStart < 0) return blocks;
   const region = text.slice(iqStart, iqEnd >= 0 ? iqEnd : undefined);
@@ -113,7 +115,7 @@ function parseCastBlocks(
   const chunk = afterIq.length < region.length ? afterIq : region;
 
   const re =
-    /THE\s+([A-Z][A-Z0-9 \-']*?)\s+—\s+@image_(\d+)([^:\n]*)\s*:\s*([\s\S]*?)(?=\n\nTHE\s+[A-Z]|\n\nLOCATION\s+—|$)/gi;
+    /THE\s+([A-Z][A-Z0-9 \-']*?)\s+—\s+@image_(\d+)([^:\n]*)\s*:\s*([\s\S]*?)(?=\n+THE\s+[A-Z]|\n+LOCATIONS?\s*[—:]|$)/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(chunk)) !== null) {
     const name = m[1]!.trim();
@@ -226,28 +228,41 @@ export function parseScriptPromptText(text: string): ScriptPromptData {
   const artStyleRaw = sectionBody(normalized, /^ART STYLE/im, [
     /^IMAGE QUALITY/im,
     /^THE\s+[A-Z]/im,
-    /^LOCATION\s+—/im,
+    /^LOCATIONS?\s*[—:]/im,
   ]);
   const { artStyleBlock, artStyleExtras } = parseArtStyle(artStyleRaw);
 
   const imageQuality = sectionBody(normalized, /^IMAGE QUALITY/im, [
     /^THE\s+[A-Z]/im,
-    /^LOCATION\s+—/im,
+    /^LOCATIONS?\s*[—:]/im,
   ]);
 
   const castBlocks = parseCastBlocks(normalized);
 
-  const locationRaw = sectionBody(normalized, /^LOCATION\s+—/im, [
+  const locationRaw = sectionBody(normalized, /^LOCATIONS?\s*[—:]/im, [
     /^SHOTS\s*\(/im,
   ]);
-  const locMatch = locationRaw.match(LOCATION) ??
-    normalized.match(LOCATION);
-  const location = {
-    imageN: locMatch ? Number(locMatch[1]) : references[0]?.imageN ?? 1,
-    description: locMatch
-      ? locMatch[2]!.trim()
-      : locationRaw.replace(/^LOCATION[^\n]*\n?/i, "").trim() || "location",
-  };
+  const locMatch = locationRaw.match(LOCATION) ?? normalized.match(LOCATION);
+  let location: { imageN: number; description: string };
+  if (locMatch) {
+    location = {
+      imageN: Number(locMatch[1]),
+      description: locMatch[2]!.trim(),
+    };
+  } else {
+    const free =
+      locationRaw.match(LOCATION_FREEFORM) ??
+      normalized.match(LOCATION_FREEFORM);
+    const desc =
+      free?.[1]?.trim() ||
+      locationRaw.replace(/^LOCATIONS?[^\n]*\n?/i, "").trim() ||
+      "location";
+    const img = desc.match(/@image_(\d+)/i);
+    location = {
+      imageN: img ? Number(img[1]) : references[0]?.imageN ?? 1,
+      description: desc,
+    };
+  }
 
   const shotsHeaderLine =
     normalized.split("\n").find((l) => /^SHOTS\s*\(/i.test(l.trim())) ?? "";

@@ -4,12 +4,19 @@
 
 import {
   blockoutSheetSchema,
-  blockoutSheetToDocuments,
+  blockoutSheetToPartDocument,
+  isBlockoutDocument,
+  auditStagedDocument,
+  compileStagingPlanWithInfo,
   parseScriptPromptText,
+  parseStagingPlan,
+  renderScriptPrompt,
   scriptPromptSchema,
   scriptShotFingerprint,
+  type BlockoutDocument,
   type BlockoutSheetData,
   type ScriptPromptData,
+  type StagingPlan,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
@@ -67,9 +74,7 @@ export const upsertFromScriptPrompt = internalMutation({
       await ctx.db.patch(args.existingSequenceId, {
         title: args.title,
         durationSec: args.durationSec,
-        ...(args.scriptPromptId
-          ? { scriptPromptId: args.scriptPromptId }
-          : {}),
+        ...(args.scriptPromptId ? { scriptPromptId: args.scriptPromptId } : {}),
         updatedAt: now,
       });
       return args.existingSequenceId;
@@ -148,7 +153,7 @@ export const applyScriptPrompt = action({
 
     const title =
       args.title ??
-      `Sequence ${(structured.shots[0]?.n ?? 1)}–${structured.shots[structured.shots.length - 1]?.n ?? 1}`;
+      `Sequence ${structured.shots[0]?.n ?? 1}–${structured.shots[structured.shots.length - 1]?.n ?? 1}`;
 
     const sequenceId: Id<"sequences"> = await ctx.runMutation(
       internal.sequences.upsertFromScriptPrompt,
@@ -389,7 +394,8 @@ export const replaceSequenceShots = internalMutation({
 });
 
 /**
- * Accept a blockout sheet: build per-shot cinakey.blockout documents.
+ * Accept a blockout sheet: build one part-scoped cinakey.blockout/2.0 document.
+ * Shots whose scriptLineKey matches blockoutScriptLineKey keep hand edits.
  */
 export const applyBlockoutSheet = action({
   args: {
@@ -415,9 +421,12 @@ export const applyBlockoutSheet = action({
       await loadJson(ctx, sheet.structuredFileId),
     ) as BlockoutSheetData;
 
-    const project = await ctx.runQuery(internal.generation.getProjectWorkspace, {
-      projectId: args.projectId,
-    });
+    const project = await ctx.runQuery(
+      internal.generation.getProjectWorkspace,
+      {
+        projectId: args.projectId,
+      },
+    );
 
     const sequenceId = sheet.sequenceId;
     if (!sequenceId) throw new Error("Blockout sheet has no sequence");
@@ -428,6 +437,7 @@ export const applyBlockoutSheet = action({
     if (sequence === null) throw new Error("Sequence not found");
 
     const liveShots = [];
+    const keepShotIds = new Set<string>();
     for (const shotId of sequence.shotIds) {
       const shot = await ctx.runQuery(internal.sequences.getShotInternal, {
         shotId,
@@ -438,6 +448,8 @@ export const applyBlockoutSheet = action({
           sceneId: shot.sceneId,
           order: shot.order,
           durationSec: shot.durationSec,
+          startSec: shot.startSec,
+          endSec: shot.endSec,
           shotType: shot.shotType,
           lensMm: shot.lensMm,
           cameraMove: shot.cameraMove,
@@ -445,10 +457,17 @@ export const applyBlockoutSheet = action({
           characterIds: shot.characterIds as string[],
           n: shot.order + 1,
         });
+        const lineKey = shot.scriptLineKey;
+        if (
+          lineKey &&
+          shot.blockoutScriptLineKey === lineKey &&
+          (sequence.blockoutFileId || shot.blockoutFileId)
+        ) {
+          keepShotIds.add(shot._id);
+        }
       }
     }
 
-    // Prefer shot numbers from structured data
     for (const bs of structured.shots) {
       const match = liveShots.find((s) => s.n === bs.n || s.order === bs.n - 1);
       if (match) {
@@ -457,7 +476,17 @@ export const applyBlockoutSheet = action({
       }
     }
 
-    const docs = blockoutSheetToDocuments(
+    let existing: BlockoutDocument | null = null;
+    if (sequence.blockoutFileId) {
+      try {
+        const raw = await loadJson(ctx, sequence.blockoutFileId);
+        if (isBlockoutDocument(raw)) existing = raw;
+      } catch {
+        existing = null;
+      }
+    }
+
+    const document = blockoutSheetToPartDocument(
       structured,
       {
         id: args.projectId,
@@ -466,34 +495,32 @@ export const applyBlockoutSheet = action({
         fps: project.fps,
       },
       liveShots,
+      {
+        sequenceId,
+        existing,
+        keepShotIds,
+      },
     );
 
-    const saved: string[] = [];
-    let keptCount = 0;
-    for (const [shotId, document] of docs) {
+    await ctx.runAction(api.blockouts.saveForSequence, {
+      sequenceId,
+      document,
+      origin: "director",
+    });
+
+    const rebuilt: string[] = [];
+    for (const shot of liveShots) {
+      if (keepShotIds.has(shot.id)) continue;
+      rebuilt.push(shot.id);
       const shotDoc = await ctx.runQuery(internal.sequences.getShotInternal, {
-        shotId: shotId as Id<"shots">,
+        shotId: shot.id as Id<"shots">,
       });
-      const lineKey = shotDoc?.scriptLineKey;
-      const canKeep =
-        Boolean(shotDoc?.blockoutFileId) &&
-        Boolean(lineKey) &&
-        shotDoc?.blockoutScriptLineKey === lineKey;
-      if (canKeep) {
-        keptCount += 1;
-        continue;
-      }
-      await ctx.runAction(api.blockouts.save, {
-        shotId: shotId as Id<"shots">,
-        document,
-      });
-      if (lineKey) {
+      if (shotDoc?.scriptLineKey) {
         await ctx.runMutation(internal.sequences.markShotBlockoutSynced, {
-          shotId: shotId as Id<"shots">,
-          blockoutScriptLineKey: lineKey,
+          shotId: shot.id as Id<"shots">,
+          blockoutScriptLineKey: shotDoc.scriptLineKey,
         });
       }
-      saved.push(shotId);
     }
 
     await ctx.runMutation(internal.promptSheets.patchStatus, {
@@ -502,10 +529,10 @@ export const applyBlockoutSheet = action({
     });
 
     return {
-      savedShotIds: saved,
-      count: saved.length,
-      rebuiltCount: saved.length,
-      keptCount,
+      savedShotIds: rebuilt,
+      count: rebuilt.length,
+      rebuiltCount: rebuilt.length,
+      keptCount: keepShotIds.size,
     };
   },
 });
@@ -573,7 +600,8 @@ export const syncScriptShotsFromList = action({
     const sequence = await ctx.runQuery(internal.sequences.getInternal, {
       sequenceId: args.sequenceId,
     });
-    if (sequence === null || !sequence.scriptPromptId) return { updated: false };
+    if (sequence === null || !sequence.scriptPromptId)
+      return { updated: false };
 
     const sheet = await ctx.runQuery(internal.promptSheets.getInternal, {
       promptSheetId: sequence.scriptPromptId,
@@ -694,12 +722,16 @@ export const markBlockoutStale = internalMutation({
 
 /**
  * Rewrite blockout sheet from current script tip and selectively rebuild 3D.
+ * `fresh` skips selective keep and rebuilds every shot from the script.
  * Browser still refreshes guides / encodes pre-viz after this returns.
  */
 export const updateBlockoutFromScript = action({
   args: {
     projectId: v.id("projects"),
     sequenceId: v.id("sequences"),
+    fresh: v.optional(v.boolean()),
+    /** Recompile the part's saved staging plan (no model call, no credits). */
+    reusePlan: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -709,6 +741,11 @@ export const updateBlockoutFromScript = action({
     rebuiltCount: number;
     keptCount: number;
     savedShotIds: string[];
+    staging: "plan" | "rules";
+    stagingNote?: string;
+    creditsSpent: number;
+    framingIssues: number;
+    repairedIssues: number;
   }> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
@@ -733,16 +770,18 @@ export const updateBlockoutFromScript = action({
     }
 
     let script: ScriptPromptData;
+    let scriptText: string;
     if (scriptSheet.renderedText?.trim()) {
-      script = parseScriptPromptText(scriptSheet.renderedText);
+      scriptText = scriptSheet.renderedText;
+      script = parseScriptPromptText(scriptText);
     } else if (scriptSheet.renderedFileId) {
-      script = parseScriptPromptText(
-        String(await loadJson(ctx, scriptSheet.renderedFileId)),
-      );
+      scriptText = String(await loadJson(ctx, scriptSheet.renderedFileId));
+      script = parseScriptPromptText(scriptText);
     } else {
       script = scriptPromptSchema.parse(
         await loadJson(ctx, scriptSheet.structuredFileId),
       ) as ScriptPromptData;
+      scriptText = renderScriptPrompt(script);
     }
 
     // Ensure live shots match script before building blockout.
@@ -752,11 +791,20 @@ export const updateBlockoutFromScript = action({
       title: sequence.title,
     });
 
-    const project = await ctx.runQuery(internal.generation.getProjectWorkspace, {
-      projectId: args.projectId,
-    });
+    const project = await ctx.runQuery(
+      internal.generation.getProjectWorkspace,
+      {
+        projectId: args.projectId,
+      },
+    );
 
-    const { buildBlockoutSheetFromScript } = await import("@cinakey/shared");
+    const {
+      buildBlockoutSheetFromScript,
+      directPartDocumentFromScript,
+      isBlockoutDocument: isDoc,
+    } = await import("@cinakey/shared");
+
+    // Tip sheet still stores a structured summary for More / copilot.
     const structured = buildBlockoutSheetFromScript(script, {
       sequenceTitle: sequence.title,
       scriptPromptVersion: scriptSheet.version,
@@ -781,16 +829,221 @@ export const updateBlockoutFromScript = action({
       replaceTipId: existingBlockout?._id,
     });
 
-    const applied = await ctx.runAction(api.sequences.applyBlockoutSheet, {
+    // Refresh sequence after applyScriptPrompt so shotIds are current.
+    const seqFresh = await ctx.runQuery(internal.sequences.getInternal, {
+      sequenceId: args.sequenceId,
+    });
+    if (!seqFresh) throw new Error("Sequence not found");
+
+    const liveShots: Array<{
+      id: string;
+      n: number;
+      sceneHeading?: string;
+    }> = [];
+    const keepShotIds = new Set<string>();
+    for (const shotId of seqFresh.shotIds) {
+      const shot = await ctx.runQuery(internal.sequences.getShotInternal, {
+        shotId,
+      });
+      if (!shot) continue;
+      liveShots.push({
+        id: shot._id,
+        n: shot.order + 1,
+        sceneHeading: undefined,
+      });
+      const lineKey = shot.scriptLineKey;
+      if (
+        lineKey &&
+        shot.blockoutScriptLineKey === lineKey &&
+        (seqFresh.blockoutFileId || shot.blockoutFileId)
+      ) {
+        keepShotIds.add(shot._id);
+      }
+    }
+
+    // Align live shot numbers with script shot numbers (same order).
+    liveShots.sort((a, b) => a.n - b.n);
+    const sortedScript = [...script.shots].sort((a, b) => a.n - b.n);
+    for (let i = 0; i < liveShots.length && i < sortedScript.length; i++) {
+      liveShots[i]!.n = sortedScript[i]!.n;
+    }
+
+    let existing: BlockoutDocument | null = null;
+    if (seqFresh.blockoutFileId) {
+      try {
+        const raw = await loadJson(ctx, seqFresh.blockoutFileId);
+        if (isDoc(raw)) existing = raw;
+      } catch {
+        existing = null;
+      }
+    }
+
+    // Prior stub builds (lights-only) or corrupted duplicate-cast merges must
+    // not lock selective-keep forever.
+    const castNames = (existing?.objects ?? [])
+      .filter((o) =>
+        ["character", "hare", "raptor", "creature"].includes(o.type),
+      )
+      .map((o) => o.name);
+    const hasDuplicateCast = castNames.length !== new Set(castNames).size;
+    const keep =
+      !args.fresh &&
+      existing &&
+      existing.objects.length >= 8 &&
+      !hasDuplicateCast
+        ? keepShotIds
+        : new Set<string>();
+
+    const blockoutProject = {
+      id: args.projectId,
+      title: project.title,
+      aspectRatio: project.aspectRatio,
+      fps: project.fps,
+    };
+
+    // Stage with an LLM plan (any script); reuse the stored plan when it was
+    // written for this exact script version and this isn't a Regenerate.
+    let plan: StagingPlan | null = null;
+    let staging: "plan" | "rules" = "rules";
+    let stagingNote: string | undefined;
+    let creditsSpent = 0;
+    // For the learning record (stagingRuns)
+    let runSource: "plan" | "plan_reused" | "rules" = "rules";
+    let planFileId: Id<"_storage"> | undefined;
+    let issuesBefore = 0;
+    let issueSample: string[] = [];
+    let repaired = false;
+    if (args.reusePlan && !seqFresh.stagingPlanFileId) {
+      throw new Error("This part has no saved plan yet — use Regenerate.");
+    }
+    if (
+      seqFresh.stagingPlanFileId &&
+      (args.reusePlan ||
+        (!args.fresh && seqFresh.stagingScriptPromptId === scriptSheet._id))
+    ) {
+      const parsed = parseStagingPlan(
+        await loadJson(ctx, seqFresh.stagingPlanFileId).catch(() => null),
+      );
+      if (parsed.ok) {
+        plan = parsed.plan;
+        runSource = "plan_reused";
+        planFileId = seqFresh.stagingPlanFileId;
+      }
+    }
+    if (!plan && args.reusePlan) {
+      throw new Error("The saved plan could not be read — use Regenerate.");
+    }
+    if (!plan) {
+      const result = await ctx.runAction(internal.staging.generatePlan, {
+        projectId: args.projectId,
+        sequenceId: args.sequenceId,
+        userId,
+        scriptPromptId: scriptSheet._id,
+        scriptText,
+        shotCount: script.shots.length,
+        durationSec: script.totalDurationSec,
+        aspectRatio: project.aspectRatio,
+      });
+      if (result.ok) {
+        plan = result.plan;
+        creditsSpent = result.credits;
+        runSource = "plan";
+        planFileId = result.planFileId;
+        issuesBefore = result.issuesBefore;
+        repaired = result.repaired;
+      } else {
+        stagingNote = result.reason;
+      }
+    }
+
+    let document: BlockoutDocument;
+    let framingIssues = 0;
+    if (plan) {
+      // A new plan restages everything, so kept ranges from an older plan would jump.
+      const compiled = compileStagingPlanWithInfo(
+        plan,
+        script,
+        blockoutProject,
+        {
+          sequenceId: args.sequenceId,
+          sequenceTitle: sequence.title,
+          liveShots,
+        },
+      );
+      document = compiled.document;
+      keep.clear();
+      staging = "plan";
+      const issues = auditStagedDocument(plan, document, compiled.riding);
+      framingIssues = new Set(issues.map((i) => i.shot)).size;
+      issueSample = [
+        ...new Set(issues.map((i) => `shot ${i.shot}: ${i.problem}`)),
+      ].slice(0, 12);
+      if (runSource === "plan_reused") issuesBefore = framingIssues;
+      if (issues.length > 0) {
+        document.notes = `${document.notes ?? ""} Framing check: ${[...new Set(issues.map((i) => `shot ${i.shot} ${i.problem}`))].slice(0, 8).join("; ")}.`;
+      }
+    } else {
+      document = directPartDocumentFromScript(script, blockoutProject, {
+        sequenceId: args.sequenceId,
+        sequenceTitle: sequence.title,
+        liveShots,
+        existing,
+        keepShotIds: keep,
+      });
+    }
+
+    const saved = await ctx.runAction(api.blockouts.saveForSequence, {
+      sequenceId: args.sequenceId,
+      document,
+      origin: "director",
+    });
+    await ctx.runMutation(internal.stagingFeedback.recordRun, {
       projectId: args.projectId,
+      sequenceId: args.sequenceId,
+      userId,
+      scriptPromptId: scriptSheet._id,
+      source: runSource,
+      fresh: Boolean(args.fresh),
+      planFileId,
+      documentFileId: saved.fileId,
+      issuesBefore,
+      issuesAfter: framingIssues,
+      issueSample,
+      repaired,
+      creditsSpent,
+      stagingNote,
+    });
+
+    const rebuilt: string[] = [];
+    for (const shot of liveShots) {
+      if (keep.has(shot.id)) continue;
+      rebuilt.push(shot.id);
+      const shotDoc = await ctx.runQuery(internal.sequences.getShotInternal, {
+        shotId: shot.id as Id<"shots">,
+      });
+      if (shotDoc?.scriptLineKey) {
+        await ctx.runMutation(internal.sequences.markShotBlockoutSynced, {
+          shotId: shot.id as Id<"shots">,
+          blockoutScriptLineKey: shotDoc.scriptLineKey,
+        });
+      }
+    }
+
+    await ctx.runMutation(internal.promptSheets.patchStatus, {
       promptSheetId: draft.promptSheetId,
+      status: "done",
     });
 
     return {
       blockoutSheetId: draft.promptSheetId,
-      rebuiltCount: applied.rebuiltCount ?? applied.count,
-      keptCount: applied.keptCount ?? 0,
-      savedShotIds: applied.savedShotIds,
+      rebuiltCount: rebuilt.length,
+      keptCount: keep.size,
+      savedShotIds: rebuilt,
+      staging,
+      stagingNote,
+      creditsSpent,
+      framingIssues,
+      repairedIssues: repaired ? Math.max(0, issuesBefore - framingIssues) : 0,
     };
   },
 });

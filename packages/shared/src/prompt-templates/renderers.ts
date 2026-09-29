@@ -384,6 +384,15 @@ export function splitAssetSheetSections(text: string): Record<string, string> {
 export function normalizePromptText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
+    // Markdown / chat image chips → Phase 7C @image_N tokens
+    // e.g. @[Image 1](image_1), @[IMAGE 4](IMAGE_4), @[image_2](image_2)
+    .replace(
+      /@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]\((?:image_|IMAGE_)?(\d+)\)/gi,
+      (_m, a: string, b: string) => `@image_${a || b}`,
+    )
+    .replace(/@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]/gi, (_m, n: string) => `@image_${n}`)
+    // LOCATIONS: → LOCATION — for section parsers (line start)
+    .replace(/(^|\n)LOCATIONS?\s*:\s*/gi, "$1LOCATION — ")
     .split("\n")
     .map((l) => l.trimEnd())
     .join("\n")

@@ -24,8 +24,9 @@ export const seedance25Adapter: GenerationAdapter = {
     id: "seedance-2.5",
     kind: "video",
     operations: ["text-to-video", "image-to-video", "upscale", "extend"],
-    inputs: ["text", "startFrame", "endFrame", "referenceImages", "audio"],
+    inputs: ["text", "startFrame", "endFrame", "referenceImages", "referenceVideo", "audio"],
     durations: [5, 10, 15, 20, 30],
+    minDurationSec: 4,
     maxDurationSec: 30,
     maxReferenceImages: 30,
     resolutions: ["720p", "1080p"],
@@ -50,6 +51,7 @@ export const seedance25Adapter: GenerationAdapter = {
       startFrameUrl: input.startFrameUrl,
       endFrameUrl: input.endFrameUrl,
       referenceImageUrls: input.referenceImageUrls ?? [],
+      referenceVideoUrl: input.referenceVideoUrl,
       // TODO(seedance-api): confirm camera_control / cameraPreset field name.
       cameraPreset: input.cameraPreset,
       // TODO(seedance-api): assumption — model name string for base Seedance 2.5.
@@ -97,6 +99,17 @@ export const seedance25Adapter: GenerationAdapter = {
       content.push({
         type: "image_url",
         image_url: { url },
+        role: "reference",
+      });
+    }
+    if (
+      typeof request.referenceVideoUrl === "string" &&
+      request.referenceVideoUrl
+    ) {
+      // TODO(seedance-api): confirm video reference content part shape.
+      content.push({
+        type: "video_url",
+        video_url: { url: request.referenceVideoUrl },
         role: "reference",
       });
     }

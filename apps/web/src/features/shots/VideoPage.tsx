@@ -47,6 +47,7 @@ export function VideoPage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [usePrevizRef, setUsePrevizRef] = useState(false);
 
   const startSequence = useAction(api.shotGeneration.startSequenceGeneration);
   const startUpscale = useAction(api.shotGeneration.startMasterUpscale);
@@ -113,7 +114,10 @@ export function VideoPage() {
     setError(null);
     setConfirmOpen(false);
     try {
-      await startSequence({ sequenceId: active.sequenceId as never });
+      await startSequence({
+        sequenceId: active.sequenceId as never,
+        usePrevizAsReference: usePrevizRef || undefined,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -268,6 +272,31 @@ export function VideoPage() {
         {overCap ? (
           <span className="text-xs text-rose-400">Spend cap reached</span>
         ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" size="sm" variant="ghost">
+              <MoreHorizontal className="size-4" />
+              <span className="sr-only">More</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64 p-2">
+            {active?.previzAssetId ? (
+              <label className="flex cursor-pointer items-start gap-2 px-1 py-1.5 text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={usePrevizRef}
+                  onChange={(e) => setUsePrevizRef(e.target.checked)}
+                />
+                <span>Use pre-viz as reference video</span>
+              </label>
+            ) : (
+              <p className="px-1 py-1.5 text-xs text-zinc-500">
+                No pre-viz yet — export from Blockout first.
+              </p>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {error ? <p className="text-sm text-rose-400">{error}</p> : null}

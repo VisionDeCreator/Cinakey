@@ -4,7 +4,7 @@ import {
   assertSheetDocument,
   type SheetDocument,
 } from "@cinakey/shared";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   action,
@@ -746,5 +746,95 @@ export const backfillSequenceShotsInternal = internalMutation({
       });
     }
     return patched;
+  },
+});
+
+/**
+ * Phase 11D: assemble legacy per-shot cinakey.blockout/1.0 files into
+ * sequences.blockoutFileId (cinakey.blockout/2.0).
+ * Run: `npx convex run migrations:migratePhase11D`
+ */
+export const migratePhase11D = action({
+  args: {},
+  handler: async (ctx) => {
+    const { migrateShotsToPartDocument } = await import("@cinakey/shared");
+    type MigrateShotMeta = import("@cinakey/shared").MigrateShotMeta;
+    type BlockoutDocumentV1 = import("@cinakey/shared").BlockoutDocumentV1;
+
+    const projects: Doc<"projects">[] = await ctx.runQuery(
+      internal.migrations.listProjectsInternal,
+      {},
+    );
+
+    let sequencesMigrated = 0;
+    let skipped = 0;
+
+    for (const project of projects) {
+      const sequences = await ctx.runQuery(
+        internal.migrations.listSequencesInternal,
+        { projectId: project._id },
+      );
+      for (const seq of sequences) {
+        if (seq.blockoutFileId) {
+          skipped += 1;
+          continue;
+        }
+        const pairs: Array<{
+          doc: BlockoutDocumentV1;
+          meta: MigrateShotMeta;
+        }> = [];
+        for (const shotId of seq.shotIds) {
+          const shot = await ctx.runQuery(internal.sequences.getShotInternal, {
+            shotId,
+          });
+          if (!shot?.blockoutFileId) continue;
+          try {
+            const raw = await loadJson(ctx, shot.blockoutFileId);
+            if ((raw as { schema?: string })?.schema !== "cinakey.blockout/1.0") {
+              continue;
+            }
+            const startSec = shot.startSec ?? 0;
+            const endSec = shot.endSec ?? startSec + shot.durationSec;
+            pairs.push({
+              doc: raw as BlockoutDocumentV1,
+              meta: {
+                id: shot._id,
+                order: shot.order,
+                startSec,
+                endSec,
+                durationSec: shot.durationSec,
+                shotType: shot.shotType,
+                notes: shot.notes,
+                lensMm: shot.lensMm,
+                cameraMove: shot.cameraMove,
+              },
+            });
+          } catch {
+            /* skip */
+          }
+        }
+        if (pairs.length === 0) {
+          skipped += 1;
+          continue;
+        }
+        const document = migrateShotsToPartDocument(
+          pairs,
+          {
+            id: project._id,
+            title: project.title,
+            aspectRatio: project.aspectRatio,
+            fps: project.fps,
+          },
+          seq._id,
+        );
+        await ctx.runAction(api.blockouts.saveForSequence, {
+          sequenceId: seq._id,
+          document,
+        });
+        sequencesMigrated += 1;
+      }
+    }
+
+    return { sequencesMigrated, skipped };
   },
 });

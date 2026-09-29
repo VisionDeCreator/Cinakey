@@ -77,6 +77,7 @@ Provider API keys and job flags are Convex env vars only (`npx convex env set` f
 | `GENERATION_WEBHOOK_SECRET` | HMAC for `POST /webhooks/generation` |
 | `RESEND_API_KEY` | Outbound email (job/export notifications) |
 | `EMAIL_FROM` | From address, e.g. `Cinakey <noreply@yourdomain.com>` |
+| `EMAIL_ENABLED` | `false` = disable outbound email (default on when key is set) |
 | `USE_MOCK_ADAPTERS` | `true` = delayed sample outputs (no spend) |
 | `ALLOW_DEV_CREDITS` | `true` = non-staff can use self `grantDev` |
 
@@ -125,6 +126,7 @@ npx convex env set DEEPSEEK_API_KEY ...
 npx convex env set GENERATION_WEBHOOK_SECRET ...
 npx convex env set RESEND_API_KEY ...
 npx convex env set EMAIL_FROM "Cinakey <noreply@yourdomain.com>"
+npx convex env set EMAIL_ENABLED false
 npx convex env set USE_MOCK_ADAPTERS false
 npx convex env set ALLOW_DEV_CREDITS false
 # Google OAuth if used — update redirect URIs to the prod convex.site URL

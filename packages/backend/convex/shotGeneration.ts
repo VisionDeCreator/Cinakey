@@ -32,7 +32,9 @@ export const getProjectSpend = query({
     const project = await requireProjectAccess(ctx, args.projectId);
     const entries = await ctx.db
       .query("creditLedger")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", project.workspaceId))
+      .withIndex("by_workspace", (q) =>
+        q.eq("workspaceId", project.workspaceId),
+      )
       .collect();
     let spent = 0;
     for (const e of entries) {
@@ -73,7 +75,9 @@ export const assertSpendCapInternal = internalQuery({
     }
     const entries = await ctx.db
       .query("creditLedger")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", project.workspaceId))
+      .withIndex("by_workspace", (q) =>
+        q.eq("workspaceId", project.workspaceId),
+      )
       .collect();
     let spent = 0;
     for (const e of entries) {
@@ -247,7 +251,9 @@ export const listShotsForGeneration = query({
           .filter((j) => j.status === "succeeded" || j.status === "refunded")
           .reduce(
             (sum, j) =>
-              sum + (j.actualCostCredits ?? (j.status === "succeeded" ? j.estimatedCostCredits : 0)),
+              sum +
+              (j.actualCostCredits ??
+                (j.status === "succeeded" ? j.estimatedCostCredits : 0)),
             0,
           );
         const activeJob = jobs.find(
@@ -297,9 +303,7 @@ export const getShotGenerationContext = query({
     const characters = await Promise.all(
       shot.characterIds.map((id) => ctx.db.get(id)),
     );
-    const location = shot.locationId
-      ? await ctx.db.get(shot.locationId)
-      : null;
+    const location = shot.locationId ? await ctx.db.get(shot.locationId) : null;
 
     const assets = await ctx.db
       .query("assets")
@@ -324,9 +328,7 @@ export const getShotGenerationContext = query({
       guideDepthUrl = await getFileUrl(ctx, guideDepth.storageId);
     }
 
-    const sequence = shot.sequenceId
-      ? await ctx.db.get(shot.sequenceId)
-      : null;
+    const sequence = shot.sequenceId ? await ctx.db.get(shot.sequenceId) : null;
     let scriptSheet: Doc<"promptSheets"> | null = null;
     if (sequence?.scriptPromptId) {
       scriptSheet = await ctx.db.get(sequence.scriptPromptId);
@@ -503,8 +505,7 @@ export const setGenerationPromptOverride = mutation({
     if (shot === null) throw new Error("Shot not found");
     await requireProjectAccess(ctx, shot.projectId);
     await ctx.db.patch(args.shotId, {
-      generationPromptOverride:
-        args.prompt === null ? undefined : args.prompt,
+      generationPromptOverride: args.prompt === null ? undefined : args.prompt,
       updatedAt: Date.now(),
     });
   },
@@ -724,6 +725,8 @@ export const startSequenceGeneration = action({
     cameraPreset: v.optional(v.string()),
     seed: v.optional(v.number()),
     forceFail: v.optional(v.boolean()),
+    /** When true and sequence has previzAssetId, pass its URL as referenceVideoUrl. */
+    usePrevizAsReference: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -752,6 +755,17 @@ export const startSequenceGeneration = action({
       internal.shotGeneration.getShotsForSequenceInternal,
       { sequenceId: args.sequenceId },
     );
+
+    let referenceVideoUrl: string | undefined;
+    if (args.usePrevizAsReference && sequence.previzAssetId) {
+      const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
+        assetId: sequence.previzAssetId,
+      });
+      if (asset) {
+        const url = await getFileUrl(ctx, asset.storageId);
+        if (url) referenceVideoUrl = url;
+      }
+    }
 
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
@@ -793,7 +807,12 @@ export const startSequenceGeneration = action({
           aspectRatio: args.aspectRatio ?? assembled.aspectRatio,
           cameraPreset: args.cameraPreset,
           forceFail: args.forceFail,
+          ...(referenceVideoUrl ? { referenceVideoUrl } : {}),
         },
+      });
+      // The part's blockout / pre-viz was good enough to generate from.
+      await ctx.runMutation(internal.stagingFeedback.markAccepted, {
+        sequenceId: args.sequenceId,
       });
       return result;
     } catch (err) {
@@ -828,7 +847,9 @@ export const startShotGeneration = action({
     );
     if (!shot) throw new Error("Shot not found");
     if (!shot.sequenceId) {
-      throw new Error("Shot is not part of a sequence — link a script prompt first");
+      throw new Error(
+        "Shot is not part of a sequence — link a script prompt first",
+      );
     }
 
     const assembled = await ctx.runAction(

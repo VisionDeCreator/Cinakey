@@ -299,6 +299,9 @@ export async function completeChat(args: {
     | "none"
     | { type: "function"; function: { name: string } };
   model?: string;
+  /** Force a single JSON object reply. */
+  json?: boolean;
+  maxTokens?: number;
 }): Promise<StreamChatResult> {
   const apiKey = convexEnv("DEEPSEEK_API_KEY");
   if (!apiKey) {
@@ -309,6 +312,8 @@ export async function completeChat(args: {
     messages: args.messages,
     stream: false,
   };
+  if (args.json) body.response_format = { type: "json_object" };
+  if (args.maxTokens) body.max_tokens = args.maxTokens;
   if (args.tools && args.tools.length > 0) {
     body.tools = args.tools;
   }

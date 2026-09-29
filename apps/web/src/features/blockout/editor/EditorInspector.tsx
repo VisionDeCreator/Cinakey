@@ -1,281 +1,412 @@
 import {
-  MANNEQUIN_POSES,
-  type BlockoutNode,
-  type BlockoutTransform,
-  type MannequinPose,
-  type Vec3,
+  BLOCKOUT_EASES,
+  CAMERA_MOVE_PRESETS,
+  LENS_CHIPS_MM,
+  horizontalFovDeg,
+  type BlockoutDocument,
+  type BlockoutEase,
+  type BlockoutObject,
+  type CameraMovePresetId,
+  type CameraPose,
 } from "@cinakey/shared";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useTime, type TimeStore } from "./timeStore";
-
-const UNTAGGED = "__none__";
-const LENS_PRESETS = [18, 24, 28, 35, 50, 85, 135];
+import { cn } from "@/lib/utils";
+import type { SelKey } from "./editorModel";
+import { webCodecsSupported } from "@/features/blockout/export/videoExport";
 
 type Props = {
-  node: BlockoutNode | null;
-  timeStore: TimeStore;
-  getTransform: (nodeId: string) => BlockoutTransform | null;
-  animated: boolean;
-  lensMm: number;
-  durationSec: number;
-  fps: number;
-  aspectRatio: string;
-  characters: Array<{ id: string; name: string }>;
-  onTransform: (nodeId: string, t: BlockoutTransform) => void;
-  onPatch: (nodeId: string, patch: Partial<BlockoutNode>) => void;
-  onLens: (lensMm: number) => void;
-  onDelete: (nodeId: string) => void;
+  doc: BlockoutDocument;
+  live: CameraPose;
+  cameraDirty: boolean;
+  selectedObject: BlockoutObject | null;
+  selectedKey: SelKey | null;
+  exportBurnIn: boolean;
+  exportMode: "clay" | "depth";
+  exportRange: "part" | "shot";
+  onLiveChange: (pose: CameraPose) => void;
+  onSensorChange: (sensor: number) => void;
+  onTimingChange: (opts: {
+    durationSec?: number;
+    fps?: number;
+    aspect?: string;
+  }) => void;
+  onPreset: (id: CameraMovePresetId) => void;
+  onKeyEase: (ease: BlockoutEase) => void;
+  onKeyFrame: (f: number) => void;
+  onKeyFocal: (focal: number) => void;
+  onDeleteKey: () => void;
+  onObjectField: (patch: Partial<BlockoutObject>) => void;
+  onExportBurnIn: (v: boolean) => void;
+  onExportMode: (m: "clay" | "depth") => void;
+  onExportRange: (r: "part" | "shot") => void;
+  onExport: () => void;
+  exporting: boolean;
 };
 
-function NumberField({
-  value,
-  onCommit,
-  step = 0.1,
+function Collapsed({
+  title,
+  children,
+  defaultOpen = false,
 }: {
-  value: number;
-  onCommit: (n: number) => void;
-  step?: number;
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
-  const shown = Math.round(value * 100) / 100;
   return (
-    <Input
-      key={shown}
-      type="number"
-      step={step}
-      defaultValue={shown}
-      className="h-7 px-1.5 text-xs tabular-nums"
-      onBlur={(e) => {
-        const n = Number(e.target.value);
-        if (Number.isFinite(n) && n !== shown) onCommit(n);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-      }}
-    />
+    <details
+      open={defaultOpen}
+      className="border-b border-zinc-800 py-2 [&_summary]:cursor-pointer"
+    >
+      <summary className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+        {title}
+      </summary>
+      <div className="mt-2 space-y-2">{children}</div>
+    </details>
   );
 }
 
-function VecRow({
+function Num({
   label,
   value,
-  onCommit,
-  degrees,
+  onChange,
+  step = 0.1,
 }: {
   label: string;
-  value: Vec3;
-  onCommit: (v: Vec3) => void;
-  degrees?: boolean;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
 }) {
-  const toUi = (n: number) => (degrees ? (n * 180) / Math.PI : n);
-  const fromUi = (n: number) => (degrees ? (n * Math.PI) / 180 : n);
   return (
-    <div className="grid gap-1">
-      <Label className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</Label>
-      <div className="grid grid-cols-3 gap-1">
-        {[0, 1, 2].map((i) => (
-          <NumberField
-            key={i}
-            value={toUi(value[i]!)}
-            step={degrees ? 5 : 0.1}
-            onCommit={(n) => {
-              const next = [...value] as Vec3;
-              next[i] = fromUi(n);
-              onCommit(next);
-            }}
-          />
-        ))}
-      </div>
-    </div>
+    <label className="flex items-center gap-1 text-[11px] text-zinc-400">
+      <span className="w-6 shrink-0">{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) => onChange(+e.target.value)}
+        className="h-7 w-full border border-zinc-800 bg-zinc-950 px-1.5 text-zinc-200"
+      />
+    </label>
   );
 }
 
 export function EditorInspector({
-  node,
-  timeStore,
-  getTransform,
-  animated,
-  lensMm,
-  durationSec,
-  fps,
-  aspectRatio,
-  characters,
-  onTransform,
-  onPatch,
-  onLens,
-  onDelete,
+  doc,
+  live,
+  cameraDirty,
+  selectedObject,
+  selectedKey,
+  exportBurnIn,
+  exportMode,
+  exportRange,
+  onLiveChange,
+  onSensorChange,
+  onTimingChange,
+  onPreset,
+  onKeyEase,
+  onKeyFrame,
+  onKeyFocal,
+  onDeleteKey,
+  onObjectField,
+  onExportBurnIn,
+  onExportMode,
+  onExportRange,
+  onExport,
+  exporting,
 }: Props) {
-  useTime(timeStore);
-  const lensField = (
-    <div className="grid gap-1">
-      <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Lens (mm)</Label>
-      <div className="flex gap-1">
-        <NumberField value={lensMm} step={1} onCommit={(n) => n > 0 && onLens(n)} />
-        <Select value={String(lensMm)} onValueChange={(v) => onLens(Number(v))}>
-          <SelectTrigger className="h-7 w-20 text-xs">
-            <SelectValue placeholder="Preset" />
-          </SelectTrigger>
-          <SelectContent>
-            {LENS_PRESETS.map((l) => (
-              <SelectItem key={l} value={String(l)}>
-                {l}mm
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
+  const canEncode = webCodecsSupported();
+  const durationSec = +(doc.frames / doc.fps).toFixed(2);
+  const hfov = horizontalFovDeg(doc.camera.sensor, live.focal).toFixed(1);
 
-  if (!node) {
-    return (
-      <div className="grid gap-4 p-3 text-xs text-zinc-400">
-        <p className="text-sm text-zinc-200">Shot</p>
-        <dl className="grid grid-cols-2 gap-y-1">
-          <dt>Duration</dt>
-          <dd className="text-zinc-200">{durationSec}s</dd>
-          <dt>Frame rate</dt>
-          <dd className="text-zinc-200">{fps} fps</dd>
-          <dt>Aspect</dt>
-          <dd className="text-zinc-200">{aspectRatio}</dd>
-        </dl>
-        {lensField}
-        <p className="leading-relaxed text-zinc-500">
-          Click an object to select it. W / E / R switch move, rotate and scale. Space plays, K
-          sets a keyframe.
-        </p>
-      </div>
-    );
-  }
-
-  const t = getTransform(node.id) ?? node.transform;
-  const commit = (patch: Partial<BlockoutTransform>) => onTransform(node.id, { ...t, ...patch });
-  const deletable = node.kind !== "camera" && node.kind !== "ground";
+  const selCamKey =
+    selectedKey?.kind === "cam"
+      ? doc.camera.keys.find((k) => k.id === selectedKey.id)
+      : null;
+  const selObjKey =
+    selectedKey?.kind === "obj"
+      ? selectedObject?.keys.find((k) => k.f === selectedKey.f)
+      : null;
+  const activeKey = selCamKey ?? selObjKey;
 
   return (
-    <div className="grid gap-4 p-3">
-      <div className="grid gap-1">
-        <Label className="text-[10px] uppercase tracking-wider text-zinc-500">{node.kind}</Label>
-        <Input
-          key={node.id}
-          defaultValue={node.name}
-          className="h-8 text-sm"
-          onBlur={(e) => {
-            const name = e.target.value.trim();
-            if (name && name !== node.name) onPatch(node.id, { name });
-          }}
+    <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-l border-zinc-800 bg-zinc-950 p-2 text-xs">
+      <section className="space-y-2 border-b border-zinc-800 pb-3">
+        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Shot
+        </h3>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          Duration
+          <input
+            type="number"
+            min={4}
+            max={30}
+            step={0.1}
+            value={durationSec}
+            onChange={(e) => onTimingChange({ durationSec: +e.target.value })}
+            className="h-7 w-16 border border-zinc-800 bg-zinc-950 px-1.5 text-zinc-200"
+          />
+          s
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          FPS
+          <select
+            value={doc.fps}
+            onChange={(e) => onTimingChange({ fps: +e.target.value })}
+            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+          >
+            {[24, 25, 30].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          Aspect
+          <select
+            value={doc.aspect}
+            onChange={(e) => onTimingChange({ aspect: e.target.value })}
+            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+          >
+            {["16:9", "9:16", "21:9", "4:3", "1:1"].map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      <section className="space-y-2 border-b border-zinc-800 py-3">
+        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Lens
+        </h3>
+        <div className="flex flex-wrap gap-1">
+          {LENS_CHIPS_MM.map((mm) => (
+            <button
+              key={mm}
+              type="button"
+              onClick={() => onLiveChange({ ...live, focal: mm })}
+              className={cn(
+                "border px-1.5 py-0.5 text-[10px]",
+                Math.round(live.focal) === mm
+                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  : "border-zinc-800 text-zinc-400 hover:border-zinc-600",
+              )}
+            >
+              {mm}
+            </button>
+          ))}
+        </div>
+        <input
+          type="range"
+          min={10}
+          max={200}
+          value={Math.round(live.focal)}
+          onChange={(e) => onLiveChange({ ...live, focal: +e.target.value })}
+          className="w-full"
         />
-        {animated ? (
-          <p className="text-[11px] text-amber-400">
-            Animated: edits set a keyframe at the playhead.
+        <p className="text-[10px] text-zinc-500">
+          {Math.round(live.focal)}mm · HFOV {hfov}°
+          {cameraDirty ? " · unkeyed" : ""}
+        </p>
+      </section>
+
+      <section className="space-y-2 border-b border-zinc-800 py-3">
+        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Camera moves
+        </h3>
+        <div className="flex flex-col gap-1">
+          {CAMERA_MOVE_PRESETS.map(([id, label]) => (
+            <Button
+              key={id}
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 justify-start text-[11px]"
+              onClick={() => onPreset(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-2 border-b border-zinc-800 py-3">
+        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Export
+        </h3>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          <input
+            type="checkbox"
+            checked={exportBurnIn}
+            onChange={(e) => onExportBurnIn(e.target.checked)}
+          />
+          Burn-in
+        </label>
+        <div className="flex gap-1">
+          {(["clay", "depth"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onExportMode(m)}
+              className={cn(
+                "flex-1 border px-2 py-1 text-[10px] capitalize",
+                exportMode === m
+                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  : "border-zinc-800 text-zinc-400",
+              )}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {(["part", "shot"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => onExportRange(r)}
+              className={cn(
+                "flex-1 border px-2 py-1 text-[10px]",
+                exportRange === r
+                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  : "border-zinc-800 text-zinc-400",
+              )}
+            >
+              {r === "part" ? "Whole part" : "This shot"}
+            </button>
+          ))}
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="w-full"
+          disabled={!canEncode || exporting}
+          onClick={onExport}
+        >
+          {exporting ? "Rendering…" : canEncode ? "Export MP4" : "No WebCodecs"}
+        </Button>
+        {!canEncode ? (
+          <p className="text-[10px] text-amber-400">
+            Chromium recommended for encode.
           </p>
         ) : null}
-      </div>
+      </section>
 
-      {node.kind !== "ground" ? (
-        <>
-          <VecRow label="Position (m)" value={t.position} onCommit={(position) => commit({ position })} />
-          <VecRow label="Rotation (°)" value={t.rotation} degrees onCommit={(rotation) => commit({ rotation })} />
-          {node.kind !== "camera" && node.kind !== "light" ? (
-            <VecRow label="Scale" value={t.scale} onCommit={(scale) => commit({ scale })} />
-          ) : null}
-        </>
-      ) : null}
-
-      {node.kind === "camera" ? lensField : null}
-
-      {node.kind === "mannequin" ? (
-        <>
-          <div className="grid gap-1">
-            <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Pose</Label>
-            <Select value={node.pose ?? "standing"} onValueChange={(v) => onPatch(node.id, { pose: v as MannequinPose })}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MANNEQUIN_POSES.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p[0]!.toUpperCase() + p.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1">
-            <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Character</Label>
-            <Select
-              value={node.entityId ?? UNTAGGED}
-              onValueChange={(v) => {
-                const c = characters.find((x) => x.id === v);
-                onPatch(node.id, c ? { entityId: c.id, name: c.name } : { entityId: undefined });
-              }}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UNTAGGED}>Untagged</SelectItem>
-                {characters.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1">
-            <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Action</Label>
-            <Input
-              key={`${node.id}-action`}
-              defaultValue={node.action ?? ""}
-              placeholder="e.g. walks to the door"
-              className="h-8 text-xs"
-              onBlur={(e) => {
-                const action = e.target.value.trim();
-                if (action !== (node.action ?? "")) onPatch(node.id, { action: action || undefined });
+      <Collapsed title="Camera">
+        <div className="grid grid-cols-3 gap-1">
+          {(["x", "y", "z"] as const).map((axis, i) => (
+            <Num
+              key={`p${axis}`}
+              label={`P${axis}`}
+              value={round2(live.pos[i]!)}
+              onChange={(v) => {
+                const pos = [...live.pos] as [number, number, number];
+                pos[i] = v;
+                onLiveChange({ ...live, pos });
               }}
             />
+          ))}
+          {(["x", "y", "z"] as const).map((axis, i) => (
+            <Num
+              key={`t${axis}`}
+              label={`T${axis}`}
+              value={round2(live.target[i]!)}
+              onChange={(v) => {
+                const target = [...live.target] as [number, number, number];
+                target[i] = v;
+                onLiveChange({ ...live, target });
+              }}
+            />
+          ))}
+        </div>
+        <Num
+          label="Roll"
+          value={Math.round(live.roll)}
+          step={1}
+          onChange={(v) => onLiveChange({ ...live, roll: v })}
+        />
+      </Collapsed>
+
+      <Collapsed title="Sensor">
+        <select
+          value={doc.camera.sensor}
+          onChange={(e) => onSensorChange(+e.target.value)}
+          className="h-7 w-full border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+        >
+          {[36, 24, 44.7].map((s) => (
+            <option key={s} value={s}>
+              {s}mm
+            </option>
+          ))}
+        </select>
+      </Collapsed>
+
+      <Collapsed title="Selected key" defaultOpen={Boolean(activeKey)}>
+        {activeKey ? (
+          <div className="space-y-2">
+            <Num label="F" value={activeKey.f} step={1} onChange={onKeyFrame} />
+            <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+              Ease
+              <select
+                value={activeKey.ease}
+                onChange={(e) => onKeyEase(e.target.value as BlockoutEase)}
+                className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+              >
+                {BLOCKOUT_EASES.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selCamKey ? (
+              <Num
+                label="mm"
+                value={selCamKey.focal}
+                step={1}
+                onChange={onKeyFocal}
+              />
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full text-rose-300"
+              onClick={onDeleteKey}
+            >
+              Delete key
+            </Button>
           </div>
-        </>
-      ) : null}
+        ) : (
+          <p className="text-[10px] text-zinc-600">None selected</p>
+        )}
+      </Collapsed>
 
-      {node.kind === "light" ? (
-        <div className="grid gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Intensity</Label>
-          <NumberField
-            value={node.intensity ?? { key: 2.4, fill: 0.8, back: 1.4 }[node.lightRole ?? "key"]}
-            onCommit={(n) => onPatch(node.id, { intensity: Math.max(0, n) })}
-          />
-        </div>
-      ) : null}
-
-      {node.kind === "prop" || node.kind === "set" || node.kind === "mannequin" ? (
-        <div className="grid gap-1">
-          <Label className="text-[10px] uppercase tracking-wider text-zinc-500">Colour</Label>
-          <input
-            type="color"
-            value={node.color ?? (node.kind === "set" ? "#71717a" : node.kind === "prop" ? "#a1a1aa" : "#e07a5f")}
-            onChange={(e) => onPatch(node.id, { color: e.target.value })}
-            className="h-8 w-full cursor-pointer border border-zinc-700 bg-transparent"
-          />
-        </div>
-      ) : null}
-
-      {deletable ? (
-        <Button type="button" variant="ghost" size="sm" className="justify-start text-red-300" onClick={() => onDelete(node.id)}>
-          <Trash2 />
-          Delete
-        </Button>
-      ) : null}
-    </div>
+      <Collapsed title="Selected object" defaultOpen={Boolean(selectedObject)}>
+        {selectedObject ? (
+          <div className="space-y-2">
+            <input
+              value={selectedObject.name}
+              onChange={(e) => onObjectField({ name: e.target.value })}
+              className="h-7 w-full border border-zinc-800 bg-zinc-950 px-1.5 text-zinc-200"
+            />
+            <p className="text-[10px] text-zinc-500">
+              {selectedObject.type}
+              {selectedObject.keys.length
+                ? ` · ${selectedObject.keys.length} keys`
+                : " · static"}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-zinc-600">None selected</p>
+        )}
+      </Collapsed>
+    </aside>
   );
+}
+
+function round2(v: number) {
+  return Math.round(v * 100) / 100;
 }

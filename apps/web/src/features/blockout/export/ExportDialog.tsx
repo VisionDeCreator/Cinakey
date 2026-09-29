@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { runExport, type ExportOptions, type ExportProgress } from "./runExport";
+import {
+  runExport,
+  type ExportOptions,
+  type ExportProgress,
+} from "./runExport";
 import { webCodecsSupported } from "./videoExport";
 
 type Format = "json" | "mp4" | "both";
@@ -19,11 +23,13 @@ type Format = "json" | "mp4" | "both";
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** e.g. "Shot 3", "INT. KITCHEN", "Whole project". */
   scopeLabel: string;
   baseName: string;
   multiShot: boolean;
-  loadDocument: () => Promise<{ document: BlockoutDocument; skippedCount?: number }>;
+  loadDocument: () => Promise<{
+    document: BlockoutDocument;
+    skippedCount?: number;
+  }>;
 };
 
 function Choice({
@@ -65,7 +71,7 @@ export function ExportDialog({
   const canEncode = webCodecsSupported();
   const [format, setFormat] = useState<Format>("json");
   const [burnIn, setBurnIn] = useState(true);
-  const [mode, setMode] = useState<ExportOptions["mode"]>("sequence");
+  const [passMode, setPassMode] = useState<ExportOptions["mode"]>("clay");
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -85,7 +91,8 @@ export function ExportDialog({
           json: format !== "mp4",
           mp4: format !== "json",
           burnIn,
-          mode: multiShot ? mode : "sequence",
+          mode: passMode,
+          range: "part",
         },
         signal: controller.signal,
         onProgress: setProgress,
@@ -123,7 +130,11 @@ export function ExportDialog({
 
         <div className="grid gap-4">
           <div className="flex gap-2">
-            <Choice active={format === "json"} disabled={running} onClick={() => setFormat("json")}>
+            <Choice
+              active={format === "json"}
+              disabled={running}
+              onClick={() => setFormat("json")}
+            >
               JSON
             </Choice>
             <Choice
@@ -157,15 +168,23 @@ export function ExportDialog({
                   onChange={(e) => setBurnIn(e.target.checked)}
                   className="size-4 accent-zinc-100"
                 />
-                Burn in shot number, scene and timecode
+                Burn in shot number and timecode
               </label>
               {multiShot ? (
                 <div className="flex gap-2">
-                  <Choice active={mode === "sequence"} disabled={running} onClick={() => setMode("sequence")}>
-                    One sequence
+                  <Choice
+                    active={passMode === "clay"}
+                    disabled={running}
+                    onClick={() => setPassMode("clay")}
+                  >
+                    Clay
                   </Choice>
-                  <Choice active={mode === "per-shot"} disabled={running} onClick={() => setMode("per-shot")}>
-                    Clip per shot
+                  <Choice
+                    active={passMode === "depth"}
+                    disabled={running}
+                    onClick={() => setPassMode("depth")}
+                  >
+                    Depth
                   </Choice>
                 </div>
               ) : null}
@@ -183,7 +202,11 @@ export function ExportDialog({
 
         <DialogFooter>
           {running ? (
-            <Button type="button" variant="outline" onClick={() => abortRef.current?.abort()}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => abortRef.current?.abort()}
+            >
               Cancel
             </Button>
           ) : (

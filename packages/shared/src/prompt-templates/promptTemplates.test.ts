@@ -262,7 +262,7 @@ describe("blockout sheet", () => {
     expect(text).toContain("Continuity: goggles DOWN, rifle drawn");
   });
 
-  it("maps to cinakey.blockout documents", () => {
+  it("maps to cinakey.blockout/2.0 part document", () => {
     const docs = blockoutSheetToDocuments(
       blockoutSheetFixture,
       { id: "p1", title: "Hunt", aspectRatio: "16:9", fps: 24 },
@@ -286,11 +286,13 @@ describe("blockout sheet", () => {
           n: 22,
         },
       ],
+      { sequenceId: "seq-1" },
     );
-    expect(docs.size).toBe(2);
-    const s3 = docs.get("shot-3");
-    expect(s3?.schema).toBe("cinakey.blockout/1.0");
-    expect(s3?.scenes[0]?.shots[0]?.lensMm).toBe(100);
-    expect(s3?.scenes[0]?.shots[0]?.camera.keyframes.length).toBeGreaterThan(0);
+    expect(docs.size).toBe(1);
+    const part = docs.get("seq-1");
+    expect(part?.schema).toBe("cinakey.blockout/2.0");
+    expect(part?.shots).toHaveLength(2);
+    expect(part?.shots.find((s) => s.n === 3)?.lensMm).toBe(100);
+    expect(part?.camera.keys.length).toBeGreaterThan(0);
   });
 });

@@ -56,6 +56,8 @@ import type * as sequences from "../sequences.js";
 import type * as shotGeneration from "../shotGeneration.js";
 import type * as shots from "../shots.js";
 import type * as staff from "../staff.js";
+import type * as staging from "../staging.js";
+import type * as stagingFeedback from "../stagingFeedback.js";
 import type * as storage from "../storage.js";
 import type * as takes from "../takes.js";
 import type * as timelineVersions from "../timelineVersions.js";
@@ -116,6 +118,8 @@ declare const fullApi: ApiFromModules<{
   shotGeneration: typeof shotGeneration;
   shots: typeof shots;
   staff: typeof staff;
+  staging: typeof staging;
+  stagingFeedback: typeof stagingFeedback;
   storage: typeof storage;
   takes: typeof takes;
   timelineVersions: typeof timelineVersions;

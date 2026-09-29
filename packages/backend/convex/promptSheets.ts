@@ -7,8 +7,12 @@ import {
   assertSheetDocument,
   normalizeEntityName,
   parseScriptPromptText,
+  requiredAssetsFromScript,
+  seedAssetPromptFromScriptDescription,
+  scriptAssetLabelKey,
   validateAssetPromptText,
   validateScriptPromptText,
+  type AssetSheetType,
   type SheetDocument,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -312,11 +316,7 @@ export const createOrUpdateDraft = action({
     }
 
     const artStyle = await loadArtStyleBlock(ctx, args.projectId);
-    const rendered = renderPromptSheetText(
-      args.type,
-      validated.data,
-      artStyle,
-    );
+    const rendered = renderPromptSheetText(args.type, validated.data, artStyle);
     const { storageId: structuredFileId } = await saveJson(ctx, validated.data);
     const renderedStore = await storeRendered(ctx, rendered);
 
@@ -510,9 +510,7 @@ export const savePromptText = action({
     let entityId = args.entityId;
     const entityKind = entityKindForAssetType[args.type];
     const displayName =
-      args.name?.trim() ||
-      args.entityName?.trim() ||
-      "Untitled asset";
+      args.name?.trim() || args.entityName?.trim() || "Untitled asset";
 
     if (!entityId && args.entityName?.trim()) {
       const entities: Doc<"entities">[] = await ctx.runQuery(
@@ -521,19 +519,20 @@ export const savePromptText = action({
       );
       const key = normalizeEntityName(args.entityName.trim());
       const match = entities.find(
-        (e) =>
-          e.kind === entityKind &&
-          normalizeEntityName(e.name) === key,
+        (e) => e.kind === entityKind && normalizeEntityName(e.name) === key,
       );
       entityId = match?._id;
     }
 
     if (!entityId) {
-      entityId = await ctx.runMutation(internal.promptSheets.createEntityInternal, {
-        projectId: args.projectId,
-        kind: entityKind,
-        name: displayName,
-      });
+      entityId = await ctx.runMutation(
+        internal.promptSheets.createEntityInternal,
+        {
+          projectId: args.projectId,
+          kind: entityKind,
+          name: displayName,
+        },
+      );
     } else {
       await ctx.runMutation(internal.promptSheets.patchEntityKindInternal, {
         entityId,
@@ -592,23 +591,7 @@ export const savePromptText = action({
   },
 });
 
-function resolveEntityId(
-  entities: Doc<"entities">[],
-  label: string,
-): Id<"entities"> | undefined {
-  const key = normalizeEntityName(label.replace(/^the\s+/i, ""));
-  const match = entities.find(
-    (e) =>
-      e.kind !== "style" &&
-      (normalizeEntityName(e.name) === key ||
-        normalizeEntityName(e.name) === normalizeEntityName(label) ||
-        key.includes(normalizeEntityName(e.name)) ||
-        normalizeEntityName(e.name).includes(key)),
-  );
-  return match?._id;
-}
-
-/** Save script prompt text as tip SoT; syncs sequence shots and marks blockout stale. */
+/** Save script prompt text as tip SoT; syncs sequence shots, required assets, and marks blockout stale. */
 export const saveScriptPromptText = action({
   args: {
     projectId: v.id("projects"),
@@ -626,6 +609,8 @@ export const saveScriptPromptText = action({
     version: number;
     validationWarning?: string;
     shotCount: number;
+    assetsCreated: number;
+    assetsMarkedStale: number;
   }> => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
@@ -647,16 +632,17 @@ export const saveScriptPromptText = action({
       { projectId: args.projectId },
     );
 
-    const referenceMap: { imageN: number; entityId: Id<"entities"> }[] = [];
-    const resolvedRefs = parsed.references.map((r) => {
-      const entityId = resolveEntityId(entities, r.entityLabel);
-      if (entityId) {
-        referenceMap.push({ imageN: r.imageN, entityId });
-        return { ...r, entityId: entityId as string };
-      }
-      return r;
+    const synced = await syncRequiredAssetsFromScript(ctx, {
+      projectId: args.projectId,
+      parsed,
+      entities,
     });
-    parsed.references = resolvedRefs;
+    const referenceMap = synced.referenceMap;
+    // Keep structured refs pointing at resolved entity ids
+    parsed.references = parsed.references.map((r) => {
+      const hit = referenceMap.find((m) => m.imageN === r.imageN);
+      return hit ? { ...r, entityId: hit.entityId as string } : r;
+    });
 
     const { storageId: structuredFileId } = await saveJson(ctx, parsed);
     const renderedStore = await storeRendered(ctx, promptText);
@@ -690,9 +676,7 @@ export const saveScriptPromptText = action({
       if (!sequenceId && existing.sequenceId) sequenceId = existing.sequenceId;
     }
 
-    const title =
-      args.title?.trim() ||
-      "Part 1";
+    const title = args.title?.trim() || "Part 1";
 
     const sequences = await ctx.runQuery(api.sequences.list, {
       projectId: args.projectId,
@@ -768,8 +752,189 @@ export const saveScriptPromptText = action({
       version,
       validationWarning: validation.warning,
       shotCount,
+      assetsCreated: synced.createdEntityIds.length,
+      assetsMarkedStale: synced.staleSheetIds.length,
     };
   },
+});
+
+export const patchEntityDescriptionInternal = internalMutation({
+  args: {
+    entityId: v.id("entities"),
+    description: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.entityId, {
+      description: args.description.trim(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const markAssetTipOutOfDateInternal = internalMutation({
+  args: { promptSheetId: v.id("promptSheets") },
+  handler: async (ctx, args) => {
+    const sheet = await ctx.db.get(args.promptSheetId);
+    if (!sheet || !sheet.isTip) return false;
+    if (sheet.status === "out_of_date" || sheet.status === "draft")
+      return false;
+    await ctx.db.patch(args.promptSheetId, {
+      status: "out_of_date",
+      updatedAt: Date.now(),
+    });
+    return true;
+  },
+});
+
+/**
+ * Ensure every script REFERENCE / cast / location has an entity + tip sheet.
+ * Creates missing assets; marks existing tips out_of_date when the script
+ * description for that asset changed.
+ */
+async function syncRequiredAssetsFromScript(
+  ctx: ActionCtx,
+  args: {
+    projectId: Id<"projects">;
+    parsed: ReturnType<typeof parseScriptPromptText>;
+    entities: Doc<"entities">[];
+  },
+): Promise<{
+  referenceMap: { imageN: number; entityId: Id<"entities"> }[];
+  createdEntityIds: Id<"entities">[];
+  staleSheetIds: Id<"promptSheets">[];
+}> {
+  const required = requiredAssetsFromScript(args.parsed);
+  const tips: Doc<"promptSheets">[] = await ctx.runQuery(
+    internal.promptSheets.listTipsInternal,
+    { projectId: args.projectId },
+  );
+  let entities = [...args.entities];
+  const referenceMap: { imageN: number; entityId: Id<"entities"> }[] = [];
+  const createdEntityIds: Id<"entities">[] = [];
+  const staleSheetIds: Id<"promptSheets">[] = [];
+  const artStyle = args.parsed.artStyleBlock;
+
+  for (const req of required) {
+    const kind =
+      req.assetType === "environment"
+        ? ("location" as const)
+        : req.assetType === "product"
+          ? ("prop" as const)
+          : req.assetType === "creature"
+            ? ("creature" as const)
+            : ("character" as const);
+
+    const key = scriptAssetLabelKey(req.label);
+    let entity =
+      entities.find(
+        (e) =>
+          e.kind !== "style" &&
+          (normalizeEntityName(e.name) === normalizeEntityName(req.label) ||
+            scriptAssetLabelKey(e.name) === key ||
+            key.includes(scriptAssetLabelKey(e.name)) ||
+            scriptAssetLabelKey(e.name).includes(key)),
+      ) ?? undefined;
+
+    if (!entity) {
+      const entityId = await ctx.runMutation(
+        internal.promptSheets.createEntityInternal,
+        {
+          projectId: args.projectId,
+          kind,
+          name: req.label,
+        },
+      );
+      await ctx.runMutation(
+        internal.promptSheets.patchEntityDescriptionInternal,
+        {
+          entityId,
+          description: req.description,
+        },
+      );
+      createdEntityIds.push(entityId);
+      const created = await ctx.runQuery(
+        internal.promptSheets.getEntityInternal,
+        {
+          entityId,
+        },
+      );
+      if (created) {
+        entities.push(created);
+        entity = created;
+      }
+    } else {
+      // Align kind/name when script is clearer
+      await ctx.runMutation(internal.promptSheets.patchEntityKindInternal, {
+        entityId: entity._id,
+        kind,
+        name: req.label,
+      });
+      const prevDesc = (entity.description ?? "").trim();
+      const nextDesc = req.description.trim();
+      if (nextDesc && nextDesc !== prevDesc) {
+        await ctx.runMutation(
+          internal.promptSheets.patchEntityDescriptionInternal,
+          { entityId: entity._id, description: nextDesc },
+        );
+      }
+    }
+
+    if (!entity) continue;
+    referenceMap.push({ imageN: req.imageN, entityId: entity._id });
+
+    const tip = tips.find(
+      (t) => t.entityId === entity!._id && isAssetSheetType(t.type),
+    );
+
+    if (!tip) {
+      const promptText = seedAssetPromptFromScriptDescription(
+        req.assetType as AssetSheetType,
+        req.label,
+        req.description,
+        artStyle,
+      );
+      await ctx.runAction(api.promptSheets.savePromptText, {
+        projectId: args.projectId,
+        entityId: entity._id,
+        type: req.assetType,
+        promptText,
+        name: req.label,
+      });
+      // refresh tips cache for subsequent iterations
+      const refreshed: Doc<"promptSheets">[] = await ctx.runQuery(
+        internal.promptSheets.listTipsInternal,
+        { projectId: args.projectId },
+      );
+      tips.length = 0;
+      tips.push(...refreshed);
+    } else {
+      const prevDesc = (entity.description ?? "").trim();
+      const nextDesc = req.description.trim();
+      const tipText = (tip.renderedText ?? "").trim();
+      const descriptionChanged =
+        Boolean(nextDesc) &&
+        nextDesc !== prevDesc &&
+        !(
+          tipText.length > 0 &&
+          nextDesc.length > 40 &&
+          tipText.includes(nextDesc.slice(0, 40))
+        );
+      if (descriptionChanged) {
+        const marked = await ctx.runMutation(
+          internal.promptSheets.markAssetTipOutOfDateInternal,
+          { promptSheetId: tip._id },
+        );
+        if (marked) staleSheetIds.push(tip._id);
+      }
+    }
+  }
+
+  return { referenceMap, createdEntityIds, staleSheetIds };
+}
+
+export const getEntityInternal = internalQuery({
+  args: { entityId: v.id("entities") },
+  handler: async (ctx, args) => ctx.db.get(args.entityId),
 });
 
 export const createEntityInternal = internalMutation({
@@ -1012,6 +1177,8 @@ export const listScriptParts = query({
         blockoutStatus: blockoutTip?.status ?? null,
         scriptChanged,
         shotIds: seq.shotIds,
+        /** A staging plan is stored, so "Rebuild from saved plan" can run free. */
+        hasStagingPlan: Boolean(seq.stagingPlanFileId),
       };
     });
   },
@@ -1130,11 +1297,14 @@ export const restorePromptVersion = action({
     }
 
     if (sheet.type === "script") {
-      const result = await ctx.runAction(api.promptSheets.saveScriptPromptText, {
-        projectId: sheet.projectId,
-        sequenceId: sheet.sequenceId,
-        promptText: rendered,
-      });
+      const result = await ctx.runAction(
+        api.promptSheets.saveScriptPromptText,
+        {
+          projectId: sheet.projectId,
+          sequenceId: sheet.sequenceId,
+          promptText: rendered,
+        },
+      );
       return {
         promptSheetId: result.promptSheetId,
         version: result.version,
