@@ -1,9 +1,5 @@
 import type { GenerationAdapter } from "@cinakey/shared";
-import {
-  estimateVideoCost,
-  estimateImageCost,
-  estimateTokenCost,
-} from "./cost";
+import { estimateVideoCost, estimateTokenCost } from "./cost";
 const seedance25Adapter: Pick<
   GenerationAdapter,
   "capabilities" | "estimateCost"
@@ -36,27 +32,6 @@ const seedance25Adapter: Pick<
     },
   };
 })();
-const gptImage2Adapter: Pick<
-  GenerationAdapter,
-  "capabilities" | "estimateCost"
-> = (() => {
-  const COST = { unit: "per_image", creditsPerUnit: 10 } as const;
-  return {
-    capabilities: {
-      id: "gpt-image-2",
-      kind: "image",
-      operations: ["text-to-image", "image-edit"],
-      inputs: ["text", "referenceImages"],
-      resolutions: ["1024x1024", "1536x1024", "1024x1536"],
-      aspectRatios: ["1:1", "16:9", "9:16"],
-      features: ["edit", "inpaint"],
-      costModel: COST,
-    },
-    estimateCost(input) {
-      return estimateImageCost(input, COST);
-    },
-  };
-})();
 const deepseekAdapter: Pick<
   GenerationAdapter,
   "capabilities" | "estimateCost"
@@ -76,7 +51,7 @@ const deepseekAdapter: Pick<
     },
   };
 })();
-const adapters = [seedance25Adapter, gptImage2Adapter, deepseekAdapter];
+const adapters = [seedance25Adapter, deepseekAdapter];
 export function listAdapters() {
   return adapters;
 }

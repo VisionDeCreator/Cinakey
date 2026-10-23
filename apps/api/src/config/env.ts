@@ -8,7 +8,7 @@ export const providerKeyNames = {
 const flags = z.enum(["true", "false"]);
 const schema = z.object({
   USE_MOCK_ADAPTERS: flags.default("false"),
-  ENABLED_PROVIDERS: z.string().default("deepseek,seedance,openai"),
+  ENABLED_PROVIDERS: z.string().default("deepseek,seedance"),
   PROVIDER_TIMEOUT_MS: z.coerce
     .number()
     .int()
@@ -32,7 +32,7 @@ export function providerConfig() {
     );
   const enabled = parsed.data.ENABLED_PROVIDERS.split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter((name) => Boolean(name) && name !== "openai");
   if (
     enabled.some(
       (name) => !Object.prototype.hasOwnProperty.call(providerKeyNames, name),

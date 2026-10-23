@@ -82,7 +82,7 @@ const schema = defineSchema(
       styleNotes: v.optional(v.string()),
       rules: v.array(v.string()),
       thumbnailAssetId: v.optional(v.id("assets")),
-      /** Style reference image sent with every GPT Image 2 generation in the project. */
+      /** Project style reference image for video production. */
       styleReferenceAssetId: v.optional(v.id("assets")),
       /** Optional per-project credit spend cap; blocks new jobs when reached. */
       spendCapCredits: v.optional(v.number()),
@@ -601,7 +601,7 @@ const schema = defineSchema(
       count: v.number(),
     }).index("by_key", ["key"]),
 
-    /** Linear copilot thread per project (one thread in MVP). */
+    /** Legacy assistant history; retained for existing projects and account cleanup. */
     copilotMessages: defineTable({
       projectId: v.id("projects"),
       role: v.union(
@@ -636,7 +636,7 @@ const schema = defineSchema(
       .index("by_project", ["projectId"])
       .index("by_job", ["jobId"]),
 
-    /** Copilot tool results awaiting user Accept / Edit / Reject. */
+    /** Legacy assistant proposals; no new proposal operations are exposed. */
     proposals: defineTable({
       projectId: v.id("projects"),
       messageId: v.id("copilotMessages"),

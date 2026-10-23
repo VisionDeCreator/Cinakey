@@ -134,12 +134,21 @@ export const update = mutation({
     entityId: v.id("entities"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    kind: v.optional(
+      v.union(
+        v.literal("character"),
+        v.literal("creature"),
+        v.literal("location"),
+        v.literal("prop"),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const entity = await ctx.db.get(args.entityId);
     if (entity === null) throw new Error("Entity not found");
     await requireProjectAccess(ctx, entity.projectId);
     const patch: {
+      kind?: "character" | "creature" | "location" | "prop";
       name?: string;
       description?: string;
       updatedAt: number;
@@ -148,6 +157,11 @@ export const update = mutation({
       const name = args.name.trim();
       if (name.length === 0) throw new Error("Entity name is required");
       patch.name = name;
+    }
+    if (args.kind !== undefined) {
+      if (entity.kind === "style")
+        throw new Error("Cannot change the style entity kind");
+      patch.kind = args.kind;
     }
     if (args.description !== undefined) {
       patch.description = args.description;

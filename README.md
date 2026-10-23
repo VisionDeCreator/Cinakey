@@ -1,7 +1,11 @@
 # Cinakey
 
-Browser-based AI filmmaking: script → visual assets → 3D blockout → video
-generation → edit → export.
+Browser-based AI video production: script → image references → 3D staging →
+video generation → edit → export.
+
+Upload images or reuse existing assets as references. Cinakey does not generate
+images or provide a conversational copilot. Projects open on Video; Script,
+References, Staging, and Edit remain available throughout production.
 
 TypeScript monorepo using Bun workspaces and Turborepo. The React/Vite creator
 app talks to a Bun/Elysia API. A separate Bun worker handles generation and

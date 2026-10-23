@@ -78,7 +78,7 @@ function useApiWrite(reference: FunctionReference<any>) {
   return useCallback(
     async (args: Record<string, unknown> = {}) => {
       try {
-        return await client.call(name, args, name === "copilot:runTurn");
+        return await client.call(name, args);
       } finally {
         await client.invalidate();
       }

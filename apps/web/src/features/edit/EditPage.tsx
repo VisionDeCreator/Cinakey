@@ -19,29 +19,16 @@ import {
   type TrackKind,
 } from "@cinakey/shared";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { ClipInspector } from "@/features/edit/ClipInspector";
 import { ExportDialog } from "@/features/edit/ExportDialog";
 import { MediaBin } from "@/features/edit/MediaBin";
 import { PlaybackEngine } from "@/features/edit/engine/PlaybackEngine";
-import {
-  formatTimecode,
-  type MediaUrlMap,
-} from "@/features/edit/mediaUrls";
-import {
-  TimelineTracks,
-  type TrimMode,
-} from "@/features/edit/TimelineTracks";
+import { formatTimecode, type MediaUrlMap } from "@/features/edit/mediaUrls";
+import { TimelineTracks, type TrimMode } from "@/features/edit/TimelineTracks";
 import { TimelineHistoryDialog } from "@/features/edit/TimelineHistoryDialog";
 import {
   createHistory,
@@ -81,7 +68,6 @@ export function EditPage() {
   const storeJson = useAction(api.storage.storeJson);
   const createVersion = useMutation(api.timelineVersions.createVersion);
 
-  const { setContext } = useCopilotContext();
   const confirm = useConfirm();
 
   const [history, setHistory] = useState<TimelineHistoryState | null>(null);
@@ -156,11 +142,6 @@ export function EditPage() {
     return map;
   }, [urls, assetUrls]);
 
-  useEffect(() => {
-    if (!projectId) return;
-    setContext({ view: "edit", projectId, selectionIds: selectedClipId ? [selectedClipId] : [] });
-  }, [projectId, selectedClipId, setContext]);
-
   const load = useCallback(async () => {
     if (!projectId || !project) return;
     setLoadError(null);
@@ -217,15 +198,12 @@ export function EditPage() {
     };
   }, []);
 
-  const apply = useCallback(
-    (fn: (d: TimelineDocument) => TimelineDocument) => {
-      setHistory((h) => {
-        if (!h) return h;
-        return pushDocument(h, recomputeTimelineDuration(fn(h.present)));
-      });
-    },
-    [],
-  );
+  const apply = useCallback((fn: (d: TimelineDocument) => TimelineDocument) => {
+    setHistory((h) => {
+      if (!h) return h;
+      return pushDocument(h, recomputeTimelineDuration(fn(h.present)));
+    });
+  }, []);
 
   // Autosave
   useEffect(() => {
@@ -259,7 +237,14 @@ export function EditPage() {
       })();
     }, AUTOSAVE_MS);
     return () => window.clearTimeout(t);
-  }, [history?.dirty, doc, projectId, storeJson, createVersion, tip?.timelineFileId]);
+  }, [
+    history?.dirty,
+    doc,
+    projectId,
+    storeJson,
+    createVersion,
+    tip?.timelineFileId,
+  ]);
 
   // Auto-update linked clips when selected take changes
   useEffect(() => {
@@ -447,11 +432,15 @@ export function EditPage() {
       versionId: versionId as never,
     });
     if (!result.document) return;
-    setHistory(replacePresent(createHistory(result.document), result.document, true));
+    setHistory(
+      replacePresent(createHistory(result.document), result.document, true),
+    );
   };
 
   const selectedClip: TimelineClip | null =
-    doc && selectedClipId ? findClip(doc, selectedClipId)?.clip ?? null : null;
+    doc && selectedClipId
+      ? (findClip(doc, selectedClipId)?.clip ?? null)
+      : null;
 
   if (!projectId) return null;
   if (project === undefined || history === null) {
@@ -474,9 +463,7 @@ export function EditPage() {
             {formatTimecode(playheadSec, project.fps)}
             {doc ? ` / ${formatTimecode(doc.durationSec, project.fps)}` : ""}
           </span>
-          {saving && (
-            <span className="text-[11px] text-zinc-500">Saving…</span>
-          )}
+          {saving && <span className="text-[11px] text-zinc-500">Saving…</span>}
           {history.dirty && !saving && (
             <span className="text-[11px] text-amber-500/80">Unsaved</span>
           )}

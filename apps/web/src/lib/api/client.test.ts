@@ -16,39 +16,6 @@ describe("API client", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     expect(entry.data).toEqual([{ title: "Film" }]);
   });
-  it("decodes split streaming frames and updates the cached conversation", async () => {
-    const client = new ApiClient("http://api", "token");
-    const entry = client.entry("copilot:listMessages", { projectId: "p" });
-    entry.data = [];
-    const text =
-      [
-        JSON.stringify({
-          type: "assistant",
-          message: { _id: "m", projectId: "p", content: "" },
-        }),
-        JSON.stringify({ type: "delta", messageId: "m", delta: "Hello" }),
-        JSON.stringify({ type: "result", value: { done: true } }),
-      ].join("\n") + "\n";
-    const bytes = new TextEncoder().encode(text);
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue(bytes.slice(0, 13));
-              controller.enqueue(bytes.slice(13));
-              controller.close();
-            },
-          }),
-        ),
-      ),
-    );
-    expect(await client.call("copilot:runTurn", {}, true)).toEqual({
-      done: true,
-    });
-    expect(entry.data[0].content).toBe("Hello");
-  });
   it("preserves structured credit errors", async () => {
     vi.stubGlobal(
       "fetch",
@@ -62,7 +29,9 @@ describe("API client", () => {
       ),
     );
     const client = new ApiClient("http://api", "token");
-    await expect(client.call("copilot:runTurn", {})).rejects.toMatchObject({
+    await expect(
+      client.call("generation:startGeneration", {}),
+    ).rejects.toMatchObject({
       data: { code: "INSUFFICIENT_CREDITS" },
     });
   });

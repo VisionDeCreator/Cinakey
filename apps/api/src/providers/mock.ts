@@ -175,30 +175,6 @@ export function createMockAdapter(base: GenerationAdapter): GenerationAdapter {
   };
 }
 
-/** Standalone mock used in tests without wrapping. */
-export const mockImageAdapter: GenerationAdapter = createMockAdapter({
-  capabilities: {
-    id: "gpt-image-2",
-    kind: "image",
-    operations: ["text-to-image", "image-edit"],
-    inputs: ["text", "referenceImages"],
-    resolutions: ["1024x1024"],
-    aspectRatios: ["1:1"],
-    features: ["edit", "inpaint"],
-    costModel: { unit: "per_image", creditsPerUnit: 10 },
-  },
-  estimateCost(input) {
-    return estimateImageCost(input, {
-      unit: "per_image",
-      creditsPerUnit: 10,
-    });
-  },
-  buildRequest: async () => ({}),
-  submit: async () => ({ providerJobId: "" }),
-  poll: async () => ({ status: "failed" }),
-  collect: async () => ({ outputs: [] }),
-});
-
 export async function delayForTests(ms: number): Promise<void> {
   await sleep(ms);
 }

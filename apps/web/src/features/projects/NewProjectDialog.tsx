@@ -57,7 +57,7 @@ export function NewProjectDialog({
       });
       reset();
       onOpenChange(false);
-      void navigate(`/projects/${id}/script`);
+      void navigate(`/projects/${id}/video`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create project");
     } finally {

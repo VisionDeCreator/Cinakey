@@ -35,6 +35,19 @@ function asAssetIds(ids: string[]): Id<"assets">[] {
   return ids as Id<"assets">[];
 }
 
+/** The explicitly selected primary reference must be first in video inputs. */
+function referenceIdsFromSheet(sheet: SheetDocument): Id<"assets">[] {
+  const ids = lockedIdsFromSheet(sheet);
+  return asAssetIds(
+    sheet.referenceSheetAssetId
+      ? [
+          sheet.referenceSheetAssetId,
+          ...ids.filter((id) => id !== sheet.referenceSheetAssetId),
+        ]
+      : ids,
+  );
+}
+
 type WithSheetResult = {
   entity: Doc<"entities">;
   sheet: SheetDocument;
@@ -139,7 +152,7 @@ export const saveSheet = action({
     const patch = args.patch as Partial<SheetDocument>;
     const next = mergeSheet(current, patch, entity.sheetFileId);
     const { storageId } = await saveJson(ctx, next);
-    const locked = asAssetIds(lockedIdsFromSheet(next));
+    const locked = referenceIdsFromSheet(next);
     await ctx.runMutation(internal.entities.applySheetBlob, {
       entityId: args.entityId,
       sheetFileId: storageId,
@@ -180,7 +193,7 @@ export const lockReferenceFromJob = internalAction({
     await ctx.runMutation(internal.entities.applySheetBlob, {
       entityId: args.entityId,
       sheetFileId: storageId,
-      lockedReferenceAssetIds: asAssetIds(lockedIdsFromSheet(next)),
+      lockedReferenceAssetIds: referenceIdsFromSheet(next),
     });
   },
 });
@@ -212,7 +225,11 @@ export const lockReference = action({
     const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
       assetId: args.assetId,
     });
-    if (asset === null || asset.projectId !== entity.projectId) {
+    if (
+      asset === null ||
+      asset.projectId !== entity.projectId ||
+      asset.type !== "image"
+    ) {
       throw new Error("Asset not found in this project");
     }
 
@@ -261,7 +278,7 @@ export const lockReference = action({
     await ctx.runMutation(internal.entities.applySheetBlob, {
       entityId: args.entityId,
       sheetFileId: storageId,
-      lockedReferenceAssetIds: asAssetIds(lockedIdsFromSheet(next)),
+      lockedReferenceAssetIds: referenceIdsFromSheet(next),
     });
     return { sheet: next };
   },
@@ -269,6 +286,7 @@ export const lockReference = action({
 
 export const unlockReference = action({
   args: {
+    referenceSheet: v.optional(v.boolean()),
     entityId: v.id("entities"),
     slot: v.optional(identitySlotValidator),
     expressionLabel: v.optional(v.string()),
@@ -290,7 +308,13 @@ export const unlockReference = action({
 
     const current = await loadSheetDoc(ctx, entity);
     const patch: Partial<SheetDocument> = {};
-    if (args.slot !== undefined) {
+    if (args.referenceSheet) {
+      patch.referenceSheetAssetId = undefined;
+      patch.identitySlots = {};
+      patch.expressionSlots = [];
+      patch.heroAssetIds = [];
+      patch.moodReferenceAssetIds = [];
+    } else if (args.slot !== undefined) {
       const slots = { ...current.identitySlots };
       delete slots[args.slot as IdentitySlotKey];
       patch.identitySlots = slots;
@@ -314,7 +338,7 @@ export const unlockReference = action({
     await ctx.runMutation(internal.entities.applySheetBlob, {
       entityId: args.entityId,
       sheetFileId: storageId,
-      lockedReferenceAssetIds: asAssetIds(lockedIdsFromSheet(next)),
+      lockedReferenceAssetIds: referenceIdsFromSheet(next),
     });
     return { sheet: next };
   },
@@ -389,7 +413,7 @@ export const autofillSheet = action({
       try {
         const { assertScriptDocument } = await import("@cinakey/shared");
         const { scriptSummaryFromDocument } =
-          await import("../../../../packages/backend/convex/lib/copilotPrompts");
+          await import("../../../../packages/backend/convex/lib/productionPrompts");
         const doc = assertScriptDocument(
           await loadJson(ctx, tip.contentFileId),
         );
@@ -526,7 +550,7 @@ function mockAutofillFields(
   if (kind === "location") {
     return {
       description: description ?? `${name} — key story location`,
-      notes: `${name} at story-relevant time of day. Terrain, architecture, and atmosphere for image prompts. Distinctive landmarks, light direction, and color palette. No readable text or logos.`,
+      notes: `${name} at story-relevant time of day. Terrain, architecture, and atmosphere for video reference descriptions. Distinctive landmarks, light direction, and color palette. No readable text or logos.`,
     };
   }
   if (kind === "prop") {
@@ -580,9 +604,9 @@ async function llmAutofillFields(args: {
     : "You fill Look Dev sheet fields for Cinakey. Return ONLY a single JSON object with keys: description, look, age, build, wardrobe, personality, voiceNotes. Each value is a concise string. No markdown fences.";
   const userHint = isPlaceOrProp
     ? args.kind === "location"
-      ? "Describe place, time of day, land, sky/light, and color palette in notes — concrete and visual for environment image prompts. No readable text or logos."
-      : "Describe materials, silhouette, wear, and signature detail in notes — concrete for product/prop image prompts."
-    : "Keep details concrete and visual (usable for image prompts). Age/build short; look and wardrobe richer.";
+      ? "Describe place, time of day, land, sky/light, and color palette in notes — concrete and visual for environment reference descriptions. No readable text or logos."
+      : "Describe materials, silhouette, wear, and signature detail in notes — concrete for product/prop reference descriptions."
+    : "Keep details concrete and visual (usable for video reference descriptions). Age/build short; look and wardrobe richer.";
 
   const result = await completeChat({
     messages: [

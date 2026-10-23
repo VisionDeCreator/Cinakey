@@ -25,8 +25,7 @@ const inlineResults = new Map<
 /**
  * DeepSeek — chat completion with tool calling.
  *
- * TODO(deepseek-api): streaming to the browser is deferred (copilot UI).
- * This adapter completes synchronously inside Convex actions.
+ * Completes synchronously inside the API.
  * TODO(deepseek-api): confirm tool-calling payload is OpenAI-compatible.
  */
 export const deepseekAdapter: GenerationAdapter = {
@@ -65,7 +64,6 @@ export const deepseekAdapter: GenerationAdapter = {
     const apiKey = requireProviderKey("deepseek");
     const providerJobId = `deepseek_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // TODO(deepseek-api): streaming — set stream:true and pipe when copilot UI lands.
     const body: Record<string, unknown> = {
       model: request.model ?? "deepseek-chat",
       messages: request.messages,
@@ -171,118 +169,6 @@ export type StreamChatResult = {
     total_tokens?: number;
   };
 };
-
-/**
- * Streaming chat for the copilot (bypasses the generation job poller).
- * Invokes onToken for each content delta so the UI can live-update.
- */
-export async function streamChat(args: {
-  messages: ChatMessage[];
-  tools?: ChatToolDefinition[];
-  onToken?: (delta: string) => Promise<void> | void;
-  model?: string;
-}): Promise<StreamChatResult> {
-  const apiKey = requireProviderKey("deepseek");
-
-  const body: Record<string, unknown> = {
-    model: args.model ?? "deepseek-chat",
-    messages: args.messages,
-    stream: true,
-  };
-  if (args.tools && args.tools.length > 0) {
-    body.tools = args.tools;
-  }
-
-  const res = await providerFetch(
-    "deepseek",
-    "https://api.deepseek.com/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!res.body) {
-    throw new Error("DeepSeek stream returned no body");
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let content = "";
-  const toolCallParts = new Map<
-    number,
-    { id: string; name: string; arguments: string }
-  >();
-  let usage: StreamChatResult["usage"];
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const data = trimmed.slice(5).trim();
-      if (data === "[DONE]") continue;
-      let parsed: {
-        choices?: Array<{
-          delta?: {
-            content?: string | null;
-            tool_calls?: Array<{
-              index?: number;
-              id?: string;
-              function?: { name?: string; arguments?: string };
-            }>;
-          };
-        }>;
-        usage?: StreamChatResult["usage"];
-      };
-      try {
-        parsed = JSON.parse(data) as typeof parsed;
-      } catch {
-        continue;
-      }
-      if (parsed.usage) usage = parsed.usage;
-      const delta = parsed.choices?.[0]?.delta;
-      if (!delta) continue;
-      if (delta.content) {
-        content += delta.content;
-        if (args.onToken) {
-          await args.onToken(delta.content);
-        }
-      }
-      if (delta.tool_calls) {
-        for (const tc of delta.tool_calls) {
-          const index = tc.index ?? 0;
-          const existing = toolCallParts.get(index) ?? {
-            id: "",
-            name: "",
-            arguments: "",
-          };
-          if (tc.id) existing.id = tc.id;
-          if (tc.function?.name) existing.name = tc.function.name;
-          if (tc.function?.arguments) {
-            existing.arguments += tc.function.arguments;
-          }
-          toolCallParts.set(index, existing);
-        }
-      }
-    }
-  }
-
-  return {
-    content,
-    toolCalls: [...toolCallParts.values()].filter((t) => t.name.length > 0),
-    usage,
-  };
-}
 
 /** Non-streaming chat used by mock fallback and tool follow-ups. */
 export async function completeChat(args: {

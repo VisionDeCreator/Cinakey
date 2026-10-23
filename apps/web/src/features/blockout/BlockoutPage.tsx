@@ -1,7 +1,7 @@
 import { api } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,10 @@ import {
   encodePrevizMp4,
   type ExportProgress,
 } from "@/features/blockout/export/runExport";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { cn } from "@/lib/utils";
 
 export function BlockoutPage() {
   const { projectId } = useParams();
-  const { setContext } = useCopilotContext();
   const confirm = useConfirm();
   const parts = useQuery(
     api.promptSheets.listScriptParts,
@@ -81,15 +79,6 @@ export function BlockoutPage() {
     );
     return sheet?.renderedText ?? null;
   }, [active, tips]);
-
-  useEffect(() => {
-    if (!projectId) return;
-    setContext({
-      view: "blockout",
-      projectId,
-      selectionIds: active ? [active.sequenceId] : [],
-    });
-  }, [projectId, active, setContext]);
 
   if (!projectId) return null;
 

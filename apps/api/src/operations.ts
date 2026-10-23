@@ -8,8 +8,7 @@ type Operations = ApiFromModules<{
   assets: typeof import("../../../packages/backend/convex/assets");
   blockouts: typeof import("../../../packages/backend/convex/blockouts") &
     typeof import("./services/blockouts");
-  copilot: typeof import("../../../packages/backend/convex/copilot") &
-    typeof import("./services/copilot");
+  textJobs: typeof import("../../../packages/backend/convex/textJobs");
   credits: typeof import("../../../packages/backend/convex/credits");
   egress: typeof import("../../../packages/backend/convex/egress");
   email: typeof import("../../../packages/backend/convex/email") &
@@ -28,8 +27,6 @@ type Operations = ApiFromModules<{
   projects: typeof import("../../../packages/backend/convex/projects");
   promptSheets: typeof import("../../../packages/backend/convex/promptSheets") &
     typeof import("./services/promptSheets");
-  proposals: typeof import("../../../packages/backend/convex/proposals") &
-    typeof import("./services/proposals");
   scenes: typeof import("../../../packages/backend/convex/scenes");
   scriptVersions: typeof import("../../../packages/backend/convex/scriptVersions") &
     typeof import("./services/scriptVersions");

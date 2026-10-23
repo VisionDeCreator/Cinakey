@@ -533,7 +533,7 @@ export const updateBlockoutFromScript = action({
       isBlockoutDocument: isDoc,
     } = await import("@cinakey/shared");
 
-    // Tip sheet still stores a structured summary for More / copilot.
+    // Tip sheet still stores a structured summary for downstream production tools.
     const structured = buildBlockoutSheetFromScript(script, {
       sequenceTitle: sequence.title,
       scriptPromptVersion: scriptSheet.version,

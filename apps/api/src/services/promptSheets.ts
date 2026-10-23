@@ -1,6 +1,5 @@
 import {
   assertSheetDocument,
-  ensureStyleReferencePrefix,
   normalizeEntityName,
   parseScriptPromptText,
   requiredAssetsFromScript,
@@ -194,79 +193,6 @@ export const createOrUpdateDraft = action({
     );
 
     return { promptSheetId: id, renderedText: rendered, version };
-  },
-});
-
-/** Approve an asset sheet and queue GPT Image 2 generation. */
-export const approveAssetSheet = action({
-  args: { promptSheetId: v.id("promptSheets") },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) throw new Error("Not authenticated");
-    const sheet: Doc<"promptSheets"> | null = await ctx.runQuery(
-      internal.promptSheets.getInternal,
-      { promptSheetId: args.promptSheetId },
-    );
-    if (sheet === null) throw new Error("Prompt sheet not found");
-    await ctx.runQuery(internal.scriptVersions.assertAccess, {
-      projectId: sheet.projectId,
-      userId,
-    });
-    if (!isAssetSheetType(sheet.type)) {
-      throw new Error("Not an asset prompt sheet");
-    }
-    if (!sheet.entityId) {
-      throw new Error("Asset sheet has no linked entity");
-    }
-
-    let rendered = sheet.renderedText ?? "";
-    if (sheet.renderedFileId) {
-      rendered = String(await loadJson(ctx, sheet.renderedFileId));
-    }
-
-    const project = await ctx.runQuery(api.projects.get, {
-      projectId: sheet.projectId,
-    });
-    const hasStyleReference = Boolean(project?.styleReferenceAssetId);
-
-    if (!rendered) {
-      const structured = await loadJson(ctx, sheet.structuredFileId);
-      const artStyle = await loadArtStyleBlock(ctx, sheet.projectId);
-      rendered = renderPromptSheetText(sheet.type, structured, artStyle, {
-        hasStyleReference,
-      });
-    }
-
-    rendered = ensureStyleReferencePrefix(rendered, hasStyleReference);
-
-    await ctx.runMutation(internal.promptSheets.patchStatus, {
-      promptSheetId: sheet._id,
-      status: "generating",
-    });
-
-    const result: {
-      jobId: Id<"generationJobs">;
-      estimatedCostCredits: number;
-    } = await ctx.runAction(api.generation.startGeneration, {
-      projectId: sheet.projectId,
-      adapterId: "gpt-image-2",
-      kind: hasStyleReference ? "image-edit" : "text-to-image",
-      prompt: rendered,
-      entityId: sheet.entityId,
-      promptSheetId: sheet._id,
-      ...(hasStyleReference && project?.styleReferenceAssetId
-        ? { referenceAssetIds: [project.styleReferenceAssetId] }
-        : {}),
-    });
-
-    await ctx.runMutation(internal.promptSheets.markAssetDependentsStale, {
-      promptSheetId: sheet._id,
-    });
-
-    return result;
   },
 });
 

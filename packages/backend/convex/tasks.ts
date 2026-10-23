@@ -156,7 +156,12 @@ export const reconcileGeneration = internalMutation({
     for (const job of page.page) {
       if (job.submissionState === "uncertain") continue;
       // Text jobs belong to individual API requests, not the provider worker.
-      if (!job.inputsFileId) {
+      if (
+        !job.inputsFileId &&
+        job.model !== "gpt-image-2" &&
+        job.kind !== "text-to-image" &&
+        job.kind !== "image-edit"
+      ) {
         if (job.updatedAt < Date.now() - 30 * 60_000) {
           const project = await ctx.db.get(job.projectId);
           if (project)

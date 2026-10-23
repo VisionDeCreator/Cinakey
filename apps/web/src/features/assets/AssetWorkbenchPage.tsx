@@ -4,12 +4,9 @@ import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { PromptWorkbench } from "@/features/prompt-workbench/PromptWorkbench";
 
-function entityKindToSheetType(
-  kind: string,
-): AssetSheetType {
+function entityKindToSheetType(kind: string): AssetSheetType {
   if (kind === "creature") return "creature";
   if (kind === "location") return "environment";
   if (kind === "prop") return "product";
@@ -18,47 +15,20 @@ function entityKindToSheetType(
 
 export function AssetWorkbenchPage() {
   const { projectId, assetId } = useParams();
-  const { setContext } = useCopilotContext();
   const entity = useQuery(
     api.entities.get,
-    assetId ? { entityId: assetId as never } : "skip",
-  );
-  const tip = useQuery(
-    api.promptSheets.getTipForEntity,
     assetId ? { entityId: assetId as never } : "skip",
   );
   const rename = useMutation(api.entities.update);
 
   const [name, setName] = useState("");
-  const [assetType, setAssetType] = useState<AssetSheetType>("character");
-
-  useEffect(() => {
-    if (projectId && assetId) {
-      setContext({
-        view: "assets",
-        projectId,
-        selectionIds: [assetId],
-      });
-    }
-  }, [projectId, assetId, setContext]);
+  const assetType = entityKindToSheetType(entity?.kind ?? "character");
 
   useEffect(() => {
     if (entity) {
       setName(entity.name);
-      setAssetType(entityKindToSheetType(entity.kind));
     }
   }, [entity]);
-
-  useEffect(() => {
-    if (
-      tip?.type === "character" ||
-      tip?.type === "creature" ||
-      tip?.type === "environment" ||
-      tip?.type === "product"
-    ) {
-      setAssetType(tip.type);
-    }
-  }, [tip?.type]);
 
   if (!projectId || !assetId) return null;
   if (entity === undefined) {
@@ -75,7 +45,7 @@ export function AssetWorkbenchPage() {
           to={`/projects/${projectId}/assets`}
           className="text-xs text-zinc-500 hover:text-zinc-300"
         >
-          ← Assets
+          ← References
         </Link>
         <Input
           value={name}
@@ -91,13 +61,27 @@ export function AssetWorkbenchPage() {
           }}
           className="h-8 max-w-xs text-sm font-medium"
         />
+        <select
+          aria-label="Reference type"
+          value={entity.kind}
+          className="h-8 border border-zinc-700 bg-zinc-900 px-2 text-sm"
+          onChange={(e) => {
+            const kind = e.target.value as
+              "character" | "creature" | "location" | "prop";
+            void rename({ entityId: assetId as never, kind });
+          }}
+        >
+          <option value="character">Character</option>
+          <option value="creature">Creature</option>
+          <option value="location">Location</option>
+          <option value="prop">Prop / product</option>
+        </select>
       </div>
       <PromptWorkbench
         projectId={projectId}
         entityId={assetId}
         entityName={name || entity.name}
         assetType={assetType}
-        onTypeDetected={setAssetType}
       />
     </div>
   );

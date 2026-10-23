@@ -1,26 +1,15 @@
 import { api } from "@cinakey/backend";
-import {
-  COST_CONFIRM_THRESHOLD_CREDITS,
-  validateAssetPromptText,
-  validateScriptPromptText,
-  type AssetSheetType,
-} from "@cinakey/shared";
+import { validateScriptPromptText, type AssetSheetType } from "@cinakey/shared";
 import { useAction, useQuery } from "@/lib/api/hooks";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { useConfirm } from "@/components/ConfirmProvider";
 import {
   assignScriptReferenceImage,
   listScriptImageNs,
 } from "@/features/prompt-workbench/scriptReferenceAssign";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<AssetSheetType, string> = {
   character: "character",
@@ -35,7 +24,6 @@ type AssetProps = {
   entityId: string;
   entityName: string;
   assetType: AssetSheetType;
-  onTypeDetected?: (type: AssetSheetType) => void;
 };
 
 type ScriptProps = {
@@ -81,30 +69,23 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
     !isScript ? { projectId: props.projectId as never } : "skip",
   );
 
+  const entity = useQuery(
+    api.entities.get,
+    !isScript ? { entityId: props.entityId as never } : "skip",
+  );
+
   const savePromptText = useAction(api.promptSheets.savePromptText);
   const saveScriptPromptText = useAction(api.promptSheets.saveScriptPromptText);
   const restoreVersion = useAction(api.promptSheets.restorePromptVersion);
-  const approveSheet = useAction(api.promptSheets.approveAssetSheet);
   const lockReference = useAction(api.entities.lockReference);
-  const runTurn = useAction(api.copilot.runTurn);
-  const confirm = useConfirm();
+  const unlockReference = useAction(api.entities.unlockReference);
   const { uploadFiles } = useAssetUpload(
     !isScript ? props.projectId : undefined,
   );
   const uploadRef = useRef<HTMLInputElement>(null);
 
-  const project = useQuery(
-    api.projects.get,
-    !isScript ? { projectId: props.projectId as never } : "skip",
-  );
-
   const [prompt, setPrompt] = useState("");
-  const [chatDraft, setChatDraft] = useState("");
-  const [localMessages, setLocalMessages] = useState<
-    { role: "user" | "assistant"; content: string }[]
-  >([]);
   const [busy, setBusy] = useState(false);
-  const [genBusy, setGenBusy] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
@@ -121,29 +102,17 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
       return;
     }
     const text = tip.renderedText ?? "";
-    // New tip versions get a new _id (e.g. sidebar Copilot rewrite).
+    // New saved versions get a new tip ID.
     if (!dirty && promptSynced.current !== tip._id) {
       setPrompt(text);
       promptSynced.current = tip._id;
     }
-    if (
-      !isScript &&
-      tip.type &&
-      tip.type !== props.assetType &&
-      isAssetType(tip.type)
-    ) {
-      props.onTypeDetected?.(tip.type);
-    }
   }, [tip, dirty, isScript, props]);
-
-  const hasStyleReference = Boolean(project?.styleReferenceAssetId);
 
   const validation = prompt.trim()
     ? isScript
       ? validateScriptPromptText(prompt)
-      : validateAssetPromptText(props.assetType, prompt, {
-          hasStyleReference,
-        })
+      : { ok: true }
     : { ok: true };
 
   const imageResults = (entityAssets ?? []).filter((a) => a.type === "image");
@@ -173,128 +142,6 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
     setDirty(false);
     promptSynced.current = result.promptSheetId;
     return result;
-  };
-
-  const onSend = async () => {
-    const content = chatDraft.trim();
-    if (!content || busy) return;
-    setBusy(true);
-    setError(null);
-    setChatDraft("");
-    setLocalMessages((m) => [...m, { role: "user", content }]);
-    try {
-      if (dirty && prompt.trim()) {
-        await saveDirect(prompt);
-      }
-      if (isScript) {
-        await runTurn({
-          projectId: props.projectId as never,
-          content: `For script ${props.partLabel}: ${content}`,
-          view: "script",
-          selectionIds: [props.sequenceId],
-        });
-      } else {
-        await runTurn({
-          projectId: props.projectId as never,
-          content: `For asset "${props.entityName}" (${props.assetType}): ${content}`,
-          view: "assets",
-          selectionIds: [props.entityId],
-        });
-      }
-      setLocalMessages((m) => [
-        ...m,
-        { role: "assistant", content: "Updated the prompt." },
-      ]);
-      setDirty(false);
-      promptSynced.current = null;
-    } catch (err) {
-      setChatDraft(content);
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onFillFromScript = async () => {
-    if (isScript || busy || !validation.warning) return;
-    const instruction = [
-      `For asset "${props.entityName}" (${props.assetType}):`,
-      `Call write_or_revise_asset_prompt to revise this asset's prompt.`,
-      `Add the missing recommended sections (${validation.warning.replace(/^Missing recommended sections:\s*/i, "")})`,
-      `using details from the project script (cast / LOCATION / SHOTS / ART STYLE as relevant).`,
-      `Keep existing prompt text; only add or flesh out the missing sections.`,
-      hasStyleReference
-        ? "The project has a style reference image — start with 'Use the attached image as the art style reference: ' if missing, and do not add an ART STYLE section. Close with MOOD AND COLOR."
-        : "Include ART STYLE if missing. Close with MOOD AND COLOR (not COLOR PALETTE).",
-      props.assetType === "creature"
-        ? "Creature mid-sections should include BODY, HEAD, and MARKINGS."
-        : props.assetType === "environment"
-          ? "Environment prompts must never include people, animals, or creatures — keep that in the opening. Outdoors: THE LAND + SKY AND LIGHT. Interiors: THE {PLACE} + LIGHT (optional extras allowed)."
-          : null,
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    setBusy(true);
-    setError(null);
-    setLocalMessages((m) => [
-      ...m,
-      { role: "user", content: "Fill missing sections from the script." },
-    ]);
-    try {
-      if (dirty && prompt.trim()) {
-        await saveDirect(prompt);
-      }
-      await runTurn({
-        projectId: props.projectId as never,
-        content: instruction,
-        view: "assets",
-        selectionIds: [props.entityId],
-      });
-      setLocalMessages((m) => [
-        ...m,
-        { role: "assistant", content: "Updated the prompt." },
-      ]);
-      setDirty(false);
-      promptSynced.current = null;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const onGenerate = async () => {
-    if (isScript || genBusy) return;
-    setGenBusy(true);
-    setError(null);
-    try {
-      let sheetId = tip?._id;
-      if (
-        dirty ||
-        !sheetId ||
-        (prompt.trim() && prompt !== (tip?.renderedText ?? ""))
-      ) {
-        const saved = await saveDirect(prompt);
-        sheetId = "promptSheetId" in saved ? saved.promptSheetId : sheetId;
-      }
-      if (!sheetId) throw new Error("Save a prompt first");
-      const est = 10;
-      const ok = await confirm({
-        title: "Generate image",
-        description:
-          est >= COST_CONFIRM_THRESHOLD_CREDITS
-            ? `Generate image for ~${est} credits?`
-            : `Generate (~${est} credits)?`,
-        confirmLabel: "Generate",
-      });
-      if (!ok) return;
-      await approveSheet({ promptSheetId: sheetId as never });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setGenBusy(false);
-    }
   };
 
   const onUploadImage = async (files: FileList | null) => {
@@ -370,66 +217,11 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-      <div className="flex min-h-0 w-full flex-col border border-zinc-800 lg:w-[22rem]">
-        <div className="border-b border-zinc-800 px-3 py-2">
-          <p className="text-xs font-medium text-zinc-300">Chat</p>
-        </div>
-        <div className="min-h-0 flex-1 space-y-2 overflow-auto px-3 py-2">
-          {localMessages.length === 0 ? (
-            <p className="text-xs text-zinc-500">
-              {isScript ? "Describe the video." : "Describe the asset."}
-            </p>
-          ) : (
-            localMessages.map((m, i) => (
-              <div
-                key={`${m.role}-${i}`}
-                className={cn(
-                  "rounded-sm px-2 py-1.5 text-xs",
-                  m.role === "user"
-                    ? "bg-zinc-800 text-zinc-100"
-                    : "text-zinc-400",
-                )}
-              >
-                {m.content}
-              </div>
-            ))
-          )}
-        </div>
-        <div className="border-t border-zinc-800 p-2">
-          <Textarea
-            value={chatDraft}
-            onChange={(e) => setChatDraft(e.target.value)}
-            placeholder="Describe changes…"
-            className="min-h-14 resize-none text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void onSend();
-              }
-            }}
-          />
-          <Button
-            type="button"
-            size="sm"
-            className="mt-2 w-full"
-            disabled={busy || !chatDraft.trim()}
-            onClick={() => void onSend()}
-          >
-            {busy ? "…" : "Send"}
-          </Button>
-        </div>
-      </div>
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
             {isScript ? "script" : TYPE_LABEL[props.assetType]}
           </span>
-          {!isScript && tip?.status === "out_of_date" ? (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-300">
-              style changed
-            </span>
-          ) : null}
           <div className="ml-auto flex items-center gap-1">
             <Button
               type="button"
@@ -492,6 +284,24 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
                 >
                   {uploadBusy ? "…" : "Upload"}
                 </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (!isScript)
+                      void unlockReference({
+                        entityId: props.entityId as never,
+                        referenceSheet: true,
+                      }).catch((err) =>
+                        setError(
+                          err instanceof Error ? err.message : String(err),
+                        ),
+                      );
+                  }}
+                >
+                  Clear references
+                </Button>
                 <input
                   ref={uploadRef}
                   type="file"
@@ -533,15 +343,6 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
                     </div>
                   ) : null}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-7"
-                  disabled={genBusy || !prompt.trim()}
-                  onClick={() => void onGenerate()}
-                >
-                  {genBusy ? "Generating…" : "Generate · 10"}
-                </Button>
               </>
             ) : null}
           </div>
@@ -561,19 +362,9 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
 
         {validation.warning ? (
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="text-[11px] text-amber-400/90">{validation.warning}</p>
-            {!isScript ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-6 px-2 text-[10px]"
-                disabled={busy}
-                onClick={() => void onFillFromScript()}
-              >
-                {busy ? "…" : "Fill from script"}
-              </Button>
-            ) : null}
+            <p className="text-[11px] text-amber-400/90">
+              {validation.warning}
+            </p>
           </div>
         ) : null}
         {error ? (
@@ -595,8 +386,8 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
           }}
           placeholder={
             isScript
-              ? "Script prompt appears here after you describe the video…"
-              : "Prompt appears here after you describe the asset…"
+              ? "Write or paste your video script and shot descriptions…"
+              : "Add reference notes and a description…"
           }
           className="min-h-[20rem] flex-1 resize-y font-mono text-sm leading-relaxed"
         />
@@ -605,8 +396,8 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
           <div className="mt-3 space-y-2">
             <p className="text-xs text-zinc-500">
               {imageResults.length > 0
-                ? "Results — pick a reference"
-                : "Upload, pick from Library, or Generate a reference"}
+                ? "Images — pick a reference"
+                : "Upload an image or pick a reference from Library"}
             </p>
             {imageResults.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 pb-3 sm:grid-cols-4">
@@ -615,6 +406,9 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
                     key={asset._id}
                     assetId={asset._id}
                     name={asset.name}
+                    selected={entity?.lockedReferenceAssetIds.includes(
+                      asset._id,
+                    )}
                     onSelect={() => {
                       void lockReference({
                         entityId: props.entityId as never,
@@ -627,19 +421,6 @@ export function PromptWorkbench(props: PromptWorkbenchProps) {
               </div>
             ) : null}
           </div>
-        ) : null}
-
-        {!isScript && tip?.status === "out_of_date" ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="mt-2 self-start"
-            disabled={genBusy}
-            onClick={() => void onGenerate()}
-          >
-            Regenerate
-          </Button>
         ) : null}
       </div>
     </div>
@@ -667,9 +448,7 @@ function ReferenceStrip({
   const mapByN = new Map(referenceMap.map((r) => [r.imageN, r.entityId]));
   const imageNs = listScriptImageNs(promptText);
   const slotNs =
-    imageNs.length > 0
-      ? imageNs
-      : [...mapByN.keys()].sort((a, b) => a - b);
+    imageNs.length > 0 ? imageNs : [...mapByN.keys()].sort((a, b) => a - b);
 
   const lockedEntities = (entities ?? []).filter(
     (e) =>
@@ -821,18 +600,10 @@ function MiniThumb({ assetId }: { assetId?: string }) {
   );
 }
 
-function isAssetType(t: string): t is AssetSheetType {
-  return (
-    t === "character" ||
-    t === "creature" ||
-    t === "environment" ||
-    t === "product"
-  );
-}
-
 function ResultThumb({
   assetId,
   name,
+  selected,
   onSelect,
 }: {
   assetId: string;
@@ -864,7 +635,7 @@ function ResultThumb({
           onClick={onSelect}
           className="w-full truncate text-left text-[10px] text-zinc-500 hover:text-zinc-300"
         >
-          Use as reference
+          {selected ? "Selected reference" : "Use as reference"}
         </button>
       </div>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>

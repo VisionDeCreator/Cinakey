@@ -21,7 +21,7 @@ export function ProjectsPage() {
   async function onStarter() {
     try {
       const id = await createStarter();
-      void navigate(`/projects/${id}/script`);
+      void navigate(`/projects/${id}/video`);
     } catch {
       // error surfaced via starterError
     }

@@ -59,62 +59,6 @@
     "kind": "mutation",
     "public": true
   },
-  "copilot:assertCopilotRateLimit": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:listMessages": {
-    "kind": "query",
-    "public": true
-  },
-  "copilot:listPendingProposals": {
-    "kind": "query",
-    "public": true
-  },
-  "copilot:getProposal": {
-    "kind": "query",
-    "public": true
-  },
-  "copilot:appendUserMessage": {
-    "kind": "mutation",
-    "public": true
-  },
-  "copilot:insertUserMessageInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:createAssistantMessage": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:appendAssistantDelta": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:finalizeAssistantMessage": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:createProposal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:createChatJob": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:settleChatJob": {
-    "kind": "mutation",
-    "public": false
-  },
-  "copilot:loadProjectContext": {
-    "kind": "query",
-    "public": false
-  },
-  "copilot:runTurn": {
-    "kind": "action",
-    "public": true
-  },
   "credits:getBalance": {
     "kind": "query",
     "public": true
@@ -339,10 +283,6 @@
     "kind": "action",
     "public": true
   },
-  "generation:startIdentitySet": {
-    "kind": "action",
-    "public": true
-  },
   "generation:submitAndTrack": {
     "kind": "action",
     "public": false
@@ -463,10 +403,6 @@
     "kind": "mutation",
     "public": false
   },
-  "onboarding:seedStarterCopilot": {
-    "kind": "mutation",
-    "public": false
-  },
   "onboarding:attachStarterTake": {
     "kind": "mutation",
     "public": true
@@ -555,10 +491,6 @@
     "kind": "action",
     "public": true
   },
-  "promptSheets:approveAssetSheet": {
-    "kind": "action",
-    "public": true
-  },
   "promptSheets:markAssetDependentsStale": {
     "kind": "mutation",
     "public": false
@@ -634,66 +566,6 @@
   "promptSheets:restorePromptVersion": {
     "kind": "action",
     "public": true
-  },
-  "proposals:reject": {
-    "kind": "mutation",
-    "public": true
-  },
-  "proposals:updatePayload": {
-    "kind": "mutation",
-    "public": true
-  },
-  "proposals:markAccepted": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:applyEntities": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:applyRules": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:findEntityByNameInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "proposals:applyShotList": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:patchEntityDescription": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:getInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "proposals:accept": {
-    "kind": "action",
-    "public": true
-  },
-  "proposals:patchBriefLogline": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:findStyleEntityInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "proposals:ensureStyleEntity": {
-    "kind": "mutation",
-    "public": false
-  },
-  "proposals:getResolvedPayload": {
-    "kind": "action",
-    "public": true
-  },
-  "proposals:createContinuityNote": {
-    "kind": "mutation",
-    "public": false
   },
   "scenes:listForProject": {
     "kind": "query",
@@ -1216,6 +1088,14 @@
     "public": true
   },
   "users:purgeUserData": {
+    "kind": "mutation",
+    "public": false
+  },
+  "textJobs:createChatJob": {
+    "kind": "mutation",
+    "public": false
+  },
+  "textJobs:settleChatJob": {
     "kind": "mutation",
     "public": false
   }

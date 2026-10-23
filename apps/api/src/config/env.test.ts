@@ -41,6 +41,15 @@ describe("server configuration and credential boundaries", () => {
     expect(() => validateProviderConfiguration()).not.toThrow();
     expect(() => requireProviderKey("openai")).toThrow("disabled");
   });
+  it("does not require the retired image provider for legacy environment settings", () => {
+    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+    vi.stubEnv("ENABLED_PROVIDERS", "deepseek,seedance,openai");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    vi.stubEnv("SEEDANCE_API_KEY", "test-key");
+    expect(providerConfig().enabled).toEqual(["deepseek", "seedance"]);
+    expect(() => validateProviderConfiguration()).not.toThrow();
+    expect(() => requireProviderKey("openai")).toThrow("disabled");
+  });
   it("validates flags, limits and provider endpoints without echoing invalid values", () => {
     vi.stubEnv("PROVIDER_TIMEOUT_MS", "invalid-private-value");
     expect(() => providerConfig()).toThrow("PROVIDER_TIMEOUT_MS");

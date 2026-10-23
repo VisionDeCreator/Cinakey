@@ -86,7 +86,7 @@ export const generatePlan = internalAction({
 
     let jobId: Id<"generationJobs">;
     try {
-      jobId = await ctx.runMutation(internal.copilot.createChatJob, {
+      jobId = await ctx.runMutation(internal.textJobs.createChatJob, {
         projectId: args.projectId,
         workspaceId: project.workspaceId,
         userId: args.userId,
@@ -111,7 +111,7 @@ export const generatePlan = internalAction({
       tokens: number,
       errorMessage?: string,
     ) =>
-      ctx.runMutation(internal.copilot.settleChatJob, {
+      ctx.runMutation(internal.textJobs.settleChatJob, {
         jobId,
         workspaceId: project.workspaceId,
         userId: args.userId,

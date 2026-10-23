@@ -7,7 +7,6 @@ import {
 import type { ActionCtx } from "../../../../packages/backend/convex/_generated/server";
 import { validateArgs } from "./validation";
 
-export type StreamEvent = { type: string; [key: string]: unknown };
 export type ServiceOperation = {
   visibility: "public" | "internal";
   args: Record<string, unknown>;
@@ -37,7 +36,6 @@ export function userClient(token: string) {
 export function createContext(
   registry: Registry,
   identity: UserIdentity | null = null,
-  emit?: (event: StreamEvent) => void,
   worker = false,
 ): ActionCtx {
   const client = adminClient(identity);
@@ -46,7 +44,6 @@ export function createContext(
     typeof ref === "string" ? ref : getFunctionName(ref);
   const queryCache = new Map<string, Promise<any>>();
   const fileCache = new Map<string, Promise<Blob | null>>();
-  const deltas = new Map<string, string>();
   const ctx = {
     auth: { getUserIdentity: async () => identity },
     runQuery: (ref: any, args: any = {}) => {
@@ -58,28 +55,8 @@ export function createContext(
     },
     runMutation: async (ref: any, args: any = {}) => {
       const name = nameOf(ref);
-      if (name === "copilot:appendAssistantDelta") {
-        deltas.set(
-          args.messageId,
-          (deltas.get(args.messageId) ?? "") + args.delta,
-        );
-        emit?.({ type: "delta", messageId: args.messageId, delta: args.delta });
-        return null;
-      }
       queryCache.clear();
       const result = await client.mutation(reference(name), args);
-      if (name === "copilot:createAssistantMessage")
-        emit?.({
-          type: "assistant",
-          message: {
-            ...args,
-            _id: result,
-            role: "assistant",
-            content: "",
-            streaming: true,
-            createdAt: Date.now(),
-          },
-        });
       return result;
     },
     runAction: async (ref: any, args: any = {}) => {

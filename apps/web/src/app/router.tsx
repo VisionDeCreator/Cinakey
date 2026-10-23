@@ -19,7 +19,6 @@ import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
 import { ScriptWorkbenchPage } from "@/features/script/ScriptWorkbenchPage";
-import { CopilotPage } from "@/features/copilot/CopilotPage";
 import { VideoPage } from "@/features/shots/VideoPage";
 import { EditPage } from "@/features/edit/EditPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
@@ -50,9 +49,9 @@ function AuthRedirect({ children }: { children: ReactNode }) {
   return children;
 }
 
-function RedirectToCopilot() {
+function RedirectToVideo() {
   const { projectId } = useParams();
-  return <Navigate to={`/projects/${projectId}/copilot`} replace />;
+  return <Navigate to={`/projects/${projectId}/video`} replace />;
 }
 
 function RedirectLookDev() {
@@ -108,8 +107,8 @@ export function AppRouter() {
               path="/projects/:projectId"
               element={<ProjectWorkspaceLayout />}
             >
-              <Route index element={<RedirectToCopilot />} />
-              <Route path="copilot" element={<CopilotPage />} />
+              <Route index element={<RedirectToVideo />} />
+              <Route path="copilot" element={<RedirectToVideo />} />
               <Route path="assets" element={<CreativeAssetsPage />} />
               <Route path="assets/:assetId" element={<AssetWorkbenchPage />} />
               <Route path="script" element={<ScriptWorkbenchPage />} />

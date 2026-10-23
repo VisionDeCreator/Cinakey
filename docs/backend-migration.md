@@ -1,5 +1,9 @@
 # API migration and operations
 
+Current product scope: see [Video production focus](video-focus.md). Copilot and
+new image generation have been retired; historical references below describe
+the original migration. Seedance and DeepSeek remain active providers.
+
 Cinakey runs a Bun/Elysia API and a separate Bun worker. Convex retains Auth,
 indexed persistence, transactions and file storage. The browser retains 3D
 rendering, media editing and MP4 encoding. Product behavior and provider models

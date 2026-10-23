@@ -10,9 +10,10 @@ import {
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
+import { retiredImageAdapter } from "../providers/retiredImage";
 import { getAdapter } from "../providers";
 import { isDefaultTransientError } from "../providers/cost";
-import { api, internal } from "../operations";
+import { internal } from "../operations";
 import type {
   Doc,
   Id,
@@ -70,6 +71,14 @@ export const startGeneration = action({
     ctx,
     args,
   ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+    if (
+      !["text-to-video", "image-to-video", "upscale", "extend"].includes(
+        args.kind,
+      ) ||
+      args.adapterId !== "seedance-2.5"
+    ) {
+      throw new Error("Only video generation is supported");
+    }
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
@@ -101,11 +110,7 @@ export const startGeneration = action({
       );
     }
 
-    const styleRefId =
-      args.adapterId === "gpt-image-2" &&
-      project.styleReferenceAssetId !== undefined
-        ? project.styleReferenceAssetId
-        : undefined;
+    const styleRefId = project.styleReferenceAssetId;
     const referenceAssetIds = [
       ...new Set([
         ...(args.referenceAssetIds ?? []),
@@ -147,7 +152,7 @@ export const startGeneration = action({
       return url;
     }
 
-    // Adapter expects: first URL = base image (for edit), rest = references.
+    // Preserve caller reference order when assembling video inputs.
     const referenceImageUrls: string[] = [];
     for (const assetId of parentAssetIds) {
       referenceImageUrls.push(await urlFor(assetId));
@@ -232,51 +237,7 @@ export const startGeneration = action({
   },
 });
 
-/**
- * Queue four text-to-image jobs for a character identity set (front, ¾, profile, full body).
- */
-export const startIdentitySet = action({
-  args: {
-    projectId: v.id("projects"),
-    entityId: v.id("entities"),
-    basePrompt: v.string(),
-    referenceAssetIds: v.optional(v.array(v.id("assets"))),
-    adapterId: v.optional(v.string()),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    jobIds: Id<"generationJobs">[];
-    estimatedCostCredits: number;
-  }> => {
-    const { IDENTITY_SLOT_KEYS, IDENTITY_SLOT_PROMPTS } =
-      await import("@cinakey/shared");
-    const adapterId = args.adapterId ?? "gpt-image-2";
-    const jobIds: Id<"generationJobs">[] = [];
-    let total = 0;
-    for (const slot of IDENTITY_SLOT_KEYS) {
-      const prompt = `${args.basePrompt.trim()}\n\n${IDENTITY_SLOT_PROMPTS[slot]}`;
-      const result = await ctx.runAction(api.generation.startGeneration, {
-        projectId: args.projectId,
-        adapterId,
-        kind: "text-to-image",
-        prompt,
-        entityId: args.entityId,
-        referenceAssetIds: args.referenceAssetIds,
-        input: { identitySlot: slot },
-      });
-      jobIds.push(result.jobId);
-      total += result.estimatedCostCredits;
-    }
-    return { jobIds, estimatedCostCredits: total };
-  },
-});
-
-// ---------------------------------------------------------------------------
-// Internal actions: submit + poll
-// ---------------------------------------------------------------------------
-
+/** Resume video work or reconcile retired image jobs without resubmitting them. */
 export const submitAndTrack = internalAction({
   args: { jobId: v.id("generationJobs"), retry: v.optional(v.boolean()) },
   handler: async (ctx, args): Promise<void> => {
@@ -313,7 +274,27 @@ export const submitAndTrack = internalAction({
       return;
     }
 
-    const adapter = getAdapter(job.model);
+    if (
+      job.model === "gpt-image-2" ||
+      job.kind === "text-to-image" ||
+      job.kind === "image-edit"
+    ) {
+      if (
+        job.submissionState === "accepted" ||
+        job.status !== "queued" ||
+        (job.attempts > 0 && job.submissionState !== "rejected")
+      ) {
+        await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+          jobId: job._id,
+        });
+        throw new SubmissionUncertainError();
+      }
+      await failAndRefund(ctx, job, "Image generation has been retired");
+      return;
+    }
+
+    const adapter =
+      job.model === "gpt-image-2" ? retiredImageAdapter : getAdapter(job.model);
     if (!adapter) {
       await failAndRefund(ctx, job, `Unknown adapter: ${job.model}`);
       return;
@@ -386,7 +367,7 @@ export const submitAndTrack = internalAction({
       });
 
       if (result.completedInline) {
-        // Sync providers (GPT Image, mock) keep outputs in-process.
+        // Synchronous providers keep outputs in-process.
         // Poll/collect must run in THIS action — a scheduled pollJob runs in a
         // fresh isolate where the in-memory result map is empty.
         const poll = await adapter.poll(result.providerJobId);
@@ -472,17 +453,23 @@ export const pollJob = internalAction({
     ) {
       return;
     }
+    if (
+      job.submissionState === "uncertain" ||
+      job.submissionState === "in_flight" ||
+      (job.model === "gpt-image-2" && !job.providerJobId)
+    ) {
+      await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+        jobId: job._id,
+      });
+      throw new SubmissionUncertainError();
+    }
     if (!job.providerJobId) {
       await failAndRefund(ctx, job, "Missing providerJobId");
       return;
     }
 
-    if (
-      job.submissionState === "uncertain" ||
-      job.submissionState === "in_flight"
-    )
-      throw new SubmissionUncertainError();
-    const adapter = getAdapter(job.model);
+    const adapter =
+      job.model === "gpt-image-2" ? retiredImageAdapter : getAdapter(job.model);
     if (!adapter) {
       await failAndRefund(ctx, job, `Unknown adapter: ${job.model}`);
       return;
@@ -492,6 +479,12 @@ export const pollJob = internalAction({
       if (job.providerResultFileId) {
         await finishSuccess(ctx, job, adapter, job.providerActualUnits);
         return;
+      }
+      if (job.model === "gpt-image-2") {
+        await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+          jobId: job._id,
+        });
+        throw new SubmissionUncertainError();
       }
       const poll = await adapter.poll(job.providerJobId);
 
@@ -529,6 +522,7 @@ export const pollJob = internalAction({
       // succeeded
       await finishSuccess(ctx, job, adapter, poll.actualUnits);
     } catch (err) {
+      if (err instanceof SubmissionUncertainError) throw err;
       if (currentProviderSignal()?.aborted) throw workerCancellationError(err);
       if (!useMockProviders()) {
         if (

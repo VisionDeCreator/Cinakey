@@ -1,5 +1,4 @@
 import { deepseekAdapter } from "./deepseek";
-import { gptImage2Adapter } from "./gptImage2";
 import { createMockAdapter } from "./mock";
 import { seedance25Adapter } from "./seedance25";
 import type { GenerationAdapter } from "@cinakey/shared";
@@ -9,7 +8,6 @@ export type { GenerationAdapter, ModelCapabilities } from "@cinakey/shared";
 
 const realAdapters: Record<string, GenerationAdapter> = {
   "seedance-2.5": seedance25Adapter,
-  "gpt-image-2": gptImage2Adapter,
   deepseek: deepseekAdapter,
 };
 
@@ -23,13 +21,7 @@ function resolveAdapter(id: string): GenerationAdapter | undefined {
   if (useMockAdapters()) {
     return createMockAdapter(real);
   }
-  requireProviderKey(
-    id === "gpt-image-2"
-      ? "openai"
-      : id === "seedance-2.5"
-        ? "seedance"
-        : "deepseek",
-  );
+  requireProviderKey(id === "seedance-2.5" ? "seedance" : "deepseek");
   return real;
 }
 

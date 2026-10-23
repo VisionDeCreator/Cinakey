@@ -77,12 +77,7 @@ export async function runWorker(signal: AbortSignal) {
               );
           }, 30_000);
           try {
-            const ctx = createContext(
-              registry,
-              task.identity ?? null,
-              undefined,
-              true,
-            );
+            const ctx = createContext(registry, task.identity ?? null, true);
             if (registry.has(task.operation))
               await withProviderSignal(signal, () =>
                 ctx.runAction(ref(task.operation), task.args),

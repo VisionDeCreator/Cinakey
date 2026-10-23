@@ -320,34 +320,6 @@ export const trackStarterCreated = internalMutation({
   },
 });
 
-/** Sample Script-tab conversation for the starter trailer. */
-export const seedStarterCopilot = internalMutation({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("copilotMessages")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .first();
-    if (existing) return;
-
-    const now = Date.now();
-    await ctx.db.insert("copilotMessages", {
-      projectId: args.projectId,
-      role: "user",
-      content:
-        "Walk me through this trailer — Maya and Jordan outside the café.",
-      createdAt: now,
-    });
-    await ctx.db.insert("copilotMessages", {
-      projectId: args.projectId,
-      role: "assistant",
-      content:
-        "This starter opens on the Script tab with a 30s Seedance prompt for Part 1. Maya and Jordan are in Assets; sample clips are ready on Video. Tweak the prompt here, then Blockout → Video → Edit.",
-      createdAt: now + 1,
-    });
-  },
-});
-
 /** Attach a sample uploaded video as a selected take for a starter shot. */
 export const attachStarterTake = mutation({
   args: {

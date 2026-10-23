@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConvexHttpClient } from "convex/browser";
-import { getFunctionName, makeFunctionReference } from "convex/server";
+import { getFunctionName } from "convex/server";
 import { v } from "convex/values";
 import { createApp } from "./app";
 import { registry } from "./registry";
@@ -66,37 +66,20 @@ describe("API boundary", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ value: [{ title: "Film" }] });
   });
-  it("streams deltas without persisting each delta", async () => {
-    vi.spyOn(ConvexHttpClient.prototype, "query").mockResolvedValue({
-      identity: { subject: "user|session" },
-    });
-    const writes = vi.spyOn(ConvexHttpClient.prototype, "mutation");
-    registry.set("storage:storeJson", {
-      visibility: "public",
-      args: { value: v.any() },
-      handler: async (ctx) => {
-        await ctx.runMutation(
-          makeFunctionReference<any>("copilot:appendAssistantDelta"),
-          { messageId: "m1", delta: "Hello" },
-        );
-        return { saved: true };
-      },
-    });
-    const response = await createApp().handle(
-      request(
-        "/v1/storage/storeJson",
-        { args: { value: {} }, stream: true },
-        "token",
-      ),
-    );
-    expect(response.status).toBe(200);
-    const events = (await response.text())
-      .trim()
-      .split("\n")
-      .map((line) => JSON.parse(line));
-    expect(events[0]).toMatchObject({ type: "delta", delta: "Hello" });
-    expect(events[1]).toEqual({ type: "result", value: { saved: true } });
-    expect(writes).not.toHaveBeenCalled();
+  it("does not expose retired assistant or image entrypoints", async () => {
+    const app = createApp();
+    for (const path of [
+      "copilot/runTurn",
+      "copilot/listMessages",
+      "proposals/accept",
+      "generation/startIdentitySet",
+      "promptSheets/approveAssetSheet",
+    ]) {
+      expect(
+        (await app.handle(request(`/v1/${path}`, { args: {} }, "token")))
+          .status,
+      ).toBe(404);
+    }
   });
   it("rejects malformed and unknown service arguments", () => {
     const validators = {

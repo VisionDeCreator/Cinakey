@@ -1,11 +1,15 @@
 import { api } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AssetLibrary } from "@/features/assets/AssetLibrary";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { cn } from "@/lib/utils";
 
 const KIND_LABEL: Record<string, string> = {
@@ -25,7 +29,6 @@ export function CreativeAssetsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const view = searchParams.get("view") === "library" ? "library" : "grid";
-  const { setContext } = useCopilotContext();
   const ensureStyle = useMutation(api.entities.ensureStyle);
   const createEntity = useMutation(api.entities.create);
   const updateProject = useMutation(api.projects.update);
@@ -60,18 +63,19 @@ export function CreativeAssetsPage() {
   const dragDepth = useRef(0);
 
   useEffect(() => {
-    if (projectId) {
-      setContext({ view: "assets", projectId, selectionIds: [] });
-      void ensureStyle({ projectId: projectId as never });
-    }
-  }, [projectId, setContext, ensureStyle]);
+    if (projectId) void ensureStyle({ projectId: projectId as never });
+  }, [projectId, ensureStyle]);
 
   if (!projectId) return null;
 
   const creative = (entities ?? []).filter((e) => e.kind !== "style");
   const tipByEntity = new Map(
     (tips ?? [])
-      .filter((t) => t.entityId && ["character", "creature", "environment", "product"].includes(t.type))
+      .filter(
+        (t) =>
+          t.entityId &&
+          ["character", "creature", "environment", "product"].includes(t.type),
+      )
       .map((t) => [t.entityId as string, t]),
   );
 
@@ -81,7 +85,7 @@ export function CreativeAssetsPage() {
       const id = await createEntity({
         projectId: projectId as never,
         kind: "character",
-        name: "New asset",
+        name: "New reference",
       });
       navigate(`/projects/${projectId}/assets/${id}`);
     } finally {
@@ -136,7 +140,8 @@ export function CreativeAssetsPage() {
     setDropBusy(true);
     setDropError(null);
     try {
-      const baseName = files[0]!.name.replace(/\.[^.]+$/, "").trim() || "New asset";
+      const baseName =
+        files[0]!.name.replace(/\.[^.]+$/, "").trim() || "New reference";
       const entityId = await createEntity({
         projectId: projectId as never,
         kind: "character",
@@ -165,7 +170,10 @@ export function CreativeAssetsPage() {
   const onZoneDragEnter = (e: DragEvent) => {
     e.preventDefault();
     dragDepth.current += 1;
-    if (imageFilesFromDataTransfer(e.dataTransfer).length > 0 || e.dataTransfer.types.includes("Files")) {
+    if (
+      imageFilesFromDataTransfer(e.dataTransfer).length > 0 ||
+      e.dataTransfer.types.includes("Files")
+    ) {
       setDropTarget((cur) => (typeof cur === "string" ? cur : "zone"));
     }
   };
@@ -229,7 +237,7 @@ export function CreativeAssetsPage() {
             disabled={creating}
             onClick={() => void onNewAsset()}
           >
-            {creating ? "…" : "New asset"}
+            {creating ? "…" : "New reference"}
           </Button>
         ) : null}
       </div>
@@ -330,7 +338,8 @@ export function CreativeAssetsPage() {
               </div>
             )}
             <p className="mt-2 px-1 text-[10px] text-zinc-600">
-              Drop an image on a card to assign it, or onto empty space to create a new asset.
+              Drop an image on a card to assign it, or onto empty space to
+              create a new asset.
             </p>
           </div>
         </>

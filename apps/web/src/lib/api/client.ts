@@ -44,11 +44,7 @@ export class ApiClient {
     entry.snapshot++;
     for (const listener of entry.listeners) listener();
   }
-  async call(
-    name: string,
-    args: Record<string, unknown>,
-    stream = false,
-  ): Promise<any> {
+  async call(name: string, args: Record<string, unknown>): Promise<any> {
     if (!this.token) throw new Error("Authentication required");
     const response = await fetch(
       `${this.baseUrl}/v1/${name.replace(":", "/")}`,
@@ -58,7 +54,7 @@ export class ApiClient {
           Authorization: `Bearer ${this.token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ args: convexToJson(args as Value), stream }),
+        body: JSON.stringify({ args: convexToJson(args as Value) }),
         signal: this.controller.signal,
       },
     );
@@ -68,56 +64,7 @@ export class ApiClient {
         : new Error(payload.message ?? "API request failed");
     };
     if (!response.ok) fail(await response.json());
-    if (!stream) return jsonToConvex((await response.json()).value);
-    const reader = response.body!.getReader(),
-      decoder = new TextDecoder();
-    let pending = "",
-      result: any,
-      finished = false;
-    while (true) {
-      const { value, done } = await reader.read();
-      pending += decoder.decode(value, { stream: !done });
-      let end;
-      while ((end = pending.indexOf("\n")) >= 0) {
-        const line = pending.slice(0, end);
-        pending = pending.slice(end + 1);
-        if (!line) continue;
-        const event = JSON.parse(line);
-        if (event.type === "error") fail(event);
-        if (event.type === "result") {
-          result = jsonToConvex(event.value);
-          finished = true;
-        } else this.streamEvent(event);
-      }
-      if (done) break;
-    }
-    if (!finished)
-      throw new Error(
-        "Response interrupted. Reload to recover the saved conversation.",
-      );
-    return result;
-  }
-  streamEvent(event: any) {
-    for (const entry of this.queries.values()) {
-      if (entry.name !== "copilot:listMessages" || !Array.isArray(entry.data))
-        continue;
-      if (
-        event.type === "assistant" &&
-        entry.args.projectId === event.message.projectId
-      ) {
-        entry.data = [
-          ...entry.data.filter((m: any) => m._id !== event.message._id),
-          event.message,
-        ];
-      } else if (event.type === "delta") {
-        entry.data = entry.data.map((m: any) =>
-          m._id === event.messageId
-            ? { ...m, content: m.content + event.delta }
-            : m,
-        );
-      } else continue;
-      this.notify(entry);
-    }
+    return jsonToConvex((await response.json()).value);
   }
   async load(entry: QueryEntry, force = false) {
     if (entry.pending) return entry.pending;

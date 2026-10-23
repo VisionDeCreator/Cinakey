@@ -2,8 +2,8 @@ import { api } from "@cinakey/backend";
 import { COST_CONFIRM_THRESHOLD_CREDITS } from "@cinakey/shared";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
 import {
@@ -12,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { cn } from "@/lib/utils";
 
 type Master = {
@@ -29,7 +28,6 @@ type Master = {
 
 export function VideoPage() {
   const { projectId } = useParams();
-  const { setContext } = useCopilotContext();
   const parts = useQuery(
     api.promptSheets.listScriptParts,
     projectId ? { projectId: projectId as never } : "skip",
@@ -57,8 +55,7 @@ export function VideoPage() {
   const deleteMaster = useMutation(api.shotGeneration.deleteMaster);
 
   const resolvedSequenceId =
-    activeSequenceId &&
-    parts?.some((p) => p.sequenceId === activeSequenceId)
+    activeSequenceId && parts?.some((p) => p.sequenceId === activeSequenceId)
       ? activeSequenceId
       : (parts?.[0]?.sequenceId ?? null);
 
@@ -66,9 +63,7 @@ export function VideoPage() {
     parts?.find((p) => p.sequenceId === resolvedSequenceId) ?? null;
   const masters = useQuery(
     api.shotGeneration.listSequenceMasters,
-    active
-      ? { sequenceId: active.sequenceId as never }
-      : "skip",
+    active ? { sequenceId: active.sequenceId as never } : "skip",
   ) as Master[] | undefined;
 
   const estimate = useQuery(
@@ -91,20 +86,11 @@ export function VideoPage() {
     spend.remaining != null &&
     credits > spend.remaining;
 
-  useEffect(() => {
-    if (!projectId) return;
-    setContext({
-      view: "video",
-      projectId,
-      selectionIds: active ? [active.sequenceId] : [],
-    });
-  }, [projectId, active, setContext]);
-
   const comparePair = useMemo(() => {
     if (!masters || compareIds.length !== 2) return null;
     const a = masters.find((m) => m.assetId === compareIds[0]);
     const b = masters.find((m) => m.assetId === compareIds[1]);
-    return a && b ? [a, b] as const : null;
+    return a && b ? ([a, b] as const) : null;
   }, [masters, compareIds]);
 
   if (!projectId) return null;
@@ -220,7 +206,12 @@ export function VideoPage() {
     return (
       <div className="mx-auto max-w-3xl space-y-4 pb-16">
         <h1 className="text-xl font-semibold text-zinc-100">Video</h1>
-        <p className="text-sm text-zinc-500">Write a script first.</p>
+        <p className="text-sm text-zinc-500">
+          Start with a script, then generate your video.
+        </p>
+        <Button asChild>
+          <Link to={`/projects/${projectId}/script`}>Add a script</Link>
+        </Button>
       </div>
     );
   }
@@ -309,7 +300,9 @@ export function VideoPage() {
       {masters === undefined ? (
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : masters.length === 0 ? (
-        <p className="text-sm text-zinc-500">No videos yet.</p>
+        <p className="text-sm text-zinc-500">
+          No videos yet. Generate a video from the script above.
+        </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {masters.map((m) => (
@@ -374,7 +367,12 @@ export function VideoPage() {
                     </DropdownMenuItem>
                     {m.url ? (
                       <DropdownMenuItem asChild>
-                        <a href={m.url} download target="_blank" rel="noreferrer">
+                        <a
+                          href={m.url}
+                          download
+                          target="_blank"
+                          rel="noreferrer"
+                        >
                           Download
                         </a>
                       </DropdownMenuItem>

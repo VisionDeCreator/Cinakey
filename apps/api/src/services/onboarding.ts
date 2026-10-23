@@ -130,10 +130,6 @@ export const createStarterProject = action({
       workspaceId: shell.workspaceId,
     });
 
-    await ctx.runMutation(internal.onboarding.seedStarterCopilot, {
-      projectId: shell.projectId,
-    });
-
     return shell;
   },
 });

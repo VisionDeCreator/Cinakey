@@ -44,7 +44,6 @@ import {
 } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { runExport } from "@/features/blockout/export/runExport";
 import { cn } from "@/lib/utils";
 import { EditorInspector } from "./EditorInspector";
@@ -117,7 +116,6 @@ export function BlockoutEditorPage() {
   const sequenceIdParam = search.get("sequenceId");
   const shotIdParam = search.get("shotId") ?? routeShotId ?? null;
 
-  const { setContext } = useCopilotContext();
   const project = useQuery(
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
@@ -201,15 +199,6 @@ export function BlockoutEditorPage() {
     (scenes ?? []).find((s) => s._id === shot?.sceneId)?.heading ??
     cut?.sceneHeading ??
     "";
-
-  useEffect(() => {
-    if (!projectId) return;
-    setContext({
-      view: "blockout",
-      projectId,
-      selectionIds: resolvedSequenceId ? [resolvedSequenceId] : [],
-    });
-  }, [projectId, resolvedSequenceId, setContext]);
 
   // Load document
   const applyLoaded = useEffectEvent(

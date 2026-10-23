@@ -18,7 +18,9 @@ import { scanText } from "./moderation";
 export const listCapabilities = query({
   args: {},
   handler: async () => {
-    return listAdapters().map((a) => a.capabilities);
+    return listAdapters()
+      .filter((a) => a.capabilities.kind === "video")
+      .map((a) => a.capabilities);
   },
 });
 
@@ -30,8 +32,14 @@ export const estimateCost = query({
   },
   handler: async (_ctx, args) => {
     const adapter = getAdapter(args.adapterId);
-    if (!adapter) {
-      throw new Error(`Unknown adapter: ${args.adapterId}`);
+    if (
+      !adapter ||
+      adapter.capabilities.kind !== "video" ||
+      !adapter.capabilities.operations.includes(args.kind as never)
+    ) {
+      throw new Error(
+        `Unsupported video operation: ${args.adapterId}/${args.kind}`,
+      );
     }
     const input = {
       ...(args.input as BuildRequestInput),

@@ -1,39 +1,20 @@
 import { api } from "@cinakey/backend";
 import type { ProjectTab } from "@cinakey/shared";
 import { useQuery } from "@/lib/api/hooks";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import { useEffect } from "react";
-import { NavLink, Navigate, Outlet, useLocation, useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { CopilotPanel } from "@/features/copilot/CopilotPanel";
-import {
-  CopilotProvider,
-  useCopilotContext,
-} from "@/features/copilot/CopilotContext";
+import { NavLink, Navigate, Outlet, useParams } from "react-router-dom";
 import { StageProgressBar } from "@/features/projects/StageProgress";
-import { useLocalStorageBool } from "@/lib/useLocalStorageBool";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: ProjectTab; label: string; path: string }[] = [
-  { id: "copilot", label: "Copilot", path: "copilot" },
-  { id: "assets", label: "Assets", path: "assets" },
+  { id: "assets", label: "References", path: "assets" },
   { id: "script", label: "Script", path: "script" },
-  { id: "blockout", label: "Blockout", path: "blockout" },
+  { id: "blockout", label: "Staging", path: "blockout" },
   { id: "video", label: "Video", path: "video" },
   { id: "edit", label: "Edit", path: "edit" },
 ];
 
 export function ProjectWorkspaceLayout() {
-  return (
-    <CopilotProvider>
-      <ProjectWorkspaceInner />
-    </CopilotProvider>
-  );
-}
-
-function ProjectWorkspaceInner() {
   const { projectId } = useParams();
-  const location = useLocation();
   const project = useQuery(
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
@@ -46,18 +27,6 @@ function ProjectWorkspaceInner() {
     api.shotGeneration.listActiveJobsForProject,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  const { setContext } = useCopilotContext();
-  const [copilotCollapsed, setCopilotCollapsed] = useLocalStorageBool(
-    "cinakey.copilotPanelCollapsed",
-    false,
-  );
-
-  useEffect(() => {
-    if (projectId) {
-      setContext({ view: "copilot", projectId, selectionIds: [] });
-    }
-  }, [projectId, setContext]);
-
   if (!projectId) {
     return <Navigate to="/projects" replace />;
   }
@@ -83,7 +52,6 @@ function ProjectWorkspaceInner() {
   }
 
   const base = `/projects/${projectId}`;
-  const onCopilotTab = location.pathname.includes("/copilot");
 
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
@@ -130,62 +98,10 @@ function ProjectWorkspaceInner() {
             </div>
           </div>
 
-          <div
-            className={cn(
-              "min-h-0 flex-1",
-              onCopilotTab
-                ? "flex flex-col overflow-hidden p-0"
-                : "overflow-auto p-6",
-            )}
-          >
+          <div className="min-h-0 flex-1 overflow-auto p-6">
             <Outlet />
           </div>
         </div>
-
-        {!onCopilotTab ? (
-          <aside
-            className={cn(
-              "hidden shrink-0 border-l border-zinc-800 bg-[var(--color-studio-panel)] transition-[width] lg:flex lg:flex-col",
-              copilotCollapsed ? "w-10" : "w-80",
-            )}
-          >
-            {copilotCollapsed ? (
-              <div className="flex flex-1 flex-col items-center py-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-zinc-400"
-                  title="Expand Copilot"
-                  onClick={() => setCopilotCollapsed(false)}
-                >
-                  <PanelRightOpen className="size-4" />
-                  <span className="sr-only">Expand Copilot</span>
-                </Button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-                  <p className="text-sm font-medium text-zinc-200">Copilot</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-zinc-400"
-                    title="Collapse Copilot"
-                    onClick={() => setCopilotCollapsed(true)}
-                  >
-                    <PanelRightClose className="size-4" />
-                    <span className="sr-only">Collapse Copilot</span>
-                  </Button>
-                </div>
-                <div className="min-h-0 flex-1">
-                  <CopilotPanel projectId={projectId} />
-                </div>
-              </>
-            )}
-          </aside>
-        ) : null}
       </div>
     </div>
   );

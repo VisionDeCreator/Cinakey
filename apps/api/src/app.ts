@@ -6,7 +6,7 @@ import { makeFunctionReference } from "convex/server";
 import { ConvexError, convexToJson, jsonToConvex } from "convex/values";
 import manifest from "./manifest.json";
 import { registry } from "./registry";
-import { createContext, userClient, type StreamEvent } from "./runtime/context";
+import { createContext, userClient } from "./runtime/context";
 import { validateArgs } from "./runtime/validation";
 import { generationWebhook } from "./services/generation";
 
@@ -84,52 +84,6 @@ export function createApp() {
             return { value: convexToJson(value ?? null) };
           }
           validateArgs(service.args, args);
-          // POST streaming keeps the bearer token out of URLs and supports token refresh.
-          if (body.stream) {
-            const encoder = new TextEncoder();
-            const stream = new ReadableStream<Uint8Array>({
-              start(controller) {
-                let open = true;
-                const emit = (event: StreamEvent) => {
-                  if (open) {
-                    try {
-                      controller.enqueue(
-                        encoder.encode(JSON.stringify(event) + "\n"),
-                      );
-                    } catch {
-                      open = false;
-                    }
-                  }
-                };
-                const ctx = createContext(registry, identity, emit);
-                void withProviderSignal(request.signal, () =>
-                  service.handler(ctx, args),
-                )
-                  .then((value) =>
-                    emit({
-                      type: "result",
-                      value: convexToJson(value ?? null),
-                    }),
-                  )
-                  .catch((error) =>
-                    emit({ type: "error", ...errorPayload(error) }),
-                  )
-                  .finally(() => {
-                    if (open) {
-                      open = false;
-                      controller.close();
-                    }
-                  });
-              },
-            });
-            return new Response(stream, {
-              headers: {
-                "Content-Type": "application/x-ndjson",
-                "Cache-Control": "no-store",
-                "X-Accel-Buffering": "no",
-              },
-            });
-          }
           return {
             value: convexToJson(
               (await withProviderSignal(request.signal, () =>

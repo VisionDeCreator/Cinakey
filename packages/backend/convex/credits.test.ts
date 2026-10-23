@@ -40,7 +40,7 @@ describe("credits ledger", () => {
         projectId,
         model: "gpt-image-2",
         modelVersion: "gpt-image-2",
-        kind: "text-to-image",
+        kind: "text-to-video",
         prompt: "x",
         estimatedCostCredits: STARTER_CREDITS + 50,
         status: "queued",
@@ -79,7 +79,7 @@ describe("credits ledger", () => {
         projectId,
         model: "gpt-image-2",
         modelVersion: "gpt-image-2",
-        kind: "text-to-image",
+        kind: "text-to-video",
         prompt: "x",
         estimatedCostCredits: 10,
         status: "queued",
@@ -132,7 +132,7 @@ describe("credits ledger", () => {
         projectId,
         model: "gpt-image-2",
         modelVersion: "gpt-image-2",
-        kind: "text-to-image",
+        kind: "text-to-video",
         prompt: "x",
         estimatedCostCredits: 10,
         status: "queued",
@@ -195,8 +195,8 @@ describe("generation jobs with mock adapter", () => {
       api.generation.startGeneration,
       {
         projectId,
-        adapterId: "gpt-image-2",
-        kind: "text-to-image",
+        adapterId: "seedance-2.5",
+        kind: "text-to-video",
         prompt: "a cat",
         input: { mockDelayMs: 0 },
       },
@@ -233,8 +233,8 @@ describe("generation jobs with mock adapter", () => {
 
     const { jobId } = await asUser.action(api.generation.startGeneration, {
       projectId,
-      adapterId: "gpt-image-2",
-      kind: "text-to-image",
+      adapterId: "seedance-2.5",
+      kind: "text-to-video",
       prompt: "will fail",
       input: { forceFail: true, mockDelayMs: 0 },
     });
@@ -265,8 +265,8 @@ describe("generation jobs with mock adapter", () => {
 
     const { jobId } = await asUser.action(api.generation.startGeneration, {
       projectId,
-      adapterId: "gpt-image-2",
-      kind: "text-to-image",
+      adapterId: "seedance-2.5",
+      kind: "text-to-video",
       prompt: "retry me",
       input: { failUntilAttempt: 2, mockDelayMs: 0 },
     });

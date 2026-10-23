@@ -1,23 +1,12 @@
 /** Shared domain types used by both Convex and the frontend. */
 
-export type ProjectTab =
-  | "copilot"
-  | "assets"
-  | "script"
-  | "blockout"
-  | "video"
-  | "edit";
+export type ProjectTab = "assets" | "script" | "blockout" | "video" | "edit";
 
 export type NavItemId = "projects" | "assets" | "settings";
 
 export type AspectRatio = "16:9" | "9:16" | "1:1";
 
-export type PipelineStage =
-  | "assets"
-  | "script"
-  | "blockout"
-  | "video"
-  | "edit";
+export type PipelineStage = "assets" | "script" | "blockout" | "video" | "edit";
 
 export type StageStatus = "empty" | "started";
 
@@ -30,13 +19,7 @@ export type ProjectBrief = {
 };
 
 export type AssetType =
-  | "video"
-  | "image"
-  | "audio"
-  | "music"
-  | "logo"
-  | "json"
-  | "other";
+  "video" | "image" | "audio" | "music" | "logo" | "json" | "other";
 
 /** Client-side upload limits (must match server validation). */
 export const ASSET_MAX_BYTES: Record<AssetType, number> = {

@@ -19,9 +19,11 @@ export function GenerationTestPage() {
   const markAllRead = useMutation(api.notifications.markAllRead);
   const startGeneration = useAction(api.generation.startGeneration);
 
-  const [adapterId, setAdapterId] = useState<string>("gpt-image-2");
-  const [kind, setKind] = useState<string>("text-to-image");
-  const [prompt, setPrompt] = useState("A cinematic wide shot of a rainy street at night");
+  const [adapterId, setAdapterId] = useState<string>("seedance-2.5");
+  const [kind, setKind] = useState<string>("text-to-video");
+  const [prompt, setPrompt] = useState(
+    "A cinematic wide shot of a rainy street at night",
+  );
   const [durationSec, setDurationSec] = useState(5);
   const [resolution, setResolution] = useState("");
   const [aspectRatio, setAspectRatio] = useState("");
@@ -50,9 +52,7 @@ export function GenerationTestPage() {
 
   const estimate = useQuery(
     api.generation.estimateCost,
-    selected
-      ? { adapterId, kind, input: estimateInput }
-      : "skip",
+    selected ? { adapterId, kind, input: estimateInput } : "skip",
   );
 
   const job = useQuery(
@@ -155,7 +155,12 @@ export function GenerationTestPage() {
             onChange={(e) => setGrantAmount(Number(e.target.value))}
           />
         </div>
-        <Button type="button" variant="secondary" disabled={busy} onClick={() => void onGrant()}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={busy}
+          onClick={() => void onGrant()}
+        >
           Grant credits
         </Button>
       </div>
@@ -278,7 +283,11 @@ export function GenerationTestPage() {
           : null}
       </p>
 
-      <Button type="button" disabled={busy || !prompt} onClick={() => void onRun()}>
+      <Button
+        type="button"
+        disabled={busy || !prompt}
+        onClick={() => void onRun()}
+      >
         Run generation
       </Button>
 
