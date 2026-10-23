@@ -106,8 +106,65 @@ export const purgeUserData = internalMutation({
         .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
         .collect();
 
+      // Remove the workspace's library graph before purging its physical files.
+      // Normal project/series archival never runs this full-account purge.
+      const seriesRows = await ctx.db
+        .query("series")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+        .collect();
+      for (const series of seriesRows) {
+        const resources = await ctx.db
+          .query("libraryResources")
+          .withIndex("by_series", (q) => q.eq("seriesId", series._id))
+          .collect();
+        for (const resource of resources) {
+          const versions = await ctx.db
+            .query("resourceVersions")
+            .withIndex("by_resource", (q) => q.eq("resourceId", resource._id))
+            .collect();
+          for (const version of versions) {
+            const uses = await ctx.db
+              .query("resourceAssetUses")
+              .withIndex("by_version", (q) => q.eq("versionId", version._id))
+              .collect();
+            for (const use of uses) await ctx.db.delete(use._id);
+            await ctx.db.delete(version._id);
+          }
+          await ctx.db.delete(resource._id);
+        }
+        await ctx.db.delete(series._id);
+      }
+      for (const project of projects) {
+        const bindings = await ctx.db
+          .query("projectResources")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        for (const row of bindings) await ctx.db.delete(row._id);
+        const links = await ctx.db
+          .query("projectAssetLinks")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        for (const row of links) await ctx.db.delete(row._id);
+      }
       for (const project of projects) {
         await purgeProject(ctx, project._id);
+      }
+
+      const libraryAssets = await ctx.db
+        .query("assets")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+        .collect();
+      for (const asset of libraryAssets) {
+        await ctx.db.delete(asset._id);
+        await tryDeleteStorage(ctx, asset.storageId);
+      }
+      const files = await ctx.db
+        .query("mediaFiles")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+        .collect();
+      for (const file of files) {
+        await ctx.db.delete(file._id);
+        await tryDeleteStorage(ctx, file.storageId);
       }
 
       const ledger = await ctx.db

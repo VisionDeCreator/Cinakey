@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { timelineUsesAsset } from "./lib/mediaProtection";
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -221,7 +222,10 @@ export const attachTakeProxy = mutation({
     if (take === null) throw new Error("Take not found");
     await requireProjectAccess(ctx, take.projectId);
     const proxy = await ctx.db.get(args.proxyAssetId);
-    if (proxy === null || proxy.projectId !== take.projectId) {
+    if (
+      proxy === null ||
+      !(await projectCanUseAsset(ctx, take.projectId, proxy._id))
+    ) {
       throw new Error("Proxy asset not found");
     }
     const patch: {
@@ -230,7 +234,10 @@ export const attachTakeProxy = mutation({
     } = { proxyAssetId: args.proxyAssetId };
     if (args.clippedAssetId !== undefined) {
       const clipped = await ctx.db.get(args.clippedAssetId);
-      if (clipped === null || clipped.projectId !== take.projectId) {
+      if (
+        clipped === null ||
+        !(await projectCanUseAsset(ctx, take.projectId, clipped._id))
+      ) {
         throw new Error("Clipped asset not found");
       }
       patch.assetId = args.clippedAssetId;

@@ -28,6 +28,7 @@ import { useLocalStorageBool } from "@/lib/useLocalStorageBool";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { to: "/series", label: "Series", icon: FolderKanban },
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/assets", label: "Assets", icon: Images },
   { to: "/settings", label: "Settings", icon: Settings },

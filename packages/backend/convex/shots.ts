@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { enqueueTask } from "./tasks";
 import { normalizeEntityName } from "@cinakey/shared";
 import { v } from "convex/values";
@@ -426,14 +427,17 @@ export const setKeyframe = mutation({
     if (shot === null) throw new Error("Shot not found");
     await requireProjectAccess(ctx, shot.projectId);
     const asset = await ctx.db.get(args.keyframeAssetId);
-    if (asset === null || asset.projectId !== shot.projectId) {
+    if (
+      asset === null ||
+      !(await projectCanUseAsset(ctx, shot.projectId, asset._id))
+    ) {
       throw new Error("Asset not found");
     }
     await ctx.db.patch(args.shotId, {
       keyframeAssetId: args.keyframeAssetId,
       updatedAt: Date.now(),
     });
-    if (asset.shotId !== args.shotId) {
+    if (asset.projectId === shot.projectId && asset.shotId !== args.shotId) {
       await ctx.db.patch(args.keyframeAssetId, {
         shotId: args.shotId,
         sceneId: shot.sceneId,

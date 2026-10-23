@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { deleteFile } from "./storage";
 import { insertNotification } from "./notifications";
 import { enqueueTask } from "./tasks";
@@ -430,7 +431,10 @@ export const assertStartAllowed = internalMutation({
 
     for (const assetId of args.referenceAssetIds) {
       const asset = await ctx.db.get(assetId);
-      if (asset === null || asset.projectId !== args.projectId) {
+      if (
+        asset === null ||
+        !(await projectCanUseAsset(ctx, args.projectId, asset._id))
+      ) {
         throw new Error(`Asset ${assetId} not found in this project`);
       }
       if (asset.likenessConsent === false) {

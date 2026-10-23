@@ -1106,5 +1106,81 @@
   "timelineVersions:commitSnapshot": {
     "kind": "mutation",
     "public": false
+  },
+  "series:list": {
+    "kind": "query",
+    "public": true
+  },
+  "series:get": {
+    "kind": "query",
+    "public": true
+  },
+  "series:create": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:update": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:setArchived": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:createEpisode": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:setMembership": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:reorderEpisodes": {
+    "kind": "mutation",
+    "public": true
+  },
+  "series:applyDefaults": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:list": {
+    "kind": "query",
+    "public": true
+  },
+  "resources:versions": {
+    "kind": "query",
+    "public": true
+  },
+  "resources:publish": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:useInProject": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:listForProject": {
+    "kind": "query",
+    "public": true
+  },
+  "resources:setArchived": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:createUploadUrl": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:completeUpload": {
+    "kind": "mutation",
+    "public": true
+  },
+  "resources:assetUrls": {
+    "kind": "query",
+    "public": true
+  },
+  "storage:canProjectUseAsset": {
+    "kind": "query",
+    "public": false
   }
 }

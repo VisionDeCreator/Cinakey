@@ -7,7 +7,12 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { requireProjectAccess, requireUser } from "./lib/access";
+import {
+  projectAssets,
+  requireAssetAccess,
+  requireProjectAccess,
+  requireUser,
+} from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
 import { deleteFile } from "./storage";
 
@@ -80,44 +85,16 @@ export const list = query({
     const searchQuery = args.query?.trim();
     let collected: Doc<"assets">[] = [];
 
-    if (searchQuery && searchQuery.length > 0) {
-      for (const pid of projectIds) {
-        const hits = await ctx.db
-          .query("assets")
-          .withSearchIndex("search_name_tags", (sq) => {
-            let s = sq.search("searchText", searchQuery).eq("projectId", pid);
-            if (args.type !== undefined) {
-              s = s.eq("type", args.type);
-            }
-            if (args.starredOnly === true) {
-              s = s.eq("starred", true);
-            }
-            return s;
-          })
-          .collect();
-        collected.push(...hits);
-      }
-    } else {
-      for (const pid of projectIds) {
-        const rows =
-          args.type !== undefined
-            ? await ctx.db
-                .query("assets")
-                .withIndex("by_project_type", (q) =>
-                  q.eq("projectId", pid).eq("type", args.type!),
-                )
-                .collect()
-            : await ctx.db
-                .query("assets")
-                .withIndex("by_project", (q) => q.eq("projectId", pid))
-                .collect();
-        collected.push(...rows);
-      }
-    }
+    for (const pid of projectIds)
+      collected.push(...(await projectAssets(ctx, pid)));
+    collected = [...new Map(collected.map((a) => [a._id, a])).values()];
+    if (args.type) collected = collected.filter((a) => a.type === args.type);
+    if (searchQuery)
+      collected = collected.filter((a) =>
+        a.searchText.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+    if (args.starredOnly) collected = collected.filter((a) => a.starred);
 
-    if (args.starredOnly === true && !(searchQuery && searchQuery.length > 0)) {
-      collected = collected.filter((a) => a.starred);
-    }
     if (args.tag !== undefined && args.tag.length > 0) {
       const tag = args.tag.toLowerCase();
       collected = collected.filter((a) =>
@@ -188,10 +165,7 @@ export const filterOptions = query({
           projectId: pid,
         });
       }
-      const assets = await ctx.db
-        .query("assets")
-        .withIndex("by_project", (q) => q.eq("projectId", pid))
-        .collect();
+      const assets = await projectAssets(ctx, pid);
       for (const a of assets) {
         for (const t of a.tags) tags.add(t);
       }
@@ -216,7 +190,7 @@ export const update = mutation({
     if (asset === null) {
       throw new Error("Asset not found");
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
 
     const name = args.name !== undefined ? args.name.trim() : asset.name;
     if (name.length === 0) {
@@ -242,7 +216,7 @@ export const setStarred = mutation({
     if (asset === null) {
       throw new Error("Asset not found");
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
     await ctx.db.patch(args.assetId, {
       starred: args.starred,
       updatedAt: Date.now(),
@@ -257,7 +231,7 @@ export const remove = mutation({
     if (asset === null) {
       throw new Error("Asset not found");
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
     await assertMediaRemovable(ctx, asset.projectId, args.assetId);
     await deleteFile(ctx, asset.storageId);
     await ctx.db.delete(args.assetId);

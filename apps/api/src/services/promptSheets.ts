@@ -45,8 +45,15 @@ async function loadArtStyleBlock(
     internal.promptSheets.listEntitiesInternal,
     { projectId },
   );
-  const style = entities.find((e: Doc<"entities">) => e.kind === "style");
-  if (!style?.sheetFileId) return "";
+  const project = await ctx.runQuery(internal.entities.getProjectInternal, {
+    projectId,
+  });
+  const style =
+    entities.find(
+      (e: Doc<"entities">) => e._id === project?.activeStyleEntityId,
+    ) ?? entities.find((e: Doc<"entities">) => e.kind === "style");
+  if (!style?.sheetFileId)
+    return style?.sourceResourceVersionId ? (style.description ?? "") : "";
   try {
     const sheet = assertSheetDocument(
       await loadJson(ctx, style.sheetFileId),

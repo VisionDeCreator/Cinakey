@@ -1,3 +1,4 @@
+import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
 import { api } from "@cinakey/backend";
 import type { ProjectTab } from "@cinakey/shared";
 import { useQuery } from "@/lib/api/hooks";
@@ -57,11 +58,20 @@ export function ProjectWorkspaceLayout() {
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
+          {project.seriesId && (
+            <EpisodeSeriesPanel
+              key={projectId}
+              projectId={project._id}
+              seriesId={project.seriesId}
+            />
+          )}
           <div className="border-b border-zinc-800 px-6 pt-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-wider text-zinc-500">
-                  Project
+                  {project.seriesId
+                    ? `Episode ${project.episodeNumber}`
+                    : "Project"}
                 </p>
                 <h1 className="text-xl font-semibold tracking-tight">
                   {project.title}

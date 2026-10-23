@@ -1,3 +1,5 @@
+import { SeriesIndexPage } from "@/features/series/SeriesIndexPage";
+import { SeriesPage } from "@/features/series/SeriesPage";
 import { useConvexAuth } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
@@ -102,6 +104,8 @@ export function AppRouter() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Navigate to="/projects" replace />} />
+            <Route path="/series" element={<SeriesIndexPage />} />
+            <Route path="/series/:seriesId" element={<SeriesPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route
               path="/projects/:projectId"

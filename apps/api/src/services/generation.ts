@@ -146,7 +146,13 @@ export const startGeneration = action({
       const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
         assetId,
       });
-      if (asset === null || asset.projectId !== args.projectId) {
+      if (
+        asset === null ||
+        !(await ctx.runQuery(internal.storage.canProjectUseAsset, {
+          projectId: args.projectId,
+          assetId: asset._id,
+        }))
+      ) {
         throw new Error(`Asset ${assetId} not found in this project`);
       }
       const url = await getFileUrl(ctx, asset.storageId);
@@ -163,7 +169,13 @@ export const startGeneration = action({
       const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
         assetId,
       });
-      if (!asset || asset.projectId !== args.projectId)
+      if (
+        !asset ||
+        !(await ctx.runQuery(internal.storage.canProjectUseAsset, {
+          projectId: args.projectId,
+          assetId: asset._id,
+        }))
+      )
         throw new Error("Parent media is not in this project");
       if (asset.type === "video") parentVideoUrl = await urlFor(assetId);
       else throw new Error("Video operations require a video parent");

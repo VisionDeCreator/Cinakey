@@ -7,7 +7,7 @@ import {
   query,
 } from "./_generated/server";
 import { getAdapter } from "./adapters";
-import { requireProjectAccess } from "./lib/access";
+import { projectCanUseAsset, requireProjectAccess } from "./lib/access";
 
 const kindValidator = v.union(
   v.literal("character"),
@@ -59,6 +59,11 @@ export const listAssetsForEntity = query({
       .query("assets")
       .withIndex("by_entity", (q) => q.eq("entityId", args.entityId))
       .collect();
+    for (const id of entity.lockedReferenceAssetIds) {
+      if (assets.some((a) => a._id === id)) continue;
+      const asset = await ctx.db.get(id);
+      if (asset) assets.push(asset);
+    }
     return assets.sort((a, b) => b.createdAt - a.createdAt);
   },
 });
@@ -82,6 +87,12 @@ export const ensureStyle = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
+    const project = await ctx.db.get(args.projectId);
+    if (
+      project?.activeStyleEntityId &&
+      (await ctx.db.get(project.activeStyleEntityId))
+    )
+      return project.activeStyleEntityId;
     const existing = await ctx.db
       .query("entities")
       .withIndex("by_project_kind", (q) =>
@@ -203,6 +214,12 @@ export const applySheetBlob = internalMutation({
     lockedReferenceAssetIds: v.array(v.id("assets")),
   },
   handler: async (ctx, args) => {
+    const entity = await ctx.db.get(args.entityId);
+    if (!entity) throw new Error("Entity not found");
+    for (const assetId of args.lockedReferenceAssetIds) {
+      if (!(await projectCanUseAsset(ctx, entity.projectId, assetId)))
+        throw new Error("Reference is not available in this project");
+    }
     await ctx.db.patch(args.entityId, {
       sheetFileId: args.sheetFileId,
       lockedReferenceAssetIds: args.lockedReferenceAssetIds,
@@ -230,6 +247,12 @@ export const assertProjectAccess = internalQuery({
 export const findStyleInternal = internalQuery({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (project?.activeStyleEntityId) {
+      const active = await ctx.db.get(project.activeStyleEntityId);
+      if (active?.projectId === args.projectId && active.kind === "style")
+        return active;
+    }
     return await ctx.db
       .query("entities")
       .withIndex("by_project_kind", (q) =>

@@ -67,3 +67,64 @@ export function isWorkspaceOwner(
 ): boolean {
   return user.isStaff === true || workspace.ownerUserId === user._id;
 }
+
+export async function requireWorkspaceAccess(
+  ctx: Ctx,
+  workspaceId: Id<"workspaces">,
+) {
+  const user = await requireUser(ctx);
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace || !isWorkspaceOwner(user, workspace))
+    throw new Error("Workspace access denied");
+  return workspace;
+}
+
+export async function requireSeriesAccess(ctx: Ctx, seriesId: Id<"series">) {
+  const series = await ctx.db.get(seriesId);
+  if (!series) throw new Error("Series not found");
+  await requireWorkspaceAccess(ctx, series.workspaceId);
+  return series;
+}
+
+export async function requireAssetAccess(ctx: Ctx, assetId: Id<"assets">) {
+  const asset = await ctx.db.get(assetId);
+  if (!asset) throw new Error("Asset not found");
+  if (asset.workspaceId) await requireWorkspaceAccess(ctx, asset.workspaceId);
+  else if (asset.projectId) await requireProjectAccess(ctx, asset.projectId);
+  else throw new Error("Asset has no owner");
+  return asset;
+}
+
+/** Membership is explicit: owning a workspace alone does not attach a file to a production. */
+export async function projectCanUseAsset(
+  ctx: Ctx,
+  projectId: Id<"projects">,
+  assetId: Id<"assets">,
+) {
+  const asset = await ctx.db.get(assetId);
+  if (!asset) return false;
+  if (asset.projectId === projectId) return true;
+  return !!(await ctx.db
+    .query("projectAssetLinks")
+    .withIndex("by_project_asset", (q) =>
+      q.eq("projectId", projectId).eq("assetId", assetId),
+    )
+    .first());
+}
+
+export async function projectAssets(ctx: Ctx, projectId: Id<"projects">) {
+  const owned = await ctx.db
+    .query("assets")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  const links = await ctx.db
+    .query("projectAssetLinks")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  const rows = new Map(owned.map((a) => [a._id, a]));
+  for (const link of links) {
+    const asset = await ctx.db.get(link.assetId);
+    if (asset) rows.set(asset._id, asset);
+  }
+  return [...rows.values()];
+}

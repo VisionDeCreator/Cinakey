@@ -66,7 +66,86 @@ const schema = defineSchema(
       updatedAt: v.number(),
     }).index("by_owner", ["ownerUserId"]),
 
+    series: defineTable({
+      workspaceId: v.id("workspaces"),
+      title: v.string(),
+      description: v.string(),
+      aspectRatio: v.string(),
+      fps: v.number(),
+      styleNotes: v.string(),
+      rules: v.array(v.string()),
+      settingsVersion: v.number(),
+      archivedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_workspace", ["workspaceId"]),
+    mediaFiles: defineTable({
+      workspaceId: v.id("workspaces"),
+      storageId: v.id("_storage"),
+      sizeBytes: v.number(),
+      format: v.string(),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+    })
+      .index("by_storage", ["storageId"])
+      .index("by_workspace", ["workspaceId"]),
+    libraryResources: defineTable({
+      seriesId: v.id("series"),
+      name: v.string(),
+      kind: v.union(
+        v.literal("media"),
+        v.literal("character"),
+        v.literal("creature"),
+        v.literal("location"),
+        v.literal("prop"),
+        v.literal("style"),
+      ),
+      currentVersionId: v.optional(v.id("resourceVersions")),
+      archivedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_series", ["seriesId"]),
+    resourceVersions: defineTable({
+      resourceId: v.id("libraryResources"),
+      version: v.number(),
+      name: v.string(),
+      description: v.string(),
+      sheetFileId: v.optional(v.id("_storage")),
+      assetIds: v.array(v.id("assets")),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+    })
+      .index("by_resource", ["resourceId"])
+      .index("by_sheet_file", ["sheetFileId"]),
+    resourceAssetUses: defineTable({
+      versionId: v.id("resourceVersions"),
+      assetId: v.id("assets"),
+    })
+      .index("by_asset", ["assetId"])
+      .index("by_version", ["versionId"]),
+    projectResources: defineTable({
+      projectId: v.id("projects"),
+      resourceId: v.id("libraryResources"),
+      versionId: v.id("resourceVersions"),
+      entityId: v.optional(v.id("entities")),
+      createdAt: v.number(),
+    })
+      .index("by_project", ["projectId"])
+      .index("by_project_version", ["projectId", "versionId"]),
+    projectAssetLinks: defineTable({
+      projectId: v.id("projects"),
+      assetId: v.id("assets"),
+    })
+      .index("by_project", ["projectId"])
+      .index("by_asset", ["assetId"])
+      .index("by_project_asset", ["projectId", "assetId"]),
+
     projects: defineTable({
+      seriesId: v.optional(v.id("series")),
+      episodeNumber: v.optional(v.number()),
+      episodeOrder: v.optional(v.number()),
+      seriesSettingsVersion: v.optional(v.number()),
+      activeStyleEntityId: v.optional(v.id("entities")),
       workspaceId: v.id("workspaces"),
       title: v.string(),
       brief: v.optional(
@@ -91,7 +170,9 @@ const schema = defineSchema(
       archivedAt: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
-    }).index("by_workspace", ["workspaceId"]),
+    })
+      .index("by_workspace", ["workspaceId"])
+      .index("by_series", ["seriesId"]),
 
     scriptVersions: defineTable({
       projectId: v.id("projects"),
@@ -252,6 +333,7 @@ const schema = defineSchema(
       .index("by_project_tip", ["projectId", "isTip"]),
 
     entities: defineTable({
+      sourceResourceVersionId: v.optional(v.id("resourceVersions")),
       projectId: v.id("projects"),
       kind: v.union(
         v.literal("character"),
@@ -271,7 +353,9 @@ const schema = defineSchema(
       .index("by_project_kind", ["projectId", "kind"]),
 
     assets: defineTable({
-      projectId: v.id("projects"),
+      projectId: v.optional(v.id("projects")),
+      workspaceId: v.optional(v.id("workspaces")),
+      mediaFileId: v.optional(v.id("mediaFiles")),
       sceneId: v.optional(v.id("scenes")),
       shotId: v.optional(v.id("shots")),
       entityId: v.optional(v.id("entities")),
@@ -310,6 +394,7 @@ const schema = defineSchema(
       .index("by_entity", ["entityId"])
       .index("by_job", ["jobId"])
       .index("by_storage", ["storageId"])
+      .index("by_workspace", ["workspaceId"])
       .searchIndex("search_name_tags", {
         searchField: "searchText",
         filterFields: ["projectId", "type", "starred"],

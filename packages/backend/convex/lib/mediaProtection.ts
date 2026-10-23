@@ -6,6 +6,15 @@ export async function timelineUsesAsset(
   projectId: Id<"projects">,
   assetId: Id<"assets">,
 ) {
+  const shared = await ctx.db
+    .query("resourceAssetUses")
+    .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+    .first();
+  const linked = await ctx.db
+    .query("projectAssetLinks")
+    .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+    .first();
+  if (shared || linked) return true;
   const asset = await ctx.db.get(assetId);
   if (
     asset &&
@@ -29,9 +38,22 @@ export async function timelineUsesAsset(
 }
 export async function assertMediaRemovable(
   ctx: MutationCtx,
-  projectId: Id<"projects">,
+  projectId: Id<"projects"> | undefined,
   assetId: Id<"assets">,
 ) {
+  const used = await ctx.db
+    .query("resourceAssetUses")
+    .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+    .first();
+  const linked = await ctx.db
+    .query("projectAssetLinks")
+    .withIndex("by_asset", (q) => q.eq("assetId", assetId))
+    .first();
+  if (used || linked)
+    throw new Error(
+      "This media is pinned by a shared resource or episode. Archive the resource instead.",
+    );
+  if (!projectId) return;
   if (await timelineUsesAsset(ctx, projectId, assetId))
     throw new Error(
       "This media is used by a saved timeline or its history. Keep it to preserve your edits.",

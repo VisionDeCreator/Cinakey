@@ -7,6 +7,11 @@ Upload images or reuse existing assets as references. Cinakey does not generate
 images or provide a conversational copilot. Projects open on Video; Script,
 References, Staging, and Edit remain available throughout production.
 
+Create a standalone project or a **Series** with multiple episodes. Series share
+versioned media, characters, locations, props and style through one library;
+episodes keep independent scripts, generation jobs and edits. Adopt resource
+versions explicitly without duplicating the stored files. See [Series structure](docs/series.md).
+
 TypeScript monorepo using Bun workspaces and Turborepo. The React/Vite creator
 app talks to a Bun/Elysia API. A separate Bun worker handles generation and
 background work. Convex provides authentication, database transactions and file

@@ -2,7 +2,7 @@ import { api } from "@cinakey/backend";
 import { useQuery } from "@/lib/api/hooks";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCreateStarterProject } from "@/features/onboarding/useCreateStarterProject";
 import { NewProjectDialog } from "@/features/projects/NewProjectDialog";
@@ -39,6 +39,9 @@ export function ProjectsPage() {
           >
             {starterBusy ? "Starting…" : "Trailer template"}
           </Button>
+          <Button variant="outline" asChild>
+            <Link to="/series">Series / New series</Link>
+          </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
             New project
@@ -52,7 +55,7 @@ export function ProjectsPage() {
 
       {projects === undefined ? (
         <p className="text-sm text-zinc-500">Loading…</p>
-      ) : projects.length === 0 ? (
+      ) : projects.filter(({ project }) => !project.seriesId).length === 0 ? (
         <div className="border border-dashed border-zinc-700 px-6 py-16 text-center">
           <p className="text-sm text-zinc-500">No projects yet.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -66,17 +69,19 @@ export function ProjectsPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map(({ project, thumbnailUrl, progress }) => (
-            <ProjectCard
-              key={project._id}
-              projectId={project._id}
-              title={project.title}
-              thumbnailUrl={thumbnailUrl}
-              updatedAt={project.updatedAt}
-              progress={progress}
-              archived={project.archivedAt !== undefined}
-            />
-          ))}
+          {projects
+            .filter(({ project }) => !project.seriesId)
+            .map(({ project, thumbnailUrl, progress }) => (
+              <ProjectCard
+                key={project._id}
+                projectId={project._id}
+                title={project.title}
+                thumbnailUrl={thumbnailUrl}
+                updatedAt={project.updatedAt}
+                progress={progress}
+                archived={project.archivedAt !== undefined}
+              />
+            ))}
         </div>
       )}
 

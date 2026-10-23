@@ -1,7 +1,12 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
-import { requireProjectAccess, requireUser } from "./lib/access";
+import {
+  projectAssets,
+  projectCanUseAsset,
+  requireProjectAccess,
+  requireUser,
+} from "./lib/access";
 import { markSheetsStaleForStyleChange } from "./lib/promptSheetDeps";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
@@ -83,12 +88,9 @@ async function resolveThumbnailUrl(
     }
   }
 
-  const assets = await ctx.db
-    .query("assets")
-    .withIndex("by_project_type", (q) =>
-      q.eq("projectId", project._id).eq("type", "image"),
-    )
-    .collect();
+  const assets = (await projectAssets(ctx, project._id)).filter(
+    (a) => a.type === "image",
+  );
   const first = assets.sort((a, b) => b.updatedAt - a.updatedAt)[0];
   if (first === undefined) {
     return null;
@@ -154,10 +156,7 @@ export const getOverview = query({
           .query("shots")
           .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
           .collect(),
-        ctx.db
-          .query("assets")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
+        projectAssets(ctx, args.projectId),
         ctx.db
           .query("scriptVersions")
           .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -239,6 +238,10 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
+    for (const assetId of [args.thumbnailAssetId, args.styleReferenceAssetId]) {
+      if (assetId && !(await projectCanUseAsset(ctx, args.projectId, assetId)))
+        throw new Error("Reference is not available in this project");
+    }
     const patch: {
       title?: string;
       brief?: {

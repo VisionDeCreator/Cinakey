@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { v, ConvexError } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
@@ -141,7 +142,7 @@ export const commitSnapshot = internalMutation({
       });
     for (const assetId of args.mediaAssetIds) {
       const asset = await ctx.db.get(assetId);
-      if (!asset || asset.projectId !== args.projectId)
+      if (!asset || !(await projectCanUseAsset(ctx, args.projectId, asset._id)))
         throw new Error("Timeline references missing or inaccessible media");
     }
     return ctx.db.insert("timelineVersions", {

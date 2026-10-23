@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation, query } from "./_generated/server";
@@ -340,7 +341,10 @@ export const attachStarterTake = mutation({
       throw new Error("Shot not found");
     }
     const asset = await ctx.db.get(args.assetId);
-    if (asset === null || asset.projectId !== args.projectId) {
+    if (
+      asset === null ||
+      !(await projectCanUseAsset(ctx, args.projectId, asset._id))
+    ) {
       throw new Error("Asset not found");
     }
     if (asset.type !== "video") {

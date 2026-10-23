@@ -68,7 +68,19 @@ async function loadSheetDoc(
       return createEmptySheet(entity.kind);
     }
   }
-  return createEmptySheet(entity.kind);
+  const sheet = createEmptySheet(entity.kind);
+  if (entity.sourceResourceVersionId) {
+    sheet.notes = entity.description;
+    const refs = entity.lockedReferenceAssetIds;
+    if (entity.kind === "character" || entity.kind === "creature") {
+      sheet.look = entity.description;
+      sheet.referenceSheetAssetId = refs[0];
+    } else if (entity.kind === "style") {
+      sheet.artStyleBlock = entity.description;
+      sheet.moodReferenceAssetIds = refs;
+    } else sheet.heroAssetIds = refs;
+  }
+  return sheet;
 }
 
 /**
@@ -227,7 +239,10 @@ export const lockReference = action({
     });
     if (
       asset === null ||
-      asset.projectId !== entity.projectId ||
+      !(await ctx.runQuery(internal.storage.canProjectUseAsset, {
+        projectId: entity.projectId,
+        assetId: asset._id,
+      })) ||
       asset.type !== "image"
     ) {
       throw new Error("Asset not found in this project");

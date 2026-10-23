@@ -1,5 +1,11 @@
 import { assertMediaRemovable } from "./lib/mediaProtection";
-import { requireProjectAccess, requireUser } from "./lib/access";
+import {
+  projectAssets,
+  projectCanUseAsset,
+  requireAssetAccess,
+  requireProjectAccess,
+  requireUser,
+} from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -89,10 +95,80 @@ export async function getFileUrl(
   return await ctx.storage.getUrl(storageId);
 }
 
+export async function registerMediaFile(
+  ctx: MutationCtx,
+  workspaceId: Id<"workspaces">,
+  storageId: Id<"_storage">,
+  createdBy: Id<"users">,
+  format: string,
+  sizeBytes: number,
+) {
+  const existing = await ctx.db
+    .query("mediaFiles")
+    .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+    .first();
+  if (existing) {
+    if (existing.workspaceId !== workspaceId)
+      throw new Error("File belongs to another workspace");
+    return existing._id;
+  }
+  const aliases = await ctx.db
+    .query("assets")
+    .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+    .collect();
+  for (const asset of aliases) {
+    const owner =
+      asset.workspaceId ??
+      (asset.projectId
+        ? (await ctx.db.get(asset.projectId))?.workspaceId
+        : undefined);
+    if (owner !== workspaceId)
+      throw new Error("File belongs to another workspace");
+  }
+  return ctx.db.insert("mediaFiles", {
+    workspaceId,
+    storageId,
+    createdBy,
+    format,
+    sizeBytes,
+    createdAt: Date.now(),
+  });
+}
+
 export async function deleteFile(
   ctx: StorageCtx,
   storageId: Id<"_storage">,
 ): Promise<void> {
+  if ("db" in ctx) {
+    if (
+      await ctx.db
+        .query("resourceVersions")
+        .withIndex("by_sheet_file", (q) => q.eq("sheetFileId", storageId))
+        .first()
+    )
+      return;
+    const assets = await ctx.db
+      .query("assets")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .collect();
+    if (assets.length > 1) return;
+    for (const asset of assets) {
+      const shared = await ctx.db
+        .query("resourceAssetUses")
+        .withIndex("by_asset", (q) => q.eq("assetId", asset._id))
+        .first();
+      const linked = await ctx.db
+        .query("projectAssetLinks")
+        .withIndex("by_asset", (q) => q.eq("assetId", asset._id))
+        .first();
+      if (shared || linked) return;
+    }
+    const files = await ctx.db
+      .query("mediaFiles")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .collect();
+    for (const file of files) await ctx.db.delete(file._id);
+  }
   await ctx.storage.delete(storageId);
 }
 
@@ -253,7 +329,19 @@ export const createAssetFromUpload = mutation({
 
     const tags = args.tags ?? [];
     const now = Date.now();
+    const ownerProject = await ctx.db.get(args.projectId);
+    if (!ownerProject) throw new Error("Project not found");
+    const mediaFileId = await registerMediaFile(
+      ctx,
+      ownerProject.workspaceId,
+      args.storageId,
+      user._id,
+      format,
+      meta.size,
+    );
     const assetId = await ctx.db.insert("assets", {
+      workspaceId: ownerProject.workspaceId,
+      mediaFileId,
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
@@ -347,7 +435,19 @@ export const createAssetFromGeneration = internalMutation({
       args.name?.trim() ||
       `${args.lineage?.model ?? "gen"}-${args.type}-${now}`;
     const tags = args.tags ?? [];
+    const ownerProject = await ctx.db.get(args.projectId);
+    if (!ownerProject) throw new Error("Project not found");
+    const mediaFileId = await registerMediaFile(
+      ctx,
+      ownerProject.workspaceId,
+      args.storageId,
+      args.createdBy,
+      args.format,
+      args.sizeBytes,
+    );
     const assetId = await ctx.db.insert("assets", {
+      workspaceId: ownerProject.workspaceId,
+      mediaFileId,
       projectId: args.projectId,
       sceneId: args.sceneId,
       shotId: args.shotId,
@@ -396,7 +496,7 @@ export const getAssetUrl = query({
     if (asset === null) {
       throw new Error("Asset not found");
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
     return await getFileUrl(ctx, asset.storageId);
   },
 });
@@ -406,10 +506,7 @@ export const listProjectAssetUrls = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
-    const assets = await ctx.db
-      .query("assets")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    const assets = await projectAssets(ctx, args.projectId);
     return await Promise.all(
       assets.map(async (asset) => ({
         assetId: asset._id,
@@ -429,7 +526,7 @@ export const getAsset = query({
     if (asset === null) {
       return null;
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
     return asset;
   },
 });
@@ -445,10 +542,7 @@ export const listProjectAssets = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
-    return await ctx.db
-      .query("assets")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    return projectAssets(ctx, args.projectId);
   },
 });
 
@@ -459,9 +553,15 @@ export const deleteAsset = mutation({
     if (asset === null) {
       throw new Error("Asset not found");
     }
-    await requireProjectAccess(ctx, asset.projectId);
+    await requireAssetAccess(ctx, asset._id);
     await assertMediaRemovable(ctx, asset.projectId, args.assetId);
     await deleteFile(ctx, asset.storageId);
     await ctx.db.delete(args.assetId);
   },
+});
+
+export const canProjectUseAsset = internalQuery({
+  args: { projectId: v.id("projects"), assetId: v.id("assets") },
+  handler: async (ctx, args) =>
+    projectCanUseAsset(ctx, args.projectId, args.assetId),
 });

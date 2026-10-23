@@ -17,7 +17,7 @@ Built by a solo developer using AI-assisted coding.
 
 ## 2. Principles
 1. Pipeline over model count: one model per job at launch (Seedance 2.5 video, DeepSeek staging) behind model-neutral adapters so more can be added without product changes.
-2. Everything is a linked record: every asset knows its project, scene, shot and the job, prompt and references that made it.
+2. Everything is a linked record: workspaces own physical media files; projects are standalone productions or Series episodes. Versioned Series resources share the same asset/file identities through explicit episode memberships. Keep scene, shot, job, prompt and reference provenance where applicable.
 3. Nothing is lost: scripts, sheets, shots, blockouts and timelines are versioned with parent pointers; users compare, branch and roll back.
 4. AI assistance belongs to specific production actions. Keep credits, cost estimates, cancellation and recovery explicit; do not reintroduce a conversational assistant or proposal system.
 5. Open at the edges: import any media; export MP4 and JSON (later OTIO/XML for Premiere, Resolve, Final Cut).
@@ -38,6 +38,8 @@ Built by a solo developer using AI-assisted coding.
 - Product data goes through authenticated API hooks with shared read caching and write invalidation. Copilot deltas stream directly over HTTP; bounded status polling refreshes background jobs and notifications. Convex React is retained for authentication.
 
 ## 4. Pipeline
+Series organize multiple project-backed episodes with a shared versioned library (media, characters, creatures, locations, props and style). Standalone projects remain supported. Episodes pin resource versions; updates never silently change existing scripts or edits. Series defaults are copied on creation, and adoption is explicit. See `docs/series.md` for the domain model and lifecycle rules.
+
 Script -> References (optional) -> Staging (optional) -> Video generation -> Edit -> Export. Existing footage can enter at Edit. Project tabs: **References · Script · Staging · Video · Edit**. Projects open on Video.
 
 ## 5. Modules and features

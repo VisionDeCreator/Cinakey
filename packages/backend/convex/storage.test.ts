@@ -73,7 +73,7 @@ describe("storage helpers", () => {
 
     await expect(
       asOther.query(api.storage.getAssetUrl, { assetId }),
-    ).rejects.toThrow(/Project access denied/);
+    ).rejects.toThrow(/Workspace access denied/);
   });
 
   it("deletes asset with ownership check", async () => {
@@ -98,7 +98,7 @@ describe("storage helpers", () => {
 
     await expect(
       asOther.mutation(api.storage.deleteAsset, { assetId }),
-    ).rejects.toThrow(/Project access denied/);
+    ).rejects.toThrow(/Workspace access denied/);
 
     await asOwner.mutation(api.storage.deleteAsset, { assetId });
     const gone = await asOwner.query(api.storage.getAsset, { assetId });

@@ -1,3 +1,4 @@
+import { projectCanUseAsset } from "./lib/access";
 import { timelineUsesAsset } from "./lib/mediaProtection";
 import { type ScriptPromptData } from "@cinakey/shared";
 import { v } from "convex/values";
@@ -608,7 +609,10 @@ export const chooseMaster = mutation({
     await requireProjectAccess(ctx, sequence.projectId);
 
     const asset = await ctx.db.get(args.masterAssetId);
-    if (asset === null || asset.projectId !== sequence.projectId) {
+    if (
+      asset === null ||
+      !(await projectCanUseAsset(ctx, sequence.projectId, asset._id))
+    ) {
       throw new Error("Master asset not found");
     }
     if (!asset.tags.includes("sequence-master")) {
@@ -663,7 +667,10 @@ export const deleteMaster = mutation({
     await requireProjectAccess(ctx, sequence.projectId);
 
     const asset = await ctx.db.get(args.masterAssetId);
-    if (asset === null || asset.projectId !== sequence.projectId) {
+    if (
+      asset === null ||
+      !(await projectCanUseAsset(ctx, sequence.projectId, asset._id))
+    ) {
       throw new Error("Master asset not found");
     }
 
