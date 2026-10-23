@@ -12,6 +12,24 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 describe("server configuration and credential boundaries", () => {
+  it("normalizes BytePlus task URLs without duplicating the task path", () => {
+    vi.stubEnv(
+      "SEEDANCE_API_BASE_URL",
+      "https://ark.ap-southeast.bytepluses.com/api/v3/contents/generations/tasks/",
+    );
+    vi.stubEnv("SEEDANCE_MODEL", "dreamina-seedance-2-5-260628");
+    expect(providerConfig().seedanceBaseUrl).toBe(
+      "https://ark.ap-southeast.bytepluses.com/api/v3",
+    );
+    expect(providerConfig().seedanceModel).toBe("dreamina-seedance-2-5-260628");
+    vi.stubEnv(
+      "SEEDANCE_API_BASE_URL",
+      "https://ark.ap-southeast.bytepluses.com/api/v3",
+    );
+    expect(providerConfig().seedanceBaseUrl).toBe(
+      "https://ark.ap-southeast.bytepluses.com/api/v3",
+    );
+  });
   it("loads provider keys from the root file rather than inherited values", () => {
     const directory = mkdtempSync(join(tmpdir(), "cinakey-env-test-"));
     try {

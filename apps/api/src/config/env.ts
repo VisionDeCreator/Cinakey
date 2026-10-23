@@ -61,7 +61,10 @@ export function providerConfig() {
     timeoutMs: parsed.data.PROVIDER_TIMEOUT_MS,
     readRetries: parsed.data.PROVIDER_READ_RETRIES,
     seedanceModel: parsed.data.SEEDANCE_MODEL,
-    seedanceBaseUrl: base.href.replace(/\/$/, ""),
+    // Accept either the API root or the complete create-task URL from provider examples.
+    seedanceBaseUrl: base.href
+      .replace(/\/$/, "")
+      .replace(/\/contents\/generations\/tasks$/, ""),
   };
 }
 export function requireProviderKey(provider: ProviderName): string {

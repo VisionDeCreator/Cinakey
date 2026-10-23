@@ -68,3 +68,41 @@ it("discards late frames and paints titles after the current frame", async () =>
   );
   engine.dispose();
 });
+
+it("presents decoded frames during continuous playback instead of starving them on every clock tick", async () => {
+  let finishFrame!: () => void;
+  const firstFrame = new Promise<void>((resolve) => {
+    finishFrame = resolve;
+  });
+  const decode = vi.fn(async (time: number) => {
+    if (time === 1) await firstFrame;
+    return { canvas: { time } };
+  });
+  state.ensure.mockResolvedValue({ canvasSink: { getCanvas: decode } });
+  const engine = new PlaybackEngine(document.createElement("canvas"));
+  const doc = assembleFromShotList({
+    project: { id: "p", aspectRatio: "16:9", fps: 24 },
+    shots: [
+      {
+        shotId: "s",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 5,
+        take: { takeId: "t", assetId: "a" },
+      },
+    ],
+  });
+  engine.setDocument(doc, { a: { url: "https://fixture.test/video.mp4" } });
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  state.draw.mockClear();
+  engine.renderFrame(1, false);
+  for (let i = 0; i < 6; i++) await Promise.resolve();
+  engine.renderFrame(2, false);
+  finishFrame();
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(state.draw.mock.calls.map((call) => call[0])).toEqual([
+    { time: 1 },
+    { time: 2 },
+  ]);
+  engine.dispose();
+});

@@ -176,19 +176,27 @@ export class PlaybackEngine {
     if (this.currentSec >= this.doc.durationSec || this.currentSec < 0) {
       this.currentSec = clamp(this.currentSec, 0, this.doc.durationSec);
       this.pause();
-      this.renderFrame(this.currentSec);
+      // Hold the last visible frame rather than clearing the preview at the exclusive end.
+      this.renderFrame(
+        this.currentSec >= this.doc.durationSec
+          ? Math.max(0, this.doc.durationSec - 1 / this.doc.project.fps)
+          : this.currentSec,
+      );
       this.emit();
       return;
     }
 
-    this.renderFrame(this.currentSec);
+    this.renderFrame(this.currentSec, false);
     this.emit();
     this.raf = requestAnimationFrame(this.tick);
   };
 
-  renderFrame(t: number) {
+  renderFrame(t: number, invalidate = true) {
     if (!this.doc || this.disposed) return;
-    this.pendingFrame = { t, revision: ++this.renderRevision };
+    // Clock ticks coalesce, but must not invalidate every decode that takes longer
+    // than one animation frame. Only seeks/document changes supersede that work.
+    if (invalidate) this.renderRevision++;
+    this.pendingFrame = { t, revision: this.renderRevision };
     if (this.rendering) return;
     this.rendering = true;
     void (async () => {
@@ -198,8 +206,8 @@ export class PlaybackEngine {
           this.pendingFrame = null;
           const videos = videoClipsAt(this.doc!.tracks, time);
           const top = videos[videos.length - 1];
-          this.compositor.clear();
           if (top) await this.drawClip(top, time, revision);
+          else this.compositor.clear();
           if (revision !== this.renderRevision || this.disposed) continue;
           this.compositor.drawTitles(
             textClipsAt(this.doc!.tracks, time).map((clip) => ({
@@ -231,7 +239,7 @@ export class PlaybackEngine {
       try {
         const wrapped = await media.canvasSink.getCanvas(sourceT);
         if (wrapped && revision === this.renderRevision && !this.disposed) {
-          this.compositor.drawMedia(wrapped.canvas);
+          this.presentMedia(wrapped.canvas);
           return;
         }
       } catch {
@@ -240,7 +248,7 @@ export class PlaybackEngine {
     }
 
     if (media.imageEl) {
-      this.compositor.drawMedia(media.imageEl);
+      this.presentMedia(media.imageEl);
       return;
     }
 
@@ -252,7 +260,13 @@ export class PlaybackEngine {
       !this.disposed &&
       video.readyState >= 2
     )
-      this.compositor.drawMedia(video);
+      this.presentMedia(video);
+  }
+
+  private presentMedia(source: TexImageSource) {
+    // Keep the current frame visible while the next one decodes.
+    this.compositor.clear();
+    this.compositor.drawMedia(source);
   }
 
   private async prefetchAround(t: number) {
