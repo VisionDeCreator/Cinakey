@@ -1,7 +1,7 @@
 import { deleteFile } from "./storage";
 import { insertNotification } from "./notifications";
 import { enqueueTask } from "./tasks";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import type { BuildRequestInput } from "@cinakey/shared";
 import { getAdapter, listAdapters } from "./adapters";
 import { appendLedgerEntry } from "./credits";
@@ -125,8 +125,55 @@ export const createQueuedJob = internalMutation({
     estimatedCostCredits: v.number(),
     createdBy: v.id("users"),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
+    requestKey: v.optional(v.string()),
+    requestFingerprint: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (
+      !Number.isSafeInteger(args.estimatedCostCredits) ||
+      args.estimatedCostCredits <= 0
+    )
+      throw new Error("Invalid credit reservation");
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.workspaceId !== args.workspaceId)
+      throw new Error("Project/workspace mismatch");
+    if (args.requestKey) {
+      const existing = await ctx.db
+        .query("generationJobs")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .filter((q) => q.eq(q.field("requestKey"), args.requestKey))
+        .first();
+      if (existing) {
+        if (existing.requestFingerprint !== args.requestFingerprint)
+          throw new ConvexError({
+            code: "REQUEST_CONFLICT",
+            message:
+              "This request ID was already used with different generation settings",
+          });
+        return existing._id;
+      }
+    }
+    if (project.spendCapCredits !== undefined) {
+      const entries = await ctx.db
+        .query("creditLedger")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+        .collect();
+      const spent = Math.max(
+        0,
+        -entries
+          .filter(
+            (e) =>
+              e.projectId === args.projectId &&
+              ["reserve", "settle", "refund"].includes(e.reason),
+          )
+          .reduce((sum, e) => sum + e.delta, 0),
+      );
+      if (spent + args.estimatedCostCredits > project.spendCapCredits)
+        throw new ConvexError({
+          code: "SPEND_CAP",
+          message: "Project spend cap reached",
+        });
+    }
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
@@ -135,6 +182,8 @@ export const createQueuedJob = internalMutation({
       entityId: args.entityId,
       promptSheetId: args.promptSheetId,
       model: args.model,
+      requestKey: args.requestKey,
+      requestFingerprint: args.requestFingerprint,
       modelVersion: args.modelVersion,
       kind: args.kind,
       prompt: args.prompt,
@@ -160,9 +209,35 @@ export const createQueuedJob = internalMutation({
       });
     } catch (err) {
       await ctx.db.delete(jobId);
+      if (
+        err instanceof Error &&
+        err.message.startsWith("Insufficient credits")
+      )
+        throw new ConvexError({
+          code: "INSUFFICIENT_CREDITS",
+          message: "Insufficient credits for this generation",
+        });
       throw err;
     }
 
+    if (args.inputsFileId && args.model === "seedance-2.5") {
+      const shots = args.shotId
+        ? [await ctx.db.get(args.shotId)]
+        : args.sequenceId
+          ? await ctx.db
+              .query("shots")
+              .withIndex("by_sequence", (q) =>
+                q.eq("sequenceId", args.sequenceId!),
+              )
+              .collect()
+          : [];
+      for (const shot of shots)
+        if (shot)
+          await ctx.db.patch(shot._id, {
+            status: "generating",
+            updatedAt: now,
+          });
+    }
     // Request-bound text jobs share the ledger but execute in their API request.
     if (args.inputsFileId)
       await enqueueTask(ctx, 0, "generation:submitAndTrack", { jobId });

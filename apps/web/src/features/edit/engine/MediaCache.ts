@@ -5,7 +5,7 @@
 import {
   ALL_FORMATS,
   Input,
-  UrlSource,
+  BlobSource,
   CanvasSink,
   type InputVideoTrack,
 } from "mediabunny";
@@ -25,7 +25,12 @@ export type CachedMedia = {
 };
 
 export class MediaCache {
+  private pending = new Map<string, Promise<CachedMedia>>();
+  private pendingAudio = new Map<string, Promise<AudioBuffer | null>>();
+  private controller = new AbortController();
   private cache = new Map<string, CachedMedia>();
+  constructor(private readonly signal?: AbortSignal) {}
+
   private audioCtx: AudioContext | null = null;
 
   setAudioContext(ctx: AudioContext) {
@@ -36,13 +41,47 @@ export class MediaCache {
     return this.cache.get(assetKey);
   }
 
-  async ensure(
+  /** Let background analysis reuse an original already downloaded for playback. */
+  async findBlob(url: string): Promise<Blob | undefined> {
+    for (const [key, entry] of this.cache) {
+      if (entry.url !== url) continue;
+      if (entry.blob) return entry.blob;
+      try {
+        await this.pending.get(key);
+      } catch {
+        /* A decoder failure may still leave a usable source blob. */
+      }
+      return entry.blob;
+    }
+    return undefined;
+  }
+
+  ensure(
+    assetKey: string,
+    url: string,
+    kindHint?: "video" | "audio" | "image",
+  ): Promise<CachedMedia> {
+    if (!this.pending.has(assetKey))
+      this.pending.set(
+        assetKey,
+        this.load(assetKey, url, kindHint).finally(() =>
+          this.pending.delete(assetKey),
+        ),
+      );
+    return this.pending.get(assetKey)!;
+  }
+
+  private async load(
     assetKey: string,
     url: string,
     kindHint?: "video" | "audio" | "image",
   ): Promise<CachedMedia> {
     const existing = this.cache.get(assetKey);
-    if (existing?.objectUrl || existing?.blob) return existing;
+    if (existing?.objectUrl || existing?.blob) {
+      this.cache.delete(assetKey);
+      this.cache.set(assetKey, existing);
+      return existing;
+    }
 
     const entry: CachedMedia = {
       url,
@@ -51,10 +90,16 @@ export class MediaCache {
     this.cache.set(assetKey, entry);
 
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        signal: this.signal
+          ? AbortSignal.any([this.controller.signal, this.signal])
+          : this.controller.signal,
+      });
+      if (!res.ok) throw new Error(`Media download failed (${res.status})`);
       const blob = await res.blob();
       entry.blob = blob;
       entry.objectUrl = URL.createObjectURL(blob);
+      if (blob.type.startsWith("image/")) entry.kind = "image";
       if (!kindHint) {
         if (blob.type.startsWith("video/")) entry.kind = "video";
         else if (blob.type.startsWith("audio/")) entry.kind = "audio";
@@ -69,23 +114,29 @@ export class MediaCache {
         const buf = await blob.arrayBuffer();
         entry.audioBuffer = await this.audioCtx.decodeAudioData(buf.slice(0));
       }
-    } catch {
-      // Leave entry with url only; callers may still try HTMLMediaElement.
-      if (entry.kind === "video") {
-        entry.videoEl = document.createElement("video");
-        entry.videoEl.crossOrigin = "anonymous";
-        entry.videoEl.muted = true;
-        entry.videoEl.playsInline = true;
-        entry.videoEl.preload = "auto";
-        entry.videoEl.src = url;
-      }
+    } catch (error) {
+      this.cache.delete(assetKey);
+      if (entry.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+      throw error;
     }
 
+    this.trimCache(assetKey);
     return entry;
   }
 
   /** Decode audio from an original media URL (video or audio file). */
-  async ensureAudio(
+  ensureAudio(assetKey: string, url: string): Promise<AudioBuffer | null> {
+    if (!this.pendingAudio.has(assetKey))
+      this.pendingAudio.set(
+        assetKey,
+        this.loadAudio(assetKey, url).finally(() =>
+          this.pendingAudio.delete(assetKey),
+        ),
+      );
+    return this.pendingAudio.get(assetKey)!;
+  }
+
+  private async loadAudio(
     assetKey: string,
     url: string,
   ): Promise<AudioBuffer | null> {
@@ -95,14 +146,27 @@ export class MediaCache {
     if (existing?.audioBuffer) return existing.audioBuffer;
 
     try {
-      const res = await fetch(url);
-      const buf = await res.arrayBuffer();
+      const pending = this.pending.get(assetKey);
+      if (pending) await pending;
+      const cachedBlob = this.cache.get(assetKey)?.blob;
+      let buf: ArrayBuffer;
+      if (cachedBlob) buf = await cachedBlob.arrayBuffer();
+      else {
+        const res = await fetch(url, {
+          signal: this.signal
+            ? AbortSignal.any([this.controller.signal, this.signal])
+            : this.controller.signal,
+        });
+        if (!res.ok) throw new Error(`Media download failed (${res.status})`);
+        buf = await res.arrayBuffer();
+      }
       const audioBuffer = await this.audioCtx.decodeAudioData(buf.slice(0));
       this.cache.set(key, {
         url,
         audioBuffer,
         kind: "audio",
       });
+      this.trimCache(key);
       return audioBuffer;
     } catch {
       return null;
@@ -121,7 +185,7 @@ export class MediaCache {
 
     try {
       const input = new Input({
-        source: new UrlSource(entry.url),
+        source: new BlobSource(entry.blob!),
         formats: ALL_FORMATS,
       });
       const videoTrack = await input.getPrimaryVideoTrack();
@@ -144,7 +208,36 @@ export class MediaCache {
     }
   }
 
+  /** Keep cached blobs/decoded buffers bounded. Scheduled audio owns its own buffer references. */
+  private trimCache(keep: string) {
+    const bytes = () =>
+      [...this.cache.values()].reduce(
+        (sum, entry) =>
+          sum +
+          (entry.blob?.size ?? 0) +
+          (entry.audioBuffer
+            ? entry.audioBuffer.length * entry.audioBuffer.numberOfChannels * 4
+            : 0),
+        0,
+      );
+    for (const [key, entry] of this.cache) {
+      if (this.cache.size <= 32 && bytes() <= 256 * 1024 * 1024) break;
+      if (
+        key === keep ||
+        this.pending.has(key) ||
+        this.pendingAudio.has(key.replace(/^audio:/, ""))
+      )
+        continue;
+      if (entry.objectUrl) URL.revokeObjectURL(entry.objectUrl);
+      entry.input?.dispose();
+      entry.videoEl?.removeAttribute("src");
+      entry.videoEl?.load();
+      this.cache.delete(key);
+    }
+  }
+
   dispose() {
+    this.controller.abort();
     for (const entry of this.cache.values()) {
       if (entry.objectUrl) URL.revokeObjectURL(entry.objectUrl);
       entry.input?.dispose();
@@ -175,12 +268,23 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 function waitForLoaded(video: HTMLVideoElement): Promise<void> {
   if (video.readyState >= 2) return Promise.resolve();
-  return new Promise((resolve) => {
-    const done = () => {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      clearTimeout(timer);
       video.removeEventListener("loadeddata", done);
+      video.removeEventListener("error", fail);
+    };
+    const done = () => {
+      cleanup();
       resolve();
     };
-    video.addEventListener("loadeddata", done);
+    const fail = () => {
+      cleanup();
+      reject(new Error("Video could not be decoded"));
+    };
+    const timer = setTimeout(fail, 15_000);
+    video.addEventListener("loadeddata", done, { once: true });
+    video.addEventListener("error", fail, { once: true });
     video.load();
   });
 }

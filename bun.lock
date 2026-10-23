@@ -19,6 +19,7 @@
         "@elysiajs/cors": "^1.4.2",
         "convex": "^1.46.0",
         "elysia": "^1.4.28",
+        "mediabunny": "^1.60.0",
         "zod": "^4.6.5",
       },
       "devDependencies": {

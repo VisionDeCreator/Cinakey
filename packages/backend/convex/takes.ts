@@ -1,3 +1,4 @@
+import { timelineUsesAsset } from "./lib/mediaProtection";
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
@@ -286,13 +287,26 @@ export const purgeRejectedTakes = internalMutation({
 
       const asset = await ctx.db.get(take.assetId);
       if (asset?.starred === true) continue;
+      if (await timelineUsesAsset(ctx, take.projectId, take.assetId)) continue;
+      if (
+        take.proxyAssetId &&
+        (await timelineUsesAsset(ctx, take.projectId, take.proxyAssetId))
+      )
+        continue;
 
       const proxyId = take.proxyAssetId;
       await ctx.db.delete(take._id);
 
       if (proxyId !== undefined) {
         const proxy = await ctx.db.get(proxyId);
-        if (proxy !== null && proxy.starred !== true) {
+        if (
+          proxy !== null &&
+          proxy.starred !== true &&
+          !(await ctx.db
+            .query("takes")
+            .filter((q) => q.eq(q.field("proxyAssetId"), proxyId))
+            .first())
+        ) {
           await deleteFile(ctx, proxy.storageId);
           await ctx.db.delete(proxyId);
         }

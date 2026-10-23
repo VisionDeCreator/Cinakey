@@ -25,7 +25,9 @@ describe("cinakey.timeline/1.0", () => {
   });
 
   it("rejects invalid schema", () => {
-    expect(validateTimelineDocument({ schema: "nope" })).toMatch(/Invalid|schema/i);
+    expect(validateTimelineDocument({ schema: "nope" })).toMatch(
+      /Invalid|schema/i,
+    );
   });
 
   it("assembles a rough cut from selected takes with captions", () => {
@@ -213,4 +215,35 @@ describe("cinakey.timeline/1.0", () => {
     expect(clip.startSec).toBe(0);
     expect(clip.durationSec).toBe(3);
   });
+});
+
+it("retains a manual source offset on an explicit take swap and respects playback speed", () => {
+  const doc = assembleFromShotList({
+    project,
+    shots: [
+      {
+        shotId: "s",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 2,
+        take: { takeId: "old", assetId: "old-asset" },
+      },
+    ],
+  });
+  const clip = doc.tracks.flatMap((track) => track.clips)[0]!;
+  clip.speed = 2;
+  const next = swapTakeOnClip(doc, clip.id, {
+    takeId: "new",
+    shotId: "s",
+    assetId: "new-asset",
+    trimStartSec: 10,
+    trimEndSec: 15,
+    sourceOffsetSec: 2,
+  });
+  const swapped = next.tracks
+    .flatMap((track) => track.clips)
+    .find((item) => item.id === clip.id)!;
+  expect(swapped.inSec).toBe(12);
+  expect(swapped.durationSec).toBe(1.5);
+  expect(swapped.outSec).toBe(15);
 });

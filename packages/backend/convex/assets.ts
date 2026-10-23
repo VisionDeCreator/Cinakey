@@ -1,3 +1,4 @@
+import { assertMediaRemovable } from "./lib/mediaProtection";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -257,6 +258,7 @@ export const remove = mutation({
       throw new Error("Asset not found");
     }
     await requireProjectAccess(ctx, asset.projectId);
+    await assertMediaRemovable(ctx, asset.projectId, args.assetId);
     await deleteFile(ctx, asset.storageId);
     await ctx.db.delete(args.assetId);
   },

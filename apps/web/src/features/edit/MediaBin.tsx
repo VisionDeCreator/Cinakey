@@ -1,3 +1,6 @@
+import { ClipMedia } from "./media/ClipMedia";
+import type { EditorMedia } from "./media/EditorMedia";
+import type { MediaUrlMap } from "./mediaUrls";
 import { api } from "@cinakey/backend";
 import type { AssetType, TimelineDocument, TrackKind } from "@cinakey/shared";
 import { newTimelineId } from "@cinakey/shared";
@@ -8,6 +11,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   projectId: string;
+  media?: EditorMedia;
+  urls?: MediaUrlMap;
   doc: TimelineDocument;
   playheadSec: number;
   onAddClip: (
@@ -16,7 +21,14 @@ type Props = {
   ) => void;
 };
 
-export function MediaBin({ projectId, doc, playheadSec, onAddClip }: Props) {
+export function MediaBin({
+  projectId,
+  doc,
+  playheadSec,
+  onAddClip,
+  media: editorMedia,
+  urls,
+}: Props) {
   const assets = useQuery(api.assets.list, {
     projectId: projectId as never,
   });
@@ -42,11 +54,12 @@ export function MediaBin({ projectId, doc, playheadSec, onAddClip }: Props) {
             : "sfx";
     const track = doc.tracks.find((t) => t.kind === kind);
     if (!track) return;
-    const durationSec = asset.durationSec && asset.durationSec > 0
-      ? asset.durationSec
-      : asset.type === "image"
-        ? 3
-        : 5;
+    const durationSec =
+      asset.durationSec && asset.durationSec > 0
+        ? asset.durationSec
+        : asset.type === "image"
+          ? 3
+          : 5;
     onAddClip(kind, {
       id: newTimelineId("clip"),
       startSec: playheadSec,
@@ -59,10 +72,7 @@ export function MediaBin({ projectId, doc, playheadSec, onAddClip }: Props) {
     });
   };
 
-  const onUpload = async (
-    files: FileList | null,
-    type?: AssetType,
-  ) => {
+  const onUpload = async (files: FileList | null, type?: AssetType) => {
     if (!files || files.length === 0) return;
     await uploadFiles(files, { type, tags: type === "music" ? ["music"] : [] });
   };
@@ -114,6 +124,25 @@ export function MediaBin({ projectId, doc, playheadSec, onAddClip }: Props) {
               onClick={() => addAsset(asset)}
               title="Add at playhead"
             >
+              {editorMedia && urls && (
+                <span className="relative h-10 w-16 shrink-0 overflow-hidden rounded bg-zinc-900">
+                  <ClipMedia
+                    media={editorMedia}
+                    urls={urls}
+                    width={64}
+                    waveform={asset.type === "audio" || asset.type === "music"}
+                    clip={{
+                      id: asset._id,
+                      startSec: 0,
+                      inSec: 0,
+                      outSec: asset.durationSec ?? 5,
+                      durationSec: asset.durationSec ?? 5,
+                      speed: 1,
+                      source: { type: "asset", assetId: asset._id },
+                    }}
+                  />
+                </span>
+              )}
               <span className="truncate">{asset.name}</span>
               <span className="shrink-0 text-[10px] uppercase text-zinc-600">
                 {asset.type}

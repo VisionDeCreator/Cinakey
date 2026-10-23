@@ -323,6 +323,8 @@ const schema = defineSchema(
       promptSheetId: v.optional(v.id("promptSheets")),
       model: v.string(),
       modelVersion: v.string(),
+      requestKey: v.optional(v.string()),
+      requestFingerprint: v.optional(v.string()),
       /** Adapter operation, e.g. text-to-image, image-to-video. */
       kind: v.string(),
       prompt: v.string(),
@@ -392,6 +394,8 @@ const schema = defineSchema(
       .index("by_created", ["createdAt"]),
 
     timelineVersions: defineTable({
+      mediaAssetIds: v.optional(v.array(v.id("assets"))),
+      saveRequestId: v.optional(v.string()),
       projectId: v.id("projects"),
       parentId: v.optional(v.id("timelineVersions")),
       label: v.optional(v.string()),

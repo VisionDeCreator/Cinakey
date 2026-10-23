@@ -88,10 +88,7 @@ void main() {
   }
 
   /** Draw an HTMLVideoElement, HTMLImageElement, or canvas into the frame. */
-  drawMedia(
-    source: TexImageSource,
-    opts?: { flipY?: boolean },
-  ) {
+  drawMedia(source: TexImageSource, opts?: { flipY?: boolean }) {
     const gl = this.gl;
     gl.useProgram(this.program);
 
@@ -102,26 +99,70 @@ void main() {
     gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.texBuf);
-    if (opts?.flipY) {
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]),
-        gl.STATIC_DRAW,
-      );
-    } else {
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0]),
-        gl.STATIC_DRAW,
-      );
-    }
+    const dimensions = source as unknown as {
+      videoWidth?: number;
+      videoHeight?: number;
+      naturalWidth?: number;
+      naturalHeight?: number;
+      width?: number;
+      height?: number;
+      displayWidth?: number;
+      displayHeight?: number;
+    };
+    const sw =
+      dimensions.videoWidth ||
+      dimensions.naturalWidth ||
+      dimensions.displayWidth ||
+      dimensions.width ||
+      this.canvas.width;
+    const sh =
+      dimensions.videoHeight ||
+      dimensions.naturalHeight ||
+      dimensions.displayHeight ||
+      dimensions.height ||
+      this.canvas.height;
+    const sourceAspect = sw / sh,
+      targetAspect = this.canvas.width / this.canvas.height;
+    const cropX =
+      sourceAspect > targetAspect ? (1 - targetAspect / sourceAspect) / 2 : 0;
+    const cropY =
+      sourceAspect < targetAspect ? (1 - sourceAspect / targetAspect) / 2 : 0;
+    const left = cropX,
+      right = 1 - cropX;
+    const top = opts?.flipY ? cropY : 1 - cropY,
+      bottom = opts?.flipY ? 1 - cropY : cropY;
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([
+        left,
+        top,
+        right,
+        top,
+        left,
+        bottom,
+        left,
+        bottom,
+        right,
+        top,
+        right,
+        bottom,
+      ]),
+      gl.STATIC_DRAW,
+    );
     gl.enableVertexAttribArray(uvLoc);
     gl.vertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
     try {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        source,
+      );
     } catch {
       return;
     }
@@ -129,9 +170,7 @@ void main() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
-  drawTitles(
-    clips: Array<{ clip: TimelineClip; localT: number }>,
-  ) {
+  drawTitles(clips: Array<{ clip: TimelineClip; localT: number }>) {
     const ctx = this.overlayCtx;
     const w = this.overlay.width;
     const h = this.overlay.height;
@@ -181,7 +220,10 @@ function drawStyledText(
   const text = lines.map((l) =>
     l.characterName ? `${l.characterName}: ${l.text}` : l.text,
   );
-  const fontSize = Math.max(16, Math.round(h * (styleId === "caption" ? 0.045 : 0.06)));
+  const fontSize = Math.max(
+    16,
+    Math.round(h * (styleId === "caption" ? 0.045 : 0.06)),
+  );
   ctx.font = `600 ${fontSize}px "IBM Plex Sans", system-ui, sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#fafafa";
@@ -221,7 +263,8 @@ function drawStyledText(
   ctx.fillRect(w * 0.1, h - blockH - pad, w * 0.8, blockH);
   ctx.fillStyle = "#fafafa";
   text.forEach((line, i) => {
-    const y = h - blockH - pad + pad * 0.6 + i * fontSize * 1.25 + fontSize * 0.5;
+    const y =
+      h - blockH - pad + pad * 0.6 + i * fontSize * 1.25 + fontSize * 0.5;
     ctx.strokeText(line, w / 2, y);
     ctx.fillText(line, w / 2, y);
   });

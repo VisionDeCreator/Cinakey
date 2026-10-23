@@ -16,6 +16,7 @@ import {
   TIMELINE_EXPORT_MAX_DURATION_SEC,
   TIMELINE_EXPORT_MAX_LONG_EDGE,
 } from "@cinakey/shared";
+import { evenDims } from "./mediaUrls";
 import type { MediaUrlMap } from "./mediaUrls";
 import {
   downloadBlob,
@@ -70,13 +71,10 @@ export function ExportDialog({
     setRunning(true);
     const ac = new AbortController();
     abortRef.current = ac;
-    const longEdge = Math.max(
-      ...doc.tracks
-        .flatMap(() => [TIMELINE_EXPORT_MAX_LONG_EDGE])
-        .concat([TIMELINE_EXPORT_MAX_LONG_EDGE]),
+    const { width, height } = evenDims(
+      TIMELINE_EXPORT_MAX_LONG_EDGE,
+      doc.project.aspectRatio,
     );
-    const width = longEdge;
-    const height = Math.round(longEdge / (16 / 9));
     try {
       const blob = await exportTimelineMp4({
         doc,
@@ -184,7 +182,7 @@ export function ExportDialog({
               </Button>
               <Button
                 type="button"
-                disabled={supported === false || Boolean(exportCapsOk(doc))}
+                disabled={supported !== true || Boolean(exportCapsOk(doc))}
                 onClick={() => void start()}
               >
                 Export

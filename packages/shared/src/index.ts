@@ -293,3 +293,5 @@ export {
   updateClip,
   validateTimelineDocument,
 } from "./timeline";
+
+export { validateVideoInput } from "./videoGeneration";

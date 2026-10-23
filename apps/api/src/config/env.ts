@@ -16,6 +16,11 @@ const schema = z.object({
     .max(600_000)
     .default(120_000),
   PROVIDER_READ_RETRIES: z.coerce.number().int().min(0).max(4).default(2),
+  SEEDANCE_MODEL: z
+    .string()
+    .trim()
+    .min(1)
+    .default("doubao-seedance-2-5-260628"),
   SEEDANCE_API_BASE_URL: z
     .url()
     .default("https://ark.cn-beijing.volces.com/api/v3"),
@@ -55,6 +60,7 @@ export function providerConfig() {
     enabled: enabled as ProviderName[],
     timeoutMs: parsed.data.PROVIDER_TIMEOUT_MS,
     readRetries: parsed.data.PROVIDER_READ_RETRIES,
+    seedanceModel: parsed.data.SEEDANCE_MODEL,
     seedanceBaseUrl: base.href.replace(/\/$/, ""),
   };
 }

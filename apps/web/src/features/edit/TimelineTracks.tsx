@@ -1,4 +1,11 @@
-import type { TimelineClip, TimelineDocument, TrackKind } from "@cinakey/shared";
+import { ClipMedia } from "./media/ClipMedia";
+import type { EditorMedia } from "./media/EditorMedia";
+import type { MediaUrlMap } from "./mediaUrls";
+import type {
+  TimelineClip,
+  TimelineDocument,
+  TrackKind,
+} from "@cinakey/shared";
 import { cn } from "@/lib/utils";
 
 const TRACK_COLORS: Record<TrackKind, string> = {
@@ -13,6 +20,8 @@ export type TrimMode = "ripple" | "roll";
 
 type Props = {
   doc: TimelineDocument;
+  media?: EditorMedia;
+  urls?: MediaUrlMap;
   playheadSec: number;
   pxPerSec: number;
   selectedClipId: string | null;
@@ -20,17 +29,15 @@ type Props = {
   onSelectClip: (id: string | null) => void;
   onSeek: (sec: number) => void;
   onMoveClip: (clipId: string, startSec: number, trackId?: string) => void;
-  onTrim: (
-    clipId: string,
-    edge: "in" | "out",
-    timelineEdgeSec: number,
-  ) => void;
+  onTrim: (clipId: string, edge: "in" | "out", timelineEdgeSec: number) => void;
   onRoll: (leftClipId: string, cutSec: number) => void;
   onZoom: (pxPerSec: number) => void;
 };
 
 export function TimelineTracks({
   doc,
+  media,
+  urls,
   playheadSec,
   pxPerSec,
   selectedClipId,
@@ -91,21 +98,29 @@ export function TimelineTracks({
             style={{ width, minHeight: doc.tracks.length * trackH }}
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).dataset.clip) return;
-              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-              const x = e.clientX - rect.left + (e.currentTarget as HTMLElement).scrollLeft;
+              const rect = (
+                e.currentTarget as HTMLElement
+              ).getBoundingClientRect();
+              const x =
+                e.clientX -
+                rect.left +
+                (e.currentTarget as HTMLElement).scrollLeft;
               onSeek(Math.max(0, x / pxPerSec));
               onSelectClip(null);
             }}
           >
             {/* Ruler ticks */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-0">
-              {Array.from({ length: Math.ceil(doc.durationSec) + 1 }, (_, i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full border-l border-zinc-800/80"
-                  style={{ left: i * pxPerSec }}
-                />
-              ))}
+              {Array.from(
+                { length: Math.ceil(doc.durationSec) + 1 },
+                (_, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-0 h-full border-l border-zinc-800/80"
+                    style={{ left: i * pxPerSec }}
+                  />
+                ),
+              )}
             </div>
 
             {doc.tracks.map((track, ti) => (
@@ -119,6 +134,9 @@ export function TimelineTracks({
                   <ClipBlock
                     key={clip.id}
                     clip={clip}
+                    media={media}
+                    urls={urls}
+                    waveform={track.kind !== "video" && track.kind !== "titles"}
                     top={0}
                     height={trackH - 6}
                     pxPerSec={pxPerSec}
@@ -156,6 +174,9 @@ export function TimelineTracks({
 
 function ClipBlock({
   clip,
+  media,
+  urls,
+  waveform,
   top,
   height,
   pxPerSec,
@@ -169,6 +190,9 @@ function ClipBlock({
   onRoll,
 }: {
   clip: TimelineClip;
+  media?: EditorMedia;
+  urls?: MediaUrlMap;
+  waveform?: boolean;
   top: number;
   height: number;
   pxPerSec: number;
@@ -243,11 +267,22 @@ function ClipBlock({
         window.addEventListener("pointerup", onUp);
       }}
     >
+      {media && urls && clip.source.type !== "text" && (
+        <ClipMedia
+          clip={clip}
+          media={media}
+          urls={urls}
+          width={clip.durationSec * pxPerSec}
+          waveform={waveform}
+        />
+      )}
       <div
         data-edge="in"
         className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize hover:bg-white/40"
       />
-      <div className="truncate px-2 py-1 pointer-events-none">{label}</div>
+      <div className="relative truncate px-2 py-1 pointer-events-none text-shadow-sm text-shadow-black">
+        {label}
+      </div>
       <div
         data-edge="out"
         className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize hover:bg-white/40"

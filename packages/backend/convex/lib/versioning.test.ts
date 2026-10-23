@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { authIdentity, createTestUser, makeTest } from "../../test/helpers";
 
 describe("versioning", () => {
@@ -80,11 +80,11 @@ describe("versioning", () => {
       );
     });
 
-    const v1 = await asUser.mutation(api.timelineVersions.createVersion, {
+    const v1 = await asUser.mutation(internal.timelineVersions.createVersion, {
       projectId,
       timelineFileId: file1,
     });
-    const v2 = await asUser.mutation(api.timelineVersions.createVersion, {
+    const v2 = await asUser.mutation(internal.timelineVersions.createVersion, {
       projectId,
       parentId: v1,
       timelineFileId: file2,

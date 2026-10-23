@@ -1,6 +1,8 @@
+import { validateVideoInput } from "@cinakey/shared";
+import { readVideoMetadata } from "./mediaMetadata";
 import { currentProviderSignal } from "../runtime/provider-scope";
 import { fetchMedia } from "../providers/transport";
-import { useMockProviders } from "../config/env";
+import { providerConfig, useMockProviders } from "../config/env";
 import {
   safeErrorMessage,
   workerCancellationError,
@@ -8,7 +10,7 @@ import {
   SubmissionUncertainError,
 } from "../providers/errors";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
 import { retiredImageAdapter } from "../providers/retiredImage";
 import { getAdapter } from "../providers";
@@ -64,8 +66,7 @@ export const startGeneration = action({
     parentTakeId: v.optional(v.id("takes")),
     imageCount: v.optional(v.number()),
     input: v.optional(v.any()),
-    /** Skip spend-cap check when already validated by a wrapper action. */
-    skipSpendCapCheck: v.optional(v.boolean()),
+    requestId: v.optional(v.string()),
   },
   handler: async (
     ctx,
@@ -110,7 +111,10 @@ export const startGeneration = action({
       );
     }
 
-    const styleRefId = project.styleReferenceAssetId;
+    const styleRefId =
+      args.startFrameAssetId || args.kind === "extend"
+        ? undefined
+        : project.styleReferenceAssetId;
     const referenceAssetIds = [
       ...new Set([
         ...(args.referenceAssetIds ?? []),
@@ -154,13 +158,23 @@ export const startGeneration = action({
 
     // Preserve caller reference order when assembling video inputs.
     const referenceImageUrls: string[] = [];
+    let parentVideoUrl: string | undefined;
     for (const assetId of parentAssetIds) {
-      referenceImageUrls.push(await urlFor(assetId));
+      const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
+        assetId,
+      });
+      if (!asset || asset.projectId !== args.projectId)
+        throw new Error("Parent media is not in this project");
+      if (asset.type === "video") parentVideoUrl = await urlFor(assetId);
+      else throw new Error("Video operations require a video parent");
     }
     for (const assetId of referenceAssetIds) {
-      if (!parentAssetIds.includes(assetId)) {
-        referenceImageUrls.push(await urlFor(assetId));
-      }
+      const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
+        assetId,
+      });
+      if (asset?.type !== "image")
+        throw new Error("Image references must be image assets");
+      referenceImageUrls.push(await urlFor(assetId));
     }
     const maskUrl = args.maskAssetId
       ? await urlFor(args.maskAssetId)
@@ -179,6 +193,9 @@ export const startGeneration = action({
       kind: args.kind,
       seed: args.seed,
       imageCount: args.imageCount,
+      referenceVideoUrl:
+        parentVideoUrl ??
+        (args.input as BuildRequestInput | undefined)?.referenceVideoUrl,
       referenceImageUrls:
         referenceImageUrls.length > 0 ? referenceImageUrls : undefined,
       maskUrl,
@@ -192,29 +209,22 @@ export const startGeneration = action({
       parentTakeId: args.parentTakeId,
       entityId: args.entityId,
     };
+    validateVideoInput(buildInput);
+    if (
+      args.requestId !== undefined &&
+      (!args.requestId || args.requestId.length > 128)
+    )
+      throw new Error("Invalid generation request ID");
     const estimated = adapter.estimateCost(buildInput);
     if (estimated <= 0) {
       throw new Error("Estimated cost must be positive");
     }
 
-    if (args.skipSpendCapCheck !== true) {
-      const cap = await ctx.runQuery(
-        internal.shotGeneration.assertSpendCapInternal,
-        {
-          projectId: args.projectId,
-          estimatedCostCredits: estimated,
-        },
-      );
-      if (!cap.ok) {
-        throw new Error(cap.message);
-      }
-    }
-
     const { storageId: inputsFileId } = await saveJson(ctx, buildInput);
 
-    const jobId: Id<"generationJobs"> = await ctx.runMutation(
-      internal.generation.createQueuedJob,
-      {
+    let jobId: Id<"generationJobs">;
+    try {
+      jobId = await ctx.runMutation(internal.generation.createQueuedJob, {
         projectId: args.projectId,
         workspaceId: project.workspaceId,
         shotId: args.shotId,
@@ -222,7 +232,9 @@ export const startGeneration = action({
         entityId: args.entityId,
         promptSheetId: args.promptSheetId,
         model: adapter.capabilities.id,
-        modelVersion: adapter.capabilities.id,
+        modelVersion: useMockProviders()
+          ? adapter.capabilities.id
+          : providerConfig().seedanceModel,
         kind: args.kind,
         prompt: args.prompt,
         seed: args.seed,
@@ -230,9 +242,38 @@ export const startGeneration = action({
         estimatedCostCredits: estimated,
         createdBy: user._id,
         referenceAssetIds,
-      },
-    );
-
+        requestKey: args.requestId
+          ? `${user._id}:${args.requestId}`
+          : undefined,
+        requestFingerprint: args.requestId
+          ? JSON.stringify({
+              shotId: args.shotId,
+              sequenceId: args.sequenceId,
+              entityId: args.entityId,
+              kind: args.kind,
+              prompt: args.prompt,
+              seed: args.seed,
+              referenceAssetIds,
+              parentAssetIds,
+              referenceVideoUrl: buildInput.referenceVideoUrl,
+              startFrameAssetId: args.startFrameAssetId,
+              endFrameAssetId: args.endFrameAssetId,
+              durationSec: buildInput.durationSec,
+              resolution: buildInput.resolution,
+              aspectRatio: buildInput.aspectRatio,
+            })
+          : undefined,
+      });
+    } catch (error) {
+      // Transport failure can follow a committed reservation. Never remove its inputs.
+      if (error instanceof ConvexError) await ctx.storage.delete(inputsFileId);
+      throw error;
+    }
+    const stored = await ctx.runQuery(internal.generation.getJobInternal, {
+      jobId,
+    });
+    if (stored && stored.inputsFileId !== inputsFileId)
+      await ctx.storage.delete(inputsFileId);
     return { jobId, estimatedCostCredits: estimated };
   },
 });
@@ -344,7 +385,8 @@ export const submitAndTrack = internalAction({
     try {
       const request = await adapter.buildRequest(buildInput);
       // Pass attempt for mock transient-retry tests.
-      (request as Record<string, unknown>)._attempt = attempt;
+      if (useMockProviders())
+        (request as Record<string, unknown>)._attempt = attempt;
       const result = await adapter.submit(request);
 
       let providerResultFileId: Id<"_storage"> | undefined;
@@ -601,6 +643,8 @@ async function finishSuccess(
 
     if (blob === null) continue;
 
+    const mediaMetadata =
+      out.type === "video" ? await readVideoMetadata(blob) : undefined;
     const storageId = await saveFile(ctx, blob);
     const assetType =
       out.type === "image" ||
@@ -640,6 +684,9 @@ async function finishSuccess(
         type: assetType,
         format,
         sizeBytes: blob.size,
+        durationSec: mediaMetadata?.durationSec,
+        width: mediaMetadata?.width,
+        height: mediaMetadata?.height,
         createdBy: job.createdBy,
         jobId: job._id,
         outputIndex,
@@ -719,7 +766,7 @@ async function finishSuccess(
   const units =
     actualUnits ??
     (adapter.capabilities.kind === "video"
-      ? 5
+      ? job.estimatedCostCredits / adapter.capabilities.costModel.creditsPerUnit
       : adapter.capabilities.kind === "llm"
         ? 1
         : 1);

@@ -1,0 +1,181 @@
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { getFunctionName } from "convex/server";
+import { assembleFromShotList, type TimelineDocument } from "@cinakey/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EditPage } from "./EditPage";
+
+const state = vi.hoisted(() => ({
+  get: vi.fn(),
+  save: vi.fn(),
+  confirm: vi.fn(),
+  document: null as unknown,
+}));
+vi.mock("@/lib/api/hooks", () => ({
+  useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
+    const name = getFunctionName(ref);
+    if (name === "projects:get")
+      return { _id: "p", title: "Film", aspectRatio: "16:9", fps: 24 };
+    if (name === "timelineVersions:getTip")
+      return { _id: "v1", timelineFileId: "f1" };
+    return [];
+  },
+  useAction: (ref: Parameters<typeof getFunctionName>[0]) =>
+    getFunctionName(ref) === "timelineVersions:getContent"
+      ? state.get
+      : getFunctionName(ref) === "timelineVersions:save"
+        ? state.save
+        : state.get,
+}));
+vi.mock("@/components/ConfirmProvider", () => ({
+  useConfirm: () => state.confirm,
+}));
+vi.mock("@/features/edit/engine/PlaybackEngine", () => ({
+  PlaybackEngine: class {
+    subscribe() {}
+    setDocument() {}
+    dispose() {}
+    seek() {}
+  },
+}));
+vi.mock("@/features/edit/TimelineTracks", () => ({
+  TimelineTracks: ({
+    doc,
+    onMoveClip,
+  }: {
+    doc: TimelineDocument;
+    onMoveClip: (id: string, start: number) => void;
+  }) => {
+    const clip = doc.tracks.flatMap((t) => t.clips)[0]!;
+    return (
+      <button onClick={() => onMoveClip(clip.id, clip.startSec + 1)}>
+        Move {clip.startSec}
+      </button>
+    );
+  },
+}));
+vi.mock("@/features/edit/ExportDialog", () => ({ ExportDialog: () => null }));
+vi.mock("@/features/edit/TimelineHistoryDialog", () => ({
+  TimelineHistoryDialog: () => null,
+}));
+const mount = () =>
+  render(
+    <MemoryRouter initialEntries={["/projects/p/edit"]}>
+      <Routes>
+        <Route path="/projects/:projectId/edit" element={<EditPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+const flush = async () => {
+  await act(async () => {
+    await Promise.resolve();
+  });
+};
+beforeEach(() => {
+  vi.useFakeTimers();
+  const storage = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+    clear: () => storage.clear(),
+  });
+  state.get.mockReset();
+  state.save.mockReset();
+  state.confirm.mockReset();
+  state.document = assembleFromShotList({
+    project: { id: "p", aspectRatio: "16:9", fps: 24 },
+    shots: [
+      {
+        shotId: "shot",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 5,
+        take: { takeId: "take", assetId: "asset" },
+      },
+    ],
+  });
+  state.get.mockResolvedValue({
+    document: state.document,
+    version: { _id: "v1" },
+  });
+  state.confirm.mockResolvedValue(true);
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+describe("safe editor persistence", () => {
+  it("keeps edits made during a delayed save and serializes the next snapshot", async () => {
+    let first!: (value: { versionId: string }) => void;
+    state.save
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            first = resolve;
+          }),
+      )
+      .mockResolvedValue({ versionId: "v3" });
+    mount();
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Move 0" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(state.save).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "Move 1" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(state.save).toHaveBeenCalledOnce();
+    await act(async () => {
+      first({ versionId: "v2" });
+    });
+    expect(screen.getByRole("button", { name: "Move 2" })).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(state.save).toHaveBeenCalledTimes(2);
+    expect(state.save.mock.calls[1]![0].parentId).toBe("v2");
+    expect(state.get).toHaveBeenCalledOnce();
+  });
+  it("retains and recovers a local draft after a failed save", async () => {
+    state.save.mockRejectedValue(new Error("Offline"));
+    const view = mount();
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Move 0" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(
+      screen.getByRole("button", { name: "Retry save" }),
+    ).toBeInTheDocument();
+    expect(localStorage.getItem("cinakey.timelineRecovery.p")).toContain(
+      '"startSec":1',
+    );
+    view.unmount();
+    mount();
+    await flush();
+    expect(state.confirm).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Move 1" })).toBeInTheDocument();
+  });
+  it("does not replace a failed load with a writable empty timeline", async () => {
+    state.get.mockRejectedValue(new Error("Could not read timeline"));
+    mount();
+    await flush();
+    expect(
+      screen.getByRole("button", { name: "Retry loading" }),
+    ).toBeInTheDocument();
+    expect(state.save).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: /Move/ }),
+    ).not.toBeInTheDocument();
+  });
+});

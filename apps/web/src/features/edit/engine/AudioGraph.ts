@@ -2,7 +2,11 @@
  * Web Audio graph: schedule clip buffers with volume, fades, and music ducking.
  */
 
-import type { TimelineClip, TimelineDocument, TimelineTrack } from "@cinakey/shared";
+import type {
+  TimelineClip,
+  TimelineDocument,
+  TimelineTrack,
+} from "@cinakey/shared";
 import type { MediaCache } from "./MediaCache";
 import { audioUrlForClip, type MediaUrlMap } from "../mediaUrls";
 
@@ -18,6 +22,7 @@ export class AudioGraph {
   readonly ctx: AudioContext;
   private master: GainNode;
   private scheduled: Scheduled[] = [];
+  private scheduleRevision = 0;
   private playing = false;
   private startCtxTime = 0;
   private startTimelineSec = 0;
@@ -33,6 +38,7 @@ export class AudioGraph {
   }
 
   stopAll() {
+    this.scheduleRevision++;
     for (const s of this.scheduled) {
       try {
         s.source.stop();
@@ -61,21 +67,36 @@ export class AudioGraph {
     cache: MediaCache,
   ) {
     this.stopAll();
+    const revision = this.scheduleRevision;
     await this.resume();
     cache.setAudioContext(this.ctx);
 
-    this.startCtxTime = this.ctx.currentTime;
-    this.startTimelineSec = fromSec;
-    this.playing = true;
-
     const dialogueRanges = collectDialogueRanges(doc);
     const audioTracks = doc.tracks.filter(
-      (t) =>
-        !t.muted &&
-        (t.kind === "video" ||
-          t.kind === "music" ||
-          t.kind === "sfx"),
+      (t) => !t.muted && ["video", "dialogue", "music", "sfx"].includes(t.kind),
     );
+    const decoded = new Map<string, AudioBuffer | null>();
+    await Promise.all(
+      audioTracks.flatMap((track) =>
+        track.clips.map(async (clip) => {
+          if (
+            clip.source.type === "text" ||
+            clip.startSec + clip.durationSec <= fromSec
+          )
+            return;
+          const url = audioUrlForClip(clip.source, urls);
+          if (url)
+            decoded.set(
+              clip.source.assetId,
+              await cache.ensureAudio(clip.source.assetId, url),
+            );
+        }),
+      ),
+    );
+    if (revision !== this.scheduleRevision) return;
+    this.startCtxTime = this.ctx.currentTime + 0.03;
+    this.startTimelineSec = fromSec;
+    this.playing = true;
 
     for (const track of audioTracks) {
       for (const clip of track.clips) {
@@ -91,7 +112,8 @@ export class AudioGraph {
             : null;
         if (!assetId) continue;
 
-        const buffer = await cache.ensureAudio(assetId, url);
+        const buffer = decoded.get(assetId);
+        if (revision !== this.scheduleRevision) return;
         if (!buffer) continue;
 
         const offsetInClip = Math.max(0, fromSec - clip.startSec);
@@ -138,7 +160,8 @@ export class AudioGraph {
   timelineSecNow(): number | null {
     if (!this.playing) return null;
     return (
-      this.startTimelineSec + (this.ctx.currentTime - this.startCtxTime)
+      this.startTimelineSec +
+      Math.max(0, this.ctx.currentTime - this.startCtxTime)
     );
   }
 
@@ -235,10 +258,7 @@ export function textClipsAt(
 ): TimelineClip[] {
   const out: TimelineClip[] = [];
   for (const track of tracks) {
-    if (
-      (track.kind !== "titles" && track.kind !== "dialogue") ||
-      track.muted
-    )
+    if ((track.kind !== "titles" && track.kind !== "dialogue") || track.muted)
       continue;
     for (const clip of track.clips) {
       if (

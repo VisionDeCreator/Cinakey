@@ -30,6 +30,18 @@ export function videoUrlForClip(
   return null;
 }
 
+/** Separate proxy frames from originals while retaining original blob/audio reuse. */
+export function videoCacheKeyForClip(
+  source: { type: string; assetId?: string; proxyAssetId?: string },
+  urls: MediaUrlMap,
+): string | null {
+  if (!source.assetId) return null;
+  const url = videoUrlForClip(source, urls, true);
+  return url && url !== urls[source.assetId]?.url
+    ? `${source.assetId}:preview:${url}`
+    : source.assetId;
+}
+
 export function audioUrlForClip(
   source: { type: string; assetId?: string },
   urls: MediaUrlMap,

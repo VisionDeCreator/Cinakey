@@ -28,6 +28,7 @@ import type * as lib_assetSearch from "../lib/assetSearch.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_limits from "../lib/limits.js";
+import type * as lib_mediaProtection from "../lib/mediaProtection.js";
 import type * as lib_normalizeScriptProposal from "../lib/normalizeScriptProposal.js";
 import type * as lib_parseToolArguments from "../lib/parseToolArguments.js";
 import type * as lib_productionPrompts from "../lib/productionPrompts.js";
@@ -87,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   "lib/audit": typeof lib_audit;
   "lib/env": typeof lib_env;
   "lib/limits": typeof lib_limits;
+  "lib/mediaProtection": typeof lib_mediaProtection;
   "lib/normalizeScriptProposal": typeof lib_normalizeScriptProposal;
   "lib/parseToolArguments": typeof lib_parseToolArguments;
   "lib/productionPrompts": typeof lib_productionPrompts;

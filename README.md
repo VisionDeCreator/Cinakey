@@ -95,3 +95,7 @@ on Convex, including its storage and download costs.
 Staff accounts still use `users.isStaff=true`; staff tools are at `/staff` and
 `/dev`. New workspaces receive 100 starter credits. Worker retention scheduling
 purges eligible rejected takes after 30 days. Settings controls email preferences.
+
+See [production safety and workflow](docs/production-safety.md) and the
+[video provider contract](docs/provider-contract.md) for save recovery, media
+retention, spending limits, supported provider operations and validation.

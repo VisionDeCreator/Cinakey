@@ -1,3 +1,4 @@
+import { seekMediaFrame } from "../engine/mediaSeek";
 /**
  * In-browser timeline MP4 export via Mediabunny (WebCodecs H.264 + AAC).
  * Caps: 1080p long edge, 5 minutes.
@@ -52,6 +53,7 @@ export async function exportTimelineMp4(opts: {
   onProgress?: (p: ExportProgress) => void;
   longEdge?: number;
 }): Promise<Blob> {
+  if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   const cap = exportCapsOk(opts.doc);
   if (cap) throw new Error(cap);
   if (!(await webCodecsExportSupported())) {
@@ -77,101 +79,131 @@ export async function exportTimelineMp4(opts: {
     message: "Preparing media…",
   });
 
-  const cache = new MediaCache();
+  for (const track of doc.tracks) {
+    if (track.muted) continue;
+    for (const clip of track.clips) {
+      if (clip.source.type === "text") continue;
+      if (!opts.urls[clip.source.assetId]?.url)
+        throw new Error(
+          "Missing source media. Reconnect or restore it before exporting.",
+        );
+      const duration = opts.urls[clip.source.assetId]?.durationSec;
+      if (
+        duration !== undefined &&
+        clip.inSec + clip.durationSec * clip.speed > duration + 0.05
+      )
+        throw new Error(
+          "A clip extends beyond its source media. Adjust its trim before exporting.",
+        );
+    }
+  }
+  const cache = new MediaCache(opts.signal);
   const audioCtx = new AudioContext({ sampleRate: 48000 });
   cache.setAudioContext(audioCtx);
 
-  // Prefetch original video/audio for all clips
-  for (const track of doc.tracks) {
-    for (const clip of track.clips) {
-      if (clip.source.type === "text") continue;
-      const url = videoUrlForClip(clip.source, opts.urls, false);
-      const assetId =
-        clip.source.type === "take" || clip.source.type === "asset"
-          ? clip.source.assetId
-          : null;
-      if (assetId && url) {
-        const kind =
-          track.kind === "music" || track.kind === "sfx" ? "audio" : "video";
-        await cache.ensure(assetId, url, kind);
-        await cache.ensureAudio(assetId, opts.urls[assetId]?.url ?? url);
+  let output: Output | undefined;
+  try {
+    // Prefetch original video/audio for all clips
+    for (const track of doc.tracks) {
+      for (const clip of track.clips) {
+        if (clip.source.type === "text") continue;
+        const url = videoUrlForClip(clip.source, opts.urls, false);
+        const assetId =
+          clip.source.type === "take" || clip.source.type === "asset"
+            ? clip.source.assetId
+            : null;
+        if (assetId && url) {
+          const kind =
+            track.kind === "music" || track.kind === "sfx" ? "audio" : "video";
+          await cache.ensure(assetId, url, kind);
+          await cache.ensureAudio(assetId, opts.urls[assetId]?.url ?? url);
+        }
+        if (opts.signal?.aborted)
+          throw new DOMException("Aborted", "AbortError");
       }
-      if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
     }
-  }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx2d = canvas.getContext("2d")!;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx2d = canvas.getContext("2d")!;
 
-  const target = new BufferTarget();
-  const output = new Output({
-    format: new Mp4OutputFormat({ fastStart: "in-memory" }),
-    target,
-  });
+    const target = new BufferTarget();
+    output = new Output({
+      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+      target,
+    });
 
-  const videoSource = new CanvasSource(canvas, {
-    codec: "avc",
-    quality: QUALITY_HIGH,
-  });
-  output.addVideoTrack(videoSource, { frameRate: fps });
-
-  const mixed = await mixAudioOffline(doc, opts.urls, cache, audioCtx.sampleRate);
-  if (mixed) {
-    const audioSource = new AudioBufferSource({
-      codec: "aac",
+    const videoSource = new CanvasSource(canvas, {
+      codec: "avc",
       quality: QUALITY_HIGH,
     });
-    output.addAudioTrack(audioSource);
-    await output.start();
-    await audioSource.add(mixed);
-    audioSource.close();
-  } else {
-    await output.start();
-  }
+    output.addVideoTrack(videoSource, { frameRate: fps });
 
-  opts.onProgress?.({
-    phase: "video",
-    frame: 0,
-    totalFrames,
-    message: "Encoding video…",
-  });
-
-  for (let i = 0; i < totalFrames; i++) {
-    if (opts.signal?.aborted) {
-      await output.cancel();
-      cache.dispose();
-      await audioCtx.close();
-      throw new DOMException("Aborted", "AbortError");
-    }
-    const t = i * frameDur;
-    await paintFrame(ctx2d, width, height, doc, t, opts.urls, cache);
-    await videoSource.add(t, frameDur);
-    if (i % 5 === 0 || i === totalFrames - 1) {
-      opts.onProgress?.({
-        phase: "video",
-        frame: i + 1,
-        totalFrames,
-        message: `Encoding frame ${i + 1} / ${totalFrames}`,
+    const mixed = await mixAudioOffline(
+      doc,
+      opts.urls,
+      cache,
+      audioCtx.sampleRate,
+    );
+    if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    if (mixed) {
+      const audioSource = new AudioBufferSource({
+        codec: "aac",
+        quality: QUALITY_HIGH,
       });
+      output.addAudioTrack(audioSource);
+      await output.start();
+      await audioSource.add(mixed);
+      audioSource.close();
+    } else {
+      await output.start();
     }
+
+    opts.onProgress?.({
+      phase: "video",
+      frame: 0,
+      totalFrames,
+      message: "Encoding video…",
+    });
+
+    for (let i = 0; i < totalFrames; i++) {
+      if (opts.signal?.aborted) {
+        await output.cancel();
+        throw new DOMException("Aborted", "AbortError");
+      }
+      const t = i * frameDur;
+      await paintFrame(ctx2d, width, height, doc, t, opts.urls, cache);
+      await videoSource.add(t, frameDur);
+      if (i % 5 === 0 || i === totalFrames - 1) {
+        opts.onProgress?.({
+          phase: "video",
+          frame: i + 1,
+          totalFrames,
+          message: `Encoding frame ${i + 1} / ${totalFrames}`,
+        });
+      }
+    }
+    videoSource.close();
+
+    opts.onProgress?.({
+      phase: "finalize",
+      frame: totalFrames,
+      totalFrames,
+      message: "Finalizing MP4…",
+    });
+    await output.finalize();
+
+    const buffer = target.buffer;
+    if (!buffer) throw new Error("Export produced empty buffer");
+    return new Blob([buffer], { type: "video/mp4" });
+  } catch (error) {
+    await output?.cancel().catch(() => {});
+    throw error;
+  } finally {
+    cache.dispose();
+    if (audioCtx.state !== "closed") await audioCtx.close();
   }
-  videoSource.close();
-
-  opts.onProgress?.({
-    phase: "finalize",
-    frame: totalFrames,
-    totalFrames,
-    message: "Finalizing MP4…",
-  });
-  await output.finalize();
-  cache.dispose();
-  await audioCtx.close();
-
-  const buffer = target.buffer;
-  if (!buffer) throw new Error("Export produced empty buffer");
-  return new Blob([buffer], { type: "video/mp4" });
 }
 
 async function paintFrame(
@@ -211,7 +243,7 @@ async function drawClipToCanvas(
   if (clip.source.type === "text") return;
   const assetId = clip.source.assetId;
   const url = videoUrlForClip(clip.source, urls, false);
-  if (!url) return;
+  if (!url) throw new Error("Missing video media");
   const media = await cache.ensure(assetId, url, "video");
   const local = (t - clip.startSec) * clip.speed;
   const sourceT = clip.inSec + local;
@@ -234,9 +266,9 @@ async function drawClipToCanvas(
   }
 
   const video = media.videoEl;
-  if (!video) return;
+  if (!video) throw new Error("Video could not be decoded");
   if (Math.abs(video.currentTime - sourceT) > 0.02) {
-    await seekVideo(video, sourceT);
+    await seekMediaFrame(video, sourceT);
   }
   if (video.readyState >= 2) {
     drawCover(ctx, video, w, h);
@@ -285,7 +317,10 @@ function drawTitleOverlay(
           l.characterName ? `${l.characterName}: ${l.text}` : l.text,
         )
       : [clip.source.text];
-  const fontSize = Math.max(18, Math.round(h * (styleId === "caption" ? 0.045 : 0.06)));
+  const fontSize = Math.max(
+    18,
+    Math.round(h * (styleId === "caption" ? 0.045 : 0.06)),
+  );
   ctx.font = `600 ${fontSize}px "IBM Plex Sans", system-ui, sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#fafafa";
@@ -327,21 +362,6 @@ function drawTitleOverlay(
   }
 }
 
-function seekVideo(video: HTMLVideoElement, t: number): Promise<void> {
-  return new Promise((resolve) => {
-    const onSeeked = () => {
-      video.removeEventListener("seeked", onSeeked);
-      resolve();
-    };
-    video.addEventListener("seeked", onSeeked);
-    try {
-      video.currentTime = t;
-    } catch {
-      resolve();
-    }
-  });
-}
-
 async function mixAudioOffline(
   doc: TimelineDocument,
   urls: MediaUrlMap,
@@ -366,15 +386,24 @@ async function mixAudioOffline(
   let scheduled = 0;
   for (const track of doc.tracks) {
     if (track.muted) continue;
-    if (track.kind !== "video" && track.kind !== "music" && track.kind !== "sfx")
+    if (
+      track.kind !== "video" &&
+      track.kind !== "music" &&
+      track.kind !== "sfx" &&
+      track.kind !== "dialogue"
+    )
       continue;
     for (const clip of track.clips) {
       if (clip.source.type === "text") continue;
       const assetId = clip.source.assetId;
       const url = urls[assetId]?.url;
-      if (!url) continue;
+      if (!url) throw new Error("Missing audio media");
       const buffer = await cache.ensureAudio(assetId, url);
-      if (!buffer) continue;
+      if (!buffer) {
+        if (track.kind !== "video")
+          throw new Error("Audio media could not be decoded");
+        continue;
+      }
 
       const src = offline.createBufferSource();
       src.buffer = buffer;

@@ -191,6 +191,7 @@ async function resolveRefAssets(
 
 export const startSequenceGeneration = action({
   args: {
+    requestId: v.optional(v.string()),
     sequenceId: v.id("sequences"),
     promptOverride: v.optional(v.string()),
     resolution: v.optional(v.string()),
@@ -219,15 +220,11 @@ export const startSequenceGeneration = action({
     );
     if (!sequence) throw new Error("Sequence not found");
 
-    const durationSec = Math.min(
-      assembled.durationSec,
-      getAdapter(SEEDANCE_ID)?.capabilities.maxDurationSec ?? 30,
-    );
-
-    const shots: Doc<"shots">[] = await ctx.runQuery(
-      internal.shotGeneration.getShotsForSequenceInternal,
-      { sequenceId: args.sequenceId },
-    );
+    const durationSec = assembled.durationSec;
+    if (durationSec < 4 || durationSec > 30)
+      throw new Error(
+        "Split scripts into parts of 4–30 seconds before generation",
+      );
 
     let referenceVideoUrl: string | undefined;
     if (args.usePrevizAsReference && sequence.previzAssetId) {
@@ -242,63 +239,37 @@ export const startSequenceGeneration = action({
 
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    const result = await ctx.runAction(api.generation.startGeneration, {
+      projectId: sequence.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind: "text-to-video",
-      durationSec,
       prompt: assembled.prompt,
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: sequence.projectId,
-        estimatedCostCredits: estimated,
+      seed: args.seed,
+      sequenceId: args.sequenceId,
+      promptSheetId: assembled.promptSheetId,
+      referenceAssetIds: assembled.referenceAssetIds,
+      input: {
+        durationSec,
+        resolution: args.resolution ?? "720p",
+        aspectRatio: args.aspectRatio ?? assembled.aspectRatio,
+        cameraPreset: args.cameraPreset,
+        forceFail: args.forceFail,
+        ...(referenceVideoUrl ? { referenceVideoUrl } : {}),
       },
-    );
-    if (!cap.ok) {
-      throw new Error(cap.message);
-    }
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: shots.map((s) => s._id),
     });
-
-    try {
-      const result = await ctx.runAction(api.generation.startGeneration, {
-        projectId: sequence.projectId,
-        adapterId: SEEDANCE_ID,
-        kind: "text-to-video",
-        prompt: assembled.prompt,
-        seed: args.seed,
-        sequenceId: args.sequenceId,
-        promptSheetId: assembled.promptSheetId,
-        referenceAssetIds: assembled.referenceAssetIds,
-        skipSpendCapCheck: true,
-        input: {
-          durationSec,
-          resolution: args.resolution ?? "720p",
-          aspectRatio: args.aspectRatio ?? assembled.aspectRatio,
-          cameraPreset: args.cameraPreset,
-          forceFail: args.forceFail,
-          ...(referenceVideoUrl ? { referenceVideoUrl } : {}),
-        },
-      });
-      // The part's blockout / pre-viz was good enough to generate from.
-      await ctx.runMutation(internal.stagingFeedback.markAccepted, {
-        sequenceId: args.sequenceId,
-      });
-      return result;
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: shots.map((s) => s._id),
-      });
-      throw err;
-    }
+    // The part's blockout / pre-viz was good enough to generate from.
+    await ctx.runMutation(internal.stagingFeedback.markAccepted, {
+      sequenceId: args.sequenceId,
+    });
+    return result;
   },
 });
 
 export const startShotGeneration = action({
   args: {
+    requestId: v.optional(v.string()),
     shotId: v.id("shots"),
     promptOverride: v.optional(v.string()),
     startFrameAssetId: v.optional(v.id("assets")),
@@ -355,58 +326,34 @@ export const startShotGeneration = action({
 
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    return await ctx.runAction(api.generation.startGeneration, {
+      projectId: shot.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind,
-      durationSec,
       prompt: assembled.prompt,
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: shot.projectId,
-        estimatedCostCredits: estimated,
+      seed: args.seed,
+      shotId: args.shotId,
+      sequenceId: shot.sequenceId,
+      promptSheetId: assembled.promptSheetId,
+      referenceAssetIds: startFrameAssetId ? [] : assembled.referenceAssetIds,
+      startFrameAssetId,
+      endFrameAssetId: args.endFrameAssetId,
+      input: {
+        durationSec,
+        resolution: args.resolution ?? "720p",
+        aspectRatio: args.aspectRatio ?? assembled.aspectRatio,
+        cameraPreset: args.cameraPreset,
+        forceFail: args.forceFail,
       },
-    );
-    if (!cap.ok) throw new Error(cap.message);
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: [args.shotId],
     });
-
-    try {
-      return await ctx.runAction(api.generation.startGeneration, {
-        projectId: shot.projectId,
-        adapterId: SEEDANCE_ID,
-        kind,
-        prompt: assembled.prompt,
-        seed: args.seed,
-        shotId: args.shotId,
-        sequenceId: shot.sequenceId,
-        promptSheetId: assembled.promptSheetId,
-        referenceAssetIds: assembled.referenceAssetIds,
-        startFrameAssetId,
-        endFrameAssetId: args.endFrameAssetId,
-        skipSpendCapCheck: true,
-        input: {
-          durationSec,
-          resolution: args.resolution ?? "720p",
-          aspectRatio: args.aspectRatio ?? assembled.aspectRatio,
-          cameraPreset: args.cameraPreset,
-          forceFail: args.forceFail,
-        },
-      });
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: [args.shotId],
-      });
-      throw err;
-    }
   },
 });
 
 export const startTakeUpscale = action({
   args: {
+    requestId: v.optional(v.string()),
     takeId: v.id("takes"),
     resolution: v.optional(v.string()),
     forceFail: v.optional(v.boolean()),
@@ -433,54 +380,30 @@ export const startTakeUpscale = action({
 
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    return await ctx.runAction(api.generation.startGeneration, {
+      projectId: take.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind: "upscale",
-      durationSec,
       prompt: "upscale",
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: take.projectId,
-        estimatedCostCredits: estimated,
-      },
-    );
-    if (!cap.ok) throw new Error(cap.message);
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: [take.shotId],
-    });
-
-    try {
-      return await ctx.runAction(api.generation.startGeneration, {
-        projectId: take.projectId,
-        adapterId: SEEDANCE_ID,
-        kind: "upscale",
-        prompt: "upscale",
-        shotId: take.shotId,
-        sequenceId: shot.sequenceId,
-        parentAssetIds: [take.assetId],
+      shotId: take.shotId,
+      sequenceId: shot.sequenceId,
+      parentAssetIds: [take.assetId],
+      parentTakeId: take._id,
+      input: {
+        durationSec,
+        resolution: args.resolution ?? "1080p",
+        forceFail: args.forceFail,
         parentTakeId: take._id,
-        skipSpendCapCheck: true,
-        input: {
-          durationSec,
-          resolution: args.resolution ?? "1080p",
-          forceFail: args.forceFail,
-          parentTakeId: take._id,
-        },
-      });
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: [take.shotId],
-      });
-      throw err;
-    }
+      },
+    });
   },
 });
 
 export const startTakeExtend = action({
   args: {
+    requestId: v.optional(v.string()),
     takeId: v.id("takes"),
     extendSec: v.optional(v.number()),
     prompt: v.optional(v.string()),
@@ -504,54 +427,30 @@ export const startTakeExtend = action({
     const extendSec = args.extendSec ?? 5;
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    return await ctx.runAction(api.generation.startGeneration, {
+      projectId: take.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind: "extend",
-      durationSec: extendSec,
-      prompt: args.prompt ?? "extend",
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: take.projectId,
-        estimatedCostCredits: estimated,
-      },
-    );
-    if (!cap.ok) throw new Error(cap.message);
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: [take.shotId],
-    });
-
-    try {
-      return await ctx.runAction(api.generation.startGeneration, {
-        projectId: take.projectId,
-        adapterId: SEEDANCE_ID,
-        kind: "extend",
-        prompt: args.prompt ?? "Continue the motion seamlessly.",
-        shotId: take.shotId,
-        sequenceId: shot.sequenceId,
-        parentAssetIds: [take.assetId],
+      prompt: args.prompt ?? "Continue the motion seamlessly.",
+      shotId: take.shotId,
+      sequenceId: shot.sequenceId,
+      parentAssetIds: [take.assetId],
+      parentTakeId: take._id,
+      input: {
+        durationSec: extendSec,
+        forceFail: args.forceFail,
         parentTakeId: take._id,
-        skipSpendCapCheck: true,
-        input: {
-          durationSec: extendSec,
-          forceFail: args.forceFail,
-          parentTakeId: take._id,
-        },
-      });
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: [take.shotId],
-      });
-      throw err;
-    }
+      },
+    });
   },
 });
 
 /** Upscale a sequence master → new master + trimmed takes. */
 export const startMasterUpscale = action({
   args: {
+    requestId: v.optional(v.string()),
     sequenceId: v.id("sequences"),
     masterAssetId: v.id("assets"),
     resolution: v.optional(v.string()),
@@ -567,59 +466,31 @@ export const startMasterUpscale = action({
     );
     if (!sequence) throw new Error("Sequence not found");
 
-    const shots: Doc<"shots">[] = await ctx.runQuery(
-      internal.shotGeneration.getShotsForSequenceInternal,
-      { sequenceId: args.sequenceId },
-    );
     const durationSec = sequence.durationSec;
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    return await ctx.runAction(api.generation.startGeneration, {
+      projectId: sequence.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind: "upscale",
-      durationSec,
       prompt: "upscale",
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: sequence.projectId,
-        estimatedCostCredits: estimated,
+      sequenceId: args.sequenceId,
+      parentAssetIds: [args.masterAssetId],
+      input: {
+        durationSec,
+        resolution: args.resolution ?? "1080p",
+        forceFail: args.forceFail,
       },
-    );
-    if (!cap.ok) throw new Error(cap.message);
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: shots.map((s) => s._id),
     });
-
-    try {
-      return await ctx.runAction(api.generation.startGeneration, {
-        projectId: sequence.projectId,
-        adapterId: SEEDANCE_ID,
-        kind: "upscale",
-        prompt: "upscale",
-        sequenceId: args.sequenceId,
-        parentAssetIds: [args.masterAssetId],
-        skipSpendCapCheck: true,
-        input: {
-          durationSec,
-          resolution: args.resolution ?? "1080p",
-          forceFail: args.forceFail,
-        },
-      });
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: shots.map((s) => s._id),
-      });
-      throw err;
-    }
   },
 });
 
 /** Extend a sequence master → new master + trimmed takes. */
 export const startMasterExtend = action({
   args: {
+    requestId: v.optional(v.string()),
     sequenceId: v.id("sequences"),
     masterAssetId: v.id("assets"),
     extendSec: v.optional(v.number()),
@@ -636,51 +507,22 @@ export const startMasterExtend = action({
     );
     if (!sequence) throw new Error("Sequence not found");
 
-    const shots: Doc<"shots">[] = await ctx.runQuery(
-      internal.shotGeneration.getShotsForSequenceInternal,
-      { sequenceId: args.sequenceId },
-    );
     const extendSec = args.extendSec ?? 5;
     const adapter = getAdapter(SEEDANCE_ID);
     if (!adapter) throw new Error("Seedance adapter missing");
-    const estimated = adapter.estimateCost({
+
+    return await ctx.runAction(api.generation.startGeneration, {
+      projectId: sequence.projectId,
+      adapterId: SEEDANCE_ID,
+      requestId: args.requestId,
       kind: "extend",
-      durationSec: extendSec,
-      prompt: args.prompt ?? "extend",
-    });
-
-    const cap = await ctx.runQuery(
-      internal.shotGeneration.assertSpendCapInternal,
-      {
-        projectId: sequence.projectId,
-        estimatedCostCredits: estimated,
+      prompt: args.prompt ?? "Continue the motion seamlessly.",
+      sequenceId: args.sequenceId,
+      parentAssetIds: [args.masterAssetId],
+      input: {
+        durationSec: extendSec,
+        forceFail: args.forceFail,
       },
-    );
-    if (!cap.ok) throw new Error(cap.message);
-
-    await ctx.runMutation(internal.shotGeneration.markShotsGenerating, {
-      shotIds: shots.map((s) => s._id),
     });
-
-    try {
-      return await ctx.runAction(api.generation.startGeneration, {
-        projectId: sequence.projectId,
-        adapterId: SEEDANCE_ID,
-        kind: "extend",
-        prompt: args.prompt ?? "Continue the motion seamlessly.",
-        sequenceId: args.sequenceId,
-        parentAssetIds: [args.masterAssetId],
-        skipSpendCapCheck: true,
-        input: {
-          durationSec: extendSec,
-          forceFail: args.forceFail,
-        },
-      });
-    } catch (err) {
-      await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-        shotIds: shots.map((s) => s._id),
-      });
-      throw err;
-    }
   },
 });

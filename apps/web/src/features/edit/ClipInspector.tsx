@@ -23,6 +23,7 @@ type Props = {
     assetId: string;
     proxyAssetId?: string;
     trimStartSec?: number;
+    sourceOffsetSec?: number;
     trimEndSec?: number;
   }) => void;
   onDelete: () => void;
@@ -36,9 +37,7 @@ export function ClipInspector({
   onDelete,
 }: Props) {
   const shotId =
-    clip?.source.type === "take"
-      ? clip.source.shotId
-      : clip?.linkedShotId;
+    clip?.source.type === "take" ? clip.source.shotId : clip?.linkedShotId;
   const takes = useQuery(
     api.takes.listByShot,
     shotId ? { shotId: shotId as never } : "skip",
@@ -86,6 +85,23 @@ export function ClipInspector({
             }
           />
         </Field>
+        {clip.source.type !== "text" && (
+          <Field label="Source in (seconds)">
+            <Input
+              type="number"
+              step={0.01}
+              min={0}
+              value={clip.inSec}
+              onChange={(event) => {
+                const inSec = Math.max(0, Number(event.target.value) || 0);
+                onChange({
+                  inSec,
+                  outSec: inSec + clip.durationSec * clip.speed,
+                });
+              }}
+            />
+          </Field>
+        )}
         <Field label="Volume">
           <Input
             type="number"
@@ -113,7 +129,9 @@ export function ClipInspector({
             step={0.05}
             min={0}
             value={clip.fadeInSec ?? 0}
-            onChange={(e) => onChange({ fadeInSec: Number(e.target.value) || 0 })}
+            onChange={(e) =>
+              onChange({ fadeInSec: Number(e.target.value) || 0 })
+            }
           />
         </Field>
         <Field label="Fade out">
@@ -186,9 +204,10 @@ export function ClipInspector({
                   value={line.text}
                   className="text-xs"
                   onChange={(e) => {
-                    const lines: CaptionLine[] = (clip.source.type === "text"
-                      ? clip.source.lines ?? []
-                      : []
+                    const lines: CaptionLine[] = (
+                      clip.source.type === "text"
+                        ? (clip.source.lines ?? [])
+                        : []
                     ).map((l, idx) =>
                       idx === i ? { ...l, text: e.target.value } : l,
                     );
@@ -235,16 +254,28 @@ export function ClipInspector({
                         type="button"
                         disabled={active}
                         className="w-full rounded-md border border-zinc-800 px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
-                        onClick={() =>
+                        onClick={() => {
+                          const currentId =
+                            clip.source.type === "take"
+                              ? clip.source.takeId
+                              : null;
+                          const previous = takes.find(
+                            (item) => item._id === currentId,
+                          );
                           onSwapTake({
+                            sourceOffsetSec: Math.max(
+                              0,
+                              clip.inSec - (previous?.trimStartSec ?? 0),
+                            ),
                             takeId: take._id,
                             shotId: take.shotId,
                             assetId: take.assetId,
                             proxyAssetId: take.proxyAssetId,
                             trimStartSec: take.trimStartSec,
-                            trimEndSec: take.trimEndSec,
-                          })
-                        }
+                            trimEndSec:
+                              take.trimEndSec ?? take.asset?.durationSec,
+                          });
+                        }}
                       >
                         Take {take._id.slice(-6)}
                         {take.selected ? " (selected)" : ""}
@@ -262,13 +293,7 @@ export function ClipInspector({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[10px] uppercase tracking-wide text-zinc-500">

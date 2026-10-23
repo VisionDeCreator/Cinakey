@@ -4,12 +4,14 @@
  */
 
 import type { TimelineDocument, TimelineClip } from "@cinakey/shared";
+import { seekMediaFrame } from "./mediaSeek";
 import { Compositor } from "./Compositor";
 import { AudioGraph, textClipsAt, videoClipsAt } from "./AudioGraph";
 import { MediaCache } from "./MediaCache";
 import {
   evenDims,
   videoUrlForClip,
+  videoCacheKeyForClip,
   type MediaUrlMap,
 } from "../mediaUrls";
 
@@ -17,6 +19,7 @@ export type PlaybackState = {
   playing: boolean;
   currentSec: number;
   rate: number;
+  error?: string;
 };
 
 export class PlaybackEngine {
@@ -31,6 +34,21 @@ export class PlaybackEngine {
   private raf = 0;
   private lastWall = 0;
   private listeners = new Set<(s: PlaybackState) => void>();
+  private renderRevision = 0;
+  private transportRevision = 0;
+  private pendingFrame: { t: number; revision: number } | null = null;
+  private rendering = false;
+  private error: string | undefined;
+  private reportError = (error: unknown) => {
+    if (!this.disposed) {
+      this.error =
+        error instanceof Error
+          ? error.message
+          : "Preview media could not be loaded";
+      this.pause();
+    }
+  };
+  private disposed = false;
   private previewLongEdge = 960;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -48,7 +66,7 @@ export class PlaybackEngine {
       doc.project.aspectRatio,
     );
     this.compositor.resize(width, height);
-    void this.prefetchAround(this.currentSec);
+    void this.prefetchAround(this.currentSec).catch(this.reportError);
     this.renderFrame(this.currentSec);
   }
 
@@ -62,6 +80,7 @@ export class PlaybackEngine {
       playing: this.playing,
       currentSec: this.currentSec,
       rate: this.rate,
+      error: this.error,
     };
     for (const fn of this.listeners) fn(s);
   }
@@ -76,20 +95,28 @@ export class PlaybackEngine {
 
   async play() {
     if (!this.doc) return;
+    if (this.playing) return;
+    this.error = undefined;
+    const revision = ++this.transportRevision;
     await this.audio.resume();
+    if (revision !== this.transportRevision) return;
     this.playing = true;
     this.lastWall = performance.now();
-    await this.audio.schedule(
-      this.doc,
-      this.currentSec,
-      this.urls,
-      this.cache,
-    );
+    if (this.rate === 1)
+      await this.audio.schedule(
+        this.doc,
+        this.currentSec,
+        this.urls,
+        this.cache,
+      );
+    if (!this.playing || revision !== this.transportRevision) return;
+    this.lastWall = performance.now();
     this.tick();
     this.emit();
   }
 
   pause() {
+    this.transportRevision++;
     this.playing = false;
     this.audio.stopAll();
     if (this.raf) cancelAnimationFrame(this.raf);
@@ -99,16 +126,21 @@ export class PlaybackEngine {
 
   toggle() {
     if (this.playing) this.pause();
-    else void this.play();
+    else void this.play().catch(this.reportError);
   }
 
   setRate(rate: number) {
     this.rate = rate;
+    if (rate !== 1) this.audio.stopAll();
     if (rate === 0) {
       this.pause();
     } else if (!this.playing) {
-      void this.play();
+      void this.play().catch(this.reportError);
     }
+    if (rate === 1 && this.playing && this.doc)
+      void this.audio
+        .schedule(this.doc, this.currentSec, this.urls, this.cache)
+        .catch(this.reportError);
     this.emit();
   }
 
@@ -116,15 +148,14 @@ export class PlaybackEngine {
     if (!this.doc) return;
     this.currentSec = clamp(sec, 0, this.doc.durationSec);
     if (this.playing) {
-      void this.audio.schedule(
-        this.doc,
-        this.currentSec,
-        this.urls,
-        this.cache,
-      );
+      if (this.rate === 1)
+        void this.audio
+          .schedule(this.doc, this.currentSec, this.urls, this.cache)
+          .catch(this.reportError);
+      else this.audio.stopAll();
       this.lastWall = performance.now();
     }
-    void this.prefetchAround(this.currentSec);
+    void this.prefetchAround(this.currentSec).catch(this.reportError);
     this.renderFrame(this.currentSec);
     this.emit();
   }
@@ -142,8 +173,8 @@ export class PlaybackEngine {
       this.currentSec += dt * this.rate;
     }
 
-    if (this.currentSec >= this.doc.durationSec) {
-      this.currentSec = this.doc.durationSec;
+    if (this.currentSec >= this.doc.durationSec || this.currentSec < 0) {
+      this.currentSec = clamp(this.currentSec, 0, this.doc.durationSec);
       this.pause();
       this.renderFrame(this.currentSec);
       this.emit();
@@ -156,48 +187,50 @@ export class PlaybackEngine {
   };
 
   renderFrame(t: number) {
-    if (!this.doc) return;
-    this.compositor.clear();
-    const videos = videoClipsAt(this.doc.tracks, t);
-    const top = videos[videos.length - 1];
-    if (top) {
-      void this.drawClip(top, t);
-    }
-    const texts = textClipsAt(this.doc.tracks, t);
-    this.compositor.drawTitles(
-      texts.map((clip) => ({
-        clip,
-        localT: t - clip.startSec,
-      })),
-    );
+    if (!this.doc || this.disposed) return;
+    this.pendingFrame = { t, revision: ++this.renderRevision };
+    if (this.rendering) return;
+    this.rendering = true;
+    void (async () => {
+      try {
+        while (this.pendingFrame && !this.disposed) {
+          const { t: time, revision } = this.pendingFrame;
+          this.pendingFrame = null;
+          const videos = videoClipsAt(this.doc!.tracks, time);
+          const top = videos[videos.length - 1];
+          this.compositor.clear();
+          if (top) await this.drawClip(top, time, revision);
+          if (revision !== this.renderRevision || this.disposed) continue;
+          this.compositor.drawTitles(
+            textClipsAt(this.doc!.tracks, time).map((clip) => ({
+              clip,
+              localT: time - clip.startSec,
+            })),
+          );
+        }
+      } catch (error) {
+        this.reportError(error);
+      } finally {
+        this.rendering = false;
+      }
+    })();
   }
 
-  private async drawClip(clip: TimelineClip, t: number) {
+  private async drawClip(clip: TimelineClip, t: number, revision: number) {
     const url = videoUrlForClip(clip.source, this.urls, true);
     if (!url || clip.source.type === "text") return;
-    const assetId =
-      clip.source.type === "take"
-        ? clip.source.proxyAssetId && this.urls[clip.source.proxyAssetId]
-          ? clip.source.proxyAssetId
-          : clip.source.assetId
-        : clip.source.type === "asset"
-          ? clip.source.assetId
-          : null;
-    if (!assetId) return;
+    const key = videoCacheKeyForClip(clip.source, this.urls);
+    if (!key) return;
+    const media = await this.cache.ensure(key, url, "video");
 
-    const media = await this.cache.ensure(
-      assetId,
-      videoUrlForClip(clip.source, this.urls, true) ?? url,
-      "video",
-    );
-
+    if (revision !== this.renderRevision || this.disposed) return;
     const local = (t - clip.startSec) * clip.speed;
     const sourceT = clip.inSec + local;
 
     if (media.canvasSink) {
       try {
         const wrapped = await media.canvasSink.getCanvas(sourceT);
-        if (wrapped) {
+        if (wrapped && revision === this.renderRevision && !this.disposed) {
           this.compositor.drawMedia(wrapped.canvas);
           return;
         }
@@ -213,16 +246,13 @@ export class PlaybackEngine {
 
     const video = media.videoEl;
     if (!video) return;
-    if (Math.abs(video.currentTime - sourceT) > 0.04) {
-      try {
-        video.currentTime = sourceT;
-      } catch {
-        /* */
-      }
-    }
-    if (video.readyState >= 2) {
+    await seekMediaFrame(video, sourceT);
+    if (
+      revision === this.renderRevision &&
+      !this.disposed &&
+      video.readyState >= 2
+    )
       this.compositor.drawMedia(video);
-    }
   }
 
   private async prefetchAround(t: number) {
@@ -235,18 +265,16 @@ export class PlaybackEngine {
         if (end < t - 1 || clip.startSec > t + window) continue;
         const url = videoUrlForClip(clip.source, this.urls, true);
         if (!url || clip.source.type === "text") continue;
-        const id =
-          clip.source.type === "take" && clip.source.proxyAssetId
-            ? clip.source.proxyAssetId
-            : clip.source.type === "take" || clip.source.type === "asset"
-              ? clip.source.assetId
-              : null;
-        if (id) await this.cache.ensure(id, url, "video");
+        const key = videoCacheKeyForClip(clip.source, this.urls);
+        if (key) await this.cache.ensure(key, url, "video");
       }
     }
   }
 
   dispose() {
+    this.disposed = true;
+    this.renderRevision++;
+    this.pendingFrame = null;
     this.pause();
     this.compositor.dispose();
     this.audio.dispose();

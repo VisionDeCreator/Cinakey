@@ -269,9 +269,13 @@ export function BlockoutEditorPage() {
   };
 
   const frameRef = useRef(frame);
-  frameRef.current = frame;
+  useEffect(() => {
+    frameRef.current = frame;
+  }, [frame]);
   const docRef = useRef(doc);
-  docRef.current = doc;
+  useEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
 
   // Mount runtime once canvases exist. The loading gate below unmounts
   // canvases while !doc, so this must wait until the first loaded document.

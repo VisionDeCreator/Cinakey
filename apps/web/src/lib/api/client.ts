@@ -16,6 +16,7 @@ export type QueryEntry = {
   snapshot: number;
 };
 export class ApiClient {
+  private generationRequests = new Map<string, string>();
   disposalTimer?: ReturnType<typeof setTimeout>;
   readonly queries = new Map<string, QueryEntry>();
   readonly controller = new AbortController();
@@ -46,6 +47,16 @@ export class ApiClient {
   }
   async call(name: string, args: Record<string, unknown>): Promise<any> {
     if (!this.token) throw new Error("Authentication required");
+    const isGeneration =
+      /^(generation:startGeneration|shotGeneration:start(?:SequenceGeneration|ShotGeneration|TakeUpscale|TakeExtend|MasterUpscale|MasterExtend))$/.test(
+        name,
+      );
+    const key = name + JSON.stringify(args);
+    if (isGeneration && !args.requestId) {
+      if (!this.generationRequests.has(key))
+        this.generationRequests.set(key, crypto.randomUUID());
+      args = { ...args, requestId: this.generationRequests.get(key) };
+    }
     const response = await fetch(
       `${this.baseUrl}/v1/${name.replace(":", "/")}`,
       {
@@ -63,18 +74,24 @@ export class ApiClient {
         ? new ConvexError(jsonToConvex(payload.data))
         : new Error(payload.message ?? "API request failed");
     };
-    if (!response.ok) fail(await response.json());
-    return jsonToConvex((await response.json()).value);
+    const payload = await response.json();
+    if (isGeneration && response.status < 500)
+      this.generationRequests.delete(key);
+    if (!response.ok) fail(payload);
+    return jsonToConvex(payload.value);
   }
   async load(entry: QueryEntry, force = false) {
     if (entry.pending) return entry.pending;
     if (!force && Date.now() - entry.loadedAt < 30_000) return;
     entry.pending = this.call(entry.name, entry.args)
       .then((data) => {
-        entry.data = data;
+        const changed =
+          entry.error !== undefined ||
+          JSON.stringify(entry.data) !== JSON.stringify(data);
+        if (changed) entry.data = data;
         entry.error = undefined;
         entry.loadedAt = Date.now();
-        this.notify(entry);
+        if (changed) this.notify(entry);
       })
       .catch((error) => {
         if (!this.controller.signal.aborted) {

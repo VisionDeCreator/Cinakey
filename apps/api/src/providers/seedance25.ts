@@ -6,6 +6,7 @@ import type {
   ProviderRequest,
   SubmitResult,
 } from "@cinakey/shared";
+import { validateVideoInput } from "@cinakey/shared";
 import { requireProviderKey, providerConfig } from "../config/env";
 import { providerFetch } from "./transport";
 import { estimateVideoCost, isDefaultTransientError } from "./cost";
@@ -13,15 +14,14 @@ import { estimateVideoCost, isDefaultTransientError } from "./cost";
 const COST = { unit: "per_second", creditsPerUnit: 2 } as const;
 
 /**
- * Seedance 2.5 — ByteDance base API for video, upscale, extend.
- *
- * Many endpoint/field names below are assumptions — search for TODO(seedance-api).
+ * Ark Seedance 2.5: documented task API, image/video references and first/last frames.
+ * See docs/provider-contract.md for sources and deliberately disabled operations.
  */
 export const seedance25Adapter: GenerationAdapter = {
   capabilities: {
     id: "seedance-2.5",
     kind: "video",
-    operations: ["text-to-video", "image-to-video", "upscale", "extend"],
+    operations: ["text-to-video", "image-to-video", "extend"],
     inputs: [
       "text",
       "startFrame",
@@ -36,7 +36,7 @@ export const seedance25Adapter: GenerationAdapter = {
     maxReferenceImages: 30,
     resolutions: ["720p", "1080p"],
     aspectRatios: ["16:9", "9:16", "1:1"],
-    features: ["cameraControl", "upscale", "extend"],
+    features: ["extend"],
     costModel: COST,
   },
 
@@ -45,126 +45,79 @@ export const seedance25Adapter: GenerationAdapter = {
   },
 
   async buildRequest(input: BuildRequestInput): Promise<ProviderRequest> {
+    validateVideoInput(input);
     const kind = input.kind ?? "text-to-video";
+    const content: Array<Record<string, unknown>> = [
+      { type: "text", text: input.prompt ?? "" },
+    ];
+    if (input.startFrameUrl)
+      content.push({
+        type: "image_url",
+        image_url: { url: input.startFrameUrl },
+        role: "first_frame",
+      });
+    if (input.endFrameUrl)
+      content.push({
+        type: "image_url",
+        image_url: { url: input.endFrameUrl },
+        role: "last_frame",
+      });
+    for (const url of input.referenceImageUrls ?? [])
+      content.push({
+        type: "image_url",
+        image_url: { url },
+        role: "reference_image",
+      });
+    if (input.referenceVideoUrl)
+      content.push({
+        type: "video_url",
+        video_url: { url: input.referenceVideoUrl },
+        role: "reference_video",
+      });
     return {
-      kind,
-      prompt: input.prompt ?? "",
-      durationSec: input.durationSec ?? 5,
+      model: providerConfig().seedanceModel,
+      content,
+      duration: input.durationSec ?? 5,
       resolution: input.resolution ?? "720p",
-      aspectRatio: input.aspectRatio ?? "16:9",
-      seed: input.seed,
-      startFrameUrl: input.startFrameUrl,
-      endFrameUrl: input.endFrameUrl,
-      referenceImageUrls: input.referenceImageUrls ?? [],
-      referenceVideoUrl: input.referenceVideoUrl,
-      // TODO(seedance-api): confirm camera_control / cameraPreset field name.
-      cameraPreset: input.cameraPreset,
-      // TODO(seedance-api): assumption — model name string for base Seedance 2.5.
-      model: "seedance-2.5",
+      ratio:
+        input.startFrameUrl || kind === "extend"
+          ? "adaptive"
+          : (input.aspectRatio ?? "16:9"),
+      ...(input.seed === undefined ? {} : { seed: input.seed }),
+      ...(kind === "extend"
+        ? { omni_reference_task_type: "extend" }
+        : input.referenceVideoUrl || input.referenceImageUrls?.length
+          ? { omni_reference_task_type: "reference" }
+          : {}),
     };
   },
 
   async submit(request: ProviderRequest): Promise<SubmitResult> {
-    const apiKey = requireProviderKey("seedance");
-
-    // TODO(seedance-api): confirm base URL. Assumption: ByteDance Ark / content generation host.
-    const baseUrl = providerConfig().seedanceBaseUrl;
-
-    const kind = String(request.kind ?? "text-to-video");
-
-    // TODO(seedance-api): confirm create-task path and body schema per operation.
-    // Assumption: POST {baseUrl}/contents/generations/tasks with model + content.
-    const content: Array<Record<string, unknown>> = [
-      { type: "text", text: String(request.prompt ?? "") },
-    ];
-    if (kind === "image-to-video" || kind === "extend") {
-      if (typeof request.startFrameUrl === "string" && request.startFrameUrl) {
-        // TODO(seedance-api): assumption — image_url content part for start frame.
-        content.push({
-          type: "image_url",
-          image_url: { url: request.startFrameUrl },
-          role: "first_frame",
-        });
-      }
-      if (typeof request.endFrameUrl === "string" && request.endFrameUrl) {
-        content.push({
-          type: "image_url",
-          image_url: { url: request.endFrameUrl },
-          role: "last_frame",
-        });
-      }
-    }
-    const refs = (request.referenceImageUrls as string[] | undefined) ?? [];
-    for (const url of refs) {
-      content.push({
-        type: "image_url",
-        image_url: { url },
-        role: "reference",
-      });
-    }
-    if (
-      typeof request.referenceVideoUrl === "string" &&
-      request.referenceVideoUrl
-    ) {
-      // TODO(seedance-api): confirm video reference content part shape.
-      content.push({
-        type: "video_url",
-        video_url: { url: request.referenceVideoUrl },
-        role: "reference",
-      });
-    }
-
-    let endpoint = `${baseUrl}/contents/generations/tasks`;
-    // TODO(seedance-api): confirm whether upscale/extend use distinct endpoints.
-    if (kind === "upscale") {
-      endpoint = `${baseUrl}/contents/generations/tasks`; // assumption: same with different model/params
-    }
-
-    const body: Record<string, unknown> = {
-      model: request.model,
-      content,
-      // TODO(seedance-api): confirm duration / resolution / ratio field names.
-      duration: request.durationSec,
-      resolution: request.resolution,
-      ratio: request.aspectRatio,
-    };
-    if (typeof request.cameraPreset === "string" && request.cameraPreset) {
-      // TODO(seedance-api): confirm camera control payload shape.
-      body.camera_control = { preset: request.cameraPreset };
-    }
-    if (kind === "upscale") {
-      body.operation = "upscale";
-    }
-    if (kind === "extend") {
-      body.operation = "extend";
-    }
-
-    const res = await providerFetch("seedance", endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const res = await providerFetch(
+      "seedance",
+      `${providerConfig().seedanceBaseUrl}/contents/generations/tasks`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${requireProviderKey("seedance")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
       },
-      body: JSON.stringify(body),
-    });
-
-    const data = (await res.json()) as { id?: string; task_id?: string };
-    // TODO(seedance-api): confirm response id field (id vs task_id).
-    const providerJobId = data.id ?? data.task_id;
-    if (!providerJobId) {
+    );
+    const data = (await res.json()) as { id?: unknown };
+    if (typeof data.id !== "string" || !data.id)
       throw new Error("Seedance submit response missing task id");
-    }
-    return { providerJobId };
+    return { providerJobId: data.id };
   },
 
   async poll(providerJobId: string): Promise<PollResult> {
     const apiKey = requireProviderKey("seedance");
     const baseUrl = providerConfig().seedanceBaseUrl;
 
-    // TODO(seedance-api): confirm poll path and status enum values.
     const res = await providerFetch(
       "seedance",
-      `${baseUrl}/contents/generations/tasks/${providerJobId}`,
+      `${baseUrl}/contents/generations/tasks/${encodeURIComponent(providerJobId)}`,
       {
         headers: { Authorization: `Bearer ${apiKey}` },
       },
@@ -173,7 +126,6 @@ export const seedance25Adapter: GenerationAdapter = {
     const data = (await res.json()) as {
       status?: string;
       error?: { message?: string };
-      // TODO(seedance-api): where duration used is reported for billing.
       duration?: number;
     };
 
@@ -194,7 +146,8 @@ export const seedance25Adapter: GenerationAdapter = {
       raw === "failed" ||
       raw === "error" ||
       raw === "cancelled" ||
-      raw === "canceled"
+      raw === "canceled" ||
+      raw === "expired"
     ) {
       return {
         status: "failed",
@@ -204,7 +157,8 @@ export const seedance25Adapter: GenerationAdapter = {
     if (raw === "queued" || raw === "pending") {
       return { status: "queued" };
     }
-    return { status: "running" };
+    if (raw === "running") return { status: "running" };
+    throw new Error("Seedance returned an unrecognized task status");
   },
 
   async collect(providerJobId: string): Promise<CollectResult> {
@@ -213,37 +167,37 @@ export const seedance25Adapter: GenerationAdapter = {
 
     const res = await providerFetch(
       "seedance",
-      `${baseUrl}/contents/generations/tasks/${providerJobId}`,
+      `${baseUrl}/contents/generations/tasks/${encodeURIComponent(providerJobId)}`,
       {
         headers: { Authorization: `Bearer ${apiKey}` },
       },
     );
 
     const data = (await res.json()) as {
-      // TODO(seedance-api): confirm output URL field path.
       content?: { video_url?: string };
-      output?: { url?: string };
-      video_url?: string;
+      duration?: number;
+      resolution?: string;
+      ratio?: string;
     };
-    const url = data.content?.video_url ?? data.output?.url ?? data.video_url;
+    const url = data.content?.video_url;
     if (!url) {
       throw new Error("Seedance collect: no video URL in response");
     }
     return {
-      outputs: [{ type: "video", url, contentType: "video/mp4" }],
+      outputs: [
+        {
+          type: "video",
+          url,
+          contentType: "video/mp4",
+          metadata: {
+            durationSec: data.duration,
+            resolution: data.resolution,
+            aspectRatio: data.ratio,
+          },
+        },
+      ],
     };
   },
 
   isTransientError: isDefaultTransientError,
-
-  async verifyWebhook(
-    headers: Record<string, string>,
-    _body: string,
-  ): Promise<boolean> {
-    // TODO(seedance-api): confirm webhook signature scheme.
-    // Assumption: shared GENERATION_WEBHOOK_SECRET HMAC verified by HTTP route;
-    // provider-specific header left for later.
-    void headers;
-    return true;
-  },
 };

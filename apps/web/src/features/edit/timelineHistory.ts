@@ -9,9 +9,7 @@ export type TimelineHistoryState = {
   dirty: boolean;
 };
 
-export function createHistory(
-  present: TimelineDocument,
-): TimelineHistoryState {
+export function createHistory(present: TimelineDocument): TimelineHistoryState {
   return { present, past: [], future: [], dirty: false };
 }
 
@@ -28,9 +26,7 @@ export function pushDocument(
   };
 }
 
-export function undo(
-  state: TimelineHistoryState,
-): TimelineHistoryState {
+export function undo(state: TimelineHistoryState): TimelineHistoryState {
   const prev = state.past[state.past.length - 1];
   if (!prev) return state;
   return {
@@ -41,9 +37,7 @@ export function undo(
   };
 }
 
-export function redo(
-  state: TimelineHistoryState,
-): TimelineHistoryState {
+export function redo(state: TimelineHistoryState): TimelineHistoryState {
   const next = state.future[0];
   if (!next) return state;
   return {
@@ -54,9 +48,7 @@ export function redo(
   };
 }
 
-export function markClean(
-  state: TimelineHistoryState,
-): TimelineHistoryState {
+export function markClean(state: TimelineHistoryState): TimelineHistoryState {
   return { ...state, dirty: false };
 }
 
@@ -69,5 +61,6 @@ export function replacePresent(
 }
 
 export function documentHash(doc: TimelineDocument): string {
-  return JSON.stringify(doc);
+  const { version: _version, parentFileId: _parent, ...content } = doc;
+  return JSON.stringify(content);
 }

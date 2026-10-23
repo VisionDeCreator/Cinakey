@@ -1,3 +1,4 @@
+import { assertMediaRemovable } from "./lib/mediaProtection";
 import { requireProjectAccess, requireUser } from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
 import type { Id } from "./_generated/dataModel";
@@ -459,6 +460,7 @@ export const deleteAsset = mutation({
       throw new Error("Asset not found");
     }
     await requireProjectAccess(ctx, asset.projectId);
+    await assertMediaRemovable(ctx, asset.projectId, args.assetId);
     await deleteFile(ctx, asset.storageId);
     await ctx.db.delete(args.assetId);
   },

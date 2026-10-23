@@ -1041,7 +1041,7 @@
   },
   "timelineVersions:createVersion": {
     "kind": "mutation",
-    "public": true
+    "public": false
   },
   "timelineVersions:listForProject": {
     "kind": "query",
@@ -1096,6 +1096,14 @@
     "public": false
   },
   "textJobs:settleChatJob": {
+    "kind": "mutation",
+    "public": false
+  },
+  "timelineVersions:save": {
+    "kind": "action",
+    "public": true
+  },
+  "timelineVersions:commitSnapshot": {
     "kind": "mutation",
     "public": false
   }

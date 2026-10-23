@@ -9,7 +9,7 @@ const seedance25Adapter: Pick<
     capabilities: {
       id: "seedance-2.5",
       kind: "video",
-      operations: ["text-to-video", "image-to-video", "upscale", "extend"],
+      operations: ["text-to-video", "image-to-video", "extend"],
       inputs: [
         "text",
         "startFrame",
@@ -24,7 +24,7 @@ const seedance25Adapter: Pick<
       maxReferenceImages: 30,
       resolutions: ["720p", "1080p"],
       aspectRatios: ["16:9", "9:16", "1:1"],
-      features: ["cameraControl", "upscale", "extend"],
+      features: ["extend"],
       costModel: COST,
     },
     estimateCost(input) {

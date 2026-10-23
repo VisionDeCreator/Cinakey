@@ -10,7 +10,9 @@ import { z } from "zod";
 export const TIMELINE_SCHEMA_ID = "cinakey.timeline/1.0" as const;
 
 /** Schema ids this build can read. Minor versions must stay additive. */
-export const TIMELINE_READABLE_SCHEMAS: readonly string[] = [TIMELINE_SCHEMA_ID];
+export const TIMELINE_READABLE_SCHEMAS: readonly string[] = [
+  TIMELINE_SCHEMA_ID,
+];
 
 /** MVP export caps (documented in source of truth). */
 export const TIMELINE_EXPORT_MAX_LONG_EDGE = 1920;
@@ -196,7 +198,9 @@ export function defaultTracks(): TimelineTrack[] {
   ];
 }
 
-export function createEmptyTimeline(project: TimelineProjectMeta): TimelineDocument {
+export function createEmptyTimeline(
+  project: TimelineProjectMeta,
+): TimelineDocument {
   return {
     schema: TIMELINE_SCHEMA_ID,
     version: 1,
@@ -207,7 +211,9 @@ export function createEmptyTimeline(project: TimelineProjectMeta): TimelineDocum
 }
 
 /** Recompute durationSec as the end of the last clip across all tracks. */
-export function recomputeTimelineDuration(doc: TimelineDocument): TimelineDocument {
+export function recomputeTimelineDuration(
+  doc: TimelineDocument,
+): TimelineDocument {
   let maxEnd = 0;
   for (const track of doc.tracks) {
     for (const clip of track.clips) {
@@ -304,7 +310,10 @@ export type AssembleFromShotListInput = {
   version?: number;
 };
 
-function sourceWindow(take: AssembleShotInput["take"], plannedSec: number): {
+function sourceWindow(
+  take: AssembleShotInput["take"],
+  plannedSec: number,
+): {
   inSec: number;
   outSec: number;
   durationSec: number;
@@ -313,7 +322,10 @@ function sourceWindow(take: AssembleShotInput["take"], plannedSec: number): {
   let outSec: number;
   if (take.trimEndSec !== undefined && take.trimEndSec > inSec) {
     outSec = take.trimEndSec;
-  } else if (take.mediaDurationSec !== undefined && take.mediaDurationSec > inSec) {
+  } else if (
+    take.mediaDurationSec !== undefined &&
+    take.mediaDurationSec > inSec
+  ) {
     outSec = Math.min(inSec + plannedSec, take.mediaDurationSec);
   } else {
     outSec = inSec + plannedSec;
@@ -366,10 +378,7 @@ export function assembleFromShotList(
       shot.dialogueLineId && input.dialogueByLineId
         ? input.dialogueByLineId[shot.dialogueLineId]
         : undefined;
-    const captionText =
-      line?.dialogue?.trim() ||
-      shot.dialogue?.trim() ||
-      "";
+    const captionText = line?.dialogue?.trim() || shot.dialogue?.trim() || "";
     if (captionText) {
       const lines: CaptionLine[] = [
         {
@@ -649,23 +658,31 @@ export function swapTakeOnClip(
     assetId: string;
     proxyAssetId?: string;
     trimStartSec?: number;
+    sourceOffsetSec?: number;
     trimEndSec?: number;
   },
 ): TimelineDocument {
   const found = findClip(doc, clipId);
   if (!found) return doc;
   const { clip } = found;
-  const inSec = take.trimStartSec ?? 0;
-  const outSec =
-    take.trimEndSec !== undefined && take.trimEndSec > inSec
+  const baseIn = take.trimStartSec ?? 0;
+  const baseOut =
+    take.trimEndSec !== undefined && take.trimEndSec > baseIn
       ? take.trimEndSec
-      : inSec + clip.durationSec;
-  const sourceLen = Math.max(0.1, outSec - inSec);
-  const durationSec = Math.min(clip.durationSec, sourceLen);
+      : baseIn + clip.durationSec * clip.speed;
+  const offset = Math.min(
+    Math.max(0, take.sourceOffsetSec ?? 0),
+    Math.max(0, baseOut - baseIn - 0.05 * clip.speed),
+  );
+  const inSec = baseIn + offset;
+  const durationSec = Math.min(
+    clip.durationSec,
+    (baseOut - inSec) / clip.speed,
+  );
 
   return updateClip(doc, clipId, {
     inSec,
-    outSec: inSec + durationSec,
+    outSec: inSec + durationSec * clip.speed,
     durationSec,
     linkedShotId: take.shotId,
     source: {

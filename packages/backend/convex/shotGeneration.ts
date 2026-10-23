@@ -1,3 +1,4 @@
+import { timelineUsesAsset } from "./lib/mediaProtection";
 import { type ScriptPromptData } from "@cinakey/shared";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -425,6 +426,8 @@ export const createSequenceTakes = internalMutation({
       .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
       .collect();
     shots.sort((a, b) => (a.startSec ?? a.order) - (b.startSec ?? b.order));
+    const master = await ctx.db.get(args.masterAssetId);
+    const mediaDuration = master?.durationSec;
     const takeIds: Id<"takes">[] = [];
     const now = Date.now();
     const existing = await ctx.db
@@ -441,7 +444,12 @@ export const createSequenceTakes = internalMutation({
         continue;
       }
       const start = shot.startSec ?? 0;
-      const end = shot.endSec ?? start + shot.durationSec;
+      const plannedEnd = shot.endSec ?? start + shot.durationSec;
+      if (mediaDuration !== undefined && start >= mediaDuration) continue;
+      const end =
+        mediaDuration === undefined
+          ? plannedEnd
+          : Math.min(plannedEnd, mediaDuration);
       const takeId = await ctx.db.insert("takes", {
         projectId: args.projectId,
         shotId: shot._id,
@@ -619,7 +627,10 @@ export const chooseMaster = mutation({
         .withIndex("by_shot", (q) => q.eq("shotId", shot._id))
         .collect();
       const match = takes.find((t) => t.assetId === args.masterAssetId);
-      if (!match) continue;
+      if (!match)
+        throw new Error(
+          "This video does not cover every planned shot. Choose individual takes or adjust the shot timing first.",
+        );
       for (const sib of takes) {
         if (sib.selected && sib._id !== match._id) {
           await ctx.db.patch(sib._id, { selected: false });
@@ -661,6 +672,10 @@ export const deleteMaster = mutation({
       .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
       .collect();
 
+    if (await timelineUsesAsset(ctx, sequence.projectId, args.masterAssetId))
+      throw new Error(
+        "This video is used by a saved timeline or its history and cannot be deleted.",
+      );
     const now = Date.now();
     const proxyIds = new Set<Id<"assets">>();
 
@@ -671,7 +686,13 @@ export const deleteMaster = mutation({
         .collect();
       for (const take of takes) {
         if (take.assetId !== args.masterAssetId) continue;
-        if (take.proxyAssetId) proxyIds.add(take.proxyAssetId);
+        if (take.proxyAssetId) {
+          if (
+            await timelineUsesAsset(ctx, sequence.projectId, take.proxyAssetId)
+          )
+            throw new Error("A saved timeline uses this video proxy");
+          proxyIds.add(take.proxyAssetId);
+        }
         const wasSelected = shot.selectedTakeId === take._id;
         await ctx.db.delete(take._id);
         if (wasSelected) {

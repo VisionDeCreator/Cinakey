@@ -80,7 +80,12 @@ function useApiWrite(reference: FunctionReference<any>) {
       try {
         return await client.call(name, args);
       } finally {
-        await client.invalidate();
+        if (
+          !/^(timelineVersions:getContent|scriptVersions:getContent|storage:storeJson)$/.test(
+            name,
+          )
+        )
+          await client.invalidate();
       }
     },
     [client, name],

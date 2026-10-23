@@ -2,7 +2,7 @@ import { api } from "@cinakey/backend";
 import { COST_CONFIRM_THRESHOLD_CREDITS } from "@cinakey/shared";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ShotProduction } from "./ShotProduction";
 import { cn } from "@/lib/utils";
 
 type Master = {
@@ -28,6 +29,9 @@ type Master = {
 
 export function VideoPage() {
   const { projectId } = useParams();
+  const capabilities = useQuery(api.generation.listCapabilities, {});
+  const supported = capabilities?.find((c) => c.id === "seedance-2.5");
+  const compareVideos = useRef<Map<string, HTMLVideoElement>>(new Map());
   const parts = useQuery(
     api.promptSheets.listScriptParts,
     projectId ? { projectId: projectId as never } : "skip",
@@ -46,6 +50,8 @@ export function VideoPage() {
   const [error, setError] = useState<string | null>(null);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [usePrevizRef, setUsePrevizRef] = useState(false);
+  const [resolution, setResolution] = useState("720p");
+  const [seed, setSeed] = useState("");
   const confirm = useConfirm();
 
   const startSequence = useAction(api.shotGeneration.startSequenceGeneration);
@@ -102,6 +108,8 @@ export function VideoPage() {
     try {
       await startSequence({
         sequenceId: active.sequenceId as never,
+        resolution,
+        seed: seed.trim() ? Number(seed) : undefined,
         usePrevizAsReference: usePrevizRef || undefined,
       });
     } catch (err) {
@@ -184,6 +192,13 @@ export function VideoPage() {
 
   async function onExtend(assetId: string) {
     if (!active) return;
+    const ok = await confirm({
+      title: "Generate an extension?",
+      description:
+        "Generate a 5-second extension segment for approximately 10 credits. The original video is kept.",
+      confirmLabel: "Generate extension",
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -260,7 +275,16 @@ export function VideoPage() {
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
-          disabled={busy || overCap || !active}
+          disabled={
+            busy ||
+            overCap ||
+            !active ||
+            !credits ||
+            !Number.isInteger(active.durationSec) ||
+            active.durationSec < 4 ||
+            active.durationSec > 30 ||
+            seqJobs.length > 0
+          }
           onClick={() => void onGenerateClick()}
         >
           {busy ? "Starting…" : `Generate video · ${credits} cr`}
@@ -275,7 +299,31 @@ export function VideoPage() {
               <span className="sr-only">More</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 p-2">
+          <DropdownMenuContent align="start" className="w-64 space-y-2 p-2">
+            <label className="block text-xs">
+              Resolution
+              <select
+                aria-label="Video resolution"
+                value={resolution}
+                onChange={(event) => setResolution(event.target.value)}
+                className="ml-2 bg-zinc-900"
+              >
+                <option>720p</option>
+                <option>1080p</option>
+              </select>
+            </label>
+            <label className="block text-xs">
+              Seed (optional)
+              <input
+                aria-label="Video seed"
+                type="number"
+                min={-1}
+                max={2147483647}
+                value={seed}
+                onChange={(event) => setSeed(event.target.value)}
+                className="w-full bg-zinc-900"
+              />
+            </label>
             {active?.previzAssetId ? (
               <label className="flex cursor-pointer items-start gap-2 px-1 py-1.5 text-xs text-zinc-300">
                 <input
@@ -295,6 +343,26 @@ export function VideoPage() {
         </DropdownMenu>
       </div>
 
+      {active && (active.durationSec < 4 || active.durationSec > 30) && (
+        <p role="alert" className="text-sm text-amber-300">
+          Split this script into parts of 4–30 seconds before generation.
+        </p>
+      )}
+      {seqJobs.map((job) => (
+        <p key={job._id} className="text-xs text-zinc-400">
+          {job.submissionState === "uncertain"
+            ? "Submission needs review; credits remain reserved. Do not resubmit this job."
+            : `${job.status} · ${job.estimatedCostCredits} credits reserved`}
+        </p>
+      ))}
+      <Button asChild variant="outline" size="sm">
+        <Link to={`/projects/${projectId}/edit`}>Open in Edit</Link>
+      </Button>
+      <ShotProduction
+        generationBusy={seqJobs.length > 0}
+        projectId={projectId}
+        sequenceId={active?.sequenceId ?? null}
+      />
       {error ? <p className="text-sm text-rose-400">{error}</p> : null}
 
       {masters === undefined ? (
@@ -353,12 +421,14 @@ export function VideoPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      disabled={busy}
-                      onClick={() => void onUpscale(m.assetId)}
-                    >
-                      Upscale
-                    </DropdownMenuItem>
+                    {supported?.operations.includes("upscale") && (
+                      <DropdownMenuItem
+                        disabled={busy}
+                        onClick={() => void onUpscale(m.assetId)}
+                      >
+                        Upscale
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       disabled={busy}
                       onClick={() => void onExtend(m.assetId)}
@@ -404,10 +474,35 @@ export function VideoPage() {
               Close
             </Button>
           </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              for (const video of compareVideos.current.values()) {
+                video.currentTime = 0;
+                void video.play().catch(() => {});
+              }
+            }}
+          >
+            Play both from start
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              for (const video of compareVideos.current.values()) video.pause();
+            }}
+          >
+            Pause both
+          </Button>
           <div className="grid gap-3 sm:grid-cols-2">
             {comparePair.map((m) => (
               <video
                 key={m.assetId}
+                ref={(video) => {
+                  if (video) compareVideos.current.set(m.assetId, video);
+                  else compareVideos.current.delete(m.assetId);
+                }}
                 src={m.url ?? undefined}
                 controls
                 className="aspect-video w-full bg-zinc-950"

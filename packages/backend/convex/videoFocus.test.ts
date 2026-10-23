@@ -105,17 +105,16 @@ describe("video-focused production", () => {
     );
   });
 
-  it("passes uploaded images to video generation in order with the selected starting frame", async () => {
+  it("passes uploaded images to video generation in order and separately accepts a starting frame", async () => {
     const { t, asUser, projectId, image } = await fixture();
     const first = await image("first.png"),
       second = await image("second.png");
     const { jobId } = await asUser.action(api.generation.startGeneration, {
       projectId,
       adapterId: "seedance-2.5",
-      kind: "image-to-video",
+      kind: "text-to-video",
       prompt: "Camera pans across the cafe",
       referenceAssetIds: [second, first],
-      startFrameAssetId: first,
       input: { mockDelayMs: 0 },
     });
     const job = await asUser.query(api.generation.getJob, { jobId });
@@ -130,7 +129,23 @@ describe("video-focused production", () => {
         ),
       ),
     );
-    expect(input.startFrameUrl).toBe(
+    const framed = await asUser.action(api.generation.startGeneration, {
+      projectId,
+      adapterId: "seedance-2.5",
+      kind: "image-to-video",
+      prompt: "Animate this frame",
+      startFrameAssetId: first,
+      input: { mockDelayMs: 0 },
+    });
+    const framedJob = await asUser.query(api.generation.getJob, {
+      jobId: framed.jobId,
+    });
+    const frameInput = await t.run(async (ctx) =>
+      JSON.parse(
+        await (await ctx.storage.get(framedJob!.inputsFileId!))!.text(),
+      ),
+    );
+    expect(frameInput.startFrameUrl).toBe(
       await asUser.query(api.storage.getAssetUrl, { assetId: first }),
     );
     await t.finishAllScheduledFunctions(() => {});

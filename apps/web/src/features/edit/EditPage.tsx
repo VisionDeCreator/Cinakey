@@ -1,6 +1,8 @@
+import { EditorMedia } from "./media/EditorMedia";
 import { api, type Id } from "@cinakey/backend";
 import {
   addClip,
+  assertTimelineDocument,
   assembleFromShotList,
   createEmptyTimeline,
   deleteClip,
@@ -18,7 +20,7 @@ import {
   type TimelineDocument,
   type TrackKind,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
+import { useAction, useQuery } from "@/lib/api/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -33,7 +35,6 @@ import { TimelineHistoryDialog } from "@/features/edit/TimelineHistoryDialog";
 import {
   createHistory,
   documentHash,
-  markClean,
   pushDocument,
   redo,
   replacePresent,
@@ -45,6 +46,11 @@ const AUTOSAVE_MS = 2000;
 const SNAP_SEC = 0.15;
 
 export function EditPage() {
+  const { projectId } = useParams();
+  return <ProjectEditor key={projectId} />;
+}
+
+function ProjectEditor() {
   const { projectId } = useParams();
   const project = useQuery(
     api.projects.get,
@@ -65,8 +71,7 @@ export function EditPage() {
 
   const getTimelineContent = useAction(api.timelineVersions.getContent);
   const getScriptContent = useAction(api.scriptVersions.getContent);
-  const storeJson = useAction(api.storage.storeJson);
-  const createVersion = useMutation(api.timelineVersions.createVersion);
+  const saveTimeline = useAction(api.timelineVersions.save);
 
   const confirm = useConfirm();
 
@@ -87,8 +92,18 @@ export function EditPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PlaybackEngine | null>(null);
   const tipIdRef = useRef<string | null>(null);
+  const [savePaused, setSavePaused] = useState(false);
+  const pendingSave = useRef<{
+    snapshot: TimelineDocument;
+    hash: string;
+    requestId: string;
+    parentId: Id<"timelineVersions"> | null;
+  } | null>(null);
+  const savingRef = useRef(false);
+  const mounted = useRef(true);
+  const loaded = useRef(false);
+  const [saveCycle, setSaveCycle] = useState(0);
   const lastSavedHash = useRef<string | null>(null);
-  const selectionPrev = useRef<Map<string, string>>(new Map());
 
   const doc = history?.present ?? null;
 
@@ -142,37 +157,111 @@ export function EditPage() {
     return map;
   }, [urls, assetUrls]);
 
+  const [editorMedia, setEditorMedia] = useState<EditorMedia>();
+  const [localProxies, setLocalProxies] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const session = new EditorMedia(
+      (id, url) => {
+        setLocalProxies((previous) => ({ ...previous, [id]: url }));
+      },
+      async (url) => engineRef.current?.cache.findBlob(url),
+    );
+    // Session objects own decoder resources and are replaced on project changes.
+    setEditorMedia(session);
+    setLocalProxies({});
+    return () => session.dispose();
+  }, [projectId]);
+  const playbackUrls = useMemo(() => {
+    const map = { ...mergedUrls };
+    for (const [id, proxyUrl] of Object.entries(localProxies)) {
+      if (map[id] && !map[id].proxyUrl) map[id] = { ...map[id], proxyUrl };
+    }
+    return map;
+  }, [mergedUrls, localProxies]);
+
+  const aspectRatio = project?.aspectRatio;
+  const projectFps = project?.fps;
+  const recoveryKey = `cinakey.timelineRecovery.${projectId}`;
   const load = useCallback(async () => {
-    if (!projectId || !project) return;
+    if (!projectId || !aspectRatio || !projectFps || loaded.current) return;
+    loaded.current = true;
     setLoadError(null);
     try {
       const result = await getTimelineContent({
         projectId: projectId as never,
       });
-      const empty = createEmptyTimeline({
-        id: projectId,
-        aspectRatio: project.aspectRatio,
-        fps: project.fps,
-      });
-      const next = result.document ?? empty;
-      setHistory(replacePresent(createHistory(next), next, false));
+      if (!mounted.current) return;
+      let next =
+        result.document ??
+        createEmptyTimeline({ id: projectId, aspectRatio, fps: projectFps });
       lastSavedHash.current = documentHash(next);
       tipIdRef.current = result.version?._id ?? null;
-      setPlayheadSec(0);
+      let recovered = false;
+      try {
+        const raw = localStorage.getItem(recoveryKey);
+        if (raw) {
+          const draft = JSON.parse(raw) as { document: TimelineDocument };
+          const candidate = assertTimelineDocument(draft.document);
+          if (
+            candidate.project.id === projectId &&
+            documentHash(candidate) !== documentHash(next)
+          ) {
+            const restore = await confirm({
+              title: "Recover unsaved edits?",
+              description:
+                "This browser has a local draft from an interrupted session.",
+              confirmLabel: "Recover",
+            });
+            if (restore) {
+              next = candidate;
+              recovered = true;
+            } else localStorage.removeItem(recoveryKey);
+          }
+        }
+      } catch {
+        /* Server copy remains authoritative if recovery storage is unavailable. */
+      }
+      if (mounted.current)
+        setHistory(replacePresent(createHistory(next), next, recovered));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Failed to load");
-      const empty = createEmptyTimeline({
-        id: projectId,
-        aspectRatio: project.aspectRatio,
-        fps: project.fps,
-      });
-      setHistory(createHistory(empty));
+      loaded.current = false;
+      if (mounted.current)
+        setLoadError(err instanceof Error ? err.message : "Failed to load");
     }
-  }, [getTimelineContent, project, projectId]);
-
+  }, [
+    getTimelineContent,
+    projectId,
+    aspectRatio,
+    projectFps,
+    recoveryKey,
+    confirm,
+  ]);
   useEffect(() => {
     void load();
-  }, [load, tip?._id]);
+  }, [load]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!history?.dirty || !doc) return;
+    try {
+      localStorage.setItem(
+        recoveryKey,
+        JSON.stringify({ document: doc, savedAt: Date.now() }),
+      );
+    } catch {
+      /* Unload warning still protects users if storage is full. */
+    }
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [history?.dirty, doc, recoveryKey]);
 
   // Playback engine
   useEffect(() => {
@@ -183,13 +272,14 @@ export function EditPage() {
       engineRef.current.subscribe((s) => {
         setPlayheadSec(s.currentSec);
         setPlaying(s.playing);
+        if (s.error) setLoadError(`Preview: ${s.error}`);
       });
     }
-    engineRef.current.setDocument(doc, mergedUrls);
+    engineRef.current.setDocument(doc, playbackUrls);
     return () => {
       /* keep engine across doc updates */
     };
-  }, [doc, mergedUrls]);
+  }, [doc, playbackUrls]);
 
   useEffect(() => {
     return () => {
@@ -205,78 +295,87 @@ export function EditPage() {
     });
   }, []);
 
-  // Autosave
+  // One request at a time. Acknowledging an older snapshot never replaces newer edits.
   useEffect(() => {
-    if (!history?.dirty || !projectId || !doc) return;
-    const hash = documentHash(doc);
-    if (hash === lastSavedHash.current) return;
-    const t = window.setTimeout(() => {
-      void (async () => {
-        setSaving(true);
-        try {
-          const toSave = {
-            ...doc,
-            version: (doc.version ?? 1) + 1,
-            parentFileId: tip?.timelineFileId,
-          };
-          const { storageId } = await storeJson({ value: toSave });
-          const id = await createVersion({
-            projectId: projectId as never,
-            parentId: (tipIdRef.current as never) ?? undefined,
-            label: "Autosave",
-            timelineFileId: storageId,
+    if (
+      !history?.dirty ||
+      !projectId ||
+      !doc ||
+      savingRef.current ||
+      savePaused
+    )
+      return;
+    const snapshotHash = documentHash(doc);
+    if (!pendingSave.current && snapshotHash === lastSavedHash.current) {
+      try {
+        localStorage.removeItem(recoveryKey);
+      } catch {
+        /* optional recovery storage */
+      }
+      setHistory((h) => (h ? { ...h, dirty: false } : h));
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      savingRef.current = true;
+      setSaving(true);
+      const attempt = pendingSave.current ?? {
+        snapshot: doc,
+        hash: snapshotHash,
+        parentId: tipIdRef.current as Id<"timelineVersions"> | null,
+        requestId: crypto.randomUUID(),
+      };
+      pendingSave.current = attempt;
+      void saveTimeline({
+        projectId: projectId as never,
+        parentId: attempt.parentId,
+        document: attempt.snapshot,
+        requestId: attempt.requestId,
+        label: "Autosave",
+      })
+        .then(({ versionId }) => {
+          tipIdRef.current = versionId;
+          lastSavedHash.current = attempt.hash;
+          pendingSave.current = null;
+          if (!mounted.current) return;
+          setLoadError(null);
+          setHistory((h) => {
+            if (!h || documentHash(h.present) !== attempt.hash) return h;
+            try {
+              localStorage.removeItem(recoveryKey);
+            } catch {
+              /* optional */
+            }
+            return { ...h, dirty: false };
           });
-          tipIdRef.current = id;
-          lastSavedHash.current = documentHash(toSave);
-          setHistory((h) => (h ? markClean({ ...h, present: toSave }) : h));
-        } catch (err) {
-          setLoadError(err instanceof Error ? err.message : "Autosave failed");
-        } finally {
-          setSaving(false);
-        }
-      })();
+        })
+        .catch((err) => {
+          if (mounted.current) {
+            setSavePaused(true);
+            setLoadError(
+              err instanceof Error
+                ? err.message
+                : "Autosave failed; your local draft is preserved.",
+            );
+          }
+        })
+        .finally(() => {
+          savingRef.current = false;
+          if (mounted.current) {
+            setSaving(false);
+            setSaveCycle((cycle) => cycle + 1);
+          }
+        });
     }, AUTOSAVE_MS);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(timer);
   }, [
     history?.dirty,
     doc,
     projectId,
-    storeJson,
-    createVersion,
-    tip?.timelineFileId,
+    saveTimeline,
+    recoveryKey,
+    saveCycle,
+    savePaused,
   ]);
-
-  // Auto-update linked clips when selected take changes
-  useEffect(() => {
-    if (!assembleRows || !doc) return;
-    for (const row of assembleRows) {
-      const prev = selectionPrev.current.get(row.shotId);
-      const cur = row.selectedTakeId;
-      if (prev && prev !== cur) {
-        for (const track of doc.tracks) {
-          for (const clip of track.clips) {
-            if (
-              clip.linkedShotId === row.shotId &&
-              clip.source.type === "take" &&
-              clip.source.takeId === prev
-            ) {
-              apply((d) =>
-                swapTakeOnClip(d, clip.id, {
-                  takeId: row.take.takeId,
-                  shotId: row.shotId,
-                  assetId: row.take.assetId,
-                  proxyAssetId: row.take.proxyAssetId,
-                  trimStartSec: row.take.trimStartSec,
-                  trimEndSec: row.take.trimEndSec,
-                }),
-              );
-            }
-          }
-        }
-      }
-      selectionPrev.current.set(row.shotId, cur);
-    }
-  }, [assembleRows, doc, apply]);
 
   const seek = (sec: number) => {
     const snapped = doc
@@ -367,7 +466,8 @@ export function EditPage() {
     if (hasClips) {
       const ok = await confirm({
         title: "Replace timeline?",
-        description: "Replace the current timeline with a new rough cut?",
+        description:
+          "Replace the current timeline with a new rough cut? Your saved versions remain in History.",
         confirmLabel: "Replace",
       });
       if (!ok) return;
@@ -443,6 +543,13 @@ export function EditPage() {
       : null;
 
   if (!projectId) return null;
+  if (history === null && loadError)
+    return (
+      <div>
+        <p role="alert">{loadError}</p>
+        <Button onClick={() => void load()}>Retry loading</Button>
+      </div>
+    );
   if (project === undefined || history === null) {
     return <p className="text-sm text-zinc-500">Loading editor…</p>;
   }
@@ -456,6 +563,33 @@ export function EditPage() {
 
   return (
     <div className="-mx-4 -mb-4 flex h-[calc(100dvh-7.5rem)] flex-col overflow-hidden">
+      {savePaused && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 bg-amber-950 p-2 text-sm"
+        >
+          <span>{loadError}</span>
+          <Button onClick={() => setSavePaused(false)}>Retry save</Button>
+          <Button
+            onClick={() => {
+              void confirm({
+                title: "Save local draft as a new version?",
+                description:
+                  "Keeps the other saved version in history and appends your local edit.",
+                confirmLabel: "Save local draft",
+              }).then((ok) => {
+                if (ok) {
+                  tipIdRef.current = tip?._id ?? null;
+                  pendingSave.current = null;
+                  setSavePaused(false);
+                }
+              });
+            }}
+          >
+            Keep local as new version
+          </Button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
         <div className="flex items-center gap-3">
           <h2 className="text-sm font-semibold text-zinc-100">Edit</h2>
@@ -562,6 +696,8 @@ export function EditPage() {
           {doc && (
             <TimelineTracks
               doc={doc}
+              media={editorMedia}
+              urls={mergedUrls}
               playheadSec={playheadSec}
               pxPerSec={pxPerSec}
               selectedClipId={selectedClipId}
@@ -593,6 +729,8 @@ export function EditPage() {
 
         {showPanels && doc ? (
           <MediaBin
+            media={editorMedia}
+            urls={mergedUrls}
             projectId={projectId}
             doc={doc}
             playheadSec={playheadSec}
