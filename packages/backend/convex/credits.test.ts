@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
-import {
-  authIdentity,
-  createTestUser,
-  makeTest,
-} from "../test/helpers";
+import { api, internal } from "../../../apps/api/src/operations";
+import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 import { STARTER_CREDITS } from "./lib/limits";
 
 describe("credits ledger", () => {
@@ -220,9 +216,9 @@ describe("generation jobs with mock adapter", () => {
     );
 
     const notes = await asUser.query(api.notifications.listUnread, {});
-    expect(notes.some((n: { kind: string }) => n.kind === "job_succeeded")).toBe(
-      true,
-    );
+    expect(
+      notes.some((n: { kind: string }) => n.kind === "job_succeeded"),
+    ).toBe(true);
   });
 
   it("forceFail refunds credits", async () => {

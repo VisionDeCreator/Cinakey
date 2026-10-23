@@ -1,20 +1,7 @@
-/**
- * Storage module — the ONLY place that may call Convex file storage APIs.
- *
- * Nothing else in the codebase (queries, mutations, actions, or the frontend)
- * may call `ctx.storage.*` directly. Route all file reads/writes through this
- * module so storage can later move to Cloudflare R2 by changing this file only.
- *
- * Large JSON (blockouts, timeline snapshots) is always stored
- * as files; the database row holds only the storage ID. Documents must stay
- * well under Convex's 1 MiB limit — never embed large payloads inline.
- */
-
 import { requireProjectAccess, requireUser } from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
 import type { Id } from "./_generated/dataModel";
 import {
-  action,
   internalMutation,
   internalQuery,
   mutation,
@@ -26,6 +13,7 @@ import {
 import { v } from "convex/values";
 
 type StorageCtx = MutationCtx | ActionCtx;
+
 type ReadCtx = QueryCtx | MutationCtx | ActionCtx;
 
 /** Soft cap for JSON blobs stored as files (not the 1 MiB document limit). */
@@ -35,13 +23,7 @@ export const MAX_JSON_BYTES = 5 * 1024 * 1024;
 export const MAX_DOCUMENT_JSON_BYTES = 512 * 1024;
 
 export type AssetTypeValue =
-  | "video"
-  | "image"
-  | "audio"
-  | "music"
-  | "logo"
-  | "json"
-  | "other";
+  "video" | "image" | "audio" | "music" | "logo" | "json" | "other";
 
 export const ASSET_MAX_BYTES: Record<AssetTypeValue, number> = {
   image: 25 * 1024 * 1024,
@@ -200,19 +182,6 @@ const assetType = v.union(
   v.literal("other"),
 );
 
-/** Server-side JSON save (actions only — uses ctx.storage.store). */
-export const storeJson = action({
-  args: { value: v.any() },
-  handler: async (ctx, args) => {
-    const { getAuthUserId } = await import("@convex-dev/auth/server");
-    const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
-    return await saveJson(ctx, args.value);
-  },
-});
-
 export const createUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
@@ -346,6 +315,7 @@ export const createAssetFromGeneration = internalMutation({
     sizeBytes: v.number(),
     createdBy: v.id("users"),
     jobId: v.id("generationJobs"),
+    outputIndex: v.optional(v.number()),
     shotId: v.optional(v.id("shots")),
     entityId: v.optional(v.id("entities")),
     sceneId: v.optional(v.id("scenes")),
@@ -357,6 +327,20 @@ export const createAssetFromGeneration = internalMutation({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    if (args.outputIndex !== undefined) {
+      const outputs = await ctx.db
+        .query("assets")
+        .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
+        .collect();
+      const existing = outputs.find(
+        (asset) => asset.outputIndex === args.outputIndex,
+      );
+      if (existing) {
+        if (existing.storageId !== args.storageId)
+          await deleteFile(ctx, args.storageId);
+        return existing._id;
+      }
+    }
     const now = Date.now();
     const name =
       args.name?.trim() ||
@@ -368,6 +352,7 @@ export const createAssetFromGeneration = internalMutation({
       shotId: args.shotId,
       entityId: args.entityId,
       jobId: args.jobId,
+      outputIndex: args.outputIndex,
       type: args.type,
       name,
       searchText: buildSearchText(name, tags),

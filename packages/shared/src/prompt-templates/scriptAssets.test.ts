@@ -101,6 +101,21 @@ describe("script → required assets", () => {
     );
     expect(text).toContain("ART STYLE:");
     expect(text).toContain("BODY:");
+    expect(text).toContain("HEAD:");
+    expect(text).toContain("MARKINGS:");
+    expect(text).toContain("MOOD AND COLOR:");
     expect(text).toContain("horse-sized cheetah");
+  });
+
+  it("omits ART STYLE when seeding with a style reference", () => {
+    const text = seedAssetPromptFromScriptDescription(
+      "creature",
+      "cheetah",
+      "a horse-sized cheetah",
+      "painted style",
+      { hasStyleReference: true },
+    );
+    expect(text).toContain("Use the attached image as the art style reference:");
+    expect(text).not.toContain("ART STYLE:");
   });
 });

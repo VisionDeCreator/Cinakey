@@ -1,7 +1,7 @@
 /**
- * Public surface for apps: generated Convex api/dataModel and shared adapter types.
- * Adapter implementations stay Convex-only (provider keys via process.env).
+ * Public surface for apps: typed HTTP operation references, data model and adapter types.
+ * Provider implementations and keys live in the Bun API/worker.
  */
-export { api } from "../convex/_generated/api.js";
+export { api } from "../../../apps/api/src/operations";
 export type { DataModel, Doc, Id } from "../convex/_generated/dataModel";
 export type { GenerationAdapter, ModelCapabilities } from "@cinakey/shared";

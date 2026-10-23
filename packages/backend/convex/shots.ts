@@ -1,23 +1,16 @@
-import {
-  assertSheetDocument,
-  assembleShotKeyframePrompt,
-  normalizeEntityName,
-  type SheetDocument,
-} from "@cinakey/shared";
+import { enqueueTask } from "./tasks";
+import { normalizeEntityName } from "@cinakey/shared";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  action,
   internalQuery,
   mutation,
   query,
-  type ActionCtx,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
-import { getFileUrl, loadJson } from "./storage";
+import { getFileUrl } from "./storage";
 
 const shotStatus = v.union(
   v.literal("planned"),
@@ -61,25 +54,6 @@ async function reindexScene(ctx: MutationCtx, sceneId: Id<"scenes">) {
     if (shots[i]!.order !== i) {
       await ctx.db.patch(shots[i]!._id, { order: i, updatedAt: now });
     }
-  }
-}
-
-async function requireActionUser(ctx: ActionCtx) {
-  const { getAuthUserId } = await import("@convex-dev/auth/server");
-  const userId = await getAuthUserId(ctx);
-  if (userId === null) throw new Error("Not authenticated");
-  return userId as Id<"users">;
-}
-
-async function loadSheetDoc(
-  ctx: ActionCtx,
-  sheetFileId: Id<"_storage"> | undefined,
-): Promise<SheetDocument | null> {
-  if (!sheetFileId) return null;
-  try {
-    return assertSheetDocument(await loadJson(ctx, sheetFileId));
-  } catch {
-    return null;
   }
 }
 
@@ -174,114 +148,6 @@ export const getSceneRuntime = query({
   },
 });
 
-export const getKeyframePromptContext = action({
-  args: { shotId: v.id("shots") },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    shot: Doc<"shots">;
-    projectRules: string[];
-    styleSheet: SheetDocument | null;
-    characters: Array<{
-      name: string;
-      description?: string;
-      sheet: SheetDocument | null;
-      lockedReferenceAssetIds: Id<"assets">[];
-    }>;
-    location: {
-      name: string;
-      description?: string;
-      sheet: SheetDocument | null;
-      lockedReferenceAssetIds: Id<"assets">[];
-    } | null;
-    referenceAssetIds: Id<"assets">[];
-    assembledPrompt: string;
-  } | null> => {
-    const userId = await requireActionUser(ctx);
-    const shot: Doc<"shots"> | null = await ctx.runQuery(
-      internal.shots.getInternal,
-      { shotId: args.shotId },
-    );
-    if (shot === null) return null;
-    await ctx.runQuery(internal.scriptVersions.assertAccess, {
-      projectId: shot.projectId,
-      userId,
-    });
-
-    const project: Doc<"projects"> = await ctx.runQuery(
-      internal.generation.getProjectWorkspace,
-      { projectId: shot.projectId },
-    );
-
-    const entities: Doc<"entities">[] = await ctx.runQuery(
-      internal.shots.listEntitiesInternal,
-      { projectId: shot.projectId },
-    );
-    const styleEntity = entities.find((e) => e.kind === "style") ?? null;
-    const characterDocs = entities.filter(
-      (e) => e.kind === "character" && shot.characterIds.includes(e._id),
-    );
-    const locationDoc = shot.locationId
-      ? (entities.find((e) => e._id === shot.locationId) ?? null)
-      : null;
-
-    const styleSheet = await loadSheetDoc(ctx, styleEntity?.sheetFileId);
-    const characters = await Promise.all(
-      characterDocs.map(async (c) => ({
-        name: c.name,
-        description: c.description,
-        sheet: await loadSheetDoc(ctx, c.sheetFileId),
-        lockedReferenceAssetIds: c.lockedReferenceAssetIds,
-      })),
-    );
-    const location = locationDoc
-      ? {
-          name: locationDoc.name,
-          description: locationDoc.description,
-          sheet: await loadSheetDoc(ctx, locationDoc.sheetFileId),
-          lockedReferenceAssetIds: locationDoc.lockedReferenceAssetIds,
-        }
-      : null;
-
-    const referenceAssetIds: Id<"assets">[] = [];
-    for (const c of characters) {
-      referenceAssetIds.push(...c.lockedReferenceAssetIds);
-    }
-    if (location) {
-      referenceAssetIds.push(...location.lockedReferenceAssetIds);
-    }
-    if (styleEntity) {
-      referenceAssetIds.push(...styleEntity.lockedReferenceAssetIds);
-    }
-
-    const assembledPrompt = assembleShotKeyframePrompt({
-      shot: {
-        shotType: shot.shotType,
-        lensMm: shot.lensMm,
-        cameraMove: shot.cameraMove,
-        durationSec: shot.durationSec,
-        dialogue: shot.dialogue,
-        notes: shot.notes,
-      },
-      styleSheet,
-      characters,
-      location,
-      rules: project.rules,
-    });
-
-    return {
-      shot,
-      projectRules: project.rules,
-      styleSheet,
-      characters,
-      location,
-      referenceAssetIds: [...new Set(referenceAssetIds)],
-      assembledPrompt,
-    };
-  },
-});
-
 export const create = mutation({
   args: {
     projectId: v.id("projects"),
@@ -365,8 +231,7 @@ export const update = mutation({
       patch.lensMm = args.lensMm === null ? undefined : args.lensMm;
     }
     if (args.cameraMove !== undefined) {
-      patch.cameraMove =
-        args.cameraMove === null ? undefined : args.cameraMove;
+      patch.cameraMove = args.cameraMove === null ? undefined : args.cameraMove;
     }
     if (args.durationSec !== undefined) {
       patch.durationSec = Math.max(0.5, args.durationSec);
@@ -375,8 +240,7 @@ export const update = mutation({
     if (args.endSec !== undefined) patch.endSec = args.endSec;
     if (args.characterIds !== undefined) patch.characterIds = args.characterIds;
     if (args.locationId !== undefined) {
-      patch.locationId =
-        args.locationId === null ? undefined : args.locationId;
+      patch.locationId = args.locationId === null ? undefined : args.locationId;
     }
     if (args.dialogueLineId !== undefined) {
       patch.dialogueLineId =
@@ -412,7 +276,7 @@ export const update = mutation({
       args.endSec !== undefined ||
       args.notes !== undefined;
     if (affectsScript && shot.sequenceId) {
-      await ctx.scheduler.runAfter(0, internal.sequences.syncScriptShotsJob, {
+      await enqueueTask(ctx, 0, "sequences:syncScriptShotsJob", {
         sequenceId: shot.sequenceId,
       });
     }
@@ -669,8 +533,7 @@ export const resolveEntityNames = query({
     for (const name of args.characterNames) {
       const key = normalizeEntityName(name);
       const found = entities.find(
-        (e) =>
-          e.kind === "character" && normalizeEntityName(e.name) === key,
+        (e) => e.kind === "character" && normalizeEntityName(e.name) === key,
       );
       if (found) characterIds.push(found._id);
     }
@@ -678,8 +541,7 @@ export const resolveEntityNames = query({
     if (args.locationName) {
       const key = normalizeEntityName(args.locationName);
       const found = entities.find(
-        (e) =>
-          e.kind === "location" && normalizeEntityName(e.name) === key,
+        (e) => e.kind === "location" && normalizeEntityName(e.name) === key,
       );
       if (found) locationId = found._id;
     }

@@ -1,10 +1,6 @@
-/**
- * In-app notifications + optional email via Resend.
- */
-
+import { enqueueTask } from "./tasks";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { internal } from "./_generated/api";
 import {
   internalMutation,
   mutation,
@@ -21,10 +17,7 @@ const notificationKind = v.union(
 );
 
 export type NotificationKind =
-  | "job_succeeded"
-  | "job_failed"
-  | "export_succeeded"
-  | "export_failed";
+  "job_succeeded" | "job_failed" | "export_succeeded" | "export_failed";
 
 export async function insertNotification(
   ctx: MutationCtx,
@@ -48,7 +41,7 @@ export async function insertNotification(
     createdAt: Date.now(),
   });
 
-  await ctx.scheduler.runAfter(0, internal.email.maybeSendForNotification, {
+  await enqueueTask(ctx, 0, "email:maybeSendForNotification", {
     userId: args.userId,
     title: args.title,
     body: args.body,

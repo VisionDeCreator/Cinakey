@@ -4,9 +4,9 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 
-vi.mock("convex/react", async () => {
-  const actual = await vi.importActual<typeof import("convex/react")>(
-    "convex/react",
+vi.mock("@/lib/api/hooks", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/hooks")>(
+    "@/lib/api/hooks",
   );
   return {
     ...actual,

@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
 import type { AssetSheetType } from "@cinakey/shared";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";

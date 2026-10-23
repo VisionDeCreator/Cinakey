@@ -5,7 +5,7 @@ import {
   scriptToPlainText,
   type ScriptDocument,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

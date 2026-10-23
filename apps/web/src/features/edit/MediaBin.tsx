@@ -1,7 +1,7 @@
 import { api } from "@cinakey/backend";
 import type { AssetType, TimelineDocument, TrackKind } from "@cinakey/shared";
 import { newTimelineId } from "@cinakey/shared";
-import { useQuery } from "convex/react";
+import { useQuery } from "@/lib/api/hooks";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

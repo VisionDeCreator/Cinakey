@@ -18,7 +18,7 @@ import {
   type TimelineDocument,
   type TrackKind,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import {
   useCallback,
   useEffect,
@@ -28,6 +28,7 @@ import {
 } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ConfirmProvider";
 import { useCopilotContext } from "@/features/copilot/CopilotContext";
 import { ClipInspector } from "@/features/edit/ClipInspector";
 import { ExportDialog } from "@/features/edit/ExportDialog";
@@ -81,6 +82,7 @@ export function EditPage() {
   const createVersion = useMutation(api.timelineVersions.createVersion);
 
   const { setContext } = useCopilotContext();
+  const confirm = useConfirm();
 
   const [history, setHistory] = useState<TimelineHistoryState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -377,8 +379,13 @@ export function EditPage() {
   const handleAssemble = async () => {
     if (!project || !projectId || !assembleRows) return;
     const hasClips = doc?.tracks.some((t) => t.clips.length > 0);
-    if (hasClips && !window.confirm("Replace the current timeline with a new rough cut?")) {
-      return;
+    if (hasClips) {
+      const ok = await confirm({
+        title: "Replace timeline?",
+        description: "Replace the current timeline with a new rough cut?",
+        confirmLabel: "Replace",
+      });
+      if (!ok) return;
     }
 
     let dialogueByLineId: Record<string, AssembleDialogueLine> | undefined;

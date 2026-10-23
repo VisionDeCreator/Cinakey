@@ -32,9 +32,7 @@ export async function materializeScript(
     .query("scenes")
     .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
     .collect();
-  const scenesByElement = new Map(
-    existingScenes.map((s) => [s.elementId, s]),
-  );
+  const scenesByElement = new Map(existingScenes.map((s) => [s.elementId, s]));
 
   // Snapshot prior dialogue line ids per scene (by elementId) for outdated checks.
   const priorLineIds = new Map<string, Set<string>>();
@@ -219,9 +217,7 @@ async function linkCharacterIds(
       q.eq("projectId", args.projectId).eq("kind", "character"),
     )
     .collect();
-  const byName = new Map(
-    entities.map((e) => [normalizeEntityName(e.name), e]),
-  );
+  const byName = new Map(entities.map((e) => [normalizeEntityName(e.name), e]));
 
   const locations = await ctx.db
     .query("entities")
@@ -236,7 +232,12 @@ async function linkCharacterIds(
   const entityLinks: ScriptDocument["entityLinks"] = [];
   const linkMap = new Map<
     string,
-    { entityId: string; kind: ScriptEntityKind; nameAtLink: string; elementIds: Set<string> }
+    {
+      entityId: string;
+      kind: ScriptEntityKind;
+      nameAtLink: string;
+      elementIds: Set<string>;
+    }
   >();
 
   const addLink = (

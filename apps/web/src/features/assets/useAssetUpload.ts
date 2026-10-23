@@ -4,7 +4,7 @@ import {
   ASSET_ALLOWED_MIME,
   ASSET_MAX_BYTES,
 } from "@cinakey/shared";
-import { useMutation } from "convex/react";
+import { useMutation } from "@/lib/api/hooks";
 import { useCallback, useState } from "react";
 
 export type UploadItem = {

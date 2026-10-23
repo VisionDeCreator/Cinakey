@@ -20,9 +20,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Environment & secrets (keep .env.example committed)
-.env
-.env.*
-!.env.example
+**/.env*
+!**/.env.example
 *.local
 
 # Test / coverage

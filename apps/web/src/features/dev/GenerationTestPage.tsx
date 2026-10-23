@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
 import type { ModelCapabilities, ModelOperation } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

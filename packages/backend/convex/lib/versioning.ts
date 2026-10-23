@@ -58,5 +58,8 @@ export async function insertVersion(
   if (table === "scriptVersions") {
     return await ctx.db.insert("scriptVersions", fields as ScriptVersionFields);
   }
-  return await ctx.db.insert("timelineVersions", fields as TimelineVersionFields);
+  return await ctx.db.insert(
+    "timelineVersions",
+    fields as TimelineVersionFields,
+  );
 }

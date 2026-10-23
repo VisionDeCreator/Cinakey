@@ -6,11 +6,9 @@ import type {
   ProviderRequest,
   SubmitResult,
 } from "@cinakey/shared";
-import { convexEnv } from "../lib/env";
-import {
-  estimateTokenCost,
-  isDefaultTransientError,
-} from "./cost";
+import { requireProviderKey } from "../config/env";
+import { providerFetch } from "./transport";
+import { estimateTokenCost, isDefaultTransientError } from "./cost";
 
 const COST = { unit: "per_1k_tokens", creditsPerUnit: 1 } as const;
 
@@ -46,14 +44,13 @@ export const deepseekAdapter: GenerationAdapter = {
   },
 
   async buildRequest(input: BuildRequestInput): Promise<ProviderRequest> {
-    const messages =
-      (input.messages as Array<{ role: string; content: string }> | undefined) ??
-      [
-        {
-          role: "user",
-          content: input.prompt ?? "",
-        },
-      ];
+    const messages = (input.messages as
+      Array<{ role: string; content: string }> | undefined) ?? [
+      {
+        role: "user",
+        content: input.prompt ?? "",
+      },
+    ];
     return {
       kind: "chat",
       model: "deepseek-chat",
@@ -65,10 +62,7 @@ export const deepseekAdapter: GenerationAdapter = {
   },
 
   async submit(request: ProviderRequest): Promise<SubmitResult> {
-    const apiKey = convexEnv("DEEPSEEK_API_KEY");
-    if (!apiKey) {
-      throw new Error("DEEPSEEK_API_KEY is not set");
-    }
+    const apiKey = requireProviderKey("deepseek");
     const providerJobId = `deepseek_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     // TODO(deepseek-api): streaming — set stream:true and pipe when copilot UI lands.
@@ -81,18 +75,19 @@ export const deepseekAdapter: GenerationAdapter = {
       body.tools = request.tools;
     }
 
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const res = await providerFetch(
+      "deepseek",
+      "https://api.deepseek.com/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`DeepSeek chat ${res.status}: ${text}`);
-    }
+    );
+
     const data = (await res.json()) as {
       choices?: Array<{
         message?: {
@@ -170,7 +165,11 @@ export type StreamChatResult = {
     name: string;
     arguments: string;
   }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
 };
 
 /**
@@ -183,10 +182,7 @@ export async function streamChat(args: {
   onToken?: (delta: string) => Promise<void> | void;
   model?: string;
 }): Promise<StreamChatResult> {
-  const apiKey = convexEnv("DEEPSEEK_API_KEY");
-  if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY is not set");
-  }
+  const apiKey = requireProviderKey("deepseek");
 
   const body: Record<string, unknown> = {
     model: args.model ?? "deepseek-chat",
@@ -197,18 +193,18 @@ export async function streamChat(args: {
     body.tools = args.tools;
   }
 
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const res = await providerFetch(
+    "deepseek",
+    "https://api.deepseek.com/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`DeepSeek stream ${res.status}: ${text}`);
-  }
+  );
   if (!res.body) {
     throw new Error("DeepSeek stream returned no body");
   }
@@ -303,10 +299,7 @@ export async function completeChat(args: {
   json?: boolean;
   maxTokens?: number;
 }): Promise<StreamChatResult> {
-  const apiKey = convexEnv("DEEPSEEK_API_KEY");
-  if (!apiKey) {
-    throw new Error("DEEPSEEK_API_KEY is not set");
-  }
+  const apiKey = requireProviderKey("deepseek");
   const body: Record<string, unknown> = {
     model: args.model ?? "deepseek-chat",
     messages: args.messages,
@@ -320,18 +313,18 @@ export async function completeChat(args: {
   if (args.toolChoice !== undefined) {
     body.tool_choice = args.toolChoice;
   }
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const res = await providerFetch(
+    "deepseek",
+    "https://api.deepseek.com/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`DeepSeek chat ${res.status}: ${text}`);
-  }
+  );
   const data = (await res.json()) as {
     choices?: Array<{
       message?: {

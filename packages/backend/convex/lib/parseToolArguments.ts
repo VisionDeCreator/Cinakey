@@ -31,7 +31,11 @@ export function parseToolArguments(
   for (const candidate of candidates) {
     try {
       const value = JSON.parse(candidate) as unknown;
-      if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value)
+      ) {
         const obj = value as Record<string, unknown>;
         // document sometimes arrives as a stringified JSON blob.
         if (typeof obj.document === "string") {

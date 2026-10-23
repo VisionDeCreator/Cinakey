@@ -1,7 +1,3 @@
-/**
- * Bytes served / stored tracking for R2 migration decisions.
- */
-
 import { v } from "convex/values";
 import { internalMutation, mutation } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";

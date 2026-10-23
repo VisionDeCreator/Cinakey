@@ -1,9 +1,9 @@
-import type { ChatToolDefinition } from "../adapters/deepseek";
+import type { ChatToolDefinition } from "@cinakey/shared";
 
 const SCRIPT_DOCUMENT_SCHEMA = {
   type: "object",
   description:
-    "Full cinakey.script/1.0 document. Always set schema to exactly \"cinakey.script/1.0\". Generate stable uuid-like ids for every scene, beat, and line.",
+    'Full cinakey.script/1.0 document. Always set schema to exactly "cinakey.script/1.0". Generate stable uuid-like ids for every scene, beat, and line.',
   properties: {
     schema: { type: "string", enum: ["cinakey.script/1.0"] },
     format: { type: "string", enum: ["screenplay", "av"] },
@@ -92,7 +92,12 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
     function: {
       name: "write_or_revise_asset_prompt",
       description:
-        "Write or update the full Phase 7C asset prompt template text for a character, creature, environment, or product. Applies immediately (no Accept card). Infer assetType from context — never ask the user to pick a type. Include ART STYLE, COLOR PALETTE, and type-specific sections (FACE AND HAIR + OUTFIT for character; BODY for creature; THE LAND or SKY AND LIGHT for environment; FEEL or THE OBJECT for product).",
+        "Write or update the full asset prompt template text for a character, creature, environment, or product. Applies immediately (no Accept card). Infer assetType from context — never ask the user to pick a type. " +
+        "When the project has a style reference image (see system prompt), start with 'Use the attached image as the art style reference: ' then the opening line, omit ART STYLE entirely, and include type mid-sections plus MOOD AND COLOR. " +
+        "When there is no style reference image, use opening then ART STYLE then mid-sections then MOOD AND COLOR. " +
+        "Creature mid-sections: BODY, HEAD, MARKINGS (optional RIDING GEAR / TECH TOUCH). Character: FACE AND HAIR, OUTFIT (optional TECH TOUCH). " +
+        "Environment: opening must state no people/animals/creatures (never put characters in environment images); outdoors use THE LAND + SKY AND LIGHT; interiors may use THE {PLACE}, optional extras (e.g. DARK PASSAGES), and LIGHT. " +
+        "Product: THE OBJECT (or THE {NAME}), FEEL. Close with MOOD AND COLOR (not COLOR PALETTE).",
       parameters: {
         type: "object",
         properties: {
@@ -133,8 +138,7 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
           title: { type: "string" },
           parts: {
             type: "array",
-            description:
-              "When splitting a long story: one entry per ≤30s part",
+            description: "When splitting a long story: one entry per ≤30s part",
             items: {
               type: "object",
               properties: {
@@ -328,7 +332,8 @@ export const COPILOT_TOOLS: ChatToolDefinition[] = [
           },
           structured: {
             type: "object",
-            description: "ScriptPromptData fields (references, shots, consistency, etc.)",
+            description:
+              "ScriptPromptData fields (references, shots, consistency, etc.)",
           },
         },
         required: ["summary", "structured"],
@@ -397,12 +402,26 @@ export function buildSystemPrompt(args: {
   scenesSummary?: string;
   pipelineSummary?: string;
   artStyleBlock?: string;
+  /** True when projects.styleReferenceAssetId is set. */
+  hasStyleReference?: boolean;
+  /** Open asset tip when Assets workbench has a selection. */
+  selectedAssetTip?: {
+    entityId: string;
+    entityName: string;
+    assetType: string;
+    promptText: string;
+    version: number;
+  } | null;
 }): string {
   const view = normalizeCopilotView(args.view);
+  const styleRefLine = args.hasStyleReference
+    ? "Style reference image: attached. For asset prompts: start with 'Use the attached image as the art style reference: ' + opening description; omit the ART STYLE section; end with MOOD AND COLOR. Creature sections: BODY, HEAD, MARKINGS (+ optional extras). Environment: never include people, animals, or creatures — say so in the opening; use THE LAND + SKY AND LIGHT outdoors, or THE {PLACE} / LIGHT (+ optional extras) for interiors."
+    : "Style reference image: none. For asset prompts: include an ART STYLE section after the opening, then type mid-sections, then MOOD AND COLOR. Creature sections: BODY, HEAD, MARKINGS (+ optional extras). Environment: never include people, animals, or creatures — say so in the opening; use THE LAND + SKY AND LIGHT outdoors, or THE {PLACE} / LIGHT (+ optional extras) for interiors.";
   const parts = [
     "You are Cinakey's production copilot — one assistant for script, asset prompts, Seedance script prompts, blockout, shots, and continuity.",
     "Hard rule: never claim you changed the project unless a direct tool (write_or_revise_asset_prompt, write_or_revise_script_prompt, update_rules) succeeded. Remaining structural tools may still use proposal cards; the user Accepts, Edits, or Rejects.",
-    "Hard rule: for character/creature/environment/product look-dev, call write_or_revise_asset_prompt with full Phase 7C template text. Infer assetType from the user's language; never ask them to pick a type. Create or match entities via entityName/entityId.",
+    "Hard rule: for character/creature/environment/product look-dev, call write_or_revise_asset_prompt with full template text (promptText must be the complete sheet). Do not describe the rewrite in chat without calling the tool. Pass entityId from Selection ids when revising the open asset. Infer assetType from context — never ask the user to pick a type.",
+    styleRefLine,
     "Hard rule: on the Script tab, call write_or_revise_script_prompt with full Seedance template text (REFERENCES with @image_N, ART STYLE locked to refs, IMAGE QUALITY, cast/creature/prop blocks copied from asset prompts, LOCATION, contiguous timed SHOTS, CONSISTENCY, MOTION AND PHYSICS, LIGHTING, TECHNICAL, MUSIC, AUDIO). Do not use propose_script_edit or propose_script_prompt for the Script workbench. Cap each part at 30 seconds; split longer stories into parts[]. Map story assets and the project style reference to @image_N.",
     "Hard rule: project rules changes go through update_rules (immediate). Do not use proposals for rules.",
     "Hard rule: image generation uses generate_image after a prompt sheet exists; video uses generate_video for a Part — both show credit cost and require Accept.",
@@ -411,6 +430,12 @@ export function buildSystemPrompt(args: {
   ];
   if (args.selectionIds.length > 0) {
     parts.push(`Selection ids: ${args.selectionIds.join(", ")}.`);
+  }
+  if (args.selectedAssetTip) {
+    const tip = args.selectedAssetTip;
+    parts.push(
+      `Open asset tip (pass entityId=${tip.entityId}, assetType=${tip.assetType}, entityName="${tip.entityName}"):\nv${tip.version} current prompt:\n${tip.promptText}`,
+    );
   }
   if (args.brief) {
     parts.push(
@@ -493,6 +518,30 @@ export function wantsScriptPromptProposal(userContent: string): boolean {
   );
 }
 
+/** True when the user wants the open asset prompt written or revised. */
+export function wantsAssetPromptRevision(userContent: string): boolean {
+  const text = userContent.trim();
+  if (text.length === 0) return false;
+  if (/write_or_revise_asset_prompt/i.test(text)) return true;
+  if (/^For asset\b/i.test(text)) return true;
+  if (/\bmissing (recommended )?sections\b/i.test(text)) return true;
+  if (
+    /\b(rewrite|revise|update|fill|add|change|fix|write|improve|expand|complete|draft)\b[\s\S]{0,80}\b(prompt|sheet|section|BODY|HEAD|MARKINGS|ART STYLE|MOOD AND COLOR|COLOR PALETTE)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(prompt|sheet)\b[\s\S]{0,40}\b(rewrite|revise|update|fill|add|change|fix|improve)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function scriptSummaryFromDocument(doc: {
   scenes: Array<{
     heading: string;
@@ -515,9 +564,7 @@ export function scriptSummaryFromDocument(doc: {
     for (const beat of scene.beats) {
       if (beat.action) lines.push(`  Action: ${beat.action.slice(0, 200)}`);
       for (const line of beat.lines) {
-        lines.push(
-          `  ${line.characterName}: ${line.dialogue.slice(0, 160)}`,
-        );
+        lines.push(`  ${line.characterName}: ${line.dialogue.slice(0, 160)}`);
       }
     }
   });

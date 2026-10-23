@@ -1,5 +1,5 @@
 import { api } from "@cinakey/backend";
-import { useQuery } from "convex/react";
+import { useQuery } from "@/lib/api/hooks";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

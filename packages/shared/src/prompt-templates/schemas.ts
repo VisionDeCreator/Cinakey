@@ -12,25 +12,34 @@ export const characterSheetSchema = z.object({
   faceAndHair: z.string().min(1),
   outfit: z.string().min(1),
   signatureDetail: namedSectionSchema,
-  colorPalette: z.string().min(1),
+  moodAndColor: z.string().min(1),
 });
 
 export const creatureSheetSchema = z.object({
   subjectLine: z.string().min(1),
   views: z.array(z.string().min(1)).min(1),
   body: z.string().min(1),
+  head: z.string().min(1),
+  markings: z.string().min(1),
   gear: namedSectionSchema.optional(),
   signatureDetail: namedSectionSchema.optional(),
-  colorPalette: z.string().min(1),
+  moodAndColor: z.string().min(1),
 });
 
 export const environmentSheetSchema = z.object({
   place: z.string().min(1),
   timeOfDay: z.string().min(1),
   cameraAngle: z.string().min(1),
+  /** Primary place section body (THE LAND / THE HALL / …). */
   theLand: z.string().min(1),
+  /** Heading for the primary place section; default THE LAND. */
+  settingHeading: z.string().min(1).optional(),
   skyAndLight: z.string().min(1),
-  colorPalette: z.string().min(1),
+  /** Heading for the light section; default SKY AND LIGHT (use LIGHT for interiors). */
+  lightHeading: z.string().min(1).optional(),
+  /** Optional mid-sections between setting and light (e.g. DARK PASSAGES). */
+  extraSections: z.array(namedSectionSchema).optional(),
+  moodAndColor: z.string().min(1),
 });
 
 export const productSheetSchema = z.object({
@@ -38,7 +47,7 @@ export const productSheetSchema = z.object({
   views: z.string().min(1),
   theObject: namedSectionSchema,
   feel: z.string().min(1),
-  colorPalette: z.string().min(1),
+  moodAndColor: z.string().min(1),
 });
 
 export const scriptReferenceSchema = z.object({
@@ -248,8 +257,54 @@ export function assetSheetSchemaFor(
 }
 
 export function parseAssetSheet(
+  type: "character",
+  value: unknown,
+): CharacterSheetData;
+export function parseAssetSheet(
+  type: "creature",
+  value: unknown,
+): CreatureSheetData;
+export function parseAssetSheet(
+  type: "environment",
+  value: unknown,
+): EnvironmentSheetData;
+export function parseAssetSheet(
+  type: "product",
+  value: unknown,
+): ProductSheetData;
+export function parseAssetSheet(
+  type: AssetSheetType,
+  value: unknown,
+): AssetSheetData;
+export function parseAssetSheet(
   type: AssetSheetType,
   value: unknown,
 ): AssetSheetData {
-  return assetSheetSchemaFor(type).parse(value) as AssetSheetData;
+  const migrated = migrateLegacyAssetSheetFields(type, value);
+  return assetSheetSchemaFor(type).parse(migrated) as AssetSheetData;
+}
+
+/** Map legacy `colorPalette` → `moodAndColor`; fill creature head/markings if missing. */
+function migrateLegacyAssetSheetFields(
+  type: AssetSheetType,
+  value: unknown,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  const obj = { ...(value as Record<string, unknown>) };
+  if (
+    typeof obj.moodAndColor !== "string" &&
+    typeof obj.colorPalette === "string"
+  ) {
+    obj.moodAndColor = obj.colorPalette;
+  }
+  if (type === "creature") {
+    const body = typeof obj.body === "string" ? obj.body : "";
+    if (typeof obj.head !== "string" || !obj.head.trim()) {
+      obj.head = body || "Head details as described.";
+    }
+    if (typeof obj.markings !== "string" || !obj.markings.trim()) {
+      obj.markings = body || "Markings as described.";
+    }
+  }
+  return obj;
 }

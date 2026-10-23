@@ -6,10 +6,13 @@ export {
   DEFAULT_CHARACTER_VIEWS,
   DEFAULT_CREATURE_VIEWS,
   DEFAULT_PRODUCT_VIEWS,
+  ENVIRONMENT_NO_CHARACTERS_CLAUSE,
   LENS_DEFAULTS_MM,
+  MOOD_AND_COLOR_SUFFIX,
   PROMPT_TEMPLATE_VERSION,
   SCRIPT_ART_STYLE_LOCKING,
   SCRIPT_IMAGE_QUALITY_DEFAULT,
+  STYLE_REFERENCE_PROMPT_PREFIX,
 } from "./constants";
 export type {
   CameraMoveType,
@@ -44,6 +47,7 @@ export type {
 
 export {
   assetSheetSectionKeys,
+  ensureStyleReferencePrefix,
   normalizePromptText,
   renderBlockoutSheet,
   renderCharacterSheet,
@@ -53,6 +57,7 @@ export {
   renderScriptPrompt,
   splitAssetSheetSections,
 } from "./renderers";
+export type { AssetRenderOpts } from "./renderers";
 
 export {
   deriveCastBlockFromAssetSheet,

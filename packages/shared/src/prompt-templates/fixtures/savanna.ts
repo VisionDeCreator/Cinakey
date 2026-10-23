@@ -41,7 +41,7 @@ export const characterSheetFixture: CharacterSheetData = {
     heading: "TECH TOUCH",
     body: "a pair of small round goggles with amber lenses and a brass frame pushed up on his forehead, the only hint that he comes from somewhere a little ahead of his time.",
   },
-  colorPalette:
+  moodAndColor:
     "deep brown skin, tan leather, burnt orange, ochre, cream and turquoise accents, blending with golden savanna grass",
 };
 
@@ -53,7 +53,10 @@ export const creatureSheetFixture: CreatureSheetData = {
     "a full-body view in a full sprint",
     "a close-up of its head",
   ],
-  body: "a cheetah the size of a large horse, with the classic lean, deep-chested cheetah build, long slender legs, a small head and a long tail for balance. Golden-tan coat covered in solid black spots, a cream-white belly, black tear lines running from the eyes to the mouth, and a ringed black tail tip. Intense amber eyes, alert rounded ears.",
+  body: "a cheetah the size of a large horse, with the classic lean, deep-chested cheetah build, long slender legs, a small head and a long tail for balance.",
+  head: "a small head with intense amber eyes, alert rounded ears, and black tear lines running from the eyes to the mouth.",
+  markings:
+    "golden-tan coat covered in solid black spots, a cream-white belly, and a ringed black tail tip.",
   gear: {
     heading: "RIDING GEAR",
     body: "a low, lightweight leather saddle strapped around its chest, set just behind its shoulders, over a small woven saddle blanket in burnt orange, cream and turquoise geometric patterns. A simple leather harness across its chest and neck with small brass rings and a few hanging beads. Short leather reins attached to a padded brass-ringed collar, not a bit. A leather scabbard strapped along the right side of the saddle to hold a rifle.",
@@ -62,7 +65,7 @@ export const creatureSheetFixture: CreatureSheetData = {
     heading: "TECH TOUCH",
     body: "a few sleek brass buckles and fittings on the harness, matching the rider's goggles and rifle.",
   },
-  colorPalette:
+  moodAndColor:
     "golden tan, black spots, cream, warm leather, brass, and burnt orange and turquoise accents on the blanket",
 };
 
@@ -74,7 +77,7 @@ export const environmentSheetFixture: EnvironmentSheetData = {
     "an endless sea of tall, golden, waist-high grass swaying in the wind, stretching to the horizon. Scattered flat-topped acacia trees with dark, spreading canopies. A large rocky outcrop of rounded, sun-warmed boulders on one side. Dusty red-earth trails winding through the grass. In the middle distance, a wide, slow river cuts across the plain, its muddy banks steep and cracked, the water a murky olive-brown, with a few half-submerged logs and reeds along the edges.",
   skyAndLight:
     "a huge, open sky shading from deep apricot near the horizon to soft violet above, with long, streaky clouds lit gold and pink. A low, blazing sun near the horizon casts long shadows and makes the grass glow. Faint dust hangs in the air, catching the light.",
-  colorPalette:
+  moodAndColor:
     "golden grass, red earth, dark acacia greens, olive river water, apricot and violet sky",
 };
 
@@ -86,7 +89,7 @@ export const productSheetFixture: ProductSheetData = {
     body: "a long-barreled precision hunting rifle that looks handmade from savanna materials but is subtly futuristic. The stock and grip are carved from dark, polished hardwood with fine geometric patterns carved into it. The grip and forend are wrapped in tan leather cord with a band of cream, turquoise and red beadwork. The barrel is long, slim and made of a sleek, matte cream-white ceramic-like material with thin brass rings along its length and small vent slits near the muzzle. The receiver is smooth brass with softly glowing thin amber lines along its sides. A long brass scope with a large amber lens at the front and a leather eye cup at the back sits on top. A folding bipod tucked under the barrel. A leather sling with brass clips.",
   },
   feel: "it should blend naturally with a traditional savanna hunter's gear through its wood, leather, beads and brass, while its sleek barrel, glowing lines and scope quietly suggest technology from the future.",
-  colorPalette:
+  moodAndColor:
     "dark wood, cream-white, brass, tan leather, amber glow and small beadwork accents",
 };
 

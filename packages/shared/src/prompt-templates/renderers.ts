@@ -2,7 +2,9 @@ import {
   COLOR_PALETTE_SUFFIX,
   COLOR_PALETTE_SUFFIX_ENVIRONMENT,
   COLOR_PALETTE_SUFFIX_PRODUCT,
+  ENVIRONMENT_NO_CHARACTERS_CLAUSE,
   SCRIPT_ART_STYLE_LOCKING,
+  STYLE_REFERENCE_PROMPT_PREFIX,
 } from "./constants";
 import type {
   BlockoutSheetData,
@@ -13,39 +15,60 @@ import type {
   ScriptPromptData,
 } from "./schemas";
 
+export type AssetRenderOpts = {
+  /** When true, omit ART STYLE and prefix the opening with the style-ref instruction. */
+  hasStyleReference?: boolean;
+};
+
 function formatViewsList(views: string[]): string {
   if (views.length === 0) return "";
   if (views.length === 1) return views[0]!;
   if (views.length === 2) return `${views[0]} and ${views[1]}`;
   const head = views.slice(0, -1).join(", ");
   const last = views[views.length - 1]!;
-  // Match examples: "..., plus two head close-ups..." when last starts with "plus"
   if (last.startsWith("plus ") || last.startsWith("and ")) {
     return `${head}, ${last}`;
   }
   return `${head}, and ${last}`;
 }
 
-function paletteLine(palette: string, suffix: string): string {
+function moodAndColorLine(palette: string, suffix: string): string {
   const trimmed = palette.trim().replace(/\.\s*$/, "");
   const already =
     trimmed.toLowerCase().includes("no readable text") ||
     trimmed.toLowerCase().includes("no letters");
-  if (already) return `COLOR PALETTE: ${trimmed}`;
-  return `COLOR PALETTE: ${trimmed}. ${suffix}`;
+  if (already) return `MOOD AND COLOR: ${trimmed}`;
+  return `MOOD AND COLOR: ${trimmed}. ${suffix}`;
+}
+
+function withStyleSpine(
+  opening: string,
+  artStyleBlock: string,
+  hasStyleReference: boolean,
+  bodyLines: string[],
+): string {
+  const parts: string[] = [];
+  if (hasStyleReference) {
+    parts.push(`${STYLE_REFERENCE_PROMPT_PREFIX} ${opening}`);
+  } else {
+    parts.push(opening, "", `ART STYLE: ${artStyleBlock.trim()}`);
+  }
+  for (const line of bodyLines) {
+    parts.push(line);
+  }
+  return parts.join("\n");
 }
 
 export function renderCharacterSheet(
   data: CharacterSheetData,
   artStyleBlock: string,
+  opts?: AssetRenderOpts,
 ): string {
   const views = formatViewsList(data.views);
   const opening = `Character reference sheet of ${data.subjectLine}, on a plain white background: ${views}. Soft ground shadows.`;
   const sigHeading = data.signatureDetail.heading.toUpperCase();
-  return [
-    opening,
-    "",
-    `ART STYLE: ${artStyleBlock.trim()}`,
+  const hasStyleReference = opts?.hasStyleReference === true;
+  return withStyleSpine(opening, artStyleBlock, hasStyleReference, [
     "",
     `FACE AND HAIR: ${data.faceAndHair.trim()}`,
     "",
@@ -53,74 +76,84 @@ export function renderCharacterSheet(
     "",
     `${sigHeading}: ${data.signatureDetail.body.trim()}`,
     "",
-    paletteLine(data.colorPalette, COLOR_PALETTE_SUFFIX),
-  ].join("\n");
+    moodAndColorLine(data.moodAndColor, COLOR_PALETTE_SUFFIX),
+  ]);
 }
 
 export function renderCreatureSheet(
   data: CreatureSheetData,
   artStyleBlock: string,
+  opts?: AssetRenderOpts,
 ): string {
   const views = formatViewsList(data.views);
   const opening = `Creature design sheet of ${data.subjectLine}, on a plain white background: ${views}. Soft ground shadows.`;
-  const parts = [
-    opening,
-    "",
-    `ART STYLE: ${artStyleBlock.trim()}`,
+  const hasStyleReference = opts?.hasStyleReference === true;
+  const mid: string[] = [
     "",
     `BODY: ${data.body.trim()}`,
+    "",
+    `HEAD: ${data.head.trim()}`,
+    "",
+    `MARKINGS: ${data.markings.trim()}`,
   ];
   if (data.gear) {
-    parts.push(
+    mid.push(
       "",
       `${data.gear.heading.toUpperCase()}: ${data.gear.body.trim()}`,
     );
   }
   if (data.signatureDetail) {
-    parts.push(
+    mid.push(
       "",
       `${data.signatureDetail.heading.toUpperCase()}: ${data.signatureDetail.body.trim()}`,
     );
   }
-  parts.push("", paletteLine(data.colorPalette, COLOR_PALETTE_SUFFIX));
-  return parts.join("\n");
+  mid.push("", moodAndColorLine(data.moodAndColor, COLOR_PALETTE_SUFFIX));
+  return withStyleSpine(opening, artStyleBlock, hasStyleReference, mid);
 }
 
 export function renderEnvironmentSheet(
   data: EnvironmentSheetData,
   artStyleBlock: string,
+  opts?: AssetRenderOpts,
 ): string {
-  const opening = `Wide environment illustration of ${data.place} at ${data.timeOfDay}, seen from ${data.cameraAngle}. No people and no animals.`;
-  return [
-    opening,
+  const opening = `Wide environment illustration of ${data.place} at ${data.timeOfDay}, seen from ${data.cameraAngle}. ${ENVIRONMENT_NO_CHARACTERS_CLAUSE}`;
+  const hasStyleReference = opts?.hasStyleReference === true;
+  const settingHeading = (data.settingHeading ?? "THE LAND").trim().toUpperCase();
+  const lightHeading = (data.lightHeading ?? "SKY AND LIGHT")
+    .trim()
+    .toUpperCase();
+  const mid: string[] = ["", `${settingHeading}: ${data.theLand.trim()}`, ""];
+  for (const extra of data.extraSections ?? []) {
+    mid.push(
+      `${extra.heading.trim().toUpperCase()}: ${extra.body.trim()}`,
+      "",
+    );
+  }
+  mid.push(
+    `${lightHeading}: ${data.skyAndLight.trim()}`,
     "",
-    `ART STYLE: ${artStyleBlock.trim()}`,
-    "",
-    `THE LAND: ${data.theLand.trim()}`,
-    "",
-    `SKY AND LIGHT: ${data.skyAndLight.trim()}`,
-    "",
-    paletteLine(data.colorPalette, COLOR_PALETTE_SUFFIX_ENVIRONMENT),
-  ].join("\n");
+    moodAndColorLine(data.moodAndColor, COLOR_PALETTE_SUFFIX_ENVIRONMENT),
+  );
+  return withStyleSpine(opening, artStyleBlock, hasStyleReference, mid);
 }
 
 export function renderProductSheet(
   data: ProductSheetData,
   artStyleBlock: string,
+  opts?: AssetRenderOpts,
 ): string {
   const opening = `Product-style illustration of a single ${data.objectName} on a plain white background, shown in ${data.views}. Soft ground shadows.`;
   const objHeading = data.theObject.heading.toUpperCase();
-  return [
-    opening,
-    "",
-    `ART STYLE: ${artStyleBlock.trim()}`,
+  const hasStyleReference = opts?.hasStyleReference === true;
+  return withStyleSpine(opening, artStyleBlock, hasStyleReference, [
     "",
     `${objHeading}: ${data.theObject.body.trim()}`,
     "",
     `FEEL: ${data.feel.trim()}`,
     "",
-    paletteLine(data.colorPalette, COLOR_PALETTE_SUFFIX_PRODUCT),
-  ].join("\n");
+    moodAndColorLine(data.moodAndColor, COLOR_PALETTE_SUFFIX_PRODUCT),
+  ]);
 }
 
 function formatShotTime(sec: number): string {
@@ -131,18 +164,11 @@ function renderScriptShot(shot: ScriptPromptData["shots"][number]): string {
   const start = formatShotTime(shot.startSec);
   const end = formatShotTime(shot.endSec);
   const move = shot.cameraMove?.trim();
-  const framing = move
-    ? `${shot.shotType}, ${move}`
-    : shot.shotType;
+  const framing = move ? `${shot.shotType}, ${move}` : shot.shotType;
   return `Shot ${shot.n} (${start}s–${end}s) — ${framing}: ${shot.action}`;
 }
 
 export function renderScriptPrompt(data: ScriptPromptData): string {
-  const refLines = data.references.map(
-    (r) =>
-      `@image_${r.imageN} = ${r.entityLabel}. Use it for ${r.useFor.startsWith("its ") || r.useFor.startsWith("his ") || r.useFor.startsWith("her ") || r.useFor.startsWith("the ") ? r.useFor : `its exact ${r.useFor}`}`,
-  );
-  // Prefer caller-provided "Use it for ..." already in useFor
   const refsFormatted = data.references.map((r) => {
     const use = r.useFor.trim();
     if (use.toLowerCase().startsWith("use it for")) {
@@ -150,7 +176,6 @@ export function renderScriptPrompt(data: ScriptPromptData): string {
     }
     return `@image_${r.imageN} = ${r.entityLabel}. Use it for ${use}`;
   });
-  void refLines;
 
   const imageList = data.references
     .map((r) => `@image_${r.imageN}`)
@@ -350,30 +375,29 @@ export function splitAssetSheetSections(text: string): Record<string, string> {
   };
 
   for (const line of lines) {
-    const headingMatch = /^(ART STYLE|FACE AND HAIR|OUTFIT|BODY|THE LAND|SKY AND LIGHT|FEEL|COLOR PALETTE|[A-Z][A-Z0-9 ]+):\s*(.*)$/.exec(
-      line,
-    );
-    if (headingMatch && !line.startsWith("Character ") && !line.startsWith("Creature ") && !line.startsWith("Wide ") && !line.startsWith("Product-")) {
+    const headingMatch =
+      /^(ART STYLE|FACE AND HAIR|OUTFIT|BODY|HEAD|MARKINGS|THE LAND|SKY AND LIGHT|FEEL|MOOD AND COLOR|COLOR PALETTE|[A-Z][A-Z0-9 ]+):\s*(.*)$/.exec(
+        line,
+      );
+    if (
+      headingMatch &&
+      !line.startsWith("Character ") &&
+      !line.startsWith("Creature ") &&
+      !line.startsWith("Wide ") &&
+      !line.startsWith("Product-") &&
+      !line.startsWith(STYLE_REFERENCE_PROMPT_PREFIX)
+    ) {
       flush();
       current = headingMatch[1]!;
       if (headingMatch[2]) buf.push(headingMatch[2]);
       continue;
     }
-    // Object heading like THE RIFLE:
     const theMatch = /^(THE [A-Z0-9][A-Z0-9 -]+):\s*(.*)$/.exec(line);
     if (theMatch) {
       flush();
       current = theMatch[1]!;
       if (theMatch[2]) buf.push(theMatch[2]);
       continue;
-    }
-    // Signature / gear custom headings (all caps before colon)
-    const capsMatch = /^([A-Z][A-Z0-9 ]+):\s*(.*)$/.exec(line);
-    if (capsMatch && buf.length === 0 && current !== "OPENING") {
-      // already handled above
-    }
-    if (capsMatch && line === lines[0]) {
-      // opening line shouldn't match
     }
     buf.push(line);
   }
@@ -384,14 +408,11 @@ export function splitAssetSheetSections(text: string): Record<string, string> {
 export function normalizePromptText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
-    // Markdown / chat image chips → Phase 7C @image_N tokens
-    // e.g. @[Image 1](image_1), @[IMAGE 4](IMAGE_4), @[image_2](image_2)
     .replace(
       /@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]\((?:image_|IMAGE_)?(\d+)\)/gi,
       (_m, a: string, b: string) => `@image_${a || b}`,
     )
     .replace(/@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]/gi, (_m, n: string) => `@image_${n}`)
-    // LOCATIONS: → LOCATION — for section parsers (line start)
     .replace(/(^|\n)LOCATIONS?\s*:\s*/gi, "$1LOCATION — ")
     .split("\n")
     .map((l) => l.trimEnd())
@@ -404,9 +425,29 @@ export function assetSheetSectionKeys(text: string): string[] {
   const keys: string[] = ["OPENING"];
   for (const line of text.split("\n")) {
     const m = /^([A-Z][A-Z0-9 -]+):\s*/.exec(line);
-    if (m && !line.startsWith("Character ") && !line.startsWith("Creature ") && !line.startsWith("Wide ") && !line.startsWith("Product-")) {
+    if (
+      m &&
+      !line.startsWith("Character ") &&
+      !line.startsWith("Creature ") &&
+      !line.startsWith("Wide ") &&
+      !line.startsWith("Product-") &&
+      !line.startsWith(STYLE_REFERENCE_PROMPT_PREFIX)
+    ) {
       keys.push(m[1]!);
     }
   }
   return keys;
+}
+
+/** Ensure generate prompts carry the style-ref instruction when an image is attached. */
+export function ensureStyleReferencePrefix(
+  promptText: string,
+  hasStyleReference: boolean,
+): string {
+  const text = promptText.trim();
+  if (!hasStyleReference || text.length === 0) return text;
+  if (text.toLowerCase().startsWith(STYLE_REFERENCE_PROMPT_PREFIX.toLowerCase())) {
+    return text;
+  }
+  return `${STYLE_REFERENCE_PROMPT_PREFIX} ${text}`;
 }

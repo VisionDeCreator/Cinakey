@@ -1,9 +1,6 @@
-import {
-  createPartDocument,
-  type BlockoutDocument,
-} from "@cinakey/shared";
+import { createPartDocument, type BlockoutDocument } from "@cinakey/shared";
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 function partDocument(sequenceId: string): BlockoutDocument {

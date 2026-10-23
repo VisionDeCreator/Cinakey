@@ -16,12 +16,7 @@ export type ModelInput =
   | "audio";
 
 export type ModelFeature =
-  | "cameraControl"
-  | "upscale"
-  | "extend"
-  | "inpaint"
-  | "edit"
-  | "chat";
+  "cameraControl" | "upscale" | "extend" | "inpaint" | "edit" | "chat";
 
 /** Adapter operation ids shown in the UI and stored on generationJobs.kind. */
 export type ModelOperation =
@@ -113,7 +108,9 @@ export type CollectResult = {
 export interface GenerationAdapter {
   capabilities: ModelCapabilities;
   estimateCost(input: BuildRequestInput): number;
-  buildRequest(input: BuildRequestInput): ProviderRequest | Promise<ProviderRequest>;
+  buildRequest(
+    input: BuildRequestInput,
+  ): ProviderRequest | Promise<ProviderRequest>;
   submit(request: ProviderRequest): Promise<SubmitResult>;
   poll(providerJobId: string): Promise<PollResult>;
   collect(providerJobId: string): Promise<CollectResult>;
@@ -125,3 +122,13 @@ export interface GenerationAdapter {
     body: string,
   ): boolean | Promise<boolean>;
 }
+
+/** Provider-neutral tool schema shared by prompt construction and API adapters. */
+export type ChatToolDefinition = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+};

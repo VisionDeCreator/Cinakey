@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { internal } from "./_generated/api";
+import { internal } from "../../../apps/api/src/operations";
 import { createTestUser, makeTest } from "../test/helpers";
 
 describe("purgeRejectedTakes", () => {

@@ -1,16 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api } from "../../../apps/api/src/operations";
 import {
   assertJsonWithinLimits,
   jsonByteLength,
   MAX_JSON_BYTES,
   mustStoreAsFile,
 } from "./storage";
-import {
-  authIdentity,
-  createTestUser,
-  makeTest,
-} from "../test/helpers";
+import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 describe("storage helpers", () => {
   it("always stores JSON as files and enforces size cap", () => {

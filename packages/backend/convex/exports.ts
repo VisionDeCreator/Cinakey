@@ -1,7 +1,3 @@
-/**
- * Browser export completion records + notifications.
- */
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";

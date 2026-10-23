@@ -1,4 +1,4 @@
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth } from "@/lib/api/hooks";
 import { Navigate, Outlet } from "react-router-dom";
 
 export function ProtectedRoute() {

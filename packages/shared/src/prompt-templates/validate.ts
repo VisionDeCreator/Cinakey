@@ -80,20 +80,24 @@ export function validateScriptPromptText(
   return { ok: true };
 }
 
-
 /** Lightweight checks that copilot-written asset prompt text includes key sections. */
 export function validateAssetPromptText(
   type: AssetSheetType,
   text: string,
+  opts?: { hasStyleReference?: boolean },
 ): { ok: boolean; warning?: string } {
   const upper = text.toUpperCase();
   const missing: string[] = [];
 
-  if (!hasSection(upper, /\bART STYLE\b/)) {
+  // Project style reference image covers ART STYLE for GPT Image 2.
+  if (!opts?.hasStyleReference && !hasSection(upper, /\bART STYLE\b/)) {
     missing.push("ART STYLE");
   }
-  if (!hasSection(upper, /\bCOLOR PALETTE\b/)) {
-    missing.push("COLOR PALETTE");
+  if (
+    !hasSection(upper, /\bMOOD AND COLOR\b/) &&
+    !hasSection(upper, /\bCOLOR PALETTE\b/)
+  ) {
+    missing.push("MOOD AND COLOR");
   }
 
   switch (type) {
@@ -109,15 +113,32 @@ export function validateAssetPromptText(
       if (!hasSection(upper, /\bBODY\b/)) {
         missing.push("BODY");
       }
-      break;
-    case "environment":
-      if (
-        !hasSection(upper, /\bTHE LAND\b/) &&
-        !hasSection(upper, /\bSKY AND LIGHT\b/)
-      ) {
-        missing.push("THE LAND or SKY AND LIGHT");
+      if (!hasSection(upper, /\bHEAD\b/) && !hasSection(upper, /\bMARKINGS\b/)) {
+        missing.push("HEAD or MARKINGS");
       }
       break;
+    case "environment": {
+      const hasSetting =
+        hasSection(upper, /\bTHE LAND\b/) ||
+        hasSection(upper, /\bTHE [A-Z][A-Z0-9 ]+\b/);
+      const hasLight =
+        hasSection(upper, /\bSKY AND LIGHT\b/) ||
+        hasSection(upper, /(^|\n)\s*LIGHT\b/);
+      if (!hasSetting && !hasLight) {
+        missing.push("THE LAND (or THE …) or SKY AND LIGHT / LIGHT");
+      } else {
+        if (!hasSetting) missing.push("THE LAND or THE …");
+        if (!hasLight) missing.push("SKY AND LIGHT or LIGHT");
+      }
+      if (
+        !/\bno people\b/i.test(text) &&
+        !/\bno animals\b/i.test(text) &&
+        !/\bno creatures\b/i.test(text)
+      ) {
+        missing.push("no people / no animals / no creatures");
+      }
+      break;
+    }
     case "product":
       if (
         !hasSection(upper, /\bFEEL\b/) &&

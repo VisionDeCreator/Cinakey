@@ -1,5 +1,5 @@
 import { api } from "@cinakey/backend";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 

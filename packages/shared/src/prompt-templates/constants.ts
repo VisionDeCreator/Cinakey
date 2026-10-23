@@ -2,11 +2,22 @@
 
 export const PROMPT_TEMPLATE_VERSION = "1.0" as const;
 
+/** Prepended when a project style reference image is attached for GPT Image 2. */
+export const STYLE_REFERENCE_PROMPT_PREFIX =
+  "Use the attached image as the art style reference:" as const;
+
 export const COLOR_PALETTE_SUFFIX =
   "No readable text, no letters, no logos anywhere." as const;
 
+/** @deprecated Prefer MOOD_AND_COLOR_SUFFIX — kept for legacy COLOR PALETTE lines. */
+export const MOOD_AND_COLOR_SUFFIX = COLOR_PALETTE_SUFFIX;
+
 export const COLOR_PALETTE_SUFFIX_ENVIRONMENT =
   "No readable text, no signs, no logos anywhere." as const;
+
+/** Hard rule for environment sheets — never depict cast or creatures. */
+export const ENVIRONMENT_NO_CHARACTERS_CLAUSE =
+  "No people, no animals, and no creatures." as const;
 
 export const COLOR_PALETTE_SUFFIX_PRODUCT =
   "No readable text, no letters, no logos, no brand names anywhere." as const;

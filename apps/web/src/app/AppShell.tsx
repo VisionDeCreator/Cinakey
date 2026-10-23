@@ -1,11 +1,13 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "@/lib/api/hooks";
 import {
   Bell,
   Clapperboard,
   Coins,
   FolderKanban,
   Images,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -22,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
+import { useLocalStorageBool } from "@/lib/useLocalStorageBool";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -40,6 +42,10 @@ export function AppShell() {
   const markAllRead = useMutation(api.notifications.markAllRead);
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useLocalStorageBool(
+    "cinakey.sidebarCollapsed",
+    false,
+  );
 
   useEffect(() => {
     if (
@@ -57,27 +63,69 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-dvh">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-800 bg-[var(--color-studio-panel)]">
-        <div className="flex h-14 items-center gap-2 px-4">
-          <Clapperboard className="size-5 text-zinc-100" aria-hidden />
-          <span className="text-sm font-semibold tracking-wide">Cinakey</span>
+      <aside
+        className={cn(
+          "flex shrink-0 flex-col border-r border-zinc-800 bg-[var(--color-studio-panel)] transition-[width] duration-200",
+          collapsed ? "w-14" : "w-56",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-14 shrink-0 items-center gap-1 border-b border-zinc-800",
+            collapsed ? "justify-center px-1" : "justify-between px-3",
+          )}
+        >
+          {!collapsed ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <Clapperboard
+                className="size-5 shrink-0 text-zinc-100"
+                aria-hidden
+              />
+              <span className="truncate text-sm font-semibold tracking-wide">
+                Cinakey
+              </span>
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-9 shrink-0 text-zinc-300 hover:text-zinc-50"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed((c) => !c)}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+          </Button>
         </div>
-        <Separator />
-        <nav className="flex flex-1 flex-col gap-1 p-3">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+          {collapsed ? (
+            <div className="mb-1 flex justify-center py-1" title="Cinakey">
+              <Clapperboard className="size-5 text-zinc-100" aria-hidden />
+            </div>
+          ) : null}
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/projects"}
+              title={label}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100",
+                  "flex items-center gap-2 rounded-md py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100",
+                  collapsed ? "justify-center px-0" : "px-3",
                   isActive && "bg-zinc-800 text-zinc-50",
                 )
               }
             >
-              <Icon className="size-4" aria-hidden />
-              {label}
+              <Icon className="size-4 shrink-0" aria-hidden />
+              {!collapsed ? <span className="truncate">{label}</span> : null}
+              {collapsed ? <span className="sr-only">{label}</span> : null}
             </NavLink>
           ))}
         </nav>

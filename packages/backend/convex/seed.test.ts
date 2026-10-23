@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 describe("seed", () => {

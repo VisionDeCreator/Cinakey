@@ -4,7 +4,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { AppRouter } from "@/app/router";
+import { ConfirmProvider } from "@/components/ConfirmProvider";
 import "./index.css";
+import { ApiProvider } from "@/lib/api/hooks";
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL;
 
@@ -19,9 +21,11 @@ const convex = new ConvexReactClient(convexUrl);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexAuthProvider client={convex}>
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
+      <ApiProvider><BrowserRouter>
+        <ConfirmProvider>
+          <AppRouter />
+        </ConfirmProvider>
+      </BrowserRouter></ApiProvider>
     </ConvexAuthProvider>
   </StrictMode>,
 );

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { api } from "../_generated/api";
-import {
-  authIdentity,
-  createTestUser,
-  makeTest,
-} from "../../test/helpers";
+import { authIdentity, createTestUser, makeTest } from "../../test/helpers";
 
 describe("access control", () => {
   it("rejects unauthenticated project access", async () => {

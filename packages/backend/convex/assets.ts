@@ -30,9 +30,7 @@ async function workspaceProjectIds(
     .query("projects")
     .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
     .collect();
-  return projects
-    .filter((p) => p.archivedAt === undefined)
-    .map((p) => p._id);
+  return projects.filter((p) => p.archivedAt === undefined).map((p) => p._id);
 }
 
 export const list = query({

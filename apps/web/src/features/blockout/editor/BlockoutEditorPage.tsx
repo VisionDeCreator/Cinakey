@@ -13,7 +13,7 @@ import {
   type CameraMovePresetId,
   type CameraPose,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import {
   ArrowLeft,
   Camera,

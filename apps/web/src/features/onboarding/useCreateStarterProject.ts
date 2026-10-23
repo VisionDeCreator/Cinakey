@@ -1,5 +1,5 @@
 import { api, type Id } from "@cinakey/backend";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation } from "@/lib/api/hooks";
 import { useCallback, useState } from "react";
 
 const STARTER_CLIPS = [

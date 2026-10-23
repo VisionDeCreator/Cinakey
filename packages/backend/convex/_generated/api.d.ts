@@ -9,12 +9,8 @@
  */
 
 import type * as adapters_cost from "../adapters/cost.js";
-import type * as adapters_deepseek from "../adapters/deepseek.js";
-import type * as adapters_gptImage2 from "../adapters/gptImage2.js";
 import type * as adapters_index from "../adapters/index.js";
-import type * as adapters_mock from "../adapters/mock.js";
-import type * as adapters_mockVideo from "../adapters/mockVideo.js";
-import type * as adapters_seedance25 from "../adapters/seedance25.js";
+import type * as apiIdentity from "../apiIdentity.js";
 import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
 import type * as blockouts from "../blockouts.js";
@@ -59,7 +55,9 @@ import type * as staff from "../staff.js";
 import type * as staging from "../staging.js";
 import type * as stagingFeedback from "../stagingFeedback.js";
 import type * as storage from "../storage.js";
+import type * as storageIO from "../storageIO.js";
 import type * as takes from "../takes.js";
+import type * as tasks from "../tasks.js";
 import type * as timelineVersions from "../timelineVersions.js";
 import type * as users from "../users.js";
 
@@ -71,12 +69,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "adapters/cost": typeof adapters_cost;
-  "adapters/deepseek": typeof adapters_deepseek;
-  "adapters/gptImage2": typeof adapters_gptImage2;
   "adapters/index": typeof adapters_index;
-  "adapters/mock": typeof adapters_mock;
-  "adapters/mockVideo": typeof adapters_mockVideo;
-  "adapters/seedance25": typeof adapters_seedance25;
+  apiIdentity: typeof apiIdentity;
   assets: typeof assets;
   auth: typeof auth;
   blockouts: typeof blockouts;
@@ -121,7 +115,9 @@ declare const fullApi: ApiFromModules<{
   staging: typeof staging;
   stagingFeedback: typeof stagingFeedback;
   storage: typeof storage;
+  storageIO: typeof storageIO;
   takes: typeof takes;
+  tasks: typeof tasks;
   timelineVersions: typeof timelineVersions;
   users: typeof users;
 }>;

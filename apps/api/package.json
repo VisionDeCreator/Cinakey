@@ -1,0 +1,34 @@
+{
+  "name": "@cinakey/api",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./worker": "./src/worker.ts",
+    "./config": "./src/config/env.ts",
+    "./load-root-env": "./src/config/load-root-env.ts"
+  },
+  "scripts": {
+    "dev": "bun --no-env-file --watch src/bootstrap.ts",
+    "start": "bun --no-env-file src/bootstrap.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@cinakey/backend": "*",
+    "@cinakey/shared": "*",
+    "@elysiajs/cors": "^1.4.2",
+    "convex": "^1.46.0",
+    "elysia": "^1.4.28",
+    "zod": "^4.6.5",
+    "@convex-dev/auth": "^0.0.95"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0",
+    "typescript": "~5.9.0",
+    "vitest": "^4.1.11",
+    "eslint": "^10.11.0"
+  }
+}

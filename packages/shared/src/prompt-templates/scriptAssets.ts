@@ -1,3 +1,7 @@
+import {
+  ENVIRONMENT_NO_CHARACTERS_CLAUSE,
+  STYLE_REFERENCE_PROMPT_PREFIX,
+} from "./constants";
 import type { AssetSheetType, ScriptPromptData } from "./schemas";
 
 /** Strip articles for matching "the boy" ↔ "boy". */
@@ -121,18 +125,28 @@ export function seedAssetPromptFromScriptDescription(
   name: string,
   description: string,
   artStyleBlock?: string,
+  opts?: { hasStyleReference?: boolean },
 ): string {
   const style =
     artStyleBlock?.trim() ||
     "Soft painted illustration, consistent with the project style reference.";
   const desc = description.trim();
   const title = name.trim() || "asset";
+  const hasStyleReference = opts?.hasStyleReference === true;
+  const styleBlock = hasStyleReference
+    ? []
+    : ["", `ART STYLE: ${style}`];
+  const mood =
+    "MOOD AND COLOR: Derived from the description. No readable text, no logos, no brand names anywhere.";
+
   switch (assetType) {
-    case "character":
+    case "character": {
+      const opening = `Character reference sheet of ${title}, on a plain white background: front view, three-quarter view, side view. Soft ground shadows.`;
       return [
-        `Character reference sheet of ${title}, on a plain white background: front view, three-quarter view, side view. Soft ground shadows.`,
-        "",
-        `ART STYLE: ${style}`,
+        hasStyleReference
+          ? `Use the attached image as the art style reference: ${opening}`
+          : opening,
+        ...styleBlock,
         "",
         `FACE AND HAIR: ${desc}`,
         "",
@@ -140,47 +154,55 @@ export function seedAssetPromptFromScriptDescription(
         "",
         `SIGNATURE DETAIL: ${desc}`,
         "",
-        "COLOR PALETTE: Derived from the description. No readable text, no logos, no brand names anywhere.",
+        mood,
       ].join("\n");
-    case "creature":
+    }
+    case "creature": {
+      const opening = `Creature design sheet of ${title}, on a plain white background: front view, three-quarter view, side view. Soft ground shadows.`;
       return [
-        `Creature design sheet of ${title}, on a plain white background: front view, three-quarter view, side view. Soft ground shadows.`,
-        "",
-        `ART STYLE: ${style}`,
+        hasStyleReference
+          ? `Use the attached image as the art style reference: ${opening}`
+          : opening,
+        ...styleBlock,
         "",
         `BODY: ${desc}`,
         "",
-        "COLOR PALETTE: Derived from the description. No readable text, no logos, no brand names anywhere.",
+        `HEAD: ${desc}`,
+        "",
+        `MARKINGS: ${desc}`,
+        "",
+        mood,
       ].join("\n");
-    case "environment":
+    }
+    case "environment": {
+      const opening = `Wide environment illustration of ${title}. ${ENVIRONMENT_NO_CHARACTERS_CLAUSE}`;
       return [
-        `Environment concept of ${title}.`,
-        "",
-        `ART STYLE: ${style}`,
-        "",
-        `PLACE: ${title}`,
-        "",
-        "TIME OF DAY: As described",
-        "",
-        "CAMERA ANGLE: Establishing wide",
+        hasStyleReference
+          ? `${STYLE_REFERENCE_PROMPT_PREFIX} ${opening}`
+          : opening,
+        ...styleBlock,
         "",
         `THE LAND: ${desc}`,
         "",
         `SKY AND LIGHT: ${desc}`,
         "",
-        "COLOR PALETTE: Derived from the description. No readable text, no logos, no brand names anywhere.",
+        mood,
       ].join("\n");
-    case "product":
+    }
+    case "product": {
+      const opening = `Product-style illustration of a single ${title} on a plain white background. Soft ground shadows.`;
       return [
-        `Product reference of ${title}, on a plain white background.`,
-        "",
-        `ART STYLE: ${style}`,
+        hasStyleReference
+          ? `Use the attached image as the art style reference: ${opening}`
+          : opening,
+        ...styleBlock,
         "",
         `THE OBJECT: ${desc}`,
         "",
         `FEEL: ${desc}`,
         "",
-        "COLOR PALETTE: Derived from the description. No readable text, no logos, no brand names anywhere.",
+        mood,
       ].join("\n");
+    }
   }
 }

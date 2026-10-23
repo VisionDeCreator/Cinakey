@@ -1,7 +1,3 @@
-/**
- * Prompt / output moderation rules (block vs flag).
- */
-
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {

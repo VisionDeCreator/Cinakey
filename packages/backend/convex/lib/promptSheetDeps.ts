@@ -28,7 +28,10 @@ export async function markSheetsStaleForStyleChange(
     if (sheet.isCustom && !isAsset) continue;
     if (isAsset || sheet.type === "script") {
       if (sheet.status !== "out_of_date" && sheet.status !== "draft") {
-        await ctx.db.patch(sheet._id, { status: "out_of_date", updatedAt: now });
+        await ctx.db.patch(sheet._id, {
+          status: "out_of_date",
+          updatedAt: now,
+        });
         n++;
       }
     }
@@ -54,7 +57,10 @@ export async function markScriptPromptsStaleForAssetSheet(
   for (const sheet of tips) {
     if (!sheet.isTip || sheet.isCustom) continue;
     const deps = sheet.sourceAssetSheetIds ?? [];
-    if (!deps.includes(assetSheetId) && !deps.includes(asset.parentId as Id<"promptSheets">)) {
+    if (
+      !deps.includes(assetSheetId) &&
+      !deps.includes(asset.parentId as Id<"promptSheets">)
+    ) {
       // Also match if any tip ancestor — for simplicity check entity link via referenceMap
       continue;
     }
@@ -72,7 +78,10 @@ export async function markScriptPromptsStaleForAssetSheet(
       );
       if (!hit) continue;
       if (sheet.status !== "out_of_date" && sheet.status !== "draft") {
-        await ctx.db.patch(sheet._id, { status: "out_of_date", updatedAt: now });
+        await ctx.db.patch(sheet._id, {
+          status: "out_of_date",
+          updatedAt: now,
+        });
         n++;
       }
     }

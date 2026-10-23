@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
 import { ConvexError } from "convex/values";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";

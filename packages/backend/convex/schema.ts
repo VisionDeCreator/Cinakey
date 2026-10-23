@@ -14,6 +14,30 @@ const lineage = v.object({
 const schema = defineSchema(
   {
     ...authTables,
+    apiTasks: defineTable({
+      operation: v.string(),
+      args: v.any(),
+      dedupeKey: v.optional(v.string()),
+      identity: v.optional(v.any()),
+      dueAt: v.number(),
+      state: v.union(
+        v.literal("pending"),
+        v.literal("running"),
+        v.literal("failed"),
+      ),
+      attempts: v.number(),
+      leaseOwner: v.optional(v.string()),
+      leaseUntil: v.optional(v.number()),
+      error: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_dedupe", ["dedupeKey"])
+      .index("by_state_due", ["state", "dueAt"])
+      .index("by_state_lease", ["state", "leaseUntil"]),
+    apiTaskSchedules: defineTable({
+      key: v.string(),
+      lastDay: v.string(),
+    }).index("by_key", ["key"]),
 
     // Extend Convex Auth users with staff flag and personal workspace link.
     users: defineTable({
@@ -265,6 +289,7 @@ const schema = defineSchema(
       /** Denormalized name + tags for search index. */
       searchText: v.string(),
       storageId: v.id("_storage"),
+      outputIndex: v.optional(v.number()),
       format: v.string(),
       sizeBytes: v.number(),
       durationSec: v.optional(v.number()),
@@ -314,6 +339,16 @@ const schema = defineSchema(
         v.literal("refunded"),
       ),
       providerJobId: v.optional(v.string()),
+      submissionState: v.optional(
+        v.union(
+          v.literal("in_flight"),
+          v.literal("accepted"),
+          v.literal("rejected"),
+          v.literal("uncertain"),
+        ),
+      ),
+      providerResultFileId: v.optional(v.id("_storage")),
+      providerActualUnits: v.optional(v.number()),
       outputAssetIds: v.array(v.id("assets")),
       errorMessage: v.optional(v.string()),
       /** Provider submit attempts (max 3 including first). */
@@ -396,6 +431,7 @@ const schema = defineSchema(
       createdAt: v.number(),
     })
       .index("by_workspace", ["workspaceId"])
+      .index("by_job", ["jobId"])
       .index("by_workspace_time", ["workspaceId", "createdAt"]),
 
     notifications: defineTable({
@@ -596,7 +632,9 @@ const schema = defineSchema(
       streaming: v.optional(v.boolean()),
       createdAt: v.number(),
       updatedAt: v.optional(v.number()),
-    }).index("by_project", ["projectId"]),
+    })
+      .index("by_project", ["projectId"])
+      .index("by_job", ["jobId"]),
 
     /** Copilot tool results awaiting user Accept / Edit / Reject. */
     proposals: defineTable({

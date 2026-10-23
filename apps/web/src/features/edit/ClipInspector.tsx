@@ -7,7 +7,7 @@ import {
   type CaptionLine,
   newTimelineId,
 } from "@cinakey/shared";
-import { useQuery } from "convex/react";
+import { useQuery } from "@/lib/api/hooks";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

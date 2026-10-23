@@ -6,11 +6,9 @@ import type {
   ProviderRequest,
   SubmitResult,
 } from "@cinakey/shared";
-import { convexEnv } from "../lib/env";
-import {
-  estimateVideoCost,
-  isDefaultTransientError,
-} from "./cost";
+import { requireProviderKey, providerConfig } from "../config/env";
+import { providerFetch } from "./transport";
+import { estimateVideoCost, isDefaultTransientError } from "./cost";
 
 const COST = { unit: "per_second", creditsPerUnit: 2 } as const;
 
@@ -24,7 +22,14 @@ export const seedance25Adapter: GenerationAdapter = {
     id: "seedance-2.5",
     kind: "video",
     operations: ["text-to-video", "image-to-video", "upscale", "extend"],
-    inputs: ["text", "startFrame", "endFrame", "referenceImages", "referenceVideo", "audio"],
+    inputs: [
+      "text",
+      "startFrame",
+      "endFrame",
+      "referenceImages",
+      "referenceVideo",
+      "audio",
+    ],
     durations: [5, 10, 15, 20, 30],
     minDurationSec: 4,
     maxDurationSec: 30,
@@ -60,15 +65,10 @@ export const seedance25Adapter: GenerationAdapter = {
   },
 
   async submit(request: ProviderRequest): Promise<SubmitResult> {
-    const apiKey = convexEnv("SEEDANCE_API_KEY");
-    if (!apiKey) {
-      throw new Error("SEEDANCE_API_KEY is not set");
-    }
+    const apiKey = requireProviderKey("seedance");
 
     // TODO(seedance-api): confirm base URL. Assumption: ByteDance Ark / content generation host.
-    const baseUrl =
-      convexEnv("SEEDANCE_API_BASE_URL") ??
-      "https://ark.cn-beijing.volces.com/api/v3";
+    const baseUrl = providerConfig().seedanceBaseUrl;
 
     const kind = String(request.kind ?? "text-to-video");
 
@@ -139,7 +139,7 @@ export const seedance25Adapter: GenerationAdapter = {
       body.operation = "extend";
     }
 
-    const res = await fetch(endpoint, {
+    const res = await providerFetch("seedance", endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -147,10 +147,7 @@ export const seedance25Adapter: GenerationAdapter = {
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Seedance submit ${res.status}: ${text}`);
-    }
+
     const data = (await res.json()) as { id?: string; task_id?: string };
     // TODO(seedance-api): confirm response id field (id vs task_id).
     const providerJobId = data.id ?? data.task_id;
@@ -161,25 +158,18 @@ export const seedance25Adapter: GenerationAdapter = {
   },
 
   async poll(providerJobId: string): Promise<PollResult> {
-    const apiKey = convexEnv("SEEDANCE_API_KEY");
-    if (!apiKey) {
-      throw new Error("SEEDANCE_API_KEY is not set");
-    }
-    const baseUrl =
-      convexEnv("SEEDANCE_API_BASE_URL") ??
-      "https://ark.cn-beijing.volces.com/api/v3";
+    const apiKey = requireProviderKey("seedance");
+    const baseUrl = providerConfig().seedanceBaseUrl;
 
     // TODO(seedance-api): confirm poll path and status enum values.
-    const res = await fetch(
+    const res = await providerFetch(
+      "seedance",
       `${baseUrl}/contents/generations/tasks/${providerJobId}`,
       {
         headers: { Authorization: `Bearer ${apiKey}` },
       },
     );
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Seedance poll ${res.status}: ${text}`);
-    }
+
     const data = (await res.json()) as {
       status?: string;
       error?: { message?: string };
@@ -196,7 +186,8 @@ export const seedance25Adapter: GenerationAdapter = {
     ) {
       return {
         status: "succeeded",
-        actualUnits: typeof data.duration === "number" ? data.duration : undefined,
+        actualUnits:
+          typeof data.duration === "number" ? data.duration : undefined,
       };
     }
     if (
@@ -207,7 +198,7 @@ export const seedance25Adapter: GenerationAdapter = {
     ) {
       return {
         status: "failed",
-        error: data.error?.message ?? `Seedance status: ${data.status}`,
+        error: "Seedance generation failed",
       };
     }
     if (raw === "queued" || raw === "pending") {
@@ -217,32 +208,24 @@ export const seedance25Adapter: GenerationAdapter = {
   },
 
   async collect(providerJobId: string): Promise<CollectResult> {
-    const apiKey = convexEnv("SEEDANCE_API_KEY");
-    if (!apiKey) {
-      throw new Error("SEEDANCE_API_KEY is not set");
-    }
-    const baseUrl =
-      convexEnv("SEEDANCE_API_BASE_URL") ??
-      "https://ark.cn-beijing.volces.com/api/v3";
+    const apiKey = requireProviderKey("seedance");
+    const baseUrl = providerConfig().seedanceBaseUrl;
 
-    const res = await fetch(
+    const res = await providerFetch(
+      "seedance",
       `${baseUrl}/contents/generations/tasks/${providerJobId}`,
       {
         headers: { Authorization: `Bearer ${apiKey}` },
       },
     );
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Seedance collect ${res.status}: ${text}`);
-    }
+
     const data = (await res.json()) as {
       // TODO(seedance-api): confirm output URL field path.
       content?: { video_url?: string };
       output?: { url?: string };
       video_url?: string;
     };
-    const url =
-      data.content?.video_url ?? data.output?.url ?? data.video_url;
+    const url = data.content?.video_url ?? data.output?.url ?? data.video_url;
     if (!url) {
       throw new Error("Seedance collect: no video URL in response");
     }

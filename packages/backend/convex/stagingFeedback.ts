@@ -1,17 +1,7 @@
-/**
- * Learning signals for the blockout director (see `stagingRuns`):
- * every staging run, what the automatic check found, the user's editor
- * corrections, whether it was replaced or taken on to Video, and per-shot
- * thumbs up / down.
- */
-
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { diffBlockoutEdits, isBlockoutDocument } from "@cinakey/shared";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  internalAction,
   internalMutation,
   internalQuery,
   mutation,
@@ -19,7 +9,6 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { requireProjectAccess } from "./lib/access";
-import { loadJson } from "./storage";
 
 const MAX_EDITS_KEPT = 5;
 
@@ -108,38 +97,6 @@ export const addEdit = internalMutation({
         { at, fileId: args.fileId, corrections: args.corrections },
       ].slice(-MAX_EDITS_KEPT),
     });
-  },
-});
-
-/**
- * A user saved the part in the 3D editor: diff it against the compiled blockout
- * of the current run (cumulative — the latest entry is the total correction).
- */
-export const recordEdit = internalAction({
-  args: { sequenceId: v.id("sequences"), fileId: v.id("_storage") },
-  handler: async (ctx, args) => {
-    const run = await ctx.runQuery(internal.stagingFeedback.latestRunInternal, {
-      sequenceId: args.sequenceId,
-    });
-    if (!run?.documentFileId || run.documentFileId === args.fileId) return;
-    try {
-      const before = await loadJson(ctx, run.documentFileId);
-      const after = await loadJson(ctx, args.fileId);
-      if (!isBlockoutDocument(before) || !isBlockoutDocument(after)) return;
-      const corrections = diffBlockoutEdits(before, after).map((c) => ({
-        shot: c.shot,
-        kind: c.kind,
-        ...(c.target !== undefined ? { target: c.target.slice(0, 80) } : {}),
-        ...(c.amount !== undefined ? { amount: c.amount } : {}),
-      }));
-      await ctx.runMutation(internal.stagingFeedback.addEdit, {
-        runId: run._id,
-        fileId: args.fileId,
-        corrections,
-      });
-    } catch {
-      // Feedback capture must never break saving.
-    }
   },
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 const SCRIPT = `REFERENCES
@@ -152,7 +152,8 @@ describe("staging repair pass", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(bodies).toHaveLength(2);
-    const repairAsk = bodies[1]!.messages[bodies[1]!.messages.length - 1]!.content;
+    const repairAsk =
+      bodies[1]!.messages[bodies[1]!.messages.length - 1]!.content;
     expect(repairAsk).toMatch(/Shot 2: the hero hidden while framed/);
     expect(repairAsk).toMatch(/visible/);
     expect(result.repaired).toBe(true);

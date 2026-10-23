@@ -36,7 +36,7 @@ export function deriveDescription(
     }
     case "creature": {
       const d = data as CreatureSheetData;
-      const parts = [d.body];
+      const parts = [d.body, d.head, d.markings];
       if (d.gear) parts.push(d.gear.body);
       if (d.signatureDetail) parts.push(d.signatureDetail.body);
       return parts.map((s) => s.trim()).filter(Boolean).join(" ");
@@ -78,7 +78,7 @@ export function lookDevPatchFromAssetSheet(
       return {
         description: d.subjectLine,
         sheetPatch: {
-          look: [d.faceAndHair, d.colorPalette ? `Palette: ${d.colorPalette}` : ""]
+          look: [d.faceAndHair, d.moodAndColor ? `Palette: ${d.moodAndColor}` : ""]
             .map((s) => s.trim())
             .filter(Boolean)
             .join("\n\n"),
@@ -95,7 +95,12 @@ export function lookDevPatchFromAssetSheet(
       return {
         description: d.subjectLine,
         sheetPatch: {
-          look: [d.body, d.colorPalette ? `Palette: ${d.colorPalette}` : ""]
+          look: [
+            d.body,
+            d.head,
+            d.markings,
+            d.moodAndColor ? `Palette: ${d.moodAndColor}` : "",
+          ]
             .map((s) => s.trim())
             .filter(Boolean)
             .join("\n\n"),
@@ -113,7 +118,7 @@ export function lookDevPatchFromAssetSheet(
             d.cameraAngle,
             d.theLand,
             d.skyAndLight,
-            d.colorPalette ? `Palette: ${d.colorPalette}` : "",
+            d.moodAndColor ? `Palette: ${d.moodAndColor}` : "",
           ]
             .map((s) => s.trim())
             .filter(Boolean)
@@ -130,7 +135,7 @@ export function lookDevPatchFromAssetSheet(
             d.views,
             `${d.theObject.heading}: ${d.theObject.body}`,
             d.feel,
-            d.colorPalette ? `Palette: ${d.colorPalette}` : "",
+            d.moodAndColor ? `Palette: ${d.moodAndColor}` : "",
           ]
             .map((s) => s.trim())
             .filter(Boolean)

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
+import { markSheetsStaleForStyleChange } from "./lib/promptSheetDeps";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
@@ -283,9 +284,6 @@ export const update = mutation({
       args.styleReferenceAssetId !== undefined &&
       args.styleReferenceAssetId !== null
     ) {
-      const { markSheetsStaleForStyleChange } = await import(
-        "./lib/promptSheetDeps"
-      );
       await markSheetsStaleForStyleChange(ctx, args.projectId);
     }
   },

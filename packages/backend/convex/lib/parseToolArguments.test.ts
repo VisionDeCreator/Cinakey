@@ -14,7 +14,10 @@ describe("parseToolArguments", () => {
     const result = parseToolArguments(
       JSON.stringify({
         summary: "Draft",
-        document: JSON.stringify({ schema: "cinakey.script/1.0", scenes: [{ heading: "INT. A" }] }),
+        document: JSON.stringify({
+          schema: "cinakey.script/1.0",
+          scenes: [{ heading: "INT. A" }],
+        }),
       }),
     );
     expect(result.ok).toBe(true);
@@ -25,7 +28,7 @@ describe("parseToolArguments", () => {
 
   it("strips markdown fences", () => {
     const result = parseToolArguments(
-      "```json\n{\"summary\":\"Hi\",\"scenes\":[]}\n```",
+      '```json\n{"summary":"Hi","scenes":[]}\n```',
     );
     expect(result.ok).toBe(true);
   });

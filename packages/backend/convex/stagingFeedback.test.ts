@@ -1,6 +1,6 @@
 import { createPartDocument, type BlockoutDocument } from "@cinakey/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, internal } from "./_generated/api";
+import { api, internal } from "../../../apps/api/src/operations";
 import type { Id } from "./_generated/dataModel";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 

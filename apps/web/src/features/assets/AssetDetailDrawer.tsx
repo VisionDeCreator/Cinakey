@@ -1,17 +1,8 @@
 import { api, type Doc, type Id } from "@cinakey/backend";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "@/lib/api/hooks";
 import { Star, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirm } from "@/components/ConfirmProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,10 +38,10 @@ export function AssetDetailDrawer({
   const update = useMutation(api.assets.update);
   const setStarred = useMutation(api.assets.setStarred);
   const remove = useMutation(api.assets.remove);
+  const confirm = useConfirm();
 
   const [name, setName] = useState("");
   const [tagsText, setTagsText] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -74,9 +65,22 @@ export function AssetDetailDrawer({
     }
   }
 
+  async function onDelete() {
+    if (!assetId) return;
+    const ok = await confirm({
+      title: "Delete asset?",
+      description:
+        "This permanently removes the file from storage. This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+    await remove({ assetId });
+    onOpenChange(false);
+  }
+
   return (
-    <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="overflow-y-auto">
           {asset === undefined ? (
             <SheetHeader>
@@ -146,7 +150,7 @@ export function AssetDetailDrawer({
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => setConfirmDelete(true)}
+                      onClick={() => void onDelete()}
                     >
                       <Trash2 />
                       Delete
@@ -245,34 +249,6 @@ export function AssetDetailDrawer({
           )}
         </SheetContent>
       </Sheet>
-
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete asset?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes the file from storage. This cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-700 hover:bg-red-600"
-              onClick={() => {
-                if (!assetId) return;
-                void remove({ assetId }).then(() => {
-                  setConfirmDelete(false);
-                  onOpenChange(false);
-                });
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
   );
 }
 

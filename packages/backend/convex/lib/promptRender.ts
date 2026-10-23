@@ -4,10 +4,7 @@
 
 import {
   PROMPT_TEMPLATE_VERSION,
-  characterSheetSchema,
-  creatureSheetSchema,
-  environmentSheetSchema,
-  productSheetSchema,
+  parseAssetSheet,
   scriptPromptSchema,
   blockoutSheetSchema,
   renderCharacterSheet,
@@ -26,27 +23,32 @@ export function renderPromptSheetText(
   type: PromptSheetType,
   structured: unknown,
   artStyleBlock: string,
+  opts?: { hasStyleReference?: boolean },
 ): string {
   switch (type) {
     case "character":
       return renderCharacterSheet(
-        characterSheetSchema.parse(structured),
+        parseAssetSheet("character", structured),
         artStyleBlock,
+        opts,
       );
     case "creature":
       return renderCreatureSheet(
-        creatureSheetSchema.parse(structured),
+        parseAssetSheet("creature", structured),
         artStyleBlock,
+        opts,
       );
     case "environment":
       return renderEnvironmentSheet(
-        environmentSheetSchema.parse(structured),
+        parseAssetSheet("environment", structured),
         artStyleBlock,
+        opts,
       );
     case "product":
       return renderProductSheet(
-        productSheetSchema.parse(structured),
+        parseAssetSheet("product", structured),
         artStyleBlock,
+        opts,
       );
     case "script":
       return renderScriptPrompt(scriptPromptSchema.parse(structured));
@@ -62,13 +64,10 @@ export function validateStructured(
   try {
     switch (type) {
       case "character":
-        return { ok: true, data: characterSheetSchema.parse(structured) };
       case "creature":
-        return { ok: true, data: creatureSheetSchema.parse(structured) };
       case "environment":
-        return { ok: true, data: environmentSheetSchema.parse(structured) };
       case "product":
-        return { ok: true, data: productSheetSchema.parse(structured) };
+        return { ok: true, data: parseAssetSheet(type, structured) };
       case "script":
         return { ok: true, data: scriptPromptSchema.parse(structured) };
       case "blockout":

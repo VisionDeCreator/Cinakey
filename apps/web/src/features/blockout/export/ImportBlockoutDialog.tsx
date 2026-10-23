@@ -3,7 +3,7 @@ import {
   normalizeImportedDocument,
   type BlockoutDocument,
 } from "@cinakey/shared";
-import { useAction } from "convex/react";
+import { useAction } from "@/lib/api/hooks";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {

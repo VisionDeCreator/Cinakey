@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { api } from "./_generated/api";
+import { api } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 describe("shots", () => {
@@ -17,9 +17,9 @@ describe("shots", () => {
 
     const listed = await asUser.query(api.shots.listByScene, { sceneId });
     expect(listed.length).toBeGreaterThanOrEqual(2);
-    expect(listed.every((s: { status: string }) => s.status === "planned")).toBe(
-      true,
-    );
+    expect(
+      listed.every((s: { status: string }) => s.status === "planned"),
+    ).toBe(true);
     expect(
       listed.every((s: { outdated: boolean }) => s.outdated === false),
     ).toBe(true);
@@ -36,7 +36,9 @@ describe("shots", () => {
     expect(updated?.durationSec).toBe(7);
     expect(updated?.notes).toBe("Hero beat");
 
-    const ids = listed.map((s: { _id: (typeof listed)[number]["_id"] }) => s._id);
+    const ids = listed.map(
+      (s: { _id: (typeof listed)[number]["_id"] }) => s._id,
+    );
     const reversed = [...ids].reverse();
     await asUser.mutation(api.shots.reorder, {
       sceneId,
@@ -166,9 +168,8 @@ describe("shots", () => {
     };
 
     await t.run(async (ctx) => {
-      const { materializeScriptWithPrevious } = await import(
-        "./lib/scriptMaterialize"
-      );
+      const { materializeScriptWithPrevious } =
+        await import("./lib/scriptMaterialize");
       await materializeScriptWithPrevious(ctx, {
         projectId: seeded.projectId,
         document: next,

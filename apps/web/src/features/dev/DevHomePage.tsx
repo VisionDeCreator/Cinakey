@@ -1,5 +1,5 @@
 import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";

@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { AssetLibrary } from "@/features/assets/AssetLibrary";
@@ -15,6 +15,11 @@ const KIND_LABEL: Record<string, string> = {
   prop: "product",
 };
 
+function imageFilesFromDataTransfer(dt: DataTransfer | null): File[] {
+  if (!dt) return [];
+  return Array.from(dt.files).filter((f) => f.type.startsWith("image/"));
+}
+
 export function CreativeAssetsPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -24,6 +29,7 @@ export function CreativeAssetsPage() {
   const ensureStyle = useMutation(api.entities.ensureStyle);
   const createEntity = useMutation(api.entities.create);
   const updateProject = useMutation(api.projects.update);
+  const lockReference = useAction(api.entities.lockReference);
   const { uploadFiles } = useAssetUpload(projectId);
 
   const entities = useQuery(
@@ -48,6 +54,10 @@ export function CreativeAssetsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [creating, setCreating] = useState(false);
   const [uploadingStyle, setUploadingStyle] = useState(false);
+  const [dropTarget, setDropTarget] = useState<"zone" | string | null>(null);
+  const [dropBusy, setDropBusy] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
+  const dragDepth = useRef(0);
 
   useEffect(() => {
     if (projectId) {
@@ -94,6 +104,93 @@ export function CreativeAssetsPage() {
     } finally {
       setUploadingStyle(false);
     }
+  };
+
+  const assignImageToEntity = async (entityId: string, files: File[]) => {
+    if (files.length === 0) return;
+    setDropBusy(true);
+    setDropError(null);
+    try {
+      const ids = await uploadFiles(files, {
+        entityId,
+        type: "image",
+      });
+      const assetId = ids[0];
+      if (assetId) {
+        await lockReference({
+          entityId: entityId as never,
+          assetId: assetId as never,
+          referenceSheet: true,
+        });
+      }
+    } catch (err) {
+      setDropError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDropBusy(false);
+      setDropTarget(null);
+    }
+  };
+
+  const createAssetFromDrop = async (files: File[]) => {
+    if (files.length === 0) return;
+    setDropBusy(true);
+    setDropError(null);
+    try {
+      const baseName = files[0]!.name.replace(/\.[^.]+$/, "").trim() || "New asset";
+      const entityId = await createEntity({
+        projectId: projectId as never,
+        kind: "character",
+        name: baseName,
+      });
+      const ids = await uploadFiles(files, {
+        entityId,
+        type: "image",
+      });
+      const assetId = ids[0];
+      if (assetId) {
+        await lockReference({
+          entityId: entityId as never,
+          assetId: assetId as never,
+          referenceSheet: true,
+        });
+      }
+    } catch (err) {
+      setDropError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDropBusy(false);
+      setDropTarget(null);
+    }
+  };
+
+  const onZoneDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth.current += 1;
+    if (imageFilesFromDataTransfer(e.dataTransfer).length > 0 || e.dataTransfer.types.includes("Files")) {
+      setDropTarget((cur) => (typeof cur === "string" ? cur : "zone"));
+    }
+  };
+
+  const onZoneDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDropTarget(null);
+  };
+
+  const onZoneDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const onZoneDrop = (e: DragEvent) => {
+    e.preventDefault();
+    dragDepth.current = 0;
+    const files = imageFilesFromDataTransfer(e.dataTransfer);
+    setDropTarget(null);
+    if (files.length === 0) {
+      setDropError("Drop image files only.");
+      return;
+    }
+    void createAssetFromDrop(files);
   };
 
   return (
@@ -180,27 +277,62 @@ export function CreativeAssetsPage() {
             </p>
           </div>
 
-          {creative.length === 0 ? (
-            <p className="text-sm text-zinc-500">No assets yet.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {creative.map((entity) => {
-                const tip = tipByEntity.get(entity._id);
-                const thumbId =
-                  entity.lockedReferenceAssetIds[0] ?? undefined;
-                return (
-                  <AssetCard
-                    key={entity._id}
-                    name={entity.name}
-                    kind={KIND_LABEL[entity.kind] ?? entity.kind}
-                    thumbId={thumbId}
-                    stale={tip?.status === "out_of_date"}
-                    href={`/projects/${projectId}/assets/${entity._id}`}
-                  />
-                );
-              })}
-            </div>
-          )}
+          {dropError ? (
+            <p className="text-[11px] text-red-300">{dropError}</p>
+          ) : null}
+          {dropBusy ? (
+            <p className="text-[11px] text-zinc-500">Uploading…</p>
+          ) : null}
+
+          <div
+            className={cn(
+              "min-h-48 rounded-sm border border-dashed p-2 transition-colors",
+              dropTarget === "zone"
+                ? "border-zinc-400 bg-zinc-900/60"
+                : "border-zinc-800",
+            )}
+            onDragEnter={onZoneDragEnter}
+            onDragLeave={onZoneDragLeave}
+            onDragOver={onZoneDragOver}
+            onDrop={onZoneDrop}
+          >
+            {creative.length === 0 ? (
+              <p className="px-2 py-8 text-center text-sm text-zinc-500">
+                No assets yet. Drop images here to create them.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {creative.map((entity) => {
+                  const tip = tipByEntity.get(entity._id);
+                  const thumbId =
+                    entity.lockedReferenceAssetIds[0] ?? undefined;
+                  return (
+                    <AssetCard
+                      key={entity._id}
+                      name={entity.name}
+                      kind={KIND_LABEL[entity.kind] ?? entity.kind}
+                      thumbId={thumbId}
+                      stale={tip?.status === "out_of_date"}
+                      href={`/projects/${projectId}/assets/${entity._id}`}
+                      dropActive={dropTarget === entity._id}
+                      onDragEnterCard={() => setDropTarget(entity._id)}
+                      onDragLeaveCard={() =>
+                        setDropTarget((cur) =>
+                          cur === entity._id ? "zone" : cur,
+                        )
+                      }
+                      onDropFiles={(files) => {
+                        void assignImageToEntity(entity._id, files);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 px-1 text-[10px] text-zinc-600">
+              Drop an image on a card to assign it, or onto empty space to create a new asset.
+            </p>
+          </div>
         </>
       )}
     </div>
@@ -213,12 +345,20 @@ function AssetCard({
   thumbId,
   stale,
   href,
+  dropActive,
+  onDragEnterCard,
+  onDragLeaveCard,
+  onDropFiles,
 }: {
   name: string;
   kind: string;
   thumbId?: string;
   stale?: boolean;
   href: string;
+  dropActive?: boolean;
+  onDragEnterCard?: () => void;
+  onDragLeaveCard?: () => void;
+  onDropFiles?: (files: File[]) => void;
 }) {
   const url = useQuery(
     api.storage.getAssetUrl,
@@ -227,14 +367,42 @@ function AssetCard({
   return (
     <Link
       to={href}
-      className="group overflow-hidden border border-zinc-800 bg-zinc-950 hover:border-zinc-600"
+      className={cn(
+        "group overflow-hidden border bg-zinc-950 hover:border-zinc-600",
+        dropActive ? "border-zinc-300 ring-1 ring-zinc-400" : "border-zinc-800",
+      )}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDragEnterCard?.();
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "copy";
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onDragLeaveCard?.();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = imageFilesFromDataTransfer(e.dataTransfer);
+        if (files.length > 0) onDropFiles?.(files);
+      }}
+      onClick={(e) => {
+        // Avoid navigating when a file drop just finished (browser may fire click).
+        if (dropActive) e.preventDefault();
+      }}
     >
       <div className="aspect-square bg-zinc-900">
         {url ? (
           <img src={url} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-zinc-700">
-            —
+            {dropActive ? "Drop" : "—"}
           </div>
         )}
       </div>

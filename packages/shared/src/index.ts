@@ -11,6 +11,7 @@ export type {
 export { ASSET_ALLOWED_MIME, ASSET_MAX_BYTES } from "./types";
 export type {
   BuildRequestInput,
+  ChatToolDefinition,
   CollectResult,
   CostModel,
   GenerationAdapter,
@@ -197,6 +198,7 @@ export {
   LENS_DEFAULTS_MM,
   PROMPT_TEMPLATE_VERSION,
   SCRIPT_IMAGE_QUALITY_DEFAULT,
+  STYLE_REFERENCE_PROMPT_PREFIX,
   assetSheetSchemaFor,
   blockoutDocumentToSheetShotPatch,
   blockoutSheetSchema,
@@ -210,6 +212,7 @@ export {
   deriveLocationDescription,
   environmentSheetSchema,
   normalizePromptText,
+  ensureStyleReferencePrefix,
   parseAssetSheet,
   productSheetSchema,
   renderBlockoutSheet,

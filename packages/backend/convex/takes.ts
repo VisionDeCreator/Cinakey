@@ -1,7 +1,3 @@
-/**
- * Takes: list, select, rate, attach proxy, purge rejected.
- */
-
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
@@ -27,12 +23,8 @@ export const listByShot = query({
         const proxy = take.proxyAssetId
           ? await ctx.db.get(take.proxyAssetId)
           : null;
-        const assetUrl = asset
-          ? await getFileUrl(ctx, asset.storageId)
-          : null;
-        const proxyUrl = proxy
-          ? await getFileUrl(ctx, proxy.storageId)
-          : null;
+        const assetUrl = asset ? await getFileUrl(ctx, asset.storageId) : null;
+        const proxyUrl = proxy ? await getFileUrl(ctx, proxy.storageId) : null;
         return {
           ...take,
           asset,
@@ -107,9 +99,7 @@ export const listSelectedForAssemble = query({
       .query("scenes")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    const sceneOrder = new Map(
-      scenes.map((s) => [s._id, s.order] as const),
-    );
+    const sceneOrder = new Map(scenes.map((s) => [s._id, s.order] as const));
     const shots = await ctx.db
       .query("shots")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -145,12 +135,8 @@ export const listSelectedForAssemble = query({
       const proxy = take.proxyAssetId
         ? await ctx.db.get(take.proxyAssetId)
         : null;
-      const assetUrl = asset
-        ? await getFileUrl(ctx, asset.storageId)
-        : null;
-      const proxyUrl = proxy
-        ? await getFileUrl(ctx, proxy.storageId)
-        : null;
+      const assetUrl = asset ? await getFileUrl(ctx, asset.storageId) : null;
+      const proxyUrl = proxy ? await getFileUrl(ctx, proxy.storageId) : null;
       out.push({
         shotId: shot._id,
         sceneId: shot.sceneId,
@@ -181,6 +167,7 @@ export const listSelectedForAssemble = query({
     return out;
   },
 });
+
 export const selectTake = mutation({
   args: { takeId: v.id("takes") },
   handler: async (ctx, args) => {

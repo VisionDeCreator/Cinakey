@@ -1,7 +1,3 @@
-/**
- * Protected staff tools (isStaff). Full admin RBAC is phase 2.
- */
-
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -12,10 +8,7 @@ import {
 } from "./_generated/server";
 import { requireStaff } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
-import {
-  appendLedgerEntry,
-  getWorkspaceBalance,
-} from "./credits";
+import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
@@ -241,8 +234,7 @@ export const providerHealth = query({
       results.push({
         model,
         sampleSize: terminal.length,
-        successRate:
-          terminal.length === 0 ? null : succeeded / terminal.length,
+        successRate: terminal.length === 0 ? null : succeeded / terminal.length,
         latencyP50Ms: p50,
         latencyP95Ms: p95,
       });
@@ -278,10 +270,7 @@ export const monthlyEgress = query({
       total += e.bytes;
       byUser.set(e.userId, (byUser.get(e.userId) ?? 0) + e.bytes);
       if (e.projectId !== undefined) {
-        byProject.set(
-          e.projectId,
-          (byProject.get(e.projectId) ?? 0) + e.bytes,
-        );
+        byProject.set(e.projectId, (byProject.get(e.projectId) ?? 0) + e.bytes);
       }
     }
 

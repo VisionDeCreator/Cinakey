@@ -1,10 +1,11 @@
 import { api } from "@cinakey/backend";
 import { COST_CONFIRM_THRESHOLD_CREDITS } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ConfirmProvider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,9 +46,9 @@ export function VideoPage() {
   const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [usePrevizRef, setUsePrevizRef] = useState(false);
+  const confirm = useConfirm();
 
   const startSequence = useAction(api.shotGeneration.startSequenceGeneration);
   const startUpscale = useAction(api.shotGeneration.startMasterUpscale);
@@ -112,7 +113,6 @@ export function VideoPage() {
     if (!active || busy || overCap) return;
     setBusy(true);
     setError(null);
-    setConfirmOpen(false);
     try {
       await startSequence({
         sequenceId: active.sequenceId as never,
@@ -125,10 +125,15 @@ export function VideoPage() {
     }
   }
 
-  function onGenerateClick() {
+  async function onGenerateClick() {
+    if (busy || overCap) return;
     if (credits >= COST_CONFIRM_THRESHOLD_CREDITS) {
-      setConfirmOpen(true);
-      return;
+      const ok = await confirm({
+        title: "Generate video",
+        description: `This run costs about ${credits} credits. Continue?`,
+        confirmLabel: "Generate",
+      });
+      if (!ok) return;
     }
     void runGenerate();
   }
@@ -155,15 +160,15 @@ export function VideoPage() {
 
   async function onDelete(assetId: string, chosen: boolean) {
     if (!active) return;
-    if (
-      !window.confirm(
-        chosen
-          ? "Delete the chosen video? Edit will need a new choice."
-          : "Delete this video?",
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Delete video",
+      description: chosen
+        ? "Delete the chosen video? Edit will need a new choice."
+        : "Delete this video?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await deleteMaster({
         sequenceId: active.sequenceId as never,
@@ -265,7 +270,7 @@ export function VideoPage() {
         <Button
           type="button"
           disabled={busy || overCap || !active}
-          onClick={onGenerateClick}
+          onClick={() => void onGenerateClick()}
         >
           {busy ? "Starting…" : `Generate video · ${credits} cr`}
         </Button>
@@ -410,32 +415,6 @@ export function VideoPage() {
                 className="aspect-video w-full bg-zinc-950"
               />
             ))}
-          </div>
-        </div>
-      ) : null}
-
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm space-y-4 border border-zinc-700 bg-zinc-950 p-4">
-            <p className="text-sm text-zinc-200">
-              This run costs about {credits} credits. Continue?
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setConfirmOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={() => void runGenerate()}
-              >
-                Generate
-              </Button>
-            </div>
           </div>
         </div>
       ) : null}

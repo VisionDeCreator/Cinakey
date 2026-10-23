@@ -6,7 +6,11 @@ import type {
   ProviderRequest,
   SubmitResult,
 } from "@cinakey/shared";
-import { estimateImageCost, estimateTokenCost, estimateVideoCost } from "./cost";
+import {
+  estimateImageCost,
+  estimateTokenCost,
+  estimateVideoCost,
+} from "./cost";
 import { SAMPLE_MP4_BASE64 } from "./mockVideo";
 
 /** 1x1 PNG (transparent) as base64 for mock image outputs. */
@@ -33,9 +37,7 @@ function sleep(ms: number): Promise<void> {
  * Mock adapter used when USE_MOCK_ADAPTERS=true.
  * Same capability shapes as real adapters, but returns sample outputs after a delay.
  */
-export function createMockAdapter(
-  base: GenerationAdapter,
-): GenerationAdapter {
+export function createMockAdapter(base: GenerationAdapter): GenerationAdapter {
   const costModel = base.capabilities.costModel;
   return {
     capabilities: {
@@ -167,8 +169,7 @@ export function createMockAdapter(
     },
     isTransientError(err) {
       return (
-        err instanceof Error &&
-        err.message.toLowerCase().includes("transient")
+        err instanceof Error && err.message.toLowerCase().includes("transient")
       );
     },
   };

@@ -1,6 +1,6 @@
 import { api } from "@cinakey/backend";
 import type { PipelineProgress } from "@cinakey/shared";
-import { useMutation } from "convex/react";
+import { useMutation } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

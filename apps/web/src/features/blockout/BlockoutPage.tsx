@@ -1,18 +1,9 @@
 import { api } from "@cinakey/backend";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useConfirm } from "@/components/ConfirmProvider";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,6 +23,7 @@ import { cn } from "@/lib/utils";
 export function BlockoutPage() {
   const { projectId } = useParams();
   const { setContext } = useCopilotContext();
+  const confirm = useConfirm();
   const parts = useQuery(
     api.promptSheets.listScriptParts,
     projectId ? { projectId: projectId as never } : "skip",
@@ -51,7 +43,6 @@ export function BlockoutPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [statusLine, setStatusLine] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +213,18 @@ export function BlockoutPage() {
               size="sm"
               variant="outline"
               disabled={updating}
-              onClick={() => setConfirmRegenerate(true)}
+              onClick={() => {
+                void (async () => {
+                  const ok = await confirm({
+                    title: "Regenerate blockout and pre-viz?",
+                    description: `Restages every shot from the script${
+                      costLabel ? ` (${costLabel.slice(3)})` : ""
+                    }. Edits made in the 3D editor are replaced.`,
+                    confirmLabel: "Regenerate",
+                  });
+                  if (ok) void onUpdate(true);
+                })();
+              }}
             >
               <RefreshCw
                 className={cn("h-3.5 w-3.5", updating && "animate-spin")}
@@ -355,27 +357,6 @@ export function BlockoutPage() {
           </div>
         )}
       </div>
-
-      <AlertDialog open={confirmRegenerate} onOpenChange={setConfirmRegenerate}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Regenerate blockout and pre-viz?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Restages every shot from the script
-              {costLabel ? ` (${costLabel.slice(3)})` : ""}. Edits made in the
-              3D editor are replaced.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void onUpdate(true)}>
-              Regenerate
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {exportOpen ? (
         <ExportDialog

@@ -17,6 +17,22 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "@cinakey/shared#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@cinakey/backend#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@cinakey/api#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@cinakey/worker#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }

@@ -1,7 +1,4 @@
-/**
- * User profile, notification prefs, and account deletion.
- */
-
+import { enqueueTask } from "./tasks";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -88,7 +85,7 @@ export const deleteAccount = mutation({
       reason: "User requested account deletion",
     });
 
-    await ctx.scheduler.runAfter(0, internal.users.purgeUserData, {
+    await enqueueTask(ctx, 0, internal.users.purgeUserData, {
       userId: user._id,
     });
 

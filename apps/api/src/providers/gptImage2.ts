@@ -1,3 +1,4 @@
+import { safeErrorMessage } from "./errors";
 import type {
   BuildRequestInput,
   CollectResult,
@@ -6,7 +7,8 @@ import type {
   ProviderRequest,
   SubmitResult,
 } from "@cinakey/shared";
-import { convexEnv } from "../lib/env";
+import { requireProviderKey } from "../config/env";
+import { providerFetch, fetchMedia } from "./transport";
 import { estimateImageCost, isDefaultTransientError } from "./cost";
 
 const COST = { unit: "per_image", creditsPerUnit: 10 } as const;
@@ -23,11 +25,7 @@ const inlineResults = new Map<
 >();
 
 function requireApiKey(): string {
-  const key = convexEnv("OPENAI_API_KEY");
-  if (!key) {
-    throw new Error("OPENAI_API_KEY is not set");
-  }
-  return key;
+  return requireProviderKey("openai");
 }
 
 /**
@@ -81,16 +79,18 @@ export const gptImage2Adapter: GenerationAdapter = {
         form.append("prompt", String(request.prompt ?? ""));
         const refs = (request.referenceImageUrls as string[] | undefined) ?? [];
         if (refs.length === 0) {
-          throw new Error("image-edit requires at least one reference image URL");
+          throw new Error(
+            "image-edit requires at least one reference image URL",
+          );
         }
-        const imgRes = await fetch(refs[0]!);
+        const imgRes = await fetchMedia(refs[0]!);
         if (!imgRes.ok) {
           throw new Error(`Failed to fetch reference image: ${imgRes.status}`);
         }
         const imgBlob = await imgRes.blob();
         form.append("image", imgBlob, "reference.png");
         if (typeof request.maskUrl === "string" && request.maskUrl) {
-          const maskRes = await fetch(request.maskUrl);
+          const maskRes = await fetchMedia(request.maskUrl);
           if (!maskRes.ok) {
             throw new Error(`Failed to fetch mask: ${maskRes.status}`);
           }
@@ -98,15 +98,16 @@ export const gptImage2Adapter: GenerationAdapter = {
         }
         form.append("size", String(request.size ?? "1024x1024"));
 
-        const res = await fetch("https://api.openai.com/v1/images/edits", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}` },
-          body: form,
-        });
-        if (!res.ok) {
-          const body = await res.text();
-          throw new Error(`OpenAI images/edits ${res.status}: ${body}`);
-        }
+        const res = await providerFetch(
+          "openai",
+          "https://api.openai.com/v1/images/edits",
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}` },
+            body: form,
+          },
+        );
+
         const data = (await res.json()) as {
           data?: Array<{ b64_json?: string; url?: string }>;
         };
@@ -128,22 +129,23 @@ export const gptImage2Adapter: GenerationAdapter = {
 
       // text-to-image
       // gpt-image-1 does not use DALL·E's response_format; return url or b64_json.
-      const res = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
+      const res = await providerFetch(
+        "openai",
+        "https://api.openai.com/v1/images/generations",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: request.model ?? "gpt-image-1",
+            prompt: request.prompt,
+            size: request.size ?? "1024x1024",
+          }),
         },
-        body: JSON.stringify({
-          model: request.model ?? "gpt-image-1",
-          prompt: request.prompt,
-          size: request.size ?? "1024x1024",
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`OpenAI images/generations ${res.status}: ${body}`);
-      }
+      );
+
       const data = (await res.json()) as {
         data?: Array<{ b64_json?: string; url?: string }>;
       };
@@ -167,7 +169,7 @@ export const gptImage2Adapter: GenerationAdapter = {
     } catch (err) {
       inlineResults.set(providerJobId, {
         status: "failed",
-        error: err instanceof Error ? err.message : String(err),
+        error: safeErrorMessage(err),
         outputs: [],
       });
       throw err;

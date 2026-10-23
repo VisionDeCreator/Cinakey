@@ -1,9 +1,3 @@
-/**
- * Workspace credit ledger — append-only.
- * Balance = latest balanceAfter for the workspace (0 if no entries).
- * Mutations reject any write that would make balanceAfter < 0.
- */
-
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
@@ -37,6 +31,17 @@ export async function appendLedgerEntry(
     reason: LedgerReason;
   },
 ): Promise<{ balanceAfter: number; entryId: Id<"creditLedger"> }> {
+  if (args.jobId && (args.reason === "settle" || args.reason === "refund")) {
+    const terminal = await ctx.db
+      .query("creditLedger")
+      .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
+      .collect();
+    const existing = terminal.find(
+      (entry) => entry.reason === "settle" || entry.reason === "refund",
+    );
+    if (existing)
+      return { balanceAfter: existing.balanceAfter, entryId: existing._id };
+  }
   const prev = await getWorkspaceBalance(ctx, args.workspaceId);
   const balanceAfter = prev + args.delta;
   if (balanceAfter < 0) {
