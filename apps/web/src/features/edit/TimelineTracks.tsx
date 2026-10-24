@@ -1,6 +1,14 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  MEDIA_DRAG_TYPE,
+  MEDIA_POINTER_EVENT,
+  type MediaPointerDetail,
+  readDraggedAsset,
+} from "./mediaDrag";
 import { ClipMedia } from "./media/ClipMedia";
 import type { EditorMedia } from "./media/EditorMedia";
 import type { MediaUrlMap } from "./mediaUrls";
+import { snapTime } from "@cinakey/shared";
 import type {
   TimelineClip,
   TimelineDocument,
@@ -33,6 +41,12 @@ type Props = {
   onTrim: (clipId: string, edge: "in" | "out", timelineEdgeSec: number) => void;
   onRoll: (leftClipId: string, cutSec: number) => void;
   onZoom: (pxPerSec: number) => void;
+  onDropMedia?: (
+    assetId: string | null,
+    files: File[],
+    startSec: number,
+    trackId: string,
+  ) => void;
 };
 
 export function TimelineTracks({
@@ -50,40 +64,138 @@ export function TimelineTracks({
   onTrim,
   onRoll,
   onZoom,
+  onDropMedia,
 }: Props) {
-  const width = Math.max(800, (doc.durationSec + 5) * pxPerSec);
+  const scroller = useRef<HTMLDivElement>(null);
+  const [drop, setDrop] = useState<{ trackId: string; time: number } | null>(
+    null,
+  );
+  const [viewportWidth, setViewportWidth] = useState(0);
+  const fitted = useRef(false);
+  useEffect(() => {
+    const element = scroller.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() =>
+      setViewportWidth(element.clientWidth),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!fitted.current && doc.durationSec > 0 && viewportWidth > 0) {
+      fitted.current = true;
+      onZoom(
+        Math.max(2, Math.min(200, (viewportWidth - 140) / doc.durationSec)),
+      );
+    }
+  }, [doc.durationSec, viewportWidth, onZoom]);
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const detail = (event as CustomEvent<MediaPointerDetail>).detail;
+      const lane = document
+        .elementFromPoint(detail.x, detail.y)
+        ?.closest<HTMLElement>("[data-track-id]");
+      if (
+        detail.phase === "cancel" ||
+        !lane ||
+        !scroller.current?.contains(lane) ||
+        !onDropMedia
+      ) {
+        setDrop(null);
+        return;
+      }
+      const track = doc.tracks.find(
+        (track) => track.id === lane.dataset.trackId,
+      );
+      if (!track || track.kind === "titles") {
+        setDrop(null);
+        return;
+      }
+      const time = Math.max(
+        0,
+        (detail.x - lane.getBoundingClientRect().left) / pxPerSec,
+      );
+      const snapped =
+        Math.round(
+          snapTime(doc, time, playheadSec, 8 / pxPerSec) * doc.project.fps,
+        ) / doc.project.fps;
+      if (detail.phase === "drop") {
+        setDrop(null);
+        onDropMedia(detail.assetId, [], snapped, track.id);
+      } else setDrop({ trackId: track.id, time: snapped });
+    };
+    window.addEventListener(MEDIA_POINTER_EVENT, receive);
+    return () => window.removeEventListener(MEDIA_POINTER_EVENT, receive);
+  }, [doc, onDropMedia, pxPerSec, playheadSec]);
+  const width = Math.max(
+    800,
+    viewportWidth - 120,
+    (doc.durationSec + 5) * pxPerSec,
+  );
   const trackH = 40;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col border-t border-zinc-800 bg-zinc-950">
-      <div className="flex items-center gap-3 border-b border-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
         <label className="flex items-center gap-2">
           Zoom
           <input
             type="range"
-            min={20}
+            min={2}
             max={200}
             value={pxPerSec}
             onChange={(e) => onZoom(Number(e.target.value))}
             className="w-28"
           />
         </label>
+        <button
+          type="button"
+          onClick={() => {
+            onZoom(
+              Math.max(
+                2,
+                Math.min(
+                  200,
+                  ((scroller.current?.clientWidth ?? 920) - 140) /
+                    Math.max(1, doc.durationSec),
+                ),
+              ),
+            );
+            if (scroller.current) scroller.current.scrollLeft = 0;
+          }}
+        >
+          Fit timeline
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (scroller.current)
+              scroller.current.scrollLeft = Math.max(
+                0,
+                playheadSec * pxPerSec - 160,
+              );
+          }}
+        >
+          Show playhead
+        </button>
         <span className="text-zinc-600">
           Trim: {trimMode === "ripple" ? "Ripple" : "Roll"} (R to toggle)
         </span>
       </div>
       <div
+        ref={scroller}
         className="relative min-h-0 flex-1 overflow-auto"
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            const next = clamp(pxPerSec * (e.deltaY > 0 ? 0.9 : 1.1), 20, 200);
+            const next = clamp(pxPerSec * (e.deltaY > 0 ? 0.9 : 1.1), 2, 200);
             onZoom(next);
           }
         }}
       >
         <div className="flex" style={{ minWidth: width + 120 }}>
           <div className="sticky left-0 z-20 w-[120px] shrink-0 border-r border-zinc-800 bg-zinc-950">
+            <div className="studio-ruler-label">Tracks</div>
             {doc.tracks.map((track) => (
               <div
                 key={track.id}
@@ -121,6 +233,26 @@ export function TimelineTracks({
               onSelectClip(null);
             }}
           >
+            <div className="studio-time-ruler" aria-label="Timeline time ruler">
+              {Array.from(
+                {
+                  length:
+                    Math.ceil(
+                      (doc.durationSec + 5) /
+                        Math.max(1, Math.ceil(70 / pxPerSec)),
+                    ) + 1,
+                },
+                (_, i) => {
+                  const time = i * Math.max(1, Math.ceil(70 / pxPerSec));
+                  return (
+                    <span key={i} style={{ left: time * pxPerSec }}>
+                      {Math.floor(time / 60)}:
+                      {String(time % 60).padStart(2, "0")}
+                    </span>
+                  );
+                },
+              )}
+            </div>
             {/* Ruler ticks */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-0">
               {Array.from(
@@ -141,7 +273,76 @@ export function TimelineTracks({
                 className="relative border-b border-zinc-900"
                 style={{ height: trackH }}
                 data-track-id={track.id}
+                onDragOver={(event) => {
+                  if (
+                    !onDropMedia ||
+                    track.kind === "titles" ||
+                    !event.dataTransfer.types.some(
+                      (type) => type === MEDIA_DRAG_TYPE || type === "Files",
+                    )
+                  )
+                    return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "copy";
+                  const time = Math.max(
+                    0,
+                    (event.clientX -
+                      event.currentTarget.getBoundingClientRect().left) /
+                      pxPerSec,
+                  );
+                  setDrop({
+                    trackId: track.id,
+                    time:
+                      Math.round(
+                        snapTime(doc, time, playheadSec, 8 / pxPerSec) *
+                          doc.project.fps,
+                      ) / doc.project.fps,
+                  });
+                }}
+                onDragLeave={(event) => {
+                  if (
+                    !event.currentTarget.contains(
+                      event.relatedTarget as Node | null,
+                    )
+                  )
+                    setDrop(null);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const time = Math.max(
+                    0,
+                    (event.clientX -
+                      event.currentTarget.getBoundingClientRect().left) /
+                      pxPerSec,
+                  );
+                  onDropMedia?.(
+                    readDraggedAsset(event.dataTransfer),
+                    Array.from(event.dataTransfer.files),
+                    Math.round(
+                      snapTime(doc, time, playheadSec, 8 / pxPerSec) *
+                        doc.project.fps,
+                    ) / doc.project.fps,
+                    track.id,
+                  );
+                  setDrop(null);
+                }}
               >
+                {drop?.trackId === track.id && (
+                  <div
+                    className="studio-drop-marker"
+                    style={{ left: drop.time * pxPerSec }}
+                  >
+                    <span>Drop at {drop.time.toFixed(2)}s</span>
+                  </div>
+                )}
+                {track.clips.length === 0 && (
+                  <span className="studio-empty-lane">
+                    {track.kind === "titles"
+                      ? "Add titles from the toolbar"
+                      : "Drop media here"}
+                  </span>
+                )}
                 {track.clips.map((clip) => (
                   <ClipBlock
                     key={clip.id}
@@ -169,7 +370,7 @@ export function TimelineTracks({
 
             {/* Playhead */}
             <div
-              className="pointer-events-none absolute top-0 z-10 w-px bg-red-500"
+              className="pointer-events-none absolute top-[24px] z-10 w-px bg-red-500"
               style={{
                 left: playheadSec * pxPerSec,
                 height: doc.tracks.length * trackH,

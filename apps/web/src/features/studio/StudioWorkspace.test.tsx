@@ -113,3 +113,58 @@ it("offers playback recovery instead of leaving a blank viewer", () => {
   fireEvent.click(screen.getByRole("button", { name: "Retry preview" }));
   expect(screen.getByLabelText("Camera")).toBeInTheDocument();
 });
+
+it("collapses each panel, supports keyboard resizing, and restores the saved layout", () => {
+  const store = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => store.set(key, value),
+  });
+  const workspace = () =>
+    render(
+      <MemoryRouter initialEntries={["/projects/p/studio"]}>
+        <Routes>
+          <Route
+            path="/projects/:projectId/studio"
+            element={
+              <StudioWorkspace
+                toolbar={<div />}
+                viewer={<canvas />}
+                timeline={<div />}
+                inspector={<div />}
+                selectedClip={null}
+                onInsert={vi.fn()}
+                onPreview={vi.fn()}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+  const first = workspace();
+  const divider = screen.getByRole("separator", { name: "Resize library" });
+  fireEvent.keyDown(divider, { key: "ArrowRight" });
+  expect(divider).toHaveAttribute("aria-valuenow", "230");
+  for (const name of ["Library", "Inspector", "Generations", "Timeline"])
+    fireEvent.click(screen.getByRole("button", { name }));
+  expect(
+    screen.queryByRole("region", { name: "Project timeline" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("complementary", { name: "Scenes and project library" }),
+  ).not.toBeInTheDocument();
+  first.unmount();
+  workspace();
+  expect(screen.getByRole("button", { name: "Library" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Library" }));
+  expect(
+    screen.getByRole("separator", { name: "Resize library" }),
+  ).toHaveAttribute("aria-valuenow", "230");
+  fireEvent.click(screen.getByRole("button", { name: "Reset layout" }));
+  expect(
+    screen.getByRole("separator", { name: "Resize library" }),
+  ).toHaveAttribute("aria-valuenow", "210");
+});

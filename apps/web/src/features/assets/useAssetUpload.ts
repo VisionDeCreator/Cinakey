@@ -22,6 +22,11 @@ export type UploadOptions = {
   tags?: string[];
   /** Override inferred asset type (e.g. music vs audio). */
   type?: AssetType;
+  onCreated?: (asset: {
+    assetId: string;
+    type: AssetType;
+    durationSec?: number;
+  }) => void;
 };
 
 function inferType(file: File): AssetType | null {
@@ -188,6 +193,11 @@ export function useAssetUpload(projectId: string | undefined) {
             tags: options?.tags,
           });
           createdIds.push(assetId);
+          options?.onCreated?.({
+            assetId,
+            type,
+            durationSec: metadata.durationSec,
+          });
 
           setUploads((prev) =>
             prev.map((u) =>

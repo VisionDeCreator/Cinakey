@@ -16,7 +16,20 @@ provider accepts one video reference per run. Existing generated footage keeps
 its input snapshot and is never replaced when a reference changes.
 
 Preview generations independently of the edit, mark a source range, and use
-**Add to timeline** to insert it. All project videos, including older footage
+**Add to timeline** to insert it. Drag library media or a generation onto a timeline
+lane, or drop local files onto a lane to upload and insert them. Insertions split
+footage at the drop point and shift later clips on the destination lane; other
+lanes keep their timing. One undo restores the previous edit. Scenes are optional
+for imports and editing; scene, sequence and shot records still support script,
+staging and AI generation workflows.
+
+Resize the library, inspector and timeline using their dividers (arrow keys also
+work; double-click resets the size). Panel buttons collapse the library,
+inspector, generations and timeline, and the layout is remembered in this browser.
+The ruler, **Fit timeline** and **Show playhead** help locate footage. Preview
+messages distinguish loading, an empty edit, gaps and unavailable source media.
+
+All project videos, including older footage
 without a script association, remain visible. Audio tracks can be muted, source
 audio detached, and music imported separately; separating music from effects
 baked into one soundtrack is not supported.

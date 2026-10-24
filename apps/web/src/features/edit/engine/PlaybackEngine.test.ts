@@ -19,6 +19,9 @@ vi.mock("./Compositor", () => ({
 vi.mock("./MediaCache", () => ({
   MediaCache: class {
     ensure = state.ensure;
+    get() {
+      return undefined;
+    }
     setAudioContext() {}
     dispose() {}
   },
@@ -146,5 +149,59 @@ it("applies audio changes during playback without interrupting the picture", asy
     engine.cache,
   );
   expect(engine.isPlaying()).toBe(true);
+  engine.dispose();
+});
+
+it("reports missing source media rather than leaving an unexplained black preview, and recovers after relinking", async () => {
+  const engine = new PlaybackEngine(document.createElement("canvas"));
+  const statuses: Array<{ error?: string }> = [];
+  engine.subscribe((status) => statuses.push(status));
+  const doc = assembleFromShotList({
+    project: { id: "p", aspectRatio: "16:9", fps: 24 },
+    shots: [
+      {
+        shotId: "s",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 5,
+        take: { takeId: "t", assetId: "a" },
+      },
+    ],
+  });
+  engine.setDocument(doc, {});
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  expect(statuses.at(-1)?.error).toContain("source asset is unavailable");
+  state.ensure.mockResolvedValue({
+    canvasSink: { getCanvas: async () => ({ canvas: {} }) },
+  });
+  engine.setDocument(doc, { a: { url: "https://fixture.test/video.mp4" } });
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+  expect(statuses.at(-1)?.error).toBeUndefined();
+  engine.dispose();
+});
+
+it("replays from the beginning after reaching the end", async () => {
+  state.ensure.mockResolvedValue({
+    canvasSink: { getCanvas: async () => ({ canvas: {} }) },
+  });
+  state.schedule.mockResolvedValue(undefined);
+  const engine = new PlaybackEngine(document.createElement("canvas"));
+  const doc = assembleFromShotList({
+    project: { id: "p", aspectRatio: "16:9", fps: 24 },
+    shots: [
+      {
+        shotId: "s",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 5,
+        take: { takeId: "t", assetId: "a" },
+      },
+    ],
+  });
+  engine.setDocument(doc, { a: { url: "https://fixture.test/video.mp4" } });
+  engine.seek(5);
+  await engine.play();
+  expect(engine.isPlaying()).toBe(true);
+  expect(engine.getCurrentSec()).toBeLessThan(0.25);
   engine.dispose();
 });

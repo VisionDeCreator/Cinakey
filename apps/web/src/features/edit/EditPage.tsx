@@ -19,7 +19,6 @@ import {
   type AssembleDialogueLine,
   type TimelineClip,
   type TimelineDocument,
-  type TrackKind,
 } from "@cinakey/shared";
 import { useAction, useQuery } from "@/lib/api/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,6 +27,9 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { ClipInspector } from "@/features/edit/ClipInspector";
 import { ExportDialog } from "@/features/edit/ExportDialog";
+import { useAssetUpload } from "@/features/assets/useAssetUpload";
+import { insertMedia, resolveMediaDuration } from "./insertMedia";
+import type { StudioInsert } from "@/features/studio/StudioWorkspace";
 import { StudioWorkspace } from "@/features/studio/StudioWorkspace";
 import { PlaybackEngine } from "@/features/edit/engine/PlaybackEngine";
 import { formatTimecode, type MediaUrlMap } from "@/features/edit/mediaUrls";
@@ -75,6 +77,12 @@ function ProjectEditor() {
   const saveTimeline = useAction(api.timelineVersions.save);
 
   const confirm = useConfirm();
+  const { uploadFiles, uploads } = useAssetUpload(projectId);
+  const [dropBusy, setDropBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [previewRetry, setPreviewRetry] = useState(0);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const [history, setHistory] = useState<TimelineHistoryState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,6 +100,7 @@ function ProjectEditor() {
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
     null,
   );
+  const pendingSeek = useRef<number | null>(null);
   const engineCanvas = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<PlaybackEngine | null>(null);
   const tipIdRef = useRef<string | null>(null);
@@ -199,6 +208,7 @@ function ProjectEditor() {
       let next =
         result.document ??
         createEmptyTimeline({ id: projectId, aspectRatio, fps: projectFps });
+      next = recomputeTimelineDuration(next);
       lastSavedHash.current = documentHash(next);
       tipIdRef.current = result.version?._id ?? null;
       let recovered = false;
@@ -274,19 +284,32 @@ function ProjectEditor() {
     if (!canvas || !doc) return;
     if (!engineRef.current || engineCanvas.current !== canvas) {
       engineRef.current?.dispose();
+      engineRef.current = null;
       engineCanvas.current = canvas;
-      engineRef.current = new PlaybackEngine(canvas);
+      try {
+        engineRef.current = new PlaybackEngine(canvas);
+      } catch (error) {
+        setPreviewError(
+          error instanceof Error ? error.message : "Preview could not start",
+        );
+        return;
+      }
       engineRef.current.subscribe((s) => {
         setPlayheadSec(s.currentSec);
         setPlaying(s.playing);
-        if (s.error) setLoadError(`Preview: ${s.error}`);
+        setPreviewError(s.error ?? null);
+        setPreviewLoading(s.loading ?? false);
       });
     }
     engineRef.current.setDocument(doc, playbackUrls);
+    if (pendingSeek.current !== null) {
+      engineRef.current.seek(pendingSeek.current);
+      pendingSeek.current = null;
+    }
     return () => {
       /* keep engine across doc updates */
     };
-  }, [canvasElement, doc, playbackUrls]);
+  }, [canvasElement, doc, playbackUrls, previewRetry]);
 
   useEffect(() => {
     return () => {
@@ -558,6 +581,113 @@ function ProjectEditor() {
         <Button onClick={() => void load()}>Retry loading</Button>
       </div>
     );
+  function insert(media: StudioInsert) {
+    if (!doc) return;
+    try {
+      // Compute once so undo/redo retains stable clip identifiers.
+      const result = insertMedia(doc, media, playheadSec);
+      apply(() => result.doc);
+      setSelectedClipId(result.id);
+      setPlayheadSec(result.startSec);
+      pendingSeek.current = result.startSec;
+      setEditError(null);
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "Could not insert media",
+      );
+    }
+  }
+  async function dropMedia(
+    assetId: string | null,
+    files: File[],
+    time: number,
+    trackId: string,
+  ) {
+    if (dropBusy || !doc) return;
+    setDropBusy(true);
+    setEditError(null);
+    try {
+      const pending: StudioInsert[] = [];
+      if (files.length) {
+        await uploadFiles(files, {
+          onCreated: (asset) =>
+            pending.push({
+              ...asset,
+              durationSec:
+                asset.durationSec ??
+                (asset.type === "image" || asset.type === "logo" ? 3 : 0),
+              inSec: 0,
+              outSec:
+                asset.durationSec ??
+                (asset.type === "image" || asset.type === "logo" ? 3 : 0),
+            }),
+        });
+      } else {
+        const asset = assets?.find((asset) => asset._id === assetId);
+        if (
+          !asset ||
+          !["video", "image", "audio", "music"].includes(asset.type)
+        )
+          throw new Error(
+            "Choose a video, image, or audio asset from this project.",
+          );
+        const duration =
+          asset.durationSec ??
+          (asset.type === "image"
+            ? 3
+            : await resolveMediaDuration(
+                mergedUrls[asset._id]?.url ?? "",
+                asset.type,
+              ));
+        pending.push({
+          assetId: asset._id,
+          type: asset.type,
+          durationSec: duration,
+          inSec: 0,
+          outSec: duration,
+        });
+      }
+      if (!pending.length)
+        throw new Error(
+          "No supported media was uploaded. Check the upload messages.",
+        );
+      if (
+        pending.some(
+          (media) =>
+            !Number.isFinite(media.durationSec) || media.durationSec <= 0,
+        )
+      )
+        throw new Error(
+          "Files were imported, but their duration could not be read. Preview them in the library before adding them.",
+        );
+      const clipIds = pending.map(() => newTimelineId("clip"));
+      // Apply against the latest document: uploads must never replace intervening edits.
+      apply((current) => {
+        let next = current;
+        let startSec = time;
+        for (const [index, media] of pending.entries()) {
+          const result = insertMedia(
+            next,
+            { ...media, startSec, trackId },
+            time,
+            clipIds[index],
+          );
+          next = result.doc;
+          startSec += media.durationSec;
+        }
+        return next;
+      });
+      setSelectedClipId(clipIds[0] ?? null);
+      setPlayheadSec(time);
+      pendingSeek.current = time;
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "Could not drop media",
+      );
+    } finally {
+      setDropBusy(false);
+    }
+  }
   if (project === undefined || history === null) {
     return <p className="text-sm text-zinc-500">Loading editor…</p>;
   }
@@ -603,34 +733,33 @@ function ProjectEditor() {
           {loadError}
         </p>
       )}
+      {editError && (
+        <p role="alert" className="studio-error">
+          {editError}
+        </p>
+      )}
+      {dropBusy && (
+        <p role="status" className="studio-notice">
+          Preparing dropped media… You can continue editing.
+        </p>
+      )}
+      {uploads
+        .filter((upload) => upload.status !== "done")
+        .map((upload) => (
+          <p
+            key={upload.id}
+            role={upload.status === "error" ? "alert" : "status"}
+          >
+            {upload.name}: {upload.error ?? `${upload.progress}%`}
+          </p>
+        ))}
       <StudioWorkspace
         selectedClip={selectedClip}
+        hasTimelineClips={Boolean(
+          doc?.tracks.some((track) => track.clips.length),
+        )}
         onPreview={() => engineRef.current?.pause()}
-        onInsert={(media) => {
-          const kind: TrackKind =
-            media.type === "music"
-              ? "music"
-              : media.type === "audio"
-                ? "sfx"
-                : "video";
-          const track = doc?.tracks.find((t) => t.kind === kind);
-          if (!track) return;
-          const id = newTimelineId("clip");
-          apply((d) =>
-            addClip(d, track.id, {
-              id,
-              startSec: playheadSec,
-              durationSec: media.durationSec,
-              inSec: media.inSec,
-              outSec: media.outSec,
-              speed: 1,
-              source: { type: "asset", assetId: media.assetId },
-              volume: 1,
-              linkedShotId: media.shotId,
-            }),
-          );
-          setSelectedClipId(id);
-        }}
+        onInsert={insert}
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
             <div className="flex items-center gap-3">
@@ -653,6 +782,7 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={!doc || doc.durationSec <= 0}
                 onClick={() => engineRef.current?.toggle()}
               >
                 {playing ? "Pause" : "Play"}
@@ -780,19 +910,83 @@ function ProjectEditor() {
           </div>
         }
         viewer={
-          <canvas ref={setCanvasElement} aria-label="Timeline video preview" />
+          <>
+            <canvas
+              ref={setCanvasElement}
+              aria-label="Timeline video preview"
+            />
+            {(() => {
+              const hasClips = doc?.tracks.some((track) => track.clips.length);
+              const visible = doc?.tracks.some(
+                (track) =>
+                  !track.muted &&
+                  ["video", "titles"].includes(track.kind) &&
+                  track.clips.some(
+                    (clip) =>
+                      playheadSec >= clip.startSec &&
+                      playheadSec < clip.startSec + clip.durationSec,
+                  ),
+              );
+              const message = previewError
+                ? `Preview unavailable: ${previewError}`
+                : previewLoading
+                  ? "Loading preview…"
+                  : !hasClips
+                    ? "Drag videos here onto the timeline to start editing. No scene needed."
+                    : !visible
+                      ? playheadSec >= (doc?.durationSec ?? 0)
+                        ? "End of edit"
+                        : "No picture at this position — audio and gaps display black."
+                      : null;
+              return (
+                message && (
+                  <div
+                    className="studio-viewer-message"
+                    data-state={message === "End of edit" ? "end" : "message"}
+                    role={previewError ? "alert" : "status"}
+                  >
+                    <p>{message}</p>
+                    {previewError && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setPreviewError(null);
+                          if (engineRef.current)
+                            engineRef.current.seek(playheadSec);
+                          else setPreviewRetry((value) => value + 1);
+                        }}
+                      >
+                        Retry preview
+                      </Button>
+                    )}
+                  </div>
+                )
+              );
+            })()}
+          </>
         }
         timeline={
           doc ? (
             <TimelineTracks
               doc={doc}
+              onDropMedia={(...args) => void dropMedia(...args)}
               media={editorMedia}
               urls={mergedUrls}
               playheadSec={playheadSec}
               pxPerSec={pxPerSec}
               selectedClipId={selectedClipId}
               trimMode={trimMode}
-              onSelectClip={setSelectedClipId}
+              onSelectClip={(id) => {
+                setSelectedClipId(id);
+                if (!id) return;
+                const selected = findClip(doc, id)?.clip;
+                if (
+                  selected &&
+                  (playheadSec < selected.startSec ||
+                    playheadSec >= selected.startSec + selected.durationSec)
+                )
+                  seek(selected.startSec);
+              }}
               onToggleMute={(trackId) =>
                 apply((d) => ({
                   ...d,

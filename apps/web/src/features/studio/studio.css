@@ -669,3 +669,207 @@
     min-height: 180px;
   }
 }
+/* Adjustable editor panels. Explicit placement prevents hidden panels reflowing lanes. */
+.studio-workspace {
+  grid-template-columns:
+    minmax(0, min(var(--library-width, 210px), 35%)) minmax(180px, 1fr)
+    minmax(0, min(var(--inspector-width, 310px), 35%));
+  grid-template-rows: 32px minmax(170px, 1fr) var(--timeline-height, 280px);
+}
+.studio-layout-controls {
+  grid-column: 1/-1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  border-bottom: 1px solid #363e46;
+  overflow-x: auto;
+}
+.studio-layout-controls button {
+  white-space: nowrap;
+  font-size: 11px;
+  color: #9caab7;
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+.studio-layout-controls button[aria-pressed="true"] {
+  color: #80cfff;
+  background: #183244;
+}
+.studio-library {
+  grid-column: 1;
+  grid-row: 2;
+}
+.studio-center {
+  grid-column: 2;
+  grid-row: 2;
+}
+.studio-inspector {
+  grid-column: 3;
+  grid-row: 2;
+}
+.studio-timeline {
+  grid-row: 3;
+}
+.studio-library,
+.studio-inspector,
+.studio-timeline {
+  position: relative;
+}
+.studio-workspace [hidden] {
+  display: none !important;
+}
+.studio-divider {
+  position: absolute;
+  z-index: 35;
+  touch-action: none;
+}
+.studio-divider:hover,
+.studio-divider:focus-visible {
+  background: #28a5eb;
+  outline: none;
+}
+.studio-divider-left {
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+.studio-divider-right {
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+}
+.studio-divider-bottom {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+.studio-viewer-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  padding: 25px;
+  text-align: center;
+  color: #a5b0bb;
+  background: #0b0f12;
+}
+.studio-drop-marker {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 3px solid #28a5eb;
+  width: 80px;
+  background: #28a5eb33;
+  z-index: 30;
+}
+.studio-drop-marker span {
+  display: block;
+  white-space: nowrap;
+  background: #183244;
+  color: #b8e5ff;
+  padding: 3px;
+  font-size: 11px;
+}
+.studio-empty-lane {
+  pointer-events: none;
+  display: block;
+  padding: 12px;
+  font-size: 11px;
+  color: #657380;
+}
+.studio-time-ruler,
+.studio-ruler-label {
+  height: 24px;
+  position: relative;
+  background: #20252b;
+  color: #a5b0bb;
+  font-size: 10px;
+  border-bottom: 1px solid #465360;
+}
+.studio-ruler-label {
+  padding: 4px 8px;
+}
+.studio-time-ruler span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid #657380;
+  padding: 4px;
+}
+@media (max-width: 850px) {
+  .studio-workspace {
+    grid-template-columns: minmax(0, min(var(--library-width), 35%)) minmax(
+        180px,
+        1fr
+      );
+    grid-template-rows: 32px minmax(300px, auto) auto var(--timeline-height);
+  }
+  .studio-inspector {
+    grid-column: 1/-1;
+    grid-row: 3;
+    max-height: 350px;
+  }
+  .studio-timeline {
+    grid-row: 4;
+  }
+  .studio-divider-right {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .studio-workspace {
+    display: flex;
+  }
+  .studio-layout-controls {
+    min-height: 36px;
+    flex-shrink: 0;
+  }
+  .studio-divider {
+    display: none;
+  }
+  .studio-timeline {
+    min-height: var(--timeline-height);
+  }
+  .studio-library {
+    max-height: 280px;
+  }
+  .studio-assets,
+  .studio-library-tabs {
+    display: flex;
+  }
+  .studio-assets {
+    flex-direction: column;
+  }
+}
+[data-media-draggable] {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+@media (min-width: 521px) and (max-width: 850px) {
+  .studio-inspector {
+    min-height: 160px;
+  }
+}
+.studio-viewer-message[data-state="end"] {
+  background: transparent;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.studio-viewer-message[data-state="end"] p {
+  background: #15181ce6;
+  padding: 6px 12px;
+  border-radius: 4px;
+}

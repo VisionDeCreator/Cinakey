@@ -11,6 +11,8 @@ import {
   useMemo,
   useState,
   type ReactNode,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,6 +21,7 @@ import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { ShotProduction } from "@/features/shots/ShotProduction";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { Film, Image, Link2, Music, Plus, Star, Upload } from "lucide-react";
+import { beginMediaPointerDrag } from "@/features/edit/mediaDrag";
 import { StudioScript } from "./StudioScript";
 import { MediaPreview } from "./MediaPreview";
 import "./studio.css";
@@ -30,6 +33,8 @@ export type StudioInsert = {
   inSec: number;
   outSec: number;
   shotId?: string;
+  startSec?: number;
+  trackId?: string;
 };
 export function StudioWorkspace({
   toolbar,
@@ -37,6 +42,7 @@ export function StudioWorkspace({
   timeline,
   inspector,
   selectedClip,
+  hasTimelineClips = false,
   onInsert,
   onPreview,
 }: {
@@ -45,6 +51,7 @@ export function StudioWorkspace({
   timeline: ReactNode;
   inspector: ReactNode;
   selectedClip: TimelineClip | null;
+  hasTimelineClips?: boolean;
   onInsert: (media: StudioInsert) => void;
   onPreview: () => void;
 }) {
@@ -92,7 +99,7 @@ export function StudioWorkspace({
   const [view, setView] = useState<"source" | "edit" | "staging" | "compare">(
     "edit",
   );
-  const [library, setLibrary] = useState<"references" | "media">("references");
+  const [library, setLibrary] = useState<"references" | "media">("media");
   const [allGenerations, setAllGenerations] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +114,126 @@ export function StudioWorkspace({
   const [inSec, setInSec] = useState(0);
   const [outSec, setOutSec] = useState(0);
   const [inspectorView, setInspectorView] = useState<"scene" | "clip">("scene");
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState(() => {
+    const defaults = {
+      left: 210,
+      right: 310,
+      bottom: 280,
+      library: true,
+      inspector: true,
+      timeline: true,
+      generations: true,
+    };
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("cinakey:workspace-layout:2") ?? "null",
+      );
+      if (!saved) return defaults;
+      return {
+        ...defaults,
+        left: Math.max(150, Math.min(420, Number(saved.left) || defaults.left)),
+        right: Math.max(
+          240,
+          Math.min(480, Number(saved.right) || defaults.right),
+        ),
+        bottom: Math.max(
+          160,
+          Math.min(600, Number(saved.bottom) || defaults.bottom),
+        ),
+        ...Object.fromEntries(
+          ["library", "inspector", "timeline", "generations"].map((key) => [
+            key,
+            typeof saved[key] === "boolean" ? saved[key] : true,
+          ]),
+        ),
+      };
+    } catch {
+      return defaults;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "cinakey:workspace-layout:2",
+        JSON.stringify(layout),
+      );
+    } catch {
+      /* optional preference */
+    }
+  }, [layout]);
+  function resizePanel(
+    panel: "left" | "right" | "bottom",
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    const element = event.currentTarget;
+    element.setPointerCapture(event.pointerId);
+    const start = panel === "bottom" ? event.clientY : event.clientX;
+    const initial = layout[panel];
+    const move = (e: PointerEvent) => {
+      const delta = (panel === "bottom" ? e.clientY : e.clientX) - start;
+      const bounds = workspaceRef.current?.getBoundingClientRect();
+      const maximum =
+        panel === "bottom"
+          ? Math.max(160, (bounds?.height ?? 800) - 170)
+          : Math.max(
+              panel === "left" ? 150 : 240,
+              (bounds?.width ?? 1200) * 0.35,
+            );
+      const value = Math.max(
+        panel === "bottom" ? 160 : panel === "left" ? 150 : 240,
+        Math.min(maximum, initial + delta * (panel === "left" ? 1 : -1)),
+      );
+      setLayout((old) => ({ ...old, [panel]: value }));
+    };
+    const end = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("lostpointercapture", end);
+    };
+    element.addEventListener("pointermove", move);
+    element.addEventListener("lostpointercapture", end, { once: true });
+  }
+  function divider(panel: "left" | "right" | "bottom") {
+    return (
+      <div
+        className={`studio-divider studio-divider-${panel}`}
+        role="separator"
+        tabIndex={0}
+        aria-label={`Resize ${panel === "left" ? "library" : panel === "right" ? "inspector" : "timeline"}`}
+        aria-orientation={panel === "bottom" ? "horizontal" : "vertical"}
+        aria-valuemin={panel === "left" ? 150 : panel === "right" ? 240 : 160}
+        aria-valuemax={1200}
+        aria-valuenow={Math.round(layout[panel])}
+        onPointerDown={(event) => resizePanel(panel, event)}
+        onDoubleClick={() =>
+          setLayout((old) => ({
+            ...old,
+            [panel]: panel === "left" ? 210 : panel === "right" ? 310 : 280,
+          }))
+        }
+        onKeyDown={(event) => {
+          if (
+            !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+              event.key,
+            )
+          )
+            return;
+          event.preventDefault();
+          const delta = ["ArrowRight", "ArrowDown"].includes(event.key)
+            ? 20
+            : -20;
+          setLayout((old) => ({
+            ...old,
+            [panel]: Math.max(
+              panel === "left" ? 150 : panel === "right" ? 240 : 160,
+              Math.min(600, old[panel] + delta * (panel === "left" ? 1 : -1)),
+            ),
+          }));
+        }}
+      />
+    );
+  }
   const scriptSave = useRef<(() => Promise<boolean>) | null>(null);
   const dirtyChanged = useCallback((value: boolean) => setDirty(value), []);
   const estimate = useQuery(
@@ -149,6 +276,7 @@ export function StudioWorkspace({
     // Restore a project with footage but no script directly into a useful viewer.
     if (
       !sourceId &&
+      !hasTimelineClips &&
       videos[0] &&
       !selectedClip &&
       legacySourceSelected.current !== projectId
@@ -159,7 +287,7 @@ export function StudioWorkspace({
       setOutSec(videos[0].durationSec ?? 0);
       setView("source");
     }
-  }, [videos, sourceId, selectedClip, projectId]);
+  }, [videos, sourceId, selectedClip, projectId, hasTimelineClips]);
   const followedClip = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedClip) {
@@ -387,8 +515,69 @@ export function StudioWorkspace({
         )
       : media;
   return (
-    <div className="studio-workspace">
-      <aside className="studio-library" aria-label="Scenes and project library">
+    <div
+      ref={workspaceRef}
+      className="studio-workspace"
+      style={
+        {
+          "--library-width": layout.library ? `${layout.left}px` : "0px",
+          "--inspector-width": layout.inspector ? `${layout.right}px` : "0px",
+          "--timeline-height": layout.timeline ? `${layout.bottom}px` : "0px",
+        } as CSSProperties
+      }
+    >
+      <nav className="studio-layout-controls" aria-label="Workspace panels">
+        {(["library", "inspector", "generations", "timeline"] as const).map(
+          (panel) => (
+            <button
+              key={panel}
+              aria-pressed={layout[panel]}
+              onClick={() =>
+                setLayout((old) => ({ ...old, [panel]: !old[panel] }))
+              }
+            >
+              {panel.charAt(0).toUpperCase() + panel.slice(1)}
+            </button>
+          ),
+        )}
+        <button
+          onClick={() =>
+            setLayout({
+              left: 210,
+              right: 310,
+              bottom: 280,
+              library: true,
+              inspector: true,
+              timeline: true,
+              generations: true,
+            })
+          }
+        >
+          Reset layout
+        </button>
+      </nav>
+      <aside
+        hidden={!layout.library}
+        className="studio-library"
+        aria-label="Scenes and project library"
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("Files")) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={async (event) => {
+          if (!event.dataTransfer.files.length) return;
+          event.preventDefault();
+          try {
+            await uploadFiles(Array.from(event.dataTransfer.files));
+            setLibrary("media");
+          } catch (error) {
+            setError(error instanceof Error ? error.message : "Upload failed");
+          }
+        }}
+      >
+        {divider("left")}
         <div className="studio-section-heading">
           <h2>Scenes</h2>
           <Button
@@ -449,6 +638,11 @@ export function StudioWorkspace({
             <button
               key={asset._id}
               className={`studio-asset ${sourceId === asset._id ? "selected" : ""}`}
+              draggable={false}
+              data-media-draggable
+              onDragStart={(event) => event.preventDefault()}
+              onPointerDown={(event) => beginMediaPointerDrag(event, asset._id)}
+              title="Drag to a timeline track, or click to preview"
               onClick={() => preview(asset._id)}
             >
               <span className="studio-asset-icon">
@@ -743,7 +937,11 @@ export function StudioWorkspace({
             </div>
           )}
         </section>
-        <section className="studio-generations" aria-label="Generation history">
+        <section
+          hidden={!layout.generations}
+          className="studio-generations"
+          aria-label="Generation history"
+        >
           <div className="studio-section-heading">
             <h2>
               Generations{" "}
@@ -763,6 +961,17 @@ export function StudioWorkspace({
               <div
                 key={video.assetId}
                 className={`studio-take ${sourceId === video.assetId ? "selected" : ""}`}
+                draggable={false}
+                data-media-draggable
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) => {
+                  if (
+                    !(event.target as HTMLElement).closest(
+                      ".studio-compare-button, .studio-favourite",
+                    )
+                  )
+                    beginMediaPointerDrag(event, video.assetId);
+                }}
               >
                 <button
                   className="studio-take-preview"
@@ -851,7 +1060,12 @@ export function StudioWorkspace({
           </p>
         )}
       </div>
-      <aside className="studio-inspector" aria-label="Scene and clip inspector">
+      <aside
+        hidden={!layout.inspector}
+        className="studio-inspector"
+        aria-label="Scene and clip inspector"
+      >
+        {divider("right")}
         <div className="studio-inspector-tabs">
           <button
             aria-pressed={inspectorView === "scene"}
@@ -959,8 +1173,13 @@ export function StudioWorkspace({
         <div hidden={inspectorView !== "clip"}>{inspector}</div>
       </aside>
       <section
+        hidden={!layout.timeline}
         className="studio-timeline"
         aria-label="Project timeline"
+        onDropCapture={() => {
+          setView("edit");
+          setInspectorView("clip");
+        }}
         onPointerDownCapture={() => {
           setView("edit");
           setInspectorView("clip");
@@ -970,6 +1189,7 @@ export function StudioWorkspace({
           if (button?.textContent?.trim() === "Play") setView("edit");
         }}
       >
+        {divider("bottom")}
         {toolbar}
         {timeline}
       </section>

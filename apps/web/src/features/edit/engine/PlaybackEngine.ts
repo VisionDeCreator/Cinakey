@@ -20,6 +20,7 @@ export type PlaybackState = {
   currentSec: number;
   rate: number;
   error?: string;
+  loading?: boolean;
 };
 
 export class PlaybackEngine {
@@ -39,6 +40,7 @@ export class PlaybackEngine {
   private pendingFrame: { t: number; revision: number } | null = null;
   private rendering = false;
   private error: string | undefined;
+  private loading = false;
   private reportError = (error: unknown) => {
     if (!this.disposed) {
       this.error =
@@ -60,6 +62,7 @@ export class PlaybackEngine {
 
   setDocument(doc: TimelineDocument, urls: MediaUrlMap) {
     const changed = this.doc !== doc;
+    this.error = undefined;
     this.doc = doc;
     this.urls = urls;
     const { width, height } = evenDims(
@@ -67,6 +70,7 @@ export class PlaybackEngine {
       doc.project.aspectRatio,
     );
     this.compositor.resize(width, height);
+    this.currentSec = clamp(this.currentSec, 0, doc.durationSec);
     void this.prefetchAround(this.currentSec).catch(this.reportError);
     this.renderFrame(this.currentSec);
     if (changed && this.playing && this.rate === 1)
@@ -86,6 +90,7 @@ export class PlaybackEngine {
       currentSec: this.currentSec,
       rate: this.rate,
       error: this.error,
+      loading: this.loading,
     };
     for (const fn of this.listeners) fn(s);
   }
@@ -99,8 +104,12 @@ export class PlaybackEngine {
   }
 
   async play() {
-    if (!this.doc) return;
+    if (!this.doc || this.doc.durationSec <= 0) return;
     if (this.playing) return;
+    if (this.currentSec >= this.doc.durationSec) {
+      this.currentSec = 0;
+      this.renderFrame(0);
+    }
     this.error = undefined;
     const revision = ++this.transportRevision;
     await this.audio.resume();
@@ -151,6 +160,7 @@ export class PlaybackEngine {
 
   seek(sec: number) {
     if (!this.doc) return;
+    this.error = undefined;
     this.currentSec = clamp(sec, 0, this.doc.durationSec);
     if (this.playing) {
       if (this.rate === 1)
@@ -224,6 +234,8 @@ export class PlaybackEngine {
       } catch (error) {
         this.reportError(error);
       } finally {
+        this.loading = false;
+        this.emit();
         this.rendering = false;
       }
     })();
@@ -231,9 +243,18 @@ export class PlaybackEngine {
 
   private async drawClip(clip: TimelineClip, t: number, revision: number) {
     const url = videoUrlForClip(clip.source, this.urls, true);
-    if (!url || clip.source.type === "text") return;
+    if (clip.source.type === "text") return;
+    if (!url)
+      throw new Error(
+        "The source asset is unavailable. Check that it still exists in the project library.",
+      );
     const key = videoCacheKeyForClip(clip.source, this.urls);
     if (!key) return;
+    const cached = this.cache.get(key);
+    if (!cached?.canvasSink && !cached?.imageEl && !cached?.videoEl) {
+      this.loading = true;
+      this.emit();
+    }
     const media = await this.cache.ensure(key, url, "video");
 
     if (revision !== this.renderRevision || this.disposed) return;
@@ -258,7 +279,10 @@ export class PlaybackEngine {
     }
 
     const video = media.videoEl;
-    if (!video) return;
+    if (!video)
+      throw new Error(
+        "No decodable video frames were found. Open the source to check this file.",
+      );
     await seekMediaFrame(video, sourceT);
     if (
       revision === this.renderRevision &&
