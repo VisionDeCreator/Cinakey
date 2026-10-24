@@ -1,5 +1,6 @@
 import {
   assembleSingleShotPrompt,
+  resolveReferences,
   scriptPromptSchema,
   type ScriptPromptData,
 } from "@cinakey/shared";
@@ -34,6 +35,7 @@ export const assemblePromptAction = action({
   ): Promise<{
     prompt: string;
     referenceAssetIds: Id<"assets">[];
+    referenceVideoAssetId?: Id<"assets">;
     structured: ScriptPromptData;
     promptSheetId: Id<"promptSheets">;
     durationSec: number;
@@ -94,39 +96,87 @@ export const assemblePromptAction = action({
       promptData = assembleSingleShotPrompt(structured, match);
       durationSec = promptData.totalDurationSec;
 
-      if (shot.generationPromptOverride && !args.promptOverride) {
-        // Use override as final prompt text
-        const referenceAssetIds = await resolveRefAssets(
-          ctx,
-          sheet,
-          sequence.projectId,
-          args.sequenceId,
-        );
-        return {
-          prompt: shot.generationPromptOverride,
-          referenceAssetIds,
-          structured: promptData,
-          promptSheetId: sheet._id,
-          durationSec,
-          aspectRatio: promptData.aspectRatio,
-        };
-      }
+      if (shot.generationPromptOverride && !args.promptOverride)
+        args.promptOverride = shot.generationPromptOverride;
     }
 
     const { renderScriptPrompt } = await import("@cinakey/shared");
-    const prompt =
-      args.promptOverride?.trim() || renderScriptPrompt(promptData);
+    let sourceText = sheet.renderedText ?? "";
+    if (sheet.renderedFileId)
+      sourceText = String(await loadJson(ctx, sheet.renderedFileId));
+    const project = await ctx.runQuery(api.projects.get, {
+      projectId: sequence.projectId,
+    });
+    const assets = await ctx.runQuery(api.assets.list, {
+      projectId: sequence.projectId,
+    });
+    const entities = await ctx.runQuery(api.entities.listForProject, {
+      projectId: sequence.projectId,
+    });
+    const candidates = assets.map((asset) => ({
+      assetId: asset._id as string,
+      type: asset.type as string,
+      name: asset.name,
+    }));
+    for (const entity of entities) {
+      if (entity.lockedReferenceAssetIds[0])
+        candidates.push({
+          assetId: entity.lockedReferenceAssetIds[0],
+          type: "image",
+          name: entity.name,
+        });
+    }
+    const bindings = [...(project?.referenceBindings ?? [])];
+    for (const ref of sheet.referenceMap ?? []) {
+      const assetId = entities.find((e) => e._id === ref.entityId)
+        ?.lockedReferenceAssetIds[0];
+      if (assetId && !bindings.some((b) => b.alias === `image_${ref.imageN}`))
+        bindings.push({ alias: `image_${ref.imageN}`, assetId });
+    }
+    const shotText = renderScriptPrompt(promptData).replace(
+      !promptData.location.description.trim()
+        ? /^LOCATION — @image_\d+:[ \t]*\n/m
+        : /$^/,
+      "",
+    );
+    const inputText =
+      args.promptOverride?.trim() ||
+      (args.shotId ? shotText : sourceText || renderScriptPrompt(promptData));
+    const resolved = resolveReferences(inputText, bindings, candidates);
+    if (resolved.ambiguous.length)
+      throw new Error(
+        `Choose an asset for ambiguous references: ${resolved.ambiguous.map((a) => `@${a}`).join(", ")}`,
+      );
+    if (resolved.unresolved.length)
+      throw new Error(
+        `Link these references before generating: ${resolved.unresolved.map((a) => `@${a}`).join(", ")}`,
+      );
+    if (resolved.videoIds.length > 1)
+      throw new Error(
+        "This model supports one reference video per generation. Choose one video reference.",
+      );
+    if (
+      resolved.imageIds.length >
+      (getAdapter(SEEDANCE_ID)?.capabilities.maxReferenceImages ?? 30)
+    )
+      throw new Error("Too many image references for this model.");
+    const prompt = resolved.prompt;
 
     const referenceAssetIds = await resolveRefAssets(
       ctx,
-      sheet,
       sequence.projectId,
       args.sequenceId,
     );
 
     return {
       prompt,
-      referenceAssetIds,
+      referenceAssetIds: [
+        ...new Set([
+          ...(resolved.imageIds as Id<"assets">[]),
+          ...referenceAssetIds,
+        ]),
+      ],
+      referenceVideoAssetId: resolved.videoIds[0] as Id<"assets"> | undefined,
       structured: promptData,
       promptSheetId: sheet._id,
       durationSec,
@@ -137,7 +187,6 @@ export const assemblePromptAction = action({
 
 async function resolveRefAssets(
   ctx: ActionCtx,
-  sheet: Doc<"promptSheets">,
   projectId: Id<"projects">,
   sequenceId: Id<"sequences">,
 ): Promise<Id<"assets">[]> {
@@ -151,18 +200,6 @@ async function resolveRefAssets(
     seen.add(assetId);
     ids.push(assetId);
   };
-
-  const map = [...(sheet.referenceMap ?? [])].sort(
-    (a, b) => a.imageN - b.imageN,
-  );
-  for (const ref of map) {
-    if (ids.length >= maxRefs) break;
-    const entity = await ctx.runQuery(internal.entities.getEntityInternal, {
-      entityId: ref.entityId,
-    });
-    if (!entity || entity.projectId !== projectId) continue;
-    push(entity.lockedReferenceAssetIds[0]);
-  }
 
   const project = await ctx.runQuery(internal.entities.getProjectInternal, {
     projectId,
@@ -227,6 +264,14 @@ export const startSequenceGeneration = action({
       );
 
     let referenceVideoUrl: string | undefined;
+    if (
+      args.usePrevizAsReference &&
+      sequence.previzAssetId &&
+      assembled.referenceVideoAssetId
+    )
+      throw new Error(
+        "Choose either the script video reference or staging as the video reference.",
+      );
     if (args.usePrevizAsReference && sequence.previzAssetId) {
       const asset = await ctx.runQuery(internal.storage.getAssetInternal, {
         assetId: sequence.previzAssetId,
@@ -250,6 +295,7 @@ export const startSequenceGeneration = action({
       sequenceId: args.sequenceId,
       promptSheetId: assembled.promptSheetId,
       referenceAssetIds: assembled.referenceAssetIds,
+      referenceVideoAssetId: assembled.referenceVideoAssetId,
       input: {
         durationSec,
         resolution: args.resolution ?? "720p",
@@ -338,6 +384,7 @@ export const startShotGeneration = action({
       sequenceId: shot.sequenceId,
       promptSheetId: assembled.promptSheetId,
       referenceAssetIds: startFrameAssetId ? [] : assembled.referenceAssetIds,
+      referenceVideoAssetId: assembled.referenceVideoAssetId,
       startFrameAssetId,
       endFrameAssetId: args.endFrameAssetId,
       input: {

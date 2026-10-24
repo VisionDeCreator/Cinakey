@@ -1,9 +1,6 @@
 import { api } from "@cinakey/backend";
 import type { AssetType } from "@cinakey/shared";
-import {
-  ASSET_ALLOWED_MIME,
-  ASSET_MAX_BYTES,
-} from "@cinakey/shared";
+import { ASSET_ALLOWED_MIME, ASSET_MAX_BYTES } from "@cinakey/shared";
 import { useMutation } from "@/lib/api/hooks";
 import { useCallback, useState } from "react";
 
@@ -54,6 +51,51 @@ function validateClient(file: File, type: AssetType): string | null {
     return `Unsupported type "${file.type}" for ${type}`;
   }
   return null;
+}
+
+/** Read local metadata before uploading, so imported footage has safe trim bounds. */
+async function mediaMetadata(
+  file: File,
+  type: AssetType,
+): Promise<{ durationSec?: number; width?: number; height?: number }> {
+  if (!["video", "audio", "music"].includes(type)) return {};
+  const media = document.createElement(type === "video" ? "video" : "audio");
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve) => {
+      const done = (metadata: {
+        durationSec?: number;
+        width?: number;
+        height?: number;
+      }) => {
+        window.clearTimeout(timer);
+        media.onloadedmetadata = null;
+        media.onerror = null;
+        resolve(metadata);
+      };
+      const timer = window.setTimeout(() => done({}), 5000);
+      media.onloadedmetadata = () =>
+        done({
+          durationSec:
+            Number.isFinite(media.duration) && media.duration > 0
+              ? media.duration
+              : undefined,
+          ...(media instanceof HTMLVideoElement
+            ? {
+                width: media.videoWidth || undefined,
+                height: media.videoHeight || undefined,
+              }
+            : {}),
+        });
+      media.onerror = () => done({});
+      media.preload = "metadata";
+      media.src = url;
+    });
+  } finally {
+    media.removeAttribute("src");
+    media.load();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function useAssetUpload(projectId: string | undefined) {
@@ -110,6 +152,7 @@ export function useAssetUpload(projectId: string | undefined) {
         ]);
 
         try {
+          const metadata = await mediaMetadata(file, type);
           const uploadUrl = await createUploadUrl();
           setUploads((prev) =>
             prev.map((u) => (u.id === id ? { ...u, progress: 40 } : u)),
@@ -134,6 +177,7 @@ export function useAssetUpload(projectId: string | undefined) {
             projectId: projectId as never,
             storageId: storageId as never,
             type,
+            ...metadata,
             name: file.name,
             format: file.type || "application/octet-stream",
             entityId: options?.entityId as never,
@@ -159,8 +203,7 @@ export function useAssetUpload(projectId: string | undefined) {
                 ? {
                     ...u,
                     status: "error",
-                    error:
-                      err instanceof Error ? err.message : "Upload failed",
+                    error: err instanceof Error ? err.message : "Upload failed",
                   }
                 : u,
             ),

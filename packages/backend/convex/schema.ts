@@ -163,6 +163,10 @@ const schema = defineSchema(
       thumbnailAssetId: v.optional(v.id("assets")),
       /** Project style reference image for video production. */
       styleReferenceAssetId: v.optional(v.id("assets")),
+      /** Stable project-wide script aliases. Asset renames do not break links. */
+      referenceBindings: v.optional(
+        v.array(v.object({ alias: v.string(), assetId: v.id("assets") })),
+      ),
       /** Optional per-project credit spend cap; blocks new jobs when reached. */
       spendCapCredits: v.optional(v.number()),
       /** Guided trailer template project. */

@@ -4,7 +4,13 @@
 
 export type MediaUrlMap = Record<
   string,
-  { url: string; proxyUrl?: string; durationSec?: number; type?: string }
+  {
+    url: string;
+    proxyUrl?: string;
+    durationSec?: number;
+    type?: string;
+    name?: string;
+  }
 >;
 
 export function videoUrlForClip(

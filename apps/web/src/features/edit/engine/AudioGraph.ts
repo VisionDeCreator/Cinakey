@@ -73,7 +73,10 @@ export class AudioGraph {
 
     const dialogueRanges = collectDialogueRanges(doc);
     const audioTracks = doc.tracks.filter(
-      (t) => !t.muted && ["video", "dialogue", "music", "sfx"].includes(t.kind),
+      (t) =>
+        !t.muted &&
+        !t.audioMuted &&
+        ["video", "dialogue", "music", "sfx"].includes(t.kind),
     );
     const decoded = new Map<string, AudioBuffer | null>();
     await Promise.all(
@@ -176,7 +179,7 @@ function collectDialogueRanges(
 ): Array<{ start: number; end: number }> {
   const out: Array<{ start: number; end: number }> = [];
   for (const track of doc.tracks) {
-    if (track.kind !== "dialogue" || track.muted) continue;
+    if (track.kind !== "dialogue" || track.muted || track.audioMuted) continue;
     for (const clip of track.clips) {
       out.push({
         start: clip.startSec,

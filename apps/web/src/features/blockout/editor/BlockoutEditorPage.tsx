@@ -759,9 +759,11 @@ export function BlockoutEditorPage() {
       {/* Top bar */}
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-2 py-1.5">
         <Button type="button" size="sm" variant="ghost" className="h-8" asChild>
-          <Link to={`/projects/${projectId}/blockout`}>
+          <Link
+            to={`/projects/${projectId}/studio${resolvedSequenceId ? `?sequence=${resolvedSequenceId}` : ""}`}
+          >
             <ArrowLeft className="size-3.5" />
-            Blockout
+            Workspace
           </Link>
         </Button>
         <div className="min-w-0">

@@ -1,14 +1,23 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui,
-    sans-serif;
-  --color-studio-bg: #0a0a0b;
-  --color-studio-panel: #111113;
-  --color-studio-border: #27272a;
-  --color-studio-muted: #a1a1aa;
-  --color-studio-accent: #e4e4e7;
+  --font-sans:
+    "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --color-studio-bg: #15181c;
+  --color-studio-panel: #20252b;
+  --color-studio-border: #363e46;
+  --color-studio-muted: #a5b0bb;
+  --color-studio-accent: #28a5eb;
+  --color-zinc-950: #11161b;
+  --color-zinc-900: #191e23;
+  --color-zinc-800: #303941;
+  --color-zinc-700: #465360;
+  --color-zinc-600: #748492;
+  --color-zinc-500: #94a3af;
+  --color-zinc-400: #a5b0bb;
+  --color-zinc-100: #eeeae5;
 }
 
 @layer base {
@@ -22,17 +31,6 @@
 
   body {
     @apply m-0 min-h-dvh bg-[var(--color-studio-bg)] font-sans text-zinc-100 antialiased;
-    background-image:
-      radial-gradient(
-        ellipse 80% 50% at 20% -10%,
-        rgba(63, 63, 70, 0.35),
-        transparent
-      ),
-      radial-gradient(
-        ellipse 60% 40% at 100% 0%,
-        rgba(39, 39, 42, 0.4),
-        transparent
-      );
   }
 
   #root {

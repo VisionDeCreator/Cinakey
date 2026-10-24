@@ -2,7 +2,7 @@ import { api } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { MoreHorizontal, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +36,18 @@ export function BlockoutPage() {
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
 
-  const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSequenceId =
+    searchParams.get("sequence") ?? searchParams.get("sequenceId");
+  const setActiveSequenceId = (id: string) =>
+    setSearchParams(
+      (old) => {
+        const next = new URLSearchParams(old);
+        next.set("sequence", id);
+        return next;
+      },
+      { replace: true },
+    );
   const [exportOpen, setExportOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);

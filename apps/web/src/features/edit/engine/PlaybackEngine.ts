@@ -59,6 +59,7 @@ export class PlaybackEngine {
   }
 
   setDocument(doc: TimelineDocument, urls: MediaUrlMap) {
+    const changed = this.doc !== doc;
     this.doc = doc;
     this.urls = urls;
     const { width, height } = evenDims(
@@ -68,6 +69,10 @@ export class PlaybackEngine {
     this.compositor.resize(width, height);
     void this.prefetchAround(this.currentSec).catch(this.reportError);
     this.renderFrame(this.currentSec);
+    if (changed && this.playing && this.rate === 1)
+      void this.audio
+        .schedule(doc, this.currentSec, urls, this.cache)
+        .catch(this.reportError);
   }
 
   subscribe(fn: (s: PlaybackState) => void) {

@@ -1,4 +1,4 @@
-import { projectCanUseAsset } from "./lib/access";
+import { projectAssets, projectCanUseAsset } from "./lib/access";
 import { timelineUsesAsset } from "./lib/mediaProtection";
 import { type ScriptPromptData } from "@cinakey/shared";
 import { v } from "convex/values";
@@ -741,5 +741,56 @@ export const deleteMaster = mutation({
         await ctx.db.delete(args.masterAssetId);
       }
     }
+  },
+});
+
+/** All playable project footage, including uploads and older/unlinked generations. */
+export const listProjectVideos = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    await requireProjectAccess(ctx, projectId);
+    const [assets, jobs] = await Promise.all([
+      projectAssets(ctx, projectId),
+      ctx.db
+        .query("generationJobs")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .collect(),
+    ]);
+    const videos = await Promise.all(
+      assets
+        .filter((a) => a.type === "video")
+        .map(async (asset) => {
+          const job = jobs.find(
+            (j) =>
+              j._id === asset.jobId || j.outputAssetIds.includes(asset._id),
+          );
+          return {
+            assetId: asset._id,
+            name: asset.name,
+            url: await getFileUrl(ctx, asset.storageId),
+            durationSec: asset.durationSec ?? null,
+            createdAt: asset.createdAt,
+            starred: asset.starred,
+            sequenceId: job?.sequenceId ?? null,
+            shotId: job?.shotId ?? asset.shotId ?? null,
+            generated: Boolean(job),
+          };
+        }),
+    );
+    videos.sort((a, b) => b.createdAt - a.createdAt);
+    return {
+      videos,
+      jobs: jobs
+        .map((j) => ({
+          jobId: j._id,
+          sequenceId: j.sequenceId ?? null,
+          shotId: j.shotId ?? null,
+          status: j.status,
+          submissionState: j.submissionState,
+          createdAt: j.createdAt,
+          estimatedCostCredits: j.estimatedCostCredits,
+        }))
+        .sort((a, b) => b.createdAt - a.createdAt),
+    };
   },
 });

@@ -9,11 +9,11 @@ import type {
 import { cn } from "@/lib/utils";
 
 const TRACK_COLORS: Record<TrackKind, string> = {
-  video: "bg-sky-700/80 border-sky-500/50",
-  dialogue: "bg-amber-800/70 border-amber-500/40",
-  music: "bg-emerald-800/70 border-emerald-500/40",
-  sfx: "bg-violet-800/70 border-violet-500/40",
-  titles: "bg-rose-800/70 border-rose-500/40",
+  video: "bg-[#31566c] border-[#4484a4]",
+  dialogue: "bg-[#3c4956] border-[#657580]",
+  music: "bg-[#354a43] border-[#66887a]",
+  sfx: "bg-[#314852] border-[#587884]",
+  titles: "bg-[#464d57] border-[#79828d]",
 };
 
 export type TrimMode = "ripple" | "roll";
@@ -27,6 +27,7 @@ type Props = {
   selectedClipId: string | null;
   trimMode: TrimMode;
   onSelectClip: (id: string | null) => void;
+  onToggleMute?: (trackId: string) => void;
   onSeek: (sec: number) => void;
   onMoveClip: (clipId: string, startSec: number, trackId?: string) => void;
   onTrim: (clipId: string, edge: "in" | "out", timelineEdgeSec: number) => void;
@@ -43,6 +44,7 @@ export function TimelineTracks({
   selectedClipId,
   trimMode,
   onSelectClip,
+  onToggleMute,
   onSeek,
   onMoveClip,
   onTrim,
@@ -88,8 +90,18 @@ export function TimelineTracks({
                 className="flex items-center border-b border-zinc-900 px-2 text-xs text-zinc-400"
                 style={{ height: trackH }}
               >
-                {track.name}
-                {track.muted ? " (m)" : ""}
+                <span className="min-w-0 flex-1 truncate">{track.name}</span>
+                {track.kind !== "titles" && onToggleMute && (
+                  <button
+                    type="button"
+                    className="studio-track-mute"
+                    aria-label={`${track.audioMuted ? "Unmute" : "Mute"} ${track.name}`}
+                    aria-pressed={Boolean(track.audioMuted)}
+                    onClick={() => onToggleMute(track.id)}
+                  >
+                    M
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -208,13 +220,25 @@ function ClipBlock({
   const label =
     clip.source.type === "text"
       ? clip.source.text.slice(0, 24)
-      : clip.source.type === "take"
-        ? `Take ${clip.source.takeId.slice(-4)}`
-        : `Asset`;
+      : (urls?.[clip.source.assetId]?.name ??
+        (clip.source.type === "take"
+          ? `Take ${clip.source.takeId.slice(-4)}`
+          : "Asset"));
 
   return (
     <div
       data-clip="1"
+      role="button"
+      tabIndex={0}
+      aria-label={`Select ${label}`}
+      aria-pressed={selected}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect();
+        }
+      }}
       className={cn(
         "absolute top-[3px] overflow-hidden rounded-sm border text-[10px] text-zinc-100",
         color,

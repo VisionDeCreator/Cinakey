@@ -6,6 +6,7 @@ import {
 } from "convex/server";
 type Operations = ApiFromModules<{
   series: typeof import("../../../packages/backend/convex/series");
+  references: typeof import("../../../packages/backend/convex/references");
   resources: typeof import("../../../packages/backend/convex/resources");
   assets: typeof import("../../../packages/backend/convex/assets");
   blockouts: typeof import("../../../packages/backend/convex/blockouts") &

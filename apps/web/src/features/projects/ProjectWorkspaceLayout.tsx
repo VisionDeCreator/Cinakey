@@ -1,117 +1,89 @@
 import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
 import { api } from "@cinakey/backend";
-import type { ProjectTab } from "@cinakey/shared";
 import { useQuery } from "@/lib/api/hooks";
-import { NavLink, Navigate, Outlet, useParams } from "react-router-dom";
-import { StageProgressBar } from "@/features/projects/StageProgress";
-import { cn } from "@/lib/utils";
-
-const TABS: { id: ProjectTab; label: string; path: string }[] = [
-  { id: "assets", label: "References", path: "assets" },
-  { id: "script", label: "Script", path: "script" },
-  { id: "blockout", label: "Staging", path: "blockout" },
-  { id: "video", label: "Video", path: "video" },
-  { id: "edit", label: "Edit", path: "edit" },
-];
+import {
+  NavLink,
+  Navigate,
+  Outlet,
+  useParams,
+  useLocation,
+} from "react-router-dom";
+import { ArrowLeft, Clapperboard } from "lucide-react";
 
 export function ProjectWorkspaceLayout() {
   const { projectId } = useParams();
+  const location = useLocation();
   const project = useQuery(
     api.projects.get,
-    projectId ? { projectId: projectId as never } : "skip",
-  );
-  const overview = useQuery(
-    api.projects.getOverview,
     projectId ? { projectId: projectId as never } : "skip",
   );
   const activeJobs = useQuery(
     api.shotGeneration.listActiveJobsForProject,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  if (!projectId) {
-    return <Navigate to="/projects" replace />;
-  }
-
-  if (project === undefined) {
-    return <p className="text-sm text-zinc-500">Loading project…</p>;
-  }
-
-  if (project === null) {
+  if (!projectId) return <Navigate to="/projects" replace />;
+  if (project === undefined)
+    return <p className="p-6 text-sm text-zinc-500">Loading project…</p>;
+  if (!project)
     return (
-      <div className="space-y-2 py-12 text-center">
-        <h1 className="text-lg font-semibold text-zinc-100">
-          Project not found
-        </h1>
-        <p className="text-sm text-zinc-500">
-          This project does not exist or you do not have access.
-        </p>
-        <NavLink to="/projects" className="text-sm text-zinc-300 underline">
-          Back to projects
-        </NavLink>
+      <div className="p-6">
+        <h1>Project not found</h1>
+        <NavLink to="/projects">Back to projects</NavLink>
       </div>
     );
-  }
-
-  const base = `/projects/${projectId}`;
-
+  const auxiliary = /\/(assets|blockout)(\/|$)/.test(location.pathname);
   return (
-    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {project.seriesId && (
-            <EpisodeSeriesPanel
-              key={projectId}
-              projectId={project._id}
-              seriesId={project.seriesId}
-            />
-          )}
-          <div className="border-b border-zinc-800 px-6 pt-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-zinc-500">
-                  {project.seriesId
-                    ? `Episode ${project.episodeNumber}`
-                    : "Project"}
-                </p>
-                <h1 className="text-xl font-semibold tracking-tight">
-                  {project.title}
-                </h1>
-              </div>
-              <div className="flex items-center gap-3">
-                {activeJobs && activeJobs.length > 0 ? (
-                  <span className="rounded bg-amber-500/15 px-2 py-1 text-[11px] text-amber-300">
-                    {activeJobs.length} generating
-                  </span>
-                ) : null}
-                {overview ? (
-                  <div className="w-48">
-                    <StageProgressBar progress={overview.progress} />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-1">
-              {TABS.map((tab) => (
-                <NavLink
-                  key={tab.id}
-                  to={`${base}/${tab.path}`}
-                  className={({ isActive }) =>
-                    cn(
-                      "-mb-px border-b-2 border-transparent px-3 py-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100",
-                      isActive && "border-zinc-100 text-zinc-50",
-                    )
-                  }
-                >
-                  {tab.label}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-auto p-6">
-            <Outlet />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {project.seriesId && (
+        <EpisodeSeriesPanel
+          key={projectId}
+          projectId={project._id}
+          seriesId={project.seriesId}
+        />
+      )}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-800 bg-[var(--color-studio-panel)] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Clapperboard className="size-5 shrink-0 text-[var(--color-studio-accent)]" />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold">{project.title}</h1>
+            <p className="text-xs text-zinc-400">
+              {project.seriesId ? `Episode ${project.episodeNumber} · ` : ""}
+              Creative workspace
+            </p>
           </div>
         </div>
+        <div className="flex items-center gap-4 text-xs">
+          <span className="text-zinc-400">
+            {activeJobs?.length
+              ? `${activeJobs.length} generating`
+              : "Script · References · Generations · Edit"}
+          </span>
+          {auxiliary ? (
+            <NavLink
+              className="flex items-center gap-1 text-[#80cfff]"
+              to={`/projects/${projectId}/studio${location.search}`}
+            >
+              <ArrowLeft size={14} />
+              Workspace
+            </NavLink>
+          ) : (
+            <NavLink
+              className="text-zinc-300 hover:text-[#80cfff]"
+              to={`/projects/${projectId}/assets${location.search}`}
+            >
+              Manage references
+            </NavLink>
+          )}
+        </div>
+      </header>
+      <div
+        className={
+          auxiliary
+            ? "min-h-0 flex-1 overflow-auto p-4"
+            : "flex min-h-0 flex-1 flex-col overflow-hidden"
+        }
+      >
+        <Outlet />
       </div>
     </div>
   );

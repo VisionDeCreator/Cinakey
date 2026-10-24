@@ -10,8 +10,8 @@ import {
   PanelLeftOpen,
   Settings,
 } from "lucide-react";
-import { useEffect } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useNavigate, useMatch } from "react-router-dom";
 import { api } from "@cinakey/backend";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -58,25 +58,29 @@ export function AppShell() {
     }
   }, [user, ensureWorkspace]);
 
+  const inProject = Boolean(useMatch("/projects/:projectId/*"));
+  const [projectNavigationOpen, setProjectNavigationOpen] = useState(false);
+  const compact = inProject ? !projectNavigationOpen : collapsed;
+
   const email = user?.email ?? "Account";
   const initials = email.slice(0, 2).toUpperCase();
   const unreadCount = unread?.length ?? 0;
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex h-dvh overflow-hidden">
       <aside
         className={cn(
           "flex shrink-0 flex-col border-r border-zinc-800 bg-[var(--color-studio-panel)] transition-[width] duration-200",
-          collapsed ? "w-14" : "w-56",
+          compact ? "w-14" : "w-56",
         )}
       >
         <div
           className={cn(
             "flex h-14 shrink-0 items-center gap-1 border-b border-zinc-800",
-            collapsed ? "justify-center px-1" : "justify-between px-3",
+            compact ? "justify-center px-1" : "justify-between px-3",
           )}
         >
-          {!collapsed ? (
+          {!compact ? (
             <div className="flex min-w-0 items-center gap-2">
               <Clapperboard
                 className="size-5 shrink-0 text-zinc-100"
@@ -92,12 +96,15 @@ export function AppShell() {
             variant="ghost"
             size="icon"
             className="size-9 shrink-0 text-zinc-300 hover:text-zinc-50"
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-expanded={!collapsed}
-            onClick={() => setCollapsed((c) => !c)}
+            title={compact ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!compact}
+            onClick={() => {
+              if (inProject) setProjectNavigationOpen((open) => !open);
+              else setCollapsed((c) => !c);
+            }}
           >
-            {collapsed ? (
+            {compact ? (
               <PanelLeftOpen className="size-4" />
             ) : (
               <PanelLeftClose className="size-4" />
@@ -105,9 +112,12 @@ export function AppShell() {
           </Button>
         </div>
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-          {collapsed ? (
+          {compact ? (
             <div className="mb-1 flex justify-center py-1" title="Cinakey">
-              <Clapperboard className="size-5 text-zinc-100" aria-hidden />
+              <Clapperboard
+                className="size-5 text-[var(--color-studio-accent)]"
+                aria-hidden
+              />
             </div>
           ) : null}
           {navItems.map(({ to, label, icon: Icon }) => (
@@ -119,21 +129,21 @@ export function AppShell() {
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-2 rounded-md py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100",
-                  collapsed ? "justify-center px-0" : "px-3",
+                  compact ? "justify-center px-0" : "px-3",
                   isActive && "bg-zinc-800 text-zinc-50",
                 )
               }
             >
               <Icon className="size-4 shrink-0" aria-hidden />
-              {!collapsed ? <span className="truncate">{label}</span> : null}
-              {collapsed ? <span className="sr-only">{label}</span> : null}
+              {!compact ? <span className="truncate">{label}</span> : null}
+              {compact ? <span className="sr-only">{label}</span> : null}
             </NavLink>
           ))}
         </nav>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-end gap-2 border-b border-zinc-800 bg-[var(--color-studio-panel)]/80 px-4 backdrop-blur">
+        <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-zinc-800 bg-[var(--color-studio-panel)] px-4">
           <div className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-sm text-zinc-200">
             <Coins className="size-3.5 text-zinc-400" aria-hidden />
             <span className="tabular-nums">
@@ -234,7 +244,13 @@ export function AppShell() {
           </DropdownMenu>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main
+          className={
+            inProject
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+              : "flex-1 overflow-auto p-6"
+          }
+        >
           <Outlet />
         </main>
       </div>

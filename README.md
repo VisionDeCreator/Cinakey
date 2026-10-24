@@ -4,8 +4,22 @@ Browser-based AI video production: script → image references → 3D staging �
 video generation → edit → export.
 
 Upload images or reuse existing assets as references. Cinakey does not generate
-images or provide a conversational copilot. Projects open on Video; Script,
-References, Staging, and Edit remain available throughout production.
+images or provide a conversational copilot. Projects open in a unified blue-and-charcoal workspace with a connected viewer,
+scene script, references, generation history and editing timeline. Staging is
+available inside the viewer; detailed reference tools remain accessible.
+
+Type `@` in a scene script to link an image or video by name. Numbered aliases
+such as `@image_1` and `@video_1` bind once per project, so all occurrences use
+the same media ID even after the asset is renamed. Unresolved or ambiguous
+references block generation before credits are reserved. The current video
+provider accepts one video reference per run. Existing generated footage keeps
+its input snapshot and is never replaced when a reference changes.
+
+Preview generations independently of the edit, mark a source range, and use
+**Add to timeline** to insert it. All project videos, including older footage
+without a script association, remain visible. Audio tracks can be muted, source
+audio detached, and music imported separately; separating music from effects
+baked into one soundtrack is not supported.
 
 Create a standalone project or a **Series** with multiple episodes. Series share
 versioned media, characters, locations, props and style through one library;

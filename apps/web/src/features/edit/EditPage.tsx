@@ -2,6 +2,7 @@ import { EditorMedia } from "./media/EditorMedia";
 import { api, type Id } from "@cinakey/backend";
 import {
   addClip,
+  newTimelineId,
   assertTimelineDocument,
   assembleFromShotList,
   createEmptyTimeline,
@@ -27,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { ClipInspector } from "@/features/edit/ClipInspector";
 import { ExportDialog } from "@/features/edit/ExportDialog";
-import { MediaBin } from "@/features/edit/MediaBin";
+import { StudioWorkspace } from "@/features/studio/StudioWorkspace";
 import { PlaybackEngine } from "@/features/edit/engine/PlaybackEngine";
 import { formatTimecode, type MediaUrlMap } from "@/features/edit/mediaUrls";
 import { TimelineTracks, type TrimMode } from "@/features/edit/TimelineTracks";
@@ -84,12 +85,14 @@ function ProjectEditor() {
   const [trimMode, setTrimMode] = useState<TrimMode>("ripple");
   const [exportOpen, setExportOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [showPanels, setShowPanels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [markIn, setMarkIn] = useState<number | null>(null);
   const [markOut, setMarkOut] = useState<number | null>(null);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
+    null,
+  );
+  const engineCanvas = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<PlaybackEngine | null>(null);
   const tipIdRef = useRef<string | null>(null);
   const [savePaused, setSavePaused] = useState(false);
@@ -115,6 +118,7 @@ function ProjectEditor() {
         url: "",
         durationSec: asset.durationSec,
         type: asset.type,
+        name: asset.name,
       };
     }
     for (const row of assembleRows ?? []) {
@@ -151,6 +155,7 @@ function ProjectEditor() {
           proxyUrl: map[row.assetId]?.proxyUrl,
           durationSec: row.durationSec ?? map[row.assetId]?.durationSec,
           type: row.type ?? map[row.assetId]?.type,
+          name: map[row.assetId]?.name,
         };
       }
     }
@@ -265,9 +270,11 @@ function ProjectEditor() {
 
   // Playback engine
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = canvasElement;
     if (!canvas || !doc) return;
-    if (!engineRef.current) {
+    if (!engineRef.current || engineCanvas.current !== canvas) {
+      engineRef.current?.dispose();
+      engineCanvas.current = canvas;
       engineRef.current = new PlaybackEngine(canvas);
       engineRef.current.subscribe((s) => {
         setPlayheadSec(s.currentSec);
@@ -279,12 +286,13 @@ function ProjectEditor() {
     return () => {
       /* keep engine across doc updates */
     };
-  }, [doc, playbackUrls]);
+  }, [canvasElement, doc, playbackUrls]);
 
   useEffect(() => {
     return () => {
       engineRef.current?.dispose();
       engineRef.current = null;
+      engineCanvas.current = null;
     };
   }, []);
 
@@ -562,7 +570,7 @@ function ProjectEditor() {
   }
 
   return (
-    <div className="-mx-4 -mb-4 flex h-[calc(100dvh-7.5rem)] flex-col overflow-hidden">
+    <div className="studio-editor flex min-h-0 flex-1 flex-col">
       {savePaused && (
         <div
           role="alert"
@@ -590,110 +598,192 @@ function ProjectEditor() {
           </Button>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-zinc-100">Edit</h2>
-          <span className="font-mono text-xs text-zinc-400">
-            {formatTimecode(playheadSec, project.fps)}
-            {doc ? ` / ${formatTimecode(doc.durationSec, project.fps)}` : ""}
-          </span>
-          {saving && <span className="text-[11px] text-zinc-500">Saving…</span>}
-          {history.dirty && !saving && (
-            <span className="text-[11px] text-amber-500/80">Unsaved</span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => engineRef.current?.toggle()}
-          >
-            {playing ? "Pause" : "Play"}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setHistory((h) => (h ? undo(h) : h))}
-          >
-            Undo
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setHistory((h) => (h ? redo(h) : h))}
-          >
-            Redo
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!assembleRows || assembleRows.length === 0}
-            title={
-              !assembleRows || assembleRows.length === 0
-                ? "Choose a video first."
-                : undefined
-            }
-            onClick={() => void handleAssemble()}
-          >
-            Assemble from script
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => setShowPanels((v) => !v)}
-          >
-            {showPanels ? "Hide panels" : "More"}
-          </Button>
-          {showPanels ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setHistoryOpen(true)}
-            >
-              History
-            </Button>
-          ) : null}
-          <Button type="button" size="sm" onClick={() => setExportOpen(true)}>
-            Export MP4
-          </Button>
-        </div>
-      </div>
-
       {loadError && (
-        <p className="border-b border-rose-900/50 bg-rose-950/40 px-4 py-1 text-xs text-rose-300">
+        <p role="alert" className="studio-error">
           {loadError}
         </p>
       )}
-
-      {(!assembleRows || assembleRows.length === 0) &&
-      doc &&
-      !doc.tracks.some((t) => t.clips.length > 0) ? (
-        <p className="border-b border-zinc-800 px-4 py-2 text-xs text-zinc-500">
-          Choose a video first.
-        </p>
-      ) : null}
-
-      <div
-        className={
-          showPanels
-            ? "grid min-h-0 flex-1 grid-cols-[1fr_220px_240px]"
-            : "grid min-h-0 flex-1 grid-cols-1"
-        }
-      >
-        <div className="flex min-h-0 flex-col">
-          <div className="flex flex-1 items-center justify-center bg-black p-2">
-            <canvas
-              ref={canvasRef}
-              className="max-h-full max-w-full rounded-sm bg-zinc-950"
-            />
+      <StudioWorkspace
+        selectedClip={selectedClip}
+        onPreview={() => engineRef.current?.pause()}
+        onInsert={(media) => {
+          const kind: TrackKind =
+            media.type === "music"
+              ? "music"
+              : media.type === "audio"
+                ? "sfx"
+                : "video";
+          const track = doc?.tracks.find((t) => t.kind === kind);
+          if (!track) return;
+          const id = newTimelineId("clip");
+          apply((d) =>
+            addClip(d, track.id, {
+              id,
+              startSec: playheadSec,
+              durationSec: media.durationSec,
+              inSec: media.inSec,
+              outSec: media.outSec,
+              speed: 1,
+              source: { type: "asset", assetId: media.assetId },
+              volume: 1,
+              linkedShotId: media.shotId,
+            }),
+          );
+          setSelectedClipId(id);
+        }}
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold text-zinc-100">Edit</h2>
+              <span className="font-mono text-xs text-zinc-400">
+                {formatTimecode(playheadSec, project.fps)}
+                {doc
+                  ? ` / ${formatTimecode(doc.durationSec, project.fps)}`
+                  : ""}
+              </span>
+              {saving && (
+                <span className="text-[11px] text-zinc-500">Saving…</span>
+              )}
+              {history.dirty && !saving && (
+                <span className="text-[11px] text-amber-500/80">Unsaved</span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => engineRef.current?.toggle()}
+              >
+                {playing ? "Pause" : "Play"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setHistory((h) => (h ? undo(h) : h))}
+              >
+                Undo
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setHistory((h) => (h ? redo(h) : h))}
+              >
+                Redo
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!assembleRows || assembleRows.length === 0}
+                title={
+                  !assembleRows || assembleRows.length === 0
+                    ? "Add footage or choose takes to assemble."
+                    : undefined
+                }
+                onClick={() => void handleAssemble()}
+              >
+                Assemble chosen takes
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!selectedClipId}
+                onClick={() => {
+                  if (selectedClipId)
+                    apply((d) => splitClip(d, selectedClipId, playheadSec));
+                }}
+              >
+                Split
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!selectedClip || selectedClip.source.type === "text"}
+                onClick={() => {
+                  if (!selectedClip || selectedClip.source.type === "text")
+                    return;
+                  apply((d) => {
+                    let audio = d.tracks.find(
+                      (t) => t.name === "Original audio",
+                    );
+                    if (!audio) {
+                      audio = {
+                        id: newTimelineId("track"),
+                        kind: "sfx",
+                        name: "Original audio",
+                        clips: [],
+                      };
+                      d = { ...d, tracks: [...d.tracks, audio] };
+                    }
+                    return updateClip(
+                      addClip(d, audio.id, {
+                        ...selectedClip,
+                        id: newTimelineId("clip"),
+                        volume: selectedClip.volume ?? 1,
+                      }),
+                      selectedClip.id,
+                      { volume: 0 },
+                    );
+                  });
+                }}
+              >
+                Detach audio
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!doc) return;
+                  const titles = doc.tracks.find((t) => t.kind === "titles");
+                  if (titles)
+                    apply((d) =>
+                      addClip(d, titles.id, {
+                        id: newTimelineId("clip"),
+                        startSec: playheadSec,
+                        durationSec: 3,
+                        inSec: 0,
+                        outSec: 3,
+                        speed: 1,
+                        source: {
+                          type: "text",
+                          text: "Title",
+                          styleId: "centered",
+                        },
+                      }),
+                    );
+                }}
+              >
+                Add title
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setHistoryOpen(true)}
+              >
+                History
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setExportOpen(true)}
+              >
+                Export MP4
+              </Button>
+            </div>
           </div>
-          {doc && (
+        }
+        viewer={
+          <canvas ref={setCanvasElement} aria-label="Timeline video preview" />
+        }
+        timeline={
+          doc ? (
             <TimelineTracks
               doc={doc}
               media={editorMedia}
@@ -703,6 +793,14 @@ function ProjectEditor() {
               selectedClipId={selectedClipId}
               trimMode={trimMode}
               onSelectClip={setSelectedClipId}
+              onToggleMute={(trackId) =>
+                apply((d) => ({
+                  ...d,
+                  tracks: d.tracks.map((t) =>
+                    t.id === trackId ? { ...t, audioMuted: !t.audioMuted } : t,
+                  ),
+                }))
+              }
               onSeek={seek}
               onZoom={setPxPerSec}
               onMoveClip={(clipId, start, trackId) => {
@@ -724,26 +822,9 @@ function ProjectEditor() {
                 apply((d) => rollTrim(d, leftId, snapped));
               }}
             />
-          )}
-        </div>
-
-        {showPanels && doc ? (
-          <MediaBin
-            media={editorMedia}
-            urls={mergedUrls}
-            projectId={projectId}
-            doc={doc}
-            playheadSec={playheadSec}
-            onAddClip={(kind: TrackKind, clip) => {
-              const track = doc.tracks.find((t) => t.kind === kind);
-              if (!track) return;
-              apply((d) => addClip(d, track.id, clip));
-              setSelectedClipId(clip.id);
-            }}
-          />
-        ) : null}
-
-        {showPanels ? (
+          ) : null
+        }
+        inspector={
           <ClipInspector
             projectId={projectId}
             clip={selectedClip}
@@ -761,8 +842,8 @@ function ProjectEditor() {
               setSelectedClipId(null);
             }}
           />
-        ) : null}
-      </div>
+        }
+      />
 
       {doc && (
         <>

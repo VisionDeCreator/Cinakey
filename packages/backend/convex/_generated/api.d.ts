@@ -44,6 +44,7 @@ import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as projects from "../projects.js";
 import type * as promptSheets from "../promptSheets.js";
+import type * as references from "../references.js";
 import type * as resources from "../resources.js";
 import type * as scenes from "../scenes.js";
 import type * as scriptVersions from "../scriptVersions.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   onboarding: typeof onboarding;
   projects: typeof projects;
   promptSheets: typeof promptSheets;
+  references: typeof references;
   resources: typeof resources;
   scenes: typeof scenes;
   scriptVersions: typeof scriptVersions;

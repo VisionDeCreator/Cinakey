@@ -5,6 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import { assembleFromShotList, type TimelineDocument } from "@cinakey/shared";
@@ -16,16 +17,20 @@ const state = vi.hoisted(() => ({
   save: vi.fn(),
   confirm: vi.fn(),
   document: null as unknown,
+  canvases: [] as HTMLCanvasElement[],
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
     const name = getFunctionName(ref);
     if (name === "projects:get")
       return { _id: "p", title: "Film", aspectRatio: "16:9", fps: 24 };
+    if (name === "shotGeneration:listProjectVideos")
+      return { videos: [], jobs: [] };
     if (name === "timelineVersions:getTip")
       return { _id: "v1", timelineFileId: "f1" };
     return [];
   },
+  useMutation: () => vi.fn(),
   useAction: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref) === "timelineVersions:getContent"
       ? state.get
@@ -38,10 +43,34 @@ vi.mock("@/components/ConfirmProvider", () => ({
 }));
 vi.mock("@/features/edit/engine/PlaybackEngine", () => ({
   PlaybackEngine: class {
+    constructor(canvas: HTMLCanvasElement) {
+      state.canvases.push(canvas);
+    }
     subscribe() {}
     setDocument() {}
     dispose() {}
     seek() {}
+  },
+}));
+vi.mock("@/features/studio/StudioWorkspace", () => ({
+  StudioWorkspace: function StudioWorkspace({
+    toolbar,
+    viewer,
+    timeline,
+  }: {
+    toolbar: ReactNode;
+    viewer: ReactNode;
+    timeline: ReactNode;
+  }) {
+    const [version, setVersion] = useState(0);
+    return (
+      <>
+        {toolbar}
+        <div key={version}>{viewer}</div>
+        {timeline}
+        <button onClick={() => setVersion((n) => n + 1)}>Remount viewer</button>
+      </>
+    );
   },
 }));
 vi.mock("@/features/edit/TimelineTracks", () => ({
@@ -86,6 +115,7 @@ beforeEach(() => {
     removeItem: (key: string) => storage.delete(key),
     clear: () => storage.clear(),
   });
+  state.canvases = [];
   state.get.mockReset();
   state.save.mockReset();
   state.confirm.mockReset();
@@ -177,5 +207,19 @@ describe("safe editor persistence", () => {
     expect(
       screen.queryByRole("button", { name: /Move/ }),
     ).not.toBeInTheDocument();
+  });
+  it("reattaches playback after the workspace replaces the viewer without reloading the edit", async () => {
+    mount();
+    await flush();
+    const previous = state.canvases.at(-1);
+    expect(previous).toBe(screen.getByLabelText("Timeline video preview"));
+    fireEvent.click(screen.getByRole("button", { name: "Remount viewer" }));
+    await flush();
+    expect(state.canvases.at(-1)).not.toBe(previous);
+    expect(state.canvases.at(-1)).toBe(
+      screen.getByLabelText("Timeline video preview"),
+    );
+    expect(state.get).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Move 0" })).toBeInTheDocument();
   });
 });

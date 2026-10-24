@@ -20,8 +20,6 @@ import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayo
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
-import { ScriptWorkbenchPage } from "@/features/script/ScriptWorkbenchPage";
-import { VideoPage } from "@/features/shots/VideoPage";
 import { EditPage } from "@/features/edit/EditPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import {
@@ -51,9 +49,9 @@ function AuthRedirect({ children }: { children: ReactNode }) {
   return children;
 }
 
-function RedirectToVideo() {
+function RedirectToStudio() {
   const { projectId } = useParams();
-  return <Navigate to={`/projects/${projectId}/video`} replace />;
+  return <Navigate to={`/projects/${projectId}/studio`} replace />;
 }
 
 function RedirectLookDev() {
@@ -68,7 +66,7 @@ function RedirectLookDev() {
 
 function RedirectShots() {
   const { projectId } = useParams();
-  return <Navigate to={`/projects/${projectId}/video`} replace />;
+  return <Navigate to={`/projects/${projectId}/studio`} replace />;
 }
 
 function RedirectBlockoutShot() {
@@ -111,11 +109,12 @@ export function AppRouter() {
               path="/projects/:projectId"
               element={<ProjectWorkspaceLayout />}
             >
-              <Route index element={<RedirectToVideo />} />
-              <Route path="copilot" element={<RedirectToVideo />} />
+              <Route index element={<EditPage />} />
+              <Route path="studio" element={<EditPage />} />
+              <Route path="copilot" element={<RedirectToStudio />} />
               <Route path="assets" element={<CreativeAssetsPage />} />
               <Route path="assets/:assetId" element={<AssetWorkbenchPage />} />
-              <Route path="script" element={<ScriptWorkbenchPage />} />
+              <Route path="script" element={<EditPage />} />
               <Route path="look-dev" element={<RedirectLookDev />} />
               <Route path="look-dev/:entityId" element={<RedirectLookDev />} />
               <Route path="blockout" element={<BlockoutPage />} />
@@ -124,7 +123,7 @@ export function AppRouter() {
                 path="blockout/shots/:shotId"
                 element={<RedirectBlockoutShot />}
               />
-              <Route path="video" element={<VideoPage />} />
+              <Route path="video" element={<EditPage />} />
               <Route path="video/:shotId" element={<RedirectShots />} />
               <Route path="shots" element={<RedirectShots />} />
               <Route path="shots/:shotId" element={<RedirectShots />} />

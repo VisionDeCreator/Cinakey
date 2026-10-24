@@ -70,6 +70,7 @@ export type BuildRequestInput = {
   referenceImageUrls?: string[];
   /** Optional pre-viz / reference video URL for Seedance. */
   referenceVideoUrl?: string;
+  referenceVideoAssetId?: string;
   maskUrl?: string;
   /** Mock / test: force a failure for refund path. */
   forceFail?: boolean;

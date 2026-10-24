@@ -374,7 +374,7 @@ async function mixAudioOffline(
 
   const dialogueRanges: Array<{ start: number; end: number }> = [];
   for (const track of doc.tracks) {
-    if (track.kind !== "dialogue" || track.muted) continue;
+    if (track.kind !== "dialogue" || track.muted || track.audioMuted) continue;
     for (const clip of track.clips) {
       dialogueRanges.push({
         start: clip.startSec,
@@ -385,7 +385,7 @@ async function mixAudioOffline(
 
   let scheduled = 0;
   for (const track of doc.tracks) {
-    if (track.muted) continue;
+    if (track.muted || track.audioMuted) continue;
     if (
       track.kind !== "video" &&
       track.kind !== "music" &&
@@ -400,7 +400,7 @@ async function mixAudioOffline(
       if (!url) throw new Error("Missing audio media");
       const buffer = await cache.ensureAudio(assetId, url);
       if (!buffer) {
-        if (track.kind !== "video")
+        if (track.kind !== "video" && urls[assetId]?.type !== "video")
           throw new Error("Audio media could not be decoded");
         continue;
       }

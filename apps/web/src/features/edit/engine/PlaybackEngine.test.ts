@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   ensure: vi.fn(),
   draw: vi.fn(),
   titles: vi.fn(),
+  schedule: vi.fn(),
 }));
 vi.mock("./Compositor", () => ({
   Compositor: class {
@@ -30,6 +31,11 @@ vi.mock("./AudioGraph", async () => {
     AudioGraph: class {
       ctx = {};
       stopAll() {}
+      resume = async () => {};
+      schedule = state.schedule;
+      timelineSecNow() {
+        return null;
+      }
       dispose() {}
     },
   };
@@ -104,5 +110,41 @@ it("presents decoded frames during continuous playback instead of starving them 
     { time: 1 },
     { time: 2 },
   ]);
+  engine.dispose();
+});
+
+it("applies audio changes during playback without interrupting the picture", async () => {
+  state.ensure.mockResolvedValue({
+    canvasSink: { getCanvas: async () => ({ canvas: {} }) },
+  });
+  state.schedule.mockResolvedValue(undefined).mockClear();
+  const engine = new PlaybackEngine(document.createElement("canvas"));
+  const doc = assembleFromShotList({
+    project: { id: "p", aspectRatio: "16:9", fps: 24 },
+    shots: [
+      {
+        shotId: "s",
+        sceneOrder: 0,
+        shotOrder: 0,
+        durationSec: 5,
+        take: { takeId: "t", assetId: "a" },
+      },
+    ],
+  });
+  const urls = { a: { url: "https://fixture.test/video.mp4" } };
+  engine.setDocument(doc, urls);
+  await engine.play();
+  const muted = {
+    ...doc,
+    tracks: doc.tracks.map((track) => ({ ...track, audioMuted: true })),
+  };
+  engine.setDocument(muted, urls);
+  expect(state.schedule).toHaveBeenLastCalledWith(
+    muted,
+    expect.any(Number),
+    urls,
+    engine.cache,
+  );
+  expect(engine.isPlaying()).toBe(true);
   engine.dispose();
 });

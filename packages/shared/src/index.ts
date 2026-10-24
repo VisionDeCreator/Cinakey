@@ -295,3 +295,10 @@ export {
 } from "./timeline";
 
 export { validateVideoInput } from "./videoGeneration";
+
+export {
+  referenceAlias,
+  scriptMentions,
+  resolveReferences,
+} from "./references";
+export type { ReferenceBinding, ReferenceCandidate } from "./references";

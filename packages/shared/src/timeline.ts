@@ -83,6 +83,8 @@ export type TimelineTrack = {
   kind: TrackKind;
   name: string;
   muted?: boolean;
+  /** Audio-only mute; video frames remain visible. */
+  audioMuted?: boolean;
   locked?: boolean;
   clips: TimelineClip[];
 };
@@ -160,6 +162,7 @@ const trackSchema = z.object({
   kind: z.enum(TRACK_KINDS),
   name: z.string(),
   muted: z.boolean().optional(),
+  audioMuted: z.boolean().optional(),
   locked: z.boolean().optional(),
   clips: z.array(clipSchema),
 });

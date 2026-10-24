@@ -59,6 +59,7 @@ export const startGeneration = action({
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
+    referenceVideoAssetId: v.optional(v.id("assets")),
     parentAssetIds: v.optional(v.array(v.id("assets"))),
     maskAssetId: v.optional(v.id("assets")),
     startFrameAssetId: v.optional(v.id("assets")),
@@ -126,6 +127,7 @@ export const startGeneration = action({
     const allRefIds = [
       ...new Set([
         ...referenceAssetIds,
+        ...(args.referenceVideoAssetId ? [args.referenceVideoAssetId] : []),
         ...parentAssetIds,
         ...(args.maskAssetId !== undefined ? [args.maskAssetId] : []),
         ...(args.startFrameAssetId !== undefined
@@ -199,13 +201,24 @@ export const startGeneration = action({
       ? await urlFor(args.endFrameAssetId)
       : (args.input as BuildRequestInput | undefined)?.endFrameUrl;
 
+    if (args.referenceVideoAssetId) {
+      const video = await ctx.runQuery(internal.storage.getAssetInternal, {
+        assetId: args.referenceVideoAssetId,
+      });
+      if (video?.type !== "video")
+        throw new Error("Video references must be video assets");
+    }
     const buildInput: BuildRequestInput = {
       ...(args.input as BuildRequestInput | undefined),
       prompt: args.prompt,
       kind: args.kind,
       seed: args.seed,
       imageCount: args.imageCount,
+      referenceVideoAssetId: args.referenceVideoAssetId,
       referenceVideoUrl:
+        (args.referenceVideoAssetId
+          ? await urlFor(args.referenceVideoAssetId)
+          : undefined) ??
         parentVideoUrl ??
         (args.input as BuildRequestInput | undefined)?.referenceVideoUrl,
       referenceImageUrls:

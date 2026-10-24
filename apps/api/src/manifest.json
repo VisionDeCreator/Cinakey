@@ -1182,5 +1182,17 @@
   "storage:canProjectUseAsset": {
     "kind": "query",
     "public": false
+  },
+  "references:list": {
+    "kind": "query",
+    "public": true
+  },
+  "references:bind": {
+    "kind": "mutation",
+    "public": true
+  },
+  "shotGeneration:listProjectVideos": {
+    "kind": "query",
+    "public": true
   }
 }

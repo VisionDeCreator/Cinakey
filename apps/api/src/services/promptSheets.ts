@@ -1,5 +1,6 @@
 import {
   assertSheetDocument,
+  resolveReferences,
   normalizeEntityName,
   parseScriptPromptText,
   requiredAssetsFromScript,
@@ -347,6 +348,7 @@ export const saveScriptPromptText = action({
     promptText: v.string(),
     title: v.optional(v.string()),
     applyShots: v.optional(v.boolean()),
+    newPart: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -372,6 +374,41 @@ export const saveScriptPromptText = action({
       throw new Error("promptText is empty");
     }
 
+    const project = await ctx.runQuery(api.projects.get, {
+      projectId: args.projectId,
+    });
+    const media = await ctx.runQuery(api.assets.list, {
+      projectId: args.projectId,
+    });
+    const namedEntities = await ctx.runQuery(api.entities.listForProject, {
+      projectId: args.projectId,
+    });
+    const namedCandidates = media.map((a) => ({
+      assetId: a._id as string,
+      name: a.name,
+      type: a.type as string,
+    }));
+    for (const entity of namedEntities)
+      if (entity.lockedReferenceAssetIds[0])
+        namedCandidates.push({
+          assetId: entity.lockedReferenceAssetIds[0],
+          name: entity.name,
+          type: "image",
+        });
+    const named = resolveReferences(
+      promptText,
+      project?.referenceBindings ?? [],
+      namedCandidates,
+    );
+    // Freeze unique name matches to IDs. Later asset renames preserve the original alias.
+    for (const ref of named.resolved) {
+      if (!project?.referenceBindings?.some((b) => b.alias === ref.alias))
+        await ctx.runMutation(api.references.bind, {
+          projectId: args.projectId,
+          alias: ref.alias,
+          assetId: ref.assetId as Id<"assets">,
+        });
+    }
     const validation = validateScriptPromptText(promptText);
     const parsed = parseScriptPromptText(promptText);
 
@@ -384,6 +421,14 @@ export const saveScriptPromptText = action({
       projectId: args.projectId,
       parsed,
       entities,
+      priorMap: args.sequenceId
+        ? ((
+            await ctx.runQuery(api.promptSheets.getTipForSequence, {
+              sequenceId: args.sequenceId,
+            })
+          )?.referenceMap ?? [])
+        : [],
+      boundAliases: named.resolved.map((r) => r.alias),
     });
     const referenceMap = synced.referenceMap;
     // Keep structured refs pointing at resolved entity ids
@@ -411,7 +456,7 @@ export const saveScriptPromptText = action({
         (t) => t.type === "script" && t.sequenceId === sequenceId,
       );
     }
-    if (!existing && !sequenceId) {
+    if (!existing && !sequenceId && !args.newPart) {
       existing = tips
         .filter((t) => t.type === "script")
         .sort((a, b) => b.version - a.version)[0];
@@ -517,13 +562,17 @@ async function syncRequiredAssetsFromScript(
     projectId: Id<"projects">;
     parsed: ReturnType<typeof parseScriptPromptText>;
     entities: Doc<"entities">[];
+    priorMap: { imageN: number; entityId: Id<"entities"> }[];
+    boundAliases: string[];
   },
 ): Promise<{
   referenceMap: { imageN: number; entityId: Id<"entities"> }[];
   createdEntityIds: Id<"entities">[];
   staleSheetIds: Id<"promptSheets">[];
 }> {
-  const required = requiredAssetsFromScript(args.parsed);
+  const required = requiredAssetsFromScript(args.parsed).filter(
+    (r) => r.description.trim() || r.label !== "location",
+  );
   const tips: Doc<"promptSheets">[] = await ctx.runQuery(
     internal.promptSheets.listTipsInternal,
     { projectId: args.projectId },
@@ -539,6 +588,7 @@ async function syncRequiredAssetsFromScript(
   const hasStyleReference = Boolean(project?.styleReferenceAssetId);
 
   for (const req of required) {
+    if (args.boundAliases.includes(`image_${req.imageN}`)) continue;
     const kind =
       req.assetType === "environment"
         ? ("location" as const)
@@ -549,15 +599,17 @@ async function syncRequiredAssetsFromScript(
             : ("character" as const);
 
     const key = scriptAssetLabelKey(req.label);
+    const priorId = args.priorMap.find(
+      (r) => r.imageN === req.imageN,
+    )?.entityId;
     let entity =
+      entities.find((e) => e._id === priorId) ??
       entities.find(
         (e) =>
           e.kind !== "style" &&
           (normalizeEntityName(e.name) === normalizeEntityName(req.label) ||
-            scriptAssetLabelKey(e.name) === key ||
-            key.includes(scriptAssetLabelKey(e.name)) ||
-            scriptAssetLabelKey(e.name).includes(key)),
-      ) ?? undefined;
+            scriptAssetLabelKey(e.name) === key),
+      );
 
     if (!entity) {
       const entityId = await ctx.runMutation(
@@ -587,12 +639,6 @@ async function syncRequiredAssetsFromScript(
         entity = created;
       }
     } else {
-      // Align kind/name when script is clearer
-      await ctx.runMutation(internal.promptSheets.patchEntityKindInternal, {
-        entityId: entity._id,
-        kind,
-        name: req.label,
-      });
       const prevDesc = (entity.description ?? "").trim();
       const nextDesc = req.description.trim();
       if (nextDesc && nextDesc !== prevDesc) {

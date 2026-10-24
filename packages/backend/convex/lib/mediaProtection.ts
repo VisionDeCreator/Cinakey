@@ -102,6 +102,9 @@ export async function assertMediaRemovable(
   const project = await ctx.db.get(projectId);
   if (
     project?.styleReferenceAssetId === assetId ||
+    project?.referenceBindings?.some(
+      (binding) => binding.assetId === assetId,
+    ) ||
     entities.some((e) => e.lockedReferenceAssetIds.includes(assetId))
   )
     throw new Error(

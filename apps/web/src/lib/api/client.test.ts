@@ -35,4 +35,31 @@ describe("API client", () => {
       data: { code: "INSUFFICIENT_CREDITS" },
     });
   });
+  it("refreshes a binding after a mutation even if a previous read is still in flight", async () => {
+    let finish!: (value: Response) => void;
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ value: [{ alias: "image_1", assetId: "new" }] }),
+        ),
+      );
+    vi.stubGlobal("fetch", fetcher);
+    const client = new ApiClient("http://api", "token");
+    const entry = client.entry("references:list", {});
+    entry.listeners.add(() => {});
+    const initial = client.load(entry);
+    const refresh = client.invalidate();
+    finish(new Response(JSON.stringify({ value: [] })));
+    await initial;
+    await refresh;
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(entry.data).toEqual([{ alias: "image_1", assetId: "new" }]);
+  });
 });

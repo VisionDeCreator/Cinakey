@@ -108,7 +108,12 @@ export class ApiClient {
     await Promise.all(
       [...this.queries.values()]
         .filter((e) => e.listeners.size)
-        .map((e) => this.load(e, true)),
+        .map(async (e) => {
+          // A read started before a write may return the old snapshot. Wait for
+          // it, then issue a new read after the mutation has committed.
+          if (e.pending) await e.pending;
+          await this.load(e, true);
+        }),
     );
   }
   async poll() {
