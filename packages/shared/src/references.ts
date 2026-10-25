@@ -1,7 +1,50 @@
+export type ScriptMention = {
+  alias: string;
+  start: number;
+  end: number;
+  text: string;
+  markdown: boolean;
+};
+
+/** Source ranges refer to the original text, including complete pasted Markdown links. */
+export function scriptMentionRanges(text: string): ScriptMention[] {
+  const pattern =
+    /(?<![\p{L}\p{N}_])@(?:\[([^\]\r\n]+)\](?:\\?\(([\p{L}\p{N}_-]+)\\?\))?|([\p{L}\p{N}_-]+))/gu;
+  const mentions: ScriptMention[] = [];
+  for (const match of text.matchAll(pattern)) {
+    const label = match[1];
+    const numbered = label && /^(image|video)[_\s-]*(\d+)$/i.exec(label);
+    const alias =
+      match[2]?.toLowerCase() ??
+      (numbered
+        ? `${numbered[1]!.toLowerCase()}_${numbered[2]}`
+        : match[3]?.toLowerCase());
+    if (alias)
+      mentions.push({
+        alias,
+        start: match.index,
+        end: match.index + match[0].length,
+        text: match[0],
+        markdown: label !== undefined,
+      });
+  }
+  return mentions;
+}
+function rewriteMentions(
+  text: string,
+  transform: (mention: ScriptMention) => string,
+) {
+  let result = "",
+    cursor = 0;
+  for (const mention of scriptMentionRanges(text)) {
+    result += text.slice(cursor, mention.start) + transform(mention);
+    cursor = mention.end;
+  }
+  return result + text.slice(cursor);
+}
 function normalizeMentions(text: string): string {
-  return text.replace(
-    /@\[(image|video)[_\s-]*(\d+)\](?:\((?:image_|video_)?\d+\))?/gi,
-    (_match, kind: string, n: string) => `@${kind.toLowerCase()}_${n}`,
+  return rewriteMentions(text, (mention) =>
+    mention.markdown ? `@${mention.alias}` : mention.text,
   );
 }
 /** User-facing aliases bind to stable media IDs; names are only search labels. */
@@ -20,15 +63,7 @@ export function referenceAlias(name: string): string {
     .replace(/^_+|_+$/g, "");
 }
 export function scriptMentions(text: string): string[] {
-  return [
-    ...new Set(
-      [
-        ...normalizeMentions(text).matchAll(
-          /(?<![\p{L}\p{N}_])@([\p{L}\p{N}_-]+)/gu,
-        ),
-      ].map((m) => m[1]!.toLowerCase()),
-    ),
-  ];
+  return [...new Set(scriptMentionRanges(text).map((m) => m.alias))];
 }
 export function resolveReferences(
   text: string,
@@ -83,4 +118,50 @@ export function resolveReferences(
     (original, alias: string) => tokens.get(alias.toLowerCase()) ?? original,
   );
   return { resolved, unresolved, ambiguous, imageIds, videoIds, prompt };
+}
+
+/** Replace complete mentions only; email addresses and longer aliases are untouched. */
+export function renameReferenceMentions(
+  text: string,
+  from: string,
+  to: string,
+): string {
+  const source = referenceAlias(from),
+    target = referenceAlias(to);
+  return rewriteMentions(text, (mention) => {
+    if (mention.alias !== source) return mention.text;
+    if (!mention.markdown) return `@${target}`;
+    const numbered = /^(image|video)_(\d+)$/.exec(target);
+    const label = numbered
+      ? `${numbered[1] === "image" ? "Image" : "Video"} ${numbered[2]}`
+      : target;
+    return `@[${label}](${target})`;
+  });
+}
+
+export function mentionAtCaret(text: string, caret: number) {
+  const match = /(?<![\p{L}\p{N}_])@([\p{L}\p{N}_-]*)$/u.exec(
+    text.slice(0, caret),
+  );
+  if (!match) return null;
+  const tail = /^[\p{L}\p{N}_-]*/u.exec(text.slice(caret))?.[0] ?? "";
+  return {
+    start: match.index,
+    end: caret + tail.length,
+    query: match[1] ?? "",
+  };
+}
+
+/** Keep numbered aliases truthful when switching the reference's media type. */
+export function replacementReferenceAlias(
+  alias: string,
+  type: string,
+  used: string[],
+): string {
+  if (!/^(image|video)_\d+$/.test(alias) || alias.startsWith(`${type}_`))
+    return alias;
+  let n = Number(alias.split("_")[1]) || 1;
+  const occupied = new Set(used);
+  while (occupied.has(`${type}_${n}`)) n++;
+  return `${type}_${n}`;
 }

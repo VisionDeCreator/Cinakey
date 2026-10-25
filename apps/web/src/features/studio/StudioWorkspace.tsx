@@ -10,7 +10,7 @@ import {
   COST_CONFIRM_THRESHOLD_CREDITS,
   type TimelineClip,
 } from "@cinakey/shared";
-import { Film, Image, Link2, Music, Plus, Star, Upload } from "lucide-react";
+import { Film, Link2, Music, Plus, Star, Upload } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -22,6 +22,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { MediaThumbnail, ReferenceMedia } from "./ReferenceMedia";
 import { MediaPreview } from "./MediaPreview";
 import "./studio.css";
 import { StudioScript } from "./StudioScript";
@@ -68,7 +69,7 @@ export function StudioWorkspace({
     void ensure({ projectId: projectId as never }).catch((error) => {
       if (!cancelled)
         setMigrationError(
-          error instanceof Error ? error.message : "Project migration failed",
+          error instanceof Error ? error.message : "Workspace setup failed",
         );
     });
     return () => {
@@ -515,7 +516,7 @@ export function StudioWorkspace({
         <div className="studio-section-heading">
           <h2>Project media</h2>
         </div>
-        {migrationError && (
+        {migrationError && !workspace?.migrated && (
           <p role="alert">
             {migrationError}
             <Button
@@ -524,7 +525,7 @@ export function StudioWorkspace({
                 setMigrationAttempt((value) => value + 1);
               }}
             >
-              Retry migration
+              Retry workspace setup
             </Button>
           </p>
         )}
@@ -544,34 +545,41 @@ export function StudioWorkspace({
         </div>
         <div className="studio-assets">
           {libraryAssets.map((asset) => (
-            <button
+            <ReferenceMedia
               key={asset._id}
-              className={`studio-asset ${sourceId === asset._id ? "selected" : ""}`}
-              draggable={false}
-              data-media-draggable
-              onDragStart={(event) => event.preventDefault()}
-              onPointerDown={(event) => beginMediaPointerDrag(event, asset._id)}
-              title="Drag to a timeline track, or click to preview"
-              onClick={() => preview(asset._id)}
+              asset={asset}
+              url={urls?.find((u) => u.assetId === asset._id)?.url}
             >
-              <span className="studio-asset-icon">
-                {asset.type === "image" ? (
-                  <Image />
-                ) : asset.type === "video" ? (
-                  <Film />
+              <button
+                key={asset._id}
+                className={`studio-asset ${sourceId === asset._id ? "selected" : ""}`}
+                draggable={false}
+                data-media-draggable
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) =>
+                  beginMediaPointerDrag(event, asset._id)
+                }
+                title="Drag to the timeline or script, or click to preview"
+                onClick={() => preview(asset._id)}
+              >
+                {asset.type === "image" || asset.type === "video" ? (
+                  <MediaThumbnail
+                    asset={asset}
+                    url={urls?.find((u) => u.assetId === asset._id)?.url}
+                  />
                 ) : (
-                  <Music />
+                  <Music size={18} />
                 )}
-              </span>
-              <span>
-                <strong>{asset.name}</strong>
-                <small>
-                  {bindings?.find((b) => b.assetId === asset._id)
-                    ? `@${bindings.find((b) => b.assetId === asset._id)?.alias}`
-                    : asset.type}
-                </small>
-              </span>
-            </button>
+                <span>
+                  <strong>{asset.name}</strong>
+                  <small>
+                    {bindings?.find((b) => b.assetId === asset._id)
+                      ? `@${bindings.find((b) => b.assetId === asset._id)?.alias}`
+                      : asset.type}
+                  </small>
+                </span>
+              </button>
+            </ReferenceMedia>
           ))}
         </div>
         <label className="studio-upload-label">
@@ -1002,6 +1010,7 @@ export function StudioWorkspace({
         </div>
         <div hidden={inspectorView !== "script"}>
           <StudioScript
+            stagingReferenceId={useStaging ? staging?.previzAssetId : undefined}
             projectId={projectId}
             onDirty={dirtyChanged}
             onValidityChange={setReferencesValid}
@@ -1093,7 +1102,7 @@ export function StudioWorkspace({
               {dirty
                 ? "Save the script before generating."
                 : !referencesValid
-                  ? "Link unresolved or ambiguous references before generating."
+                  ? "Resolve the script reference issues shown above before generating."
                   : overCap
                     ? "Project spend cap reached."
                     : !validDuration

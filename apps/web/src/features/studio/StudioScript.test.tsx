@@ -13,6 +13,9 @@ const state = vi.hoisted(() => ({
   save: vi.fn(),
   bind: vi.fn(),
   dirty: vi.fn(),
+  upload: vi.fn(),
+  replace: vi.fn(),
+  undoConversion: vi.fn(),
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
@@ -20,17 +23,26 @@ vi.mock("@/lib/api/hooks", () => ({
       case "workspace:list":
         return { migrated: true, script: { _id: "tip" }, scripts: [] };
       case "assets:list":
-        return [{ _id: "asset-james", name: "James", type: "image" }];
+        return [
+          { _id: "asset-james", name: "James", type: "image" },
+          { _id: "asset-motion", name: "Motion", type: "video" },
+        ];
       default:
         return [];
     }
   },
   useAction: () => async () => ({ id: "tip", text: state.text }),
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref) === "workspace:saveScript" ? state.save : state.bind,
+    getFunctionName(ref) === "workspace:saveScript"
+      ? state.save
+      : getFunctionName(ref) === "references:replace"
+        ? state.replace
+        : getFunctionName(ref) === "references:undoReplacement"
+          ? state.undoConversion
+          : state.bind,
 }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
-  useAssetUpload: () => ({ uploadFiles: vi.fn(), uploads: [] }),
+  useAssetUpload: () => ({ uploadFiles: state.upload, uploads: [] }),
 }));
 function mount() {
   const saveRef = { current: null as (() => Promise<boolean>) | null };
@@ -52,6 +64,9 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ alias: "image_1", assetId: "asset-james" });
   state.dirty.mockReset();
+  state.upload.mockReset();
+  state.replace.mockReset();
+  state.undoConversion.mockReset();
   const storage = new Map<string, string>();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -70,7 +85,7 @@ describe("connected script references and safe autosave", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /@image_1.*Link asset/ }),
     );
-    fireEvent.click(screen.getByRole("button", { name: /Link James/ }));
+    fireEvent.click(screen.getByRole("option", { name: /Link James/ }));
     await act(async () => {});
     expect(state.bind).toHaveBeenCalledWith({
       projectId: "project",
@@ -90,7 +105,7 @@ describe("connected script references and safe autosave", () => {
     fireEvent.change(input, {
       target: { value: "@james walks. @ja", selectionStart: 17 },
     });
-    fireEvent.click(screen.getByRole("button", { name: /Link James/ }));
+    fireEvent.click(screen.getByRole("option", { name: /Link James/ }));
     await act(async () => {});
     expect(state.bind).toHaveBeenCalledWith({
       projectId: "project",
@@ -131,3 +146,183 @@ describe("connected script references and safe autosave", () => {
     ).toBeNull();
   });
 });
+
+it("supports keyboard completion in the middle of a mention and preserves following text", async () => {
+  mount();
+  await act(async () => {});
+  const input = screen.getByRole("textbox", {
+    name: "Script",
+  }) as HTMLTextAreaElement;
+  fireEvent.change(input, {
+    target: { value: "Hello @james, goodbye.", selectionStart: 9 },
+  });
+  fireEvent.keyDown(input, { key: "Enter" });
+  await act(async () => {});
+  expect(input.value).toBe("Hello @james, goodbye.");
+  expect(state.bind).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "james",
+    assetId: "asset-james",
+  });
+});
+it("dismisses completion with Escape without inserting or binding", async () => {
+  mount();
+  await act(async () => {});
+  const input = screen.getByRole("textbox", { name: "Script" });
+  fireEvent.change(input, { target: { value: "@", selectionStart: 1 } });
+  expect(screen.getByRole("listbox")).toBeInTheDocument();
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  expect(state.bind).not.toHaveBeenCalled();
+});
+
+it("inserts dropped project media at the saved selection without altering surrounding text", async () => {
+  mount();
+  await act(async () => {});
+  const input = screen.getByRole("textbox", {
+    name: "Script",
+  }) as HTMLTextAreaElement;
+  fireEvent.change(input, {
+    target: { value: "Before  after", selectionStart: 7, selectionEnd: 7 },
+  });
+  fireEvent.select(input, { target: { selectionStart: 7, selectionEnd: 7 } });
+  fireEvent.drop(input, {
+    dataTransfer: { getData: () => JSON.stringify({ assetId: "asset-james" }) },
+  });
+  await act(async () => {});
+  expect(input.value).toBe("Before @james after");
+  expect(state.bind).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "james",
+    assetId: "asset-james",
+  });
+});
+it("ignores media from outside the project's image and video candidates", async () => {
+  mount();
+  await act(async () => {});
+  fireEvent.drop(screen.getByRole("textbox", { name: "Script" }), {
+    dataTransfer: { getData: () => JSON.stringify({ assetId: "foreign" }) },
+  });
+  await act(async () => {});
+  expect(state.bind).not.toHaveBeenCalled();
+});
+
+it("keeps the original insertion range while an upload is pending", async () => {
+  let finish!: (ids: string[]) => void;
+  state.upload.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  mount();
+  await act(async () => {});
+  const input = screen.getByRole("textbox", {
+    name: "Script",
+  }) as HTMLTextAreaElement;
+  fireEvent.change(input, {
+    target: { value: "Before @ after", selectionStart: 8 },
+  });
+  fireEvent.change(screen.getByLabelText("Upload & link"), {
+    target: {
+      files: [new File(["image"], "James.png", { type: "image/png" })],
+    },
+  });
+  fireEvent.select(input, { target: { selectionStart: 0, selectionEnd: 0 } });
+  await act(async () => {
+    finish(["uploaded-james"]);
+  });
+  expect(input.value).toBe("Before @james after");
+  expect(state.bind).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "james",
+    assetId: "uploaded-james",
+  });
+});
+
+it("opens the picker from a baked-in Markdown mention and counts mixed occurrences", async () => {
+  state.text =
+    "REFERENCES\n@[Image 1](image_1) = character. @image_1 moves. @[Image 2](image_2) stays.";
+  mount();
+  await act(async () => {});
+  fireEvent.click(screen.getByText("@[Image 1](image_1)", { exact: true }));
+  expect(
+    screen.getByRole("option", { name: /Link James/ }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /@image_1.*2 mentions/ }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: /Link James/ }));
+  await act(async () => {});
+  expect(state.bind).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "image_1",
+    assetId: "asset-james",
+  });
+  expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
+    state.text,
+  );
+});
+
+it("converts a pasted image reference to a video globally and restores its original spelling with undo", async () => {
+  state.text =
+    "@[Image 1](image_1) = character. @image_1 moves. @[IMAGE 2](IMAGE_2) stays.";
+  const converted =
+    "@[Video 1](video_1) = character. @video_1 moves. @[IMAGE 2](IMAGE_2) stays.";
+  state.replace.mockResolvedValue({
+    id: "converted",
+    text: converted,
+    alias: "video_1",
+    previousVersionId: "tip",
+    previousAssetId: null,
+  });
+  state.undoConversion.mockResolvedValue({ id: "restored", text: state.text });
+  mount();
+  await act(async () => {});
+  fireEvent.click(screen.getByText("@[Image 1](image_1)", { exact: true }));
+  fireEvent.click(screen.getByRole("option", { name: "Link Motion (video)" }));
+  await act(async () => {});
+  expect(state.replace).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "image_1",
+    assetId: "asset-motion",
+    expectedId: "tip",
+    expectedAssetId: null,
+  });
+  expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
+    converted,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Undo reference conversion" }),
+  );
+  await act(async () => {});
+  expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
+    state.text,
+  );
+});
+
+it.each(["@[Image 1](image_1)", "@image_1"])(
+  "anchors the replacement picker beside clicked %s without scrolling the editor",
+  async (mention) => {
+    state.text = `Before ${mention} after`;
+    const { container } = mount();
+    await act(async () => {});
+    const token = container.querySelector<HTMLElement>(".script-mention")!;
+    const rect = new DOMRect(100, 120, 140, 20);
+    const rectangles = vi
+      .spyOn(token, "getClientRects")
+      .mockReturnValue([rect] as unknown as DOMRectList);
+    const input = screen.getByRole("textbox", {
+      name: "Script",
+    }) as HTMLTextAreaElement;
+    input.scrollTop = 240;
+    fireEvent.click(token, { clientX: 110, clientY: 130 });
+    expect(screen.getByLabelText("Reference picker")).toHaveStyle({
+      position: "fixed",
+      left: "110px",
+      top: "140px",
+    });
+    expect(input.scrollTop).toBe(240);
+    rectangles.mockRestore();
+  },
+);

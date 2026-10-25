@@ -229,3 +229,7 @@ export {
 export type { ReferenceBinding, ReferenceCandidate } from "./references";
 
 export { normalizeEntityName } from "./sheet";
+export { mentionAtCaret, renameReferenceMentions } from "./references";
+
+export { scriptMentionRanges } from "./references";
+export { replacementReferenceAlias } from "./references";

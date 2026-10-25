@@ -272,3 +272,164 @@ it("rejects undersized image references before charging credits or queuing a job
     await t.run((ctx) => ctx.db.query("generationJobs").collect()),
   ).toHaveLength(0);
 });
+
+it("renames all whole mentions atomically, preserves history, and rejects alias collisions and stale scripts", async () => {
+  const { t, user, userId, projectId } = await fixture();
+  await user.action(api.workspace.ensure, { projectId });
+  const assetId = await t.run(async (ctx) =>
+    ctx.db.insert("assets", {
+      projectId,
+      type: "image",
+      name: "James",
+      searchText: "James",
+      storageId: await ctx.storage.store(new Blob(["image"])),
+      format: "image/png",
+      sizeBytes: 5,
+      tags: [],
+      starred: false,
+      createdBy: userId,
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const initial = await user.action(api.workspace.script, { projectId });
+  const tip = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    expectedId: initial.id,
+    text: "@James meets @james. @james_2 stays. mail@james.com",
+  });
+  await user.mutation(api.references.bind, {
+    projectId,
+    alias: "other",
+    assetId,
+  });
+  await expect(
+    user.mutation(api.references.rename, {
+      projectId,
+      alias: "james",
+      newAlias: "other",
+      expectedId: tip,
+    }),
+  ).rejects.toThrow("already in use");
+  const result = await user.mutation(api.references.rename, {
+    projectId,
+    alias: "james",
+    newAlias: "young_james",
+    expectedId: tip,
+  });
+  expect(result.text).toBe(
+    "@young_james meets @young_james. @james_2 stays. mail@james.com",
+  );
+  expect(await user.query(api.references.list, { projectId })).toContainEqual({
+    alias: "young_james",
+    assetId,
+  });
+  expect(
+    (await user.action(api.workspace.script, { projectId, id: tip })).text,
+  ).toContain("@James");
+  await expect(
+    user.mutation(api.references.rename, {
+      projectId,
+      alias: "young_james",
+      newAlias: "again",
+      expectedId: tip,
+    }),
+  ).rejects.toThrow("another window");
+});
+
+it("converts mixed baked-in image mentions to an unused video alias and can undo exact formatting", async () => {
+  const { t, user, userId, projectId } = await fixture();
+  await user.action(api.workspace.ensure, { projectId });
+  const ids = await t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(new Blob(["media"]));
+    const common = {
+      projectId,
+      storageId,
+      searchText: "media",
+      sizeBytes: 5,
+      tags: [],
+      starred: false,
+      createdBy: userId,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    return {
+      image: await ctx.db.insert("assets", {
+        ...common,
+        type: "image",
+        name: "Character",
+        format: "image/png",
+      }),
+      video: await ctx.db.insert("assets", {
+        ...common,
+        type: "video",
+        name: "Character motion",
+        format: "video/mp4",
+      }),
+    };
+  });
+  const initial = await user.action(api.workspace.script, { projectId });
+  const text =
+    "REFERENCES\n@[Image 1](image_1) = character. @IMAGE_1 moves. @[IMAGE 2](IMAGE_2) is unchanged. @video_1 already exists.";
+  const tip = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    expectedId: initial.id,
+    text,
+  });
+  await user.mutation(api.references.bind, {
+    projectId,
+    alias: "image_1",
+    assetId: ids.image,
+  });
+  const replacement = await user.mutation(api.references.replace, {
+    projectId,
+    expectedId: tip,
+    alias: "image_1",
+    assetId: ids.video,
+    expectedAssetId: ids.image,
+  });
+  expect(replacement.alias).toBe("video_2");
+  expect(replacement.text).toBe(
+    text
+      .replace("@[Image 1](image_1)", "@[Video 2](video_2)")
+      .replace("@IMAGE_1", "@video_2"),
+  );
+  expect(await user.query(api.references.list, { projectId })).toContainEqual({
+    alias: "video_2",
+    assetId: ids.video,
+  });
+  await expect(
+    user.mutation(api.references.replace, {
+      projectId,
+      expectedId: tip,
+      alias: "image_1",
+      assetId: ids.video,
+      expectedAssetId: ids.image,
+    }),
+  ).rejects.toThrow("another window");
+  const restored = await user.mutation(api.references.undoReplacement, {
+    projectId,
+    expectedId: replacement.id,
+    previousVersionId: tip,
+    alias: replacement.alias,
+    originalAlias: "image_1",
+    assetId: ids.video,
+    previousAssetId: ids.image,
+  });
+  expect(restored.text).toBe(text);
+  expect(await user.query(api.references.list, { projectId })).toContainEqual({
+    alias: "image_1",
+    assetId: ids.image,
+  });
+  await expect(
+    user.mutation(api.references.undoReplacement, {
+      projectId,
+      expectedId: replacement.id,
+      previousVersionId: tip,
+      alias: replacement.alias,
+      originalAlias: "image_1",
+      assetId: ids.video,
+      previousAssetId: ids.image,
+    }),
+  ).rejects.toThrow("script has changed");
+});

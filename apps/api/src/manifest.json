@@ -718,5 +718,17 @@
   "workspace:auditAll": {
     "kind": "query",
     "public": false
+  },
+  "references:rename": {
+    "kind": "mutation",
+    "public": true
+  },
+  "references:replace": {
+    "kind": "mutation",
+    "public": true
+  },
+  "references:undoReplacement": {
+    "kind": "mutation",
+    "public": true
   }
 }

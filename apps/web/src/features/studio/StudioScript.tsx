@@ -4,29 +4,44 @@ import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import {
   referenceAlias,
+  mentionAtCaret,
   resolveReferences,
   scriptMentions,
+  scriptMentionRanges,
+  replacementReferenceAlias,
 } from "@cinakey/shared";
 import { Check, Link2, Upload, X } from "lucide-react";
 import {
   useCallback,
+  useEffectEvent,
   useEffect,
   useRef,
   useState,
   type MutableRefObject,
 } from "react";
 
+import { MediaThumbnail, ReferenceMedia } from "./ReferenceMedia";
+import { PlainScriptEditor } from "./PlainScriptEditor";
+import { caretPosition, referencePickerPosition } from "./referenceEditing";
+import {
+  MEDIA_POINTER_EVENT,
+  type MediaPointerDetail,
+} from "@/features/edit/mediaDrag";
+
 export function StudioScript({
   projectId,
   onDirty,
   onValidityChange,
   saveRef,
+  stagingReferenceId,
 }: {
+  stagingReferenceId?: string;
   projectId: string;
   onDirty: (dirty: boolean) => void;
   onValidityChange?: (valid: boolean) => void;
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
+  const project = useQuery(api.projects.get, { projectId: projectId as never });
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
   });
@@ -34,15 +49,21 @@ export function StudioScript({
     import("@cinakey/backend").Id<"workspaceScripts"> | undefined
   >(undefined);
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
-  const entities = useQuery(api.entities.listForProject, {
-    projectId: projectId as never,
-  });
   const bindings = useQuery(api.references.list, {
     projectId: projectId as never,
   });
   const save = useMutation(api.workspace.saveScript);
   const loadContent = useAction(api.workspace.script);
   const bind = useMutation(api.references.bind);
+  const renameReference = useMutation(api.references.rename);
+  const replaceReference = useMutation(api.references.replace);
+  const undoReferenceReplacement = useMutation(api.references.undoReplacement);
+  const assetUrls = useQuery(api.storage.listProjectAssetUrls, {
+    projectId: projectId as never,
+  });
+  const urls = new Map(
+    (assetUrls ?? []).map((a) => [a.assetId as string, a.url]),
+  );
   const { uploadFiles, uploads } = useAssetUpload(projectId);
   const [text, setText] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -51,10 +72,51 @@ export function StudioScript({
   const [status, setStatus] = useState("Loading script…");
   const [error, setError] = useState<string | null>(null);
   const [bindingBusy, setBindingBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [picker, setPicker] = useState<string | null>(null);
   const [insertMention, setInsertMention] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [renameText, setRenameText] = useState("");
+  const [notice, setNotice] = useState("");
+  const [undoBinding, setUndoBinding] = useState<{
+    alias: string;
+    assetId: string;
+    currentAssetId: string;
+  } | null>(null);
+  const [undoConversion, setUndoConversion] = useState<{
+    alias: string;
+    originalAlias: string;
+    assetId: string;
+    previousAssetId: string | null;
+    previousVersionId: string;
+    versionId: string;
+  } | null>(null);
+  const insertion = useRef({ start: 0, end: 0 });
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const pickerElement = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        !pickerElement.current?.contains(target) &&
+        !(target as Element).closest?.(".reference-hover-preview") &&
+        target !== textarea.current
+      )
+        setPicker(null);
+    };
+    const resize = () => setPicker(null);
+    document.addEventListener("pointerdown", dismiss);
+    window.addEventListener("resize", resize);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
   const draft = useRef("");
   const saved = useRef("");
   const initialized = useRef(false);
@@ -153,7 +215,7 @@ export function StudioScript({
     } finally {
       saving.current = null;
     }
-  }, [save, projectId, key, onDirty]);
+  }, [save, projectId, key, onDirty, setError]);
   useEffect(() => {
     saveRef.current = saveLatest;
     return () => {
@@ -195,54 +257,193 @@ export function StudioScript({
     name: a.name,
     type: a.type as string,
   }));
-  for (const entity of entities ?? [])
-    if (entity.lockedReferenceAssetIds[0])
-      namedCandidates.push({
-        assetId: entity.lockedReferenceAssetIds[0],
-        name: entity.name,
-        type: "image",
-      });
   const resolved = resolveReferences(text, links, namedCandidates);
   const mentions = scriptMentions(text);
+  const generationImageIds = [
+    ...new Set([
+      ...resolved.imageIds,
+      ...(project?.styleReferenceAssetId
+        ? [project.styleReferenceAssetId]
+        : []),
+    ]),
+  ];
+  const generationVideoIds = [
+    ...new Set([
+      ...resolved.videoIds,
+      ...(stagingReferenceId ? [stagingReferenceId] : []),
+    ]),
+  ];
   const validReferences =
     ready &&
     !bindingBusy &&
+    !uploading &&
     !resolved.unresolved.length &&
-    !resolved.ambiguous.length;
+    !resolved.ambiguous.length &&
+    resolved.videoIds.length <= 1 &&
+    !(stagingReferenceId && resolved.videoIds.length);
   useEffect(() => {
     onValidityChange?.(validReferences);
   }, [validReferences, onValidityChange]);
-  async function assign(assetId: string) {
-    const asset = candidates.find((a) => a._id === assetId);
+  function openAt(
+    node: HTMLTextAreaElement,
+    value = node.value,
+    caret = node.selectionStart,
+  ) {
+    const match = mentionAtCaret(value, caret);
+    insertion.current = match
+      ? { start: match.start, end: match.end }
+      : { start: caret, end: node.selectionEnd };
+    if (!match) {
+      setPicker(null);
+      return;
+    }
+    setInsertMention(true);
+    setPicker(match.query);
+    setSearch(match.query);
+    setActiveIndex(0);
+    setPosition(caretPosition(node, caret));
+  }
+  function openAlias(alias: string, anchor?: { left: number; top: number }) {
+    setInsertMention(false);
+    setPicker(alias);
+    setSearch("");
+    setRenameText(alias);
+    setPosition(
+      anchor ? referencePickerPosition(anchor.left, anchor.top) : null,
+    );
+    setActiveIndex(0);
+  }
+  const results = candidates
+    .filter(
+      (asset) =>
+        (!insertMention ||
+          !/^video_\d+$/.test(picker ?? "") ||
+          asset.type === "video") &&
+        (!insertMention ||
+          !/^image_\d+$/.test(picker ?? "") ||
+          asset.type === "image") &&
+        (!search ||
+          /^(image|video)_\d+$/.test(search) ||
+          referenceAlias(asset.name).includes(referenceAlias(search)) ||
+          links.some(
+            (link) =>
+              link.assetId === asset._id &&
+              link.alias.includes(referenceAlias(search)),
+          )),
+    )
+    .sort((a, b) => {
+      const rank = (id: string, name: string) =>
+        links.some((l) => l.assetId === id && l.alias === search.toLowerCase())
+          ? 0
+          : referenceAlias(name) === referenceAlias(search)
+            ? 1
+            : links.some((l) => l.assetId === id)
+              ? 2
+              : 3;
+      return (
+        rank(a._id, a.name) - rank(b._id, b.name) ||
+        a.name.localeCompare(b.name) ||
+        a._id.localeCompare(b._id)
+      );
+    });
+  const focusRange = (start: number, end = start) =>
+    requestAnimationFrame(() => {
+      textarea.current?.focus();
+      textarea.current?.setSelectionRange(start, end);
+    });
+  async function assign(
+    assetId: string,
+    uploaded?: { name: string; type: string },
+    forceInsert = false,
+  ) {
+    const asset = candidates.find((a) => a._id === assetId) ?? uploaded;
     if (!asset || bindingBusy) return;
-    setBindingBusy(true);
-    setStatus("Linking reference…");
+    const range = { ...insertion.current };
+    const inserting = insertMention || forceInsert;
+    const activePicker = forceInsert ? "" : picker;
     const alias = referenceAlias(
-      insertMention && !/^(image|video)_\d+$/.test(picker ?? "")
-        ? asset.name
+      inserting
+        ? /^(image|video)_\d+$/.test(activePicker ?? "")
+          ? activePicker!
+          : (links.find(
+              (l) =>
+                l.assetId === assetId &&
+                l.alias === activePicker?.toLowerCase(),
+            )?.alias ??
+            links.find((l) => l.assetId === assetId)?.alias ??
+            asset.name)
         : picker || asset.name,
     );
+    const previous = resolved.resolved.find((r) => r.alias === alias);
+    setBindingBusy(true);
+    setError(null);
+    setStatus("Linking reference…");
     try {
+      if (
+        !inserting &&
+        replacementReferenceAlias(alias, asset.type, []) !== alias
+      ) {
+        if (!(await saveLatest()) || !currentId.current) return;
+        const result = await replaceReference({
+          projectId: projectId as never,
+          alias,
+          assetId: assetId as never,
+          expectedId: currentId.current,
+          expectedAssetId: (previous?.assetId ?? null) as never,
+        });
+        currentId.current = result.id;
+        saved.current = result.text;
+        edit(result.text);
+        localStorage.removeItem(key);
+        onDirty(false);
+        setUndoBinding(null);
+        setUndoConversion({
+          alias: result.alias,
+          originalAlias: alias,
+          assetId,
+          previousAssetId: result.previousAssetId,
+          previousVersionId: result.previousVersionId,
+          versionId: result.id,
+        });
+        setNotice(
+          `Replaced @${alias} with @${result.alias} everywhere, linked to ${asset.name}.`,
+        );
+        setPicker(null);
+        setPosition(null);
+        setSearch("");
+        return;
+      }
       await bind({
         projectId: projectId as never,
         alias,
         assetId: assetId as never,
       });
-      if (insertMention || !mentions.includes(alias)) {
-        const node = textarea.current;
-        const caret = node?.selectionStart ?? draft.current.length;
-        const before = draft.current.slice(0, caret);
-        const partial = /@[\p{L}\p{N}_-]*$/u.exec(before);
-        const start = partial ? caret - partial[0].length : caret;
+      if (inserting) {
+        const value = draft.current;
+        const prefix =
+          range.start > 0 && !/\s/.test(value[range.start - 1] ?? "")
+            ? " "
+            : "";
+        const suffix = value.slice(range.end);
+        const trailing = suffix && /^[\s.,!?;:)\]}]/.test(suffix) ? "" : " ";
+        const replacement = `${prefix}@${alias}${trailing}`;
         edit(
-          draft.current.slice(0, start) +
-            `${start > 0 && !/\s$/.test(draft.current.slice(0, start)) ? " " : ""}@${alias} ` +
-            draft.current.slice(caret),
+          value.slice(0, range.start) + replacement + value.slice(range.end),
         );
+        focusRange(range.start + replacement.length);
       }
+      setUndoConversion(null);
+      setUndoBinding(
+        previous && previous.assetId !== assetId
+          ? { alias, assetId: previous.assetId, currentAssetId: assetId }
+          : null,
+      );
+      setNotice(
+        `@${alias} linked to ${asset.name}. All occurrences use this asset.`,
+      );
       setPicker(null);
+      setPosition(null);
       setSearch("");
-      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not link reference");
     } finally {
@@ -254,6 +455,69 @@ export function StudioScript({
       );
     }
   }
+  async function renameAlias() {
+    if (!picker || bindingBusy) return;
+    setBindingBusy(true);
+    setError(null);
+    try {
+      if (!(await saveLatest()) || !currentId.current) return;
+      const result = await renameReference({
+        projectId: projectId as never,
+        alias: picker,
+        newAlias: renameText,
+        expectedId: currentId.current,
+      });
+      currentId.current = result.id;
+      saved.current = result.text;
+      edit(result.text);
+      localStorage.removeItem(key);
+      onDirty(false);
+      setStatus("All changes saved");
+      setNotice(
+        `Renamed @${picker} to @${referenceAlias(renameText)} everywhere.`,
+      );
+      setPicker(null);
+      setUndoBinding(null);
+      setUndoConversion(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not rename reference");
+    } finally {
+      setBindingBusy(false);
+    }
+  }
+  function findMention(alias: string) {
+    const node = textarea.current;
+    const matches = scriptMentionRanges(draft.current).filter(
+      (m) => m.alias === alias,
+    );
+    const next =
+      matches.find((m) => m.start >= (node?.selectionEnd ?? 0)) ?? matches[0];
+    if (next) {
+      focusRange(next.start, next.end);
+      setPicker(null);
+    }
+  }
+  const pointerDrop = useEffectEvent((detail: MediaPointerDetail) => {
+    const node = textarea.current;
+    if (!node || detail.phase !== "drop" || bindingBusy || !ready) return;
+    const box = node.getBoundingClientRect();
+    if (
+      detail.x < box.left ||
+      detail.x > box.right ||
+      detail.y < box.top ||
+      detail.y > box.bottom
+    )
+      return;
+    if (!candidates.some((a) => a._id === detail.assetId)) return;
+    insertion.current = { start: node.selectionStart, end: node.selectionEnd };
+    void assign(detail.assetId, undefined, true);
+  });
+  useEffect(() => {
+    const handler = (e: Event) =>
+      pointerDrop((e as CustomEvent<MediaPointerDetail>).detail);
+    window.addEventListener(MEDIA_POINTER_EVENT, handler);
+    return () => window.removeEventListener(MEDIA_POINTER_EVENT, handler);
+  }, []);
   return (
     <section className="studio-script" aria-label="Script and references">
       <div className="studio-section-heading">
@@ -266,24 +530,73 @@ export function StudioScript({
       <label className="sr-only" htmlFor={`script-${projectId}`}>
         Script
       </label>
-      <textarea
-        id={`script-${projectId}`}
+      <PlainScriptEditor
+        expanded={picker !== null && insertMention}
+        activeOption={
+          picker !== null && results[activeIndex]
+            ? `reference-option-${activeIndex}`
+            : undefined
+        }
+        projectId={projectId}
         ref={textarea}
         value={text}
         disabled={!ready}
-        spellCheck={false}
-        placeholder="Write your script. Type @ to link an image or video reference."
-        onChange={(e) => {
-          edit(e.target.value);
-          const before = e.target.value.slice(0, e.target.selectionStart);
-          const match = /@([\p{L}\p{N}_-]*)$/u.exec(before);
-          if (match) {
-            setInsertMention(true);
-            setPicker(match[1] || "");
-            setSearch(match[1] || "");
+        readOnly={bindingBusy || uploading}
+        references={mentions.map((alias) => {
+          const ref = resolved.resolved.find((r) => r.alias === alias);
+          const asset = candidates.find((a) => a._id === ref?.assetId);
+          return { alias, asset, url: asset ? urls.get(asset._id) : null };
+        })}
+        onChange={(value, caret) => {
+          edit(value);
+          if (textarea.current) openAt(textarea.current, value, caret);
+        }}
+        onCaret={(node) => {
+          if (picker !== null && insertMention) openAt(node);
+          else
+            insertion.current = {
+              start: node.selectionStart,
+              end: node.selectionEnd,
+            };
+        }}
+        onBlur={() => {
+          if (!bindingBusy) void saveLatest();
+        }}
+        onMention={openAlias}
+        onDropAsset={(id) => {
+          void assign(id, undefined, true);
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === "Escape") {
+            setPicker(null);
+            return;
+          }
+          if (picker === null || !insertMention) return;
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setActiveIndex((i) => {
+              const next =
+                (i +
+                  (event.key === "ArrowDown" ? 1 : -1) +
+                  Math.max(1, results.length)) %
+                Math.max(1, results.length);
+              requestAnimationFrame(() =>
+                document
+                  .getElementById(`reference-option-${next}`)
+                  ?.scrollIntoView({ block: "nearest" }),
+              );
+              return next;
+            });
+          }
+          if (
+            (event.key === "Enter" || event.key === "Tab") &&
+            results[activeIndex]
+          ) {
+            event.preventDefault();
+            void assign(results[activeIndex]!._id);
           }
         }}
-        onBlur={() => void saveLatest()}
       />
       <details>
         <summary>Script history ({workspace?.scripts.length ?? 0})</summary>
@@ -339,33 +652,45 @@ export function StudioScript({
           const ref = resolved.resolved.find((r) => r.alias === alias);
           const asset = candidates.find((a) => a._id === ref?.assetId);
           return (
-            <button
+            <ReferenceMedia
               key={alias}
-              type="button"
-              className={`studio-reference ${ref ? "" : "unresolved"}`}
-              onClick={() => {
-                setInsertMention(false);
-                setPicker(alias);
-                setSearch("");
-              }}
+              asset={
+                asset ?? {
+                  name: `@${alias} · missing reference`,
+                  type: "image",
+                }
+              }
+              url={asset ? urls.get(asset._id) : null}
             >
-              <Link2 size={13} />
-              <span>@{alias}</span>
-              <small>
-                {asset?.name ??
-                  (resolved.ambiguous.includes(alias)
-                    ? "Choose matching asset"
-                    : "Link asset")}
-              </small>
-              <span className="studio-mention-count">
-                {
-                  [...text.matchAll(/@([\p{L}\p{N}_-]+)/gu)].filter(
-                    (m) => m[1]?.toLowerCase() === alias,
-                  ).length
-                }{" "}
-                mentions
-              </span>
-            </button>
+              <button
+                type="button"
+                className={`studio-reference ${ref ? "" : "unresolved"}`}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  openAlias(alias, { left: rect.left, top: rect.bottom });
+                }}
+              >
+                {asset ? (
+                  <MediaThumbnail asset={asset} url={urls.get(asset._id)} />
+                ) : (
+                  <Link2 size={13} />
+                )}
+                <span>@{alias}</span>
+                <small>
+                  {asset?.name ??
+                    (resolved.ambiguous.includes(alias)
+                      ? "Choose matching asset"
+                      : "Link asset")}
+                </small>
+                <span className="studio-mention-count">
+                  {
+                    scriptMentionRanges(text).filter((m) => m.alias === alias)
+                      .length
+                  }{" "}
+                  mentions
+                </span>
+              </button>
+            </ReferenceMedia>
           );
         })}
       </div>
@@ -374,18 +699,165 @@ export function StudioScript({
         variant="outline"
         onClick={() => {
           setInsertMention(true);
+          insertion.current = {
+            start: textarea.current?.selectionStart ?? text.length,
+            end: textarea.current?.selectionEnd ?? text.length,
+          };
           setPicker("");
+          setPosition(null);
           setSearch("");
         }}
       >
         <Link2 />
         Add reference
       </Button>
+      {undoConversion && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={bindingBusy}
+          onClick={async () => {
+            setBindingBusy(true);
+            setError(null);
+            try {
+              if (
+                draft.current !== saved.current ||
+                currentId.current !== undoConversion.versionId
+              )
+                throw new Error(
+                  "The script has changed. Use script history to restore an earlier version.",
+                );
+              const result = await undoReferenceReplacement({
+                projectId: projectId as never,
+                expectedId: undoConversion.versionId as never,
+                previousVersionId: undoConversion.previousVersionId as never,
+                alias: undoConversion.alias,
+                originalAlias: undoConversion.originalAlias,
+                assetId: undoConversion.assetId as never,
+                previousAssetId: undoConversion.previousAssetId as never,
+              });
+              currentId.current = result.id;
+              saved.current = result.text;
+              edit(result.text);
+              localStorage.removeItem(key);
+              onDirty(false);
+              setStatus("All changes saved");
+              setUndoConversion(null);
+              setNotice(
+                "Restored the original reference and script formatting.",
+              );
+            } catch (e) {
+              setError(
+                e instanceof Error
+                  ? e.message
+                  : "Could not undo reference replacement",
+              );
+            } finally {
+              setBindingBusy(false);
+            }
+          }}
+        >
+          Undo reference conversion
+        </Button>
+      )}
+      {notice && (
+        <p role="status" className="studio-muted">
+          {notice}{" "}
+          {undoBinding && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bindingBusy}
+              onClick={async () => {
+                setBindingBusy(true);
+                try {
+                  await bind({
+                    projectId: projectId as never,
+                    alias: undoBinding.alias,
+                    assetId: undoBinding.assetId as never,
+                    expectedAssetId: undoBinding.currentAssetId as never,
+                  });
+                  setUndoBinding(null);
+                  setNotice("Previous reference restored for all mentions.");
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Could not undo");
+                } finally {
+                  setBindingBusy(false);
+                }
+              }}
+            >
+              Undo replacement
+            </Button>
+          )}
+        </p>
+      )}
+      <details className="generation-reference-summary">
+        <summary>
+          Generation references · {generationImageIds.length} images ·{" "}
+          {generationVideoIds.length} videos
+        </summary>
+        <p className="studio-muted">
+          Repeated mentions use the same asset. Previously generated videos and
+          timeline clips stay unchanged.
+        </p>
+        {resolved.unresolved.length > 0 && (
+          <p role="status">
+            Link missing references:{" "}
+            {resolved.unresolved.map((a) => `@${a}`).join(", ")}
+          </p>
+        )}
+        {resolved.ambiguous.length > 0 && (
+          <p role="status">
+            Choose an asset for duplicate names:{" "}
+            {resolved.ambiguous.map((a) => `@${a}`).join(", ")}
+          </p>
+        )}
+        {stagingReferenceId && resolved.videoIds.length > 0 && (
+          <p role="alert">
+            Choose either the script video reference or staging as the
+            generation video reference.
+          </p>
+        )}
+        {resolved.videoIds.length > 1 && (
+          <p role="alert">
+            This generation model supports one distinct reference video. Use one
+            video reference before generating.
+          </p>
+        )}
+        {[...new Set([...generationImageIds, ...generationVideoIds])].map(
+          (id) => {
+            const asset = candidates.find((a) => a._id === id);
+            return (
+              asset && (
+                <ReferenceMedia key={id} asset={asset} url={urls.get(id)}>
+                  <span tabIndex={0}>
+                    <MediaThumbnail asset={asset} url={urls.get(id)} />
+                    {asset.name}
+                  </span>
+                </ReferenceMedia>
+              )
+            );
+          },
+        )}
+      </details>
       {picker !== null && (
-        <div className="studio-reference-picker" aria-label="Reference picker">
+        <div
+          ref={pickerElement}
+          className={`studio-reference-picker ${position ? "at-caret" : ""}`}
+          style={position ? { ...position, position: "fixed" } : undefined}
+          aria-label="Reference picker"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setPicker(null);
+              textarea.current?.focus();
+            }
+          }}
+        >
           <div className="studio-section-heading">
             <strong>
-              {picker ? `Link @${picker}` : "Link image or video"}
+              {!insertMention
+                ? `Replace @${picker} everywhere`
+                : "Choose image or video"}
             </strong>
             <Button
               size="icon"
@@ -396,84 +868,177 @@ export function StudioScript({
               <X />
             </Button>
           </div>
+          {!insertMention && (
+            <p className="studio-muted">
+              Every @{picker} will point to the selected asset.
+            </p>
+          )}
           <input
             aria-label="Search references"
+            aria-controls="script-reference-suggestions"
+            aria-activedescendant={
+              results[activeIndex]
+                ? `reference-option-${activeIndex}`
+                : undefined
+            }
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex(
+                  (i) =>
+                    (i +
+                      (e.key === "ArrowDown" ? 1 : -1) +
+                      Math.max(1, results.length)) %
+                    Math.max(1, results.length),
+                );
+              }
+              if (
+                (e.key === "Enter" || e.key === "Tab") &&
+                results[activeIndex]
+              ) {
+                e.preventDefault();
+                void assign(results[activeIndex]!._id);
+              }
+            }}
             value={search}
-            placeholder="Search asset names…"
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search names or @aliases…"
+            onChange={(e) => {
+              setSearch(e.target.value.replace(/^@/, ""));
+              setActiveIndex(0);
+            }}
           />
-          <div className="studio-picker-results">
-            {candidates
-              .filter(
-                (a) => !/^video_\d+$/.test(picker ?? "") || a.type === "video",
-              )
-              .filter(
-                (a) => !/^image_\d+$/.test(picker ?? "") || a.type === "image",
-              )
-              .filter(
-                (a) =>
-                  !search ||
-                  a.name.toLowerCase().includes(search.toLowerCase()) ||
-                  referenceAlias(a.name).includes(referenceAlias(search)) ||
-                  /^image_\d+$|^video_\d+$/.test(search),
-              )
-              .map((a) => (
+          <div
+            className="studio-picker-results"
+            id="script-reference-suggestions"
+            role="listbox"
+            aria-label="Project image and video references"
+          >
+            {results.map((asset, index) => (
+              <ReferenceMedia
+                key={asset._id}
+                asset={asset}
+                url={urls.get(asset._id)}
+              >
                 <button
-                  key={a._id}
-                  aria-label={`Link ${a.name} (${a.type})`}
+                  id={`reference-option-${index}`}
+                  role="option"
+                  aria-selected={index === activeIndex}
+                  aria-label={`Link ${asset.name} (${asset.type})`}
                   disabled={bindingBusy}
                   type="button"
-                  onClick={() => void assign(a._id)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => void assign(asset._id)}
                 >
-                  <span>{a.name}</span>
-                  <small>{a.type}</small>
+                  <MediaThumbnail asset={asset} url={urls.get(asset._id)} />
+                  <span>
+                    {asset.name}
+                    <small>
+                      {asset.type}
+                      {asset.durationSec
+                        ? ` · ${asset.durationSec.toFixed(1)}s`
+                        : ""}{" "}
+                      · @
+                      {links.find((l) => l.assetId === asset._id)?.alias ??
+                        referenceAlias(asset.name)}
+                    </small>
+                    <small>
+                      {!insertMention &&
+                        picker &&
+                        replacementReferenceAlias(picker, asset.type, []) !==
+                          picker && (
+                          <small>
+                            Updates all mentions to @
+                            {replacementReferenceAlias(picker, asset.type, [
+                              ...mentions,
+                              ...links.map((l) => l.alias),
+                            ])}
+                          </small>
+                        )}
+                      {asset.createdAt
+                        ? new Date(asset.createdAt).toLocaleString()
+                        : "Project media"}
+                    </small>
+                    {links.some(
+                      (l) =>
+                        l.alias === referenceAlias(asset.name) &&
+                        l.assetId !== asset._id,
+                    ) && (
+                      <small>
+                        Selecting replaces @{referenceAlias(asset.name)}{" "}
+                        everywhere
+                      </small>
+                    )}
+                  </span>
                 </button>
-              ))}
+              </ReferenceMedia>
+            ))}
+            {!results.length && (
+              <p>No matching media. Upload an image or video below.</p>
+            )}
           </div>
+          {!insertMention && (
+            <div className="reference-actions">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => findMention(picker)}
+              >
+                Find next mention
+              </Button>
+              <label>
+                Reference name
+                <input
+                  aria-label="Reference name"
+                  value={renameText}
+                  onChange={(e) => setRenameText(e.target.value)}
+                />
+              </label>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={
+                  bindingBusy ||
+                  !resolved.resolved.some((r) => r.alias === picker)
+                }
+                onClick={() => void renameAlias()}
+              >
+                Rename everywhere
+              </Button>
+            </div>
+          )}
           <label className="studio-upload-label">
-            <Upload size={14} />
-            Upload & link
+            <Upload size={14} /> {uploading ? "Uploading…" : "Upload & link"}
             <input
               type="file"
               accept={
-                /^video_\d+$/.test(picker ?? "")
+                insertMention && /^video_\d+$/.test(picker)
                   ? "video/*"
-                  : /^image_\d+$/.test(picker ?? "")
+                  : insertMention && /^image_\d+$/.test(picker)
                     ? "image/*"
                     : "image/*,video/*"
               }
-              disabled={bindingBusy}
+              disabled={bindingBusy || uploading}
               onChange={async (e) => {
-                if (!e.target.files || bindingBusy) return;
-                setBindingBusy(true);
-                setStatus("Uploading reference…");
+                const file = e.target.files?.[0];
+                if (!file || uploading || bindingBusy) return;
+                const uploadRange = { ...insertion.current };
+                setUploading(true);
                 try {
-                  const file = e.target.files[0];
-                  const ids = await uploadFiles(e.target.files);
-                  if (ids[0]) {
-                    const alias = referenceAlias(
-                      picker ||
-                        file?.name.replace(/\.[^.]+$/, "") ||
-                        "reference",
-                    );
-                    await bind({
-                      projectId: projectId as never,
-                      alias,
-                      assetId: ids[0] as never,
+                  const ids = await uploadFiles([file]);
+                  insertion.current = uploadRange;
+                  if (ids[0])
+                    await assign(ids[0], {
+                      name: picker || file.name.replace(/\.[^.]+$/, ""),
+                      type: file.type.startsWith("video/") ? "video" : "image",
                     });
-                    if (!mentions.includes(alias))
-                      edit(`${draft.current}\n@${alias}`);
-                    setPicker(null);
-                  }
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Upload failed");
-                } finally {
-                  setBindingBusy(false);
-                  setStatus(
-                    draft.current === saved.current
-                      ? "All changes saved"
-                      : "Unsaved changes",
+                } catch (error) {
+                  setError(
+                    error instanceof Error ? error.message : "Upload failed",
                   );
+                } finally {
+                  setUploading(false);
                 }
               }}
             />

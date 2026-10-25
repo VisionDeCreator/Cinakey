@@ -72,3 +72,61 @@ describe("stable script references", () => {
     expect(result.videoIds).toEqual(["camera"]);
   });
 });
+
+it("captures a mention's full range when completing in the middle, and ignores email addresses", async () => {
+  const { mentionAtCaret, renameReferenceMentions } =
+    await import("./references");
+  expect(mentionAtCaret("Before @james after", 10)).toEqual({
+    start: 7,
+    end: 13,
+    query: "ja",
+  });
+  expect(mentionAtCaret("email@james", 10)).toBeNull();
+  expect(
+    renameReferenceMentions(
+      "@JAMES @james_2 mail@james.com @james",
+      "james",
+      "young_james",
+    ),
+  ).toBe("@young_james @james_2 mail@james.com @young_james");
+});
+
+it("uses original source ranges for mixed pasted Markdown, escaped links and plain references", async () => {
+  const { scriptMentionRanges, renameReferenceMentions } =
+    await import("./references");
+  const text =
+    "REFERENCES\n@[Image 1](image_1) = character. @IMAGE_1 rides @[Image 2](image_2). @[Image 1]\\(image_1)";
+  const ranges = scriptMentionRanges(text);
+  expect(ranges.map((m) => m.alias)).toEqual([
+    "image_1",
+    "image_1",
+    "image_2",
+    "image_1",
+  ]);
+  for (const m of ranges) expect(text.slice(m.start, m.end)).toBe(m.text);
+  expect(renameReferenceMentions(text, "image_1", "video_3")).toBe(
+    "REFERENCES\n@[Video 3](video_3) = character. @video_3 rides @[Image 2](image_2). @[Video 3](video_3)",
+  );
+  expect(
+    scriptMentionRanges("email@[Image 1](image_1) mail@image_1.com"),
+  ).toEqual([]);
+});
+it("uses link destinations consistently and leaves unrelated Markdown spelling untouched", async () => {
+  const {
+    scriptMentionRanges,
+    renameReferenceMentions,
+    replacementReferenceAlias,
+  } = await import("./references");
+  expect(scriptMentionRanges("@[Character](james)")[0]?.alias).toBe("james");
+  expect(
+    renameReferenceMentions(
+      "@[Image 1](image_1) @[IMAGE 2](IMAGE_2)",
+      "image_1",
+      "james",
+    ),
+  ).toBe("@[james](james) @[IMAGE 2](IMAGE_2)");
+  expect(
+    replacementReferenceAlias("image_1", "video", ["video_1", "video_2"]),
+  ).toBe("video_3");
+  expect(replacementReferenceAlias("james", "video", [])).toBe("james");
+});
