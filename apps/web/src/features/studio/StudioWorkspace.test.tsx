@@ -5,11 +5,11 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getFunctionName } from "convex/server";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
-import { StudioWorkspace } from "./StudioWorkspace";
 import { MediaPreview } from "./MediaPreview";
+import { StudioWorkspace } from "./StudioWorkspace";
 const state = vi.hoisted(() => ({
   assets: [
     { _id: "video", name: "Camera", type: "video", durationSec: undefined },
@@ -23,8 +23,6 @@ const state = vi.hoisted(() => ({
         url: "https://fixture.test/video.mp4",
         createdAt: 1,
         generated: true,
-        sequenceId: null,
-        shotId: null,
         starred: false,
       },
     ],
@@ -36,20 +34,22 @@ vi.mock("@/lib/api/hooks", () => ({
     switch (getFunctionName(ref)) {
       case "assets:list":
         return state.assets;
-      case "shotGeneration:listProjectVideos":
+      case "workspace:list":
+        return { migrated: true, script: null, scripts: [], staging: [] };
+      case "workspace:videos":
         return state.footage;
       case "storage:listProjectAssetUrls":
         return [{ assetId: "video", url: "https://fixture.test/video.mp4" }];
-      case "shotGeneration:getProjectSpend":
+      case "workspace:spend":
         return { remaining: 100 };
       default:
         return [];
     }
   },
-  useAction: () => vi.fn(),
+  useAction: () => vi.fn().mockResolvedValue({ id: "script", text: "" }),
   useMutation: () => vi.fn(),
 }));
-vi.mock("@/components/ConfirmProvider", () => ({ useConfirm: () => vi.fn() }));
+vi.mock("@/components/use-confirm", () => ({ useConfirm: () => vi.fn() }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploads: [], uploadFiles: vi.fn() }),
 }));
@@ -101,7 +101,6 @@ it("shows unlinked footage without a script and inserts only the explicitly sele
     durationSec: 2,
     inSec: 1,
     outSec: 3,
-    shotId: undefined,
   });
 });
 it("offers playback recovery instead of leaving a blank viewer", () => {
@@ -114,7 +113,7 @@ it("offers playback recovery instead of leaving a blank viewer", () => {
   expect(screen.getByLabelText("Camera")).toBeInTheDocument();
 });
 
-it("collapses each panel, supports keyboard resizing, and restores the saved layout", () => {
+it("collapses each panel, supports keyboard resizing, and restores the saved layout", async () => {
   const store = new Map<string, string>();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => store.get(key) ?? null,
@@ -142,6 +141,12 @@ it("collapses each panel, supports keyboard resizing, and restores the saved lay
       </MemoryRouter>,
     );
   const first = workspace();
+  await act(async () => {});
+  fireEvent.pointerDown(screen.getByLabelText("Project timeline"));
+  expect(
+    screen.getByRole("button", { name: "Script & generation" }),
+  ).toHaveAttribute("aria-pressed", "true");
+
   const divider = screen.getByRole("separator", { name: "Resize library" });
   fireEvent.keyDown(divider, { key: "ArrowRight" });
   expect(divider).toHaveAttribute("aria-valuenow", "230");
@@ -151,10 +156,11 @@ it("collapses each panel, supports keyboard resizing, and restores the saved lay
     screen.queryByRole("region", { name: "Project timeline" }),
   ).not.toBeInTheDocument();
   expect(
-    screen.queryByRole("complementary", { name: "Scenes and project library" }),
+    screen.queryByRole("complementary", { name: "Project library" }),
   ).not.toBeInTheDocument();
   first.unmount();
   workspace();
+  await act(async () => {});
   expect(screen.getByRole("button", { name: "Library" })).toHaveAttribute(
     "aria-pressed",
     "false",

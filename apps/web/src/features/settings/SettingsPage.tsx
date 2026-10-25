@@ -1,11 +1,11 @@
-import { api } from "@cinakey/backend";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "@/lib/api/hooks";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMutation, useQuery } from "@/lib/api/hooks";
+import { api } from "@cinakey/backend";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export function SettingsPage() {
   const me = useQuery(api.users.viewer);
@@ -15,19 +15,21 @@ export function SettingsPage() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
 
-  const [name, setName] = useState("");
-  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [draft, setDraft] = useState<{
+    userId: string;
+    name: string;
+    emailEnabled: boolean;
+  } | null>(null);
+  const name =
+    draft && draft.userId === me?._id ? draft.name : (me?.name ?? "");
+  const emailEnabled =
+    draft && draft.userId === me?._id
+      ? draft.emailEnabled
+      : me?.notificationEmailEnabled !== false;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState("");
-
-  useEffect(() => {
-    if (me) {
-      setName(me.name ?? "");
-      setEmailEnabled(me.notificationEmailEnabled !== false);
-    }
-  }, [me]);
 
   if (me === undefined) {
     return <p className="text-sm text-zinc-500">Loading settings…</p>;
@@ -78,7 +80,9 @@ export function SettingsPage() {
           <Input
             id="settings-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) =>
+              setDraft({ userId: me._id, name: e.target.value, emailEnabled })
+            }
           />
         </div>
         <p className="text-xs text-zinc-500">Email: {me.email ?? "—"}</p>
@@ -86,7 +90,9 @@ export function SettingsPage() {
           <input
             type="checkbox"
             checked={emailEnabled}
-            onChange={(e) => setEmailEnabled(e.target.checked)}
+            onChange={(e) =>
+              setDraft({ userId: me._id, name, emailEnabled: e.target.checked })
+            }
           />
           Email job and export alerts
         </label>

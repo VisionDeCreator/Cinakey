@@ -5,22 +5,17 @@
 import {
   PROMPT_TEMPLATE_VERSION,
   parseAssetSheet,
-  scriptPromptSchema,
-  blockoutSheetSchema,
   renderCharacterSheet,
   renderCreatureSheet,
   renderEnvironmentSheet,
   renderProductSheet,
-  renderScriptPrompt,
-  renderBlockoutSheet,
   type AssetSheetType,
-  type PromptSheetType,
 } from "@cinakey/shared";
 
 export { PROMPT_TEMPLATE_VERSION };
 
 export function renderPromptSheetText(
-  type: PromptSheetType,
+  type: AssetSheetType,
   structured: unknown,
   artStyleBlock: string,
   opts?: { hasStyleReference?: boolean },
@@ -50,15 +45,11 @@ export function renderPromptSheetText(
         artStyleBlock,
         opts,
       );
-    case "script":
-      return renderScriptPrompt(scriptPromptSchema.parse(structured));
-    case "blockout":
-      return renderBlockoutSheet(blockoutSheetSchema.parse(structured));
   }
 }
 
 export function validateStructured(
-  type: PromptSheetType,
+  type: AssetSheetType,
   structured: unknown,
 ): { ok: true; data: unknown } | { ok: false; error: string } {
   try {
@@ -68,10 +59,6 @@ export function validateStructured(
       case "environment":
       case "product":
         return { ok: true, data: parseAssetSheet(type, structured) };
-      case "script":
-        return { ok: true, data: scriptPromptSchema.parse(structured) };
-      case "blockout":
-        return { ok: true, data: blockoutSheetSchema.parse(structured) };
     }
   } catch (err) {
     return {

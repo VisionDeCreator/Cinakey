@@ -1,26 +1,23 @@
-import { SeriesIndexPage } from "@/features/series/SeriesIndexPage";
-import { SeriesPage } from "@/features/series/SeriesPage";
-import { useConvexAuth } from "@/lib/api/hooks";
-import type { ReactNode } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AppShell } from "@/app/AppShell";
 import { ErrorBoundary } from "@/app/ErrorBoundary";
 import { NotFoundPage } from "@/app/NotFoundPage";
 import { ProtectedRoute } from "@/app/ProtectedRoute";
 import { StaffRoute } from "@/app/StaffRoute";
+import { AssetWorkbenchPage } from "@/features/assets/AssetWorkbenchPage";
 import { AssetsPage } from "@/features/assets/AssetsPage";
 import { CreativeAssetsPage } from "@/features/assets/CreativeAssetsPage";
-import { AssetWorkbenchPage } from "@/features/assets/AssetWorkbenchPage";
 import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
-import { UploadTestPage } from "@/features/dev/UploadTestPage";
-import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
-import { DevHomePage } from "@/features/dev/DevHomePage";
-import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
-import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
+import { DevHomePage } from "@/features/dev/DevHomePage";
+import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
+import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { EditPage } from "@/features/edit/EditPage";
+import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
+import { ProjectsPage } from "@/features/projects/ProjectsPage";
+import { SeriesIndexPage } from "@/features/series/SeriesIndexPage";
+import { SeriesPage } from "@/features/series/SeriesPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import {
   StaffAuditPage,
@@ -30,6 +27,9 @@ import {
   StaffProvidersPage,
   StaffUsersPage,
 } from "@/features/staff/StaffPages";
+import { useConvexAuth } from "@/lib/api/hooks";
+import type { ReactNode } from "react";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 function AuthRedirect({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -62,21 +62,6 @@ function RedirectLookDev() {
     );
   }
   return <Navigate to={`/projects/${projectId}/assets`} replace />;
-}
-
-function RedirectShots() {
-  const { projectId } = useParams();
-  return <Navigate to={`/projects/${projectId}/studio`} replace />;
-}
-
-function RedirectBlockoutShot() {
-  const { projectId, shotId } = useParams();
-  return (
-    <Navigate
-      to={`/projects/${projectId}/blockout/edit?shotId=${shotId}`}
-      replace
-    />
-  );
 }
 
 export function AppRouter() {
@@ -119,14 +104,7 @@ export function AppRouter() {
               <Route path="look-dev/:entityId" element={<RedirectLookDev />} />
               <Route path="blockout" element={<BlockoutPage />} />
               <Route path="blockout/edit" element={<BlockoutEditorPage />} />
-              <Route
-                path="blockout/shots/:shotId"
-                element={<RedirectBlockoutShot />}
-              />
               <Route path="video" element={<EditPage />} />
-              <Route path="video/:shotId" element={<RedirectShots />} />
-              <Route path="shots" element={<RedirectShots />} />
-              <Route path="shots/:shotId" element={<RedirectShots />} />
               <Route path="edit" element={<EditPage />} />
             </Route>
             <Route path="/assets" element={<AssetsPage />} />

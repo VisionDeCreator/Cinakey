@@ -6,9 +6,10 @@ export class ProviderError extends Error {
     readonly retryable = false,
     readonly uncertain = false,
     readonly retryAfterMs = 0,
+    readonly detail = "",
   ) {
     super(
-      `${provider} request ${uncertain ? "outcome is uncertain; review before resubmitting" : status ? `failed (HTTP ${status})` : "failed"}`,
+      `${provider} request ${uncertain ? "outcome is uncertain; review before resubmitting" : status ? `failed (HTTP ${status})${detail ? `: ${detail}` : ""}` : "failed"}`,
     );
     this.name = "ProviderError";
   }

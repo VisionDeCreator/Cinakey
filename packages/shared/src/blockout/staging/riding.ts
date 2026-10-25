@@ -11,8 +11,8 @@
  */
 
 import type { ScriptPromptData } from "../../prompt-templates/schemas";
-import { buildCast } from "../director/cast";
 import type { StagingCast, StagingMove, StagingPlan } from "./schema";
+import { buildCast } from "./scriptCast";
 
 export type RidingInterval = { mount: string; from: number; to: number };
 export type TimedMove = { t0: number; t1: number; move: StagingMove };

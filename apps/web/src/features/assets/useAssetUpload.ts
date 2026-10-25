@@ -1,7 +1,7 @@
+import { useMutation } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import type { AssetType } from "@cinakey/shared";
 import { ASSET_ALLOWED_MIME, ASSET_MAX_BYTES } from "@cinakey/shared";
-import { useMutation } from "@/lib/api/hooks";
 import { useCallback, useState } from "react";
 
 export type UploadItem = {
@@ -15,8 +15,7 @@ export type UploadItem = {
 
 export type UploadOptions = {
   entityId?: string;
-  sceneId?: string;
-  shotId?: string;
+
   containsLikeness?: boolean;
   likenessConsent?: boolean;
   tags?: string[];
@@ -186,8 +185,7 @@ export function useAssetUpload(projectId: string | undefined) {
             name: file.name,
             format: file.type || "application/octet-stream",
             entityId: options?.entityId as never,
-            sceneId: options?.sceneId as never,
-            shotId: options?.shotId as never,
+
             containsLikeness: options?.containsLikeness,
             likenessConsent: options?.likenessConsent,
             tags: options?.tags,

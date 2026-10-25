@@ -299,11 +299,6 @@ export type BlockoutDocumentV1 = {
   scenes: BlockoutSceneV1[];
 };
 
-/** @deprecated Use BlockoutShotV1; kept for gradual migration of callers. */
-export type BlockoutShot = BlockoutShotV1;
-/** @deprecated Use BlockoutSceneV1 */
-export type BlockoutScene = BlockoutSceneV1;
-
 export const ASPECT_DIMS: Record<string, [number, number]> = {
   "16:9": [1280, 720],
   "9:16": [720, 1280],

@@ -1,4 +1,3 @@
-import { assertMediaRemovable } from "./lib/mediaProtection";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -14,6 +13,7 @@ import {
   requireUser,
 } from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
+import { assertMediaRemovable } from "./lib/mediaProtection";
 import { deleteFile } from "./storage";
 
 const assetType = v.union(
@@ -45,7 +45,7 @@ export const list = query({
     type: v.optional(assetType),
     tag: v.optional(v.string()),
     characterId: v.optional(v.id("entities")),
-    shotId: v.optional(v.id("shots")),
+
     starredOnly: v.optional(v.boolean()),
     query: v.optional(v.string()),
   },
@@ -66,22 +66,17 @@ export const list = query({
       return [];
     }
 
-    let characterShotIds: Set<Id<"shots">> | null = null;
-    if (args.characterId !== undefined) {
-      characterShotIds = new Set();
-      for (const pid of projectIds) {
-        const shots = await ctx.db
-          .query("shots")
-          .withIndex("by_project", (q) => q.eq("projectId", pid))
-          .collect();
-        for (const shot of shots) {
-          if (shot.characterIds.includes(args.characterId)) {
-            characterShotIds.add(shot._id);
-          }
-        }
-      }
-    }
-
+    const character = args.characterId
+      ? await ctx.db.get(args.characterId)
+      : null;
+    if (
+      args.characterId &&
+      (!character || !projectIds.includes(character.projectId))
+    )
+      return [];
+    const characterReferences = new Set(
+      character?.lockedReferenceAssetIds ?? [],
+    );
     const searchQuery = args.query?.trim();
     let collected: Doc<"assets">[] = [];
 
@@ -101,14 +96,18 @@ export const list = query({
         a.tags.some((t) => t.toLowerCase() === tag),
       );
     }
-    if (args.shotId !== undefined) {
-      collected = collected.filter((a) => a.shotId === args.shotId);
-    }
-    if (characterShotIds !== null) {
+    if (args.characterId)
       collected = collected.filter(
-        (a) => a.shotId !== undefined && characterShotIds.has(a.shotId),
+        (asset) =>
+          asset.entityId === args.characterId ||
+          characterReferences.has(asset._id) ||
+          asset.lineage?.referenceAssetIds?.some((id) =>
+            characterReferences.has(id),
+          ) ||
+          asset.lineage?.parentAssetIds?.some((id) =>
+            characterReferences.has(id),
+          ),
       );
-    }
 
     collected.sort((a, b) => b.updatedAt - a.updatedAt);
     return collected;
@@ -125,7 +124,7 @@ export const filterOptions = query({
       await requireProjectAccess(ctx, args.projectId);
       projectIds = [args.projectId];
     } else if (user.personalWorkspaceId === undefined) {
-      return { characters: [], shots: [], tags: [] as string[] };
+      return { characters: [], tags: [] as string[] };
     } else {
       projectIds = await workspaceProjectIds(ctx, user.personalWorkspaceId);
     }
@@ -135,12 +134,7 @@ export const filterOptions = query({
       name: string;
       projectId: Id<"projects">;
     }[] = [];
-    const shots: {
-      _id: Id<"shots">;
-      shotType: string;
-      order: number;
-      projectId: Id<"projects">;
-    }[] = [];
+
     const tags = new Set<string>();
 
     for (const pid of projectIds) {
@@ -153,18 +147,6 @@ export const filterOptions = query({
       for (const e of ents) {
         characters.push({ _id: e._id, name: e.name, projectId: pid });
       }
-      const projectShots = await ctx.db
-        .query("shots")
-        .withIndex("by_project", (q) => q.eq("projectId", pid))
-        .collect();
-      for (const s of projectShots) {
-        shots.push({
-          _id: s._id,
-          shotType: s.shotType,
-          order: s.order,
-          projectId: pid,
-        });
-      }
       const assets = await projectAssets(ctx, pid);
       for (const a of assets) {
         for (const t of a.tags) tags.add(t);
@@ -173,7 +155,6 @@ export const filterOptions = query({
 
     return {
       characters,
-      shots,
       tags: [...tags].sort(),
     };
   },

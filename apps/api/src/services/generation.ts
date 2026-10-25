@@ -1,37 +1,36 @@
-import { validateVideoInput } from "@cinakey/shared";
-import { readVideoMetadata } from "./mediaMetadata";
-import { currentProviderSignal } from "../runtime/provider-scope";
-import { fetchMedia } from "../providers/transport";
-import { providerConfig, useMockProviders } from "../config/env";
-import {
-  safeErrorMessage,
-  workerCancellationError,
-  ProviderError,
-  SubmissionUncertainError,
-} from "../providers/errors";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { v, ConvexError } from "convex/values";
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
-import { retiredImageAdapter } from "../providers/retiredImage";
-import { getAdapter } from "../providers";
-import { isDefaultTransientError } from "../providers/cost";
-import { internal } from "../operations";
+import { validateVideoInput, validateVideoReference } from "@cinakey/shared";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { ConvexError, v } from "convex/values";
 import type {
   Doc,
   Id,
 } from "../../../../packages/backend/convex/_generated/dataModel";
+import {
+  getFileUrl,
+  loadJson,
+  saveFile,
+} from "../../../../packages/backend/convex/storage";
+import { providerConfig, serverEnv, useMockProviders } from "../config/env";
+import { internal } from "../operations";
+import { getAdapter } from "../providers";
+import { isDefaultTransientError } from "../providers/cost";
+import {
+  ProviderError,
+  safeErrorMessage,
+  SubmissionUncertainError,
+  workerCancellationError,
+} from "../providers/errors";
+import { retiredImageAdapter } from "../providers/retiredImage";
+import { fetchMedia } from "../providers/transport";
 import {
   action,
   httpAction,
   internalAction,
   type ActionCtx,
 } from "../runtime/operation";
-import { serverEnv } from "../config/env";
-import {
-  loadJson,
-  saveFile,
-  getFileUrl,
-} from "../../../../packages/backend/convex/storage";
+import { currentProviderSignal } from "../runtime/provider-scope";
+import { readVideoMetadata } from "./mediaMetadata";
 import { saveJson } from "./storage";
 
 const MAX_SUBMIT_ATTEMPTS = 3;
@@ -54,8 +53,7 @@ export const startGeneration = action({
     kind: v.string(),
     prompt: v.string(),
     seed: v.optional(v.number()),
-    shotId: v.optional(v.id("shots")),
-    sequenceId: v.optional(v.id("sequences")),
+
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
@@ -64,7 +62,7 @@ export const startGeneration = action({
     maskAssetId: v.optional(v.id("assets")),
     startFrameAssetId: v.optional(v.id("assets")),
     endFrameAssetId: v.optional(v.id("assets")),
-    parentTakeId: v.optional(v.id("takes")),
+
     imageCount: v.optional(v.number()),
     input: v.optional(v.any()),
     requestId: v.optional(v.string()),
@@ -179,6 +177,7 @@ export const startGeneration = action({
         }))
       )
         throw new Error("Parent media is not in this project");
+      validateVideoReference(asset);
       if (asset.type === "video") parentVideoUrl = await urlFor(assetId);
       else throw new Error("Video operations require a video parent");
     }
@@ -188,6 +187,7 @@ export const startGeneration = action({
       });
       if (asset?.type !== "image")
         throw new Error("Image references must be image assets");
+      validateVideoReference(asset);
       referenceImageUrls.push(await urlFor(assetId));
     }
     const maskUrl = args.maskAssetId
@@ -207,6 +207,7 @@ export const startGeneration = action({
       });
       if (video?.type !== "video")
         throw new Error("Video references must be video assets");
+      validateVideoReference(video);
     }
     const buildInput: BuildRequestInput = {
       ...(args.input as BuildRequestInput | undefined),
@@ -231,7 +232,7 @@ export const startGeneration = action({
       maskAssetId: args.maskAssetId,
       startFrameAssetId: args.startFrameAssetId,
       endFrameAssetId: args.endFrameAssetId,
-      parentTakeId: args.parentTakeId,
+
       entityId: args.entityId,
     };
     validateVideoInput(buildInput);
@@ -252,8 +253,7 @@ export const startGeneration = action({
       jobId = await ctx.runMutation(internal.generation.createQueuedJob, {
         projectId: args.projectId,
         workspaceId: project.workspaceId,
-        shotId: args.shotId,
-        sequenceId: args.sequenceId,
+
         entityId: args.entityId,
         promptSheetId: args.promptSheetId,
         model: adapter.capabilities.id,
@@ -272,8 +272,6 @@ export const startGeneration = action({
           : undefined,
         requestFingerprint: args.requestId
           ? JSON.stringify({
-              shotId: args.shotId,
-              sequenceId: args.sequenceId,
               entityId: args.entityId,
               kind: args.kind,
               prompt: args.prompt,
@@ -683,7 +681,7 @@ async function finishSuccess(
 
     let parentAssetIds: Id<"assets">[] | undefined;
     let referenceAssetIds: Id<"assets">[] | undefined;
-    let parentTakeId: Id<"takes"> | undefined;
+
     if (job.inputsFileId) {
       try {
         const inputs = await loadJson<BuildRequestInput>(ctx, job.inputsFileId);
@@ -692,9 +690,6 @@ async function finishSuccess(
         }
         if (Array.isArray(inputs.referenceAssetIds)) {
           referenceAssetIds = inputs.referenceAssetIds as Id<"assets">[];
-        }
-        if (typeof inputs.parentTakeId === "string") {
-          parentTakeId = inputs.parentTakeId as Id<"takes">;
         }
       } catch {
         // ignore
@@ -715,12 +710,9 @@ async function finishSuccess(
         createdBy: job.createdBy,
         jobId: job._id,
         outputIndex,
-        shotId: job.shotId,
+
         entityId: job.entityId,
-        tags:
-          job.sequenceId && adapter.capabilities.kind === "video" && !job.shotId
-            ? ["sequence-master", "video"]
-            : undefined,
+
         lineage: {
           prompt: job.prompt,
           model: job.model,
@@ -732,45 +724,6 @@ async function finishSuccess(
       },
     );
     outputAssetIds.push(assetId);
-
-    if (
-      job.sequenceId &&
-      adapter.capabilities.kind === "video" &&
-      !job.shotId
-    ) {
-      // Sequence master: split into per-shot takes with trim windows.
-      await ctx.runMutation(internal.shotGeneration.createSequenceTakes, {
-        projectId: job.projectId,
-        sequenceId: job.sequenceId,
-        masterAssetId: assetId,
-        jobId: job._id,
-      });
-      const seqShots = await ctx.runQuery(
-        internal.shotGeneration.getShotsForSequenceInternal,
-        { sequenceId: job.sequenceId },
-      );
-      await ctx.runMutation(internal.shotGeneration.clearGeneratingStatus, {
-        shotIds: seqShots.map((s: Doc<"shots">) => s._id),
-      });
-    } else if (job.shotId) {
-      if (adapter.capabilities.kind === "video") {
-        await ctx.runMutation(internal.generation.createTake, {
-          projectId: job.projectId,
-          shotId: job.shotId,
-          assetId,
-          jobId: job._id,
-          parentTakeId,
-        });
-        await ctx.runMutation(internal.shotGeneration.clearGeneratingStatus, {
-          shotIds: [job.shotId],
-        });
-      } else if (adapter.capabilities.kind === "image") {
-        await ctx.runMutation(internal.generation.setShotKeyframeInternal, {
-          shotId: job.shotId,
-          keyframeAssetId: assetId,
-        });
-      }
-    }
 
     if (
       job.promptSheetId &&
@@ -824,20 +777,6 @@ async function failAndRefund(
     jobId: job._id,
     errorMessage,
   });
-
-  if (job.sequenceId && !job.shotId) {
-    const seqShots = await ctx.runQuery(
-      internal.shotGeneration.getShotsForSequenceInternal,
-      { sequenceId: job.sequenceId },
-    );
-    await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-      shotIds: seqShots.map((s: Doc<"shots">) => s._id),
-    });
-  } else if (job.shotId) {
-    await ctx.runMutation(internal.shotGeneration.restoreShotsAfterFail, {
-      shotIds: [job.shotId],
-    });
-  }
 }
 
 // ---------------------------------------------------------------------------

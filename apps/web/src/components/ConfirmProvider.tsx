@@ -1,13 +1,4 @@
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -17,19 +8,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-export type ConfirmOptions = {
-  title?: string;
-  description: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  /** Destructive styling for the confirm button. */
-  destructive?: boolean;
-};
-
-type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
-
-const ConfirmContext = createContext<ConfirmFn | null>(null);
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  ConfirmContext,
+  type ConfirmFn,
+  type ConfirmOptions,
+} from "./use-confirm";
 
 type Pending = ConfirmOptions & {
   resolve: (value: boolean) => void;
@@ -95,12 +79,4 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       </AlertDialog>
     </ConfirmContext.Provider>
   );
-}
-
-export function useConfirm(): ConfirmFn {
-  const ctx = useContext(ConfirmContext);
-  if (!ctx) {
-    throw new Error("useConfirm must be used within ConfirmProvider");
-  }
-  return ctx;
 }

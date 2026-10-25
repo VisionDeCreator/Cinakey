@@ -1,47 +1,32 @@
-import type { ReactNode } from "react";
-import { api } from "@cinakey/backend";
-import {
-  TITLE_STYLE_IDS,
-  type TimelineClip,
-  type TitleStyleId,
-  type CaptionLine,
-  newTimelineId,
-} from "@cinakey/shared";
-import { useQuery } from "@/lib/api/hooks";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery } from "@/lib/api/hooks";
+import { api } from "@cinakey/backend";
+import {
+  newTimelineId,
+  TITLE_STYLE_IDS,
+  type CaptionLine,
+  type TimelineClip,
+  type TitleStyleId,
+} from "@cinakey/shared";
+import { useState, type ReactNode } from "react";
+import { resolveMediaDuration } from "./insertMedia";
 
 type Props = {
   projectId: string;
   clip: TimelineClip | null;
   onChange: (patch: Partial<TimelineClip>) => void;
-  onSwapTake: (take: {
-    takeId: string;
-    shotId: string;
-    assetId: string;
-    proxyAssetId?: string;
-    trimStartSec?: number;
-    sourceOffsetSec?: number;
-    trimEndSec?: number;
-  }) => void;
   onDelete: () => void;
 };
 
-export function ClipInspector({
-  projectId,
-  clip,
-  onChange,
-  onSwapTake,
-  onDelete,
-}: Props) {
-  const shotId =
-    clip?.source.type === "take" ? clip.source.shotId : clip?.linkedShotId;
-  const takes = useQuery(
-    api.takes.listByShot,
-    shotId ? { shotId: shotId as never } : "skip",
-  );
+export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
+  const assets = useQuery(api.assets.list, { projectId: projectId as never });
+  const urls = useQuery(api.storage.listProjectAssetUrls, {
+    projectId: projectId as never,
+  });
+  const [sourceError, setSourceError] = useState<string | null>(null);
+  const [replacing, setReplacing] = useState(false);
 
   if (!clip) {
     return (
@@ -230,65 +215,82 @@ export function ClipInspector({
         </div>
       )}
 
-      {shotId && (
-        <div className="space-y-2 border-t border-zinc-800 pt-3">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">
-            Linked shot
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" asChild>
-              <Link to={`/projects/${projectId}/video`}>Regenerate</Link>
-            </Button>
-          </div>
-          {takes && takes.length > 0 && (
-            <div className="space-y-1">
-              <Label className="text-[11px] text-zinc-500">Swap take</Label>
-              <ul className="max-h-32 space-y-1 overflow-y-auto">
-                {takes.map((take) => {
-                  const active =
-                    clip.source.type === "take" &&
-                    clip.source.takeId === take._id;
-                  return (
-                    <li key={take._id}>
-                      <button
-                        type="button"
-                        disabled={active}
-                        className="w-full rounded-md border border-zinc-800 px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
-                        onClick={() => {
-                          const currentId =
-                            clip.source.type === "take"
-                              ? clip.source.takeId
-                              : null;
-                          const previous = takes.find(
-                            (item) => item._id === currentId,
-                          );
-                          onSwapTake({
-                            sourceOffsetSec: Math.max(
-                              0,
-                              clip.inSec - (previous?.trimStartSec ?? 0),
-                            ),
-                            takeId: take._id,
-                            shotId: take.shotId,
-                            assetId: take.assetId,
-                            proxyAssetId: take.proxyAssetId,
-                            trimStartSec: take.trimStartSec,
-                            trimEndSec:
-                              take.trimEndSec ?? take.asset?.durationSec,
-                          });
-                        }}
-                      >
-                        Take {take._id.slice(-6)}
-                        {take.selected ? " (selected)" : ""}
-                        {active ? " · current" : ""}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </div>
+      {clip.source.type !== "text" && (
+        <label>
+          Replace source
+          <select
+            aria-label="Replace clip source"
+            value={clip.source.assetId}
+            disabled={replacing}
+            onChange={async (event) => {
+              const asset = assets?.find(
+                (asset) => asset._id === event.target.value,
+              );
+              if (!asset) return;
+              setReplacing(true);
+              setSourceError(null);
+              try {
+                const available =
+                  asset.durationSec ??
+                  (asset.type === "image"
+                    ? clip.outSec
+                    : await resolveMediaDuration(
+                        urls?.find((url) => url.assetId === asset._id)?.url ??
+                          "",
+                        asset.type,
+                      ));
+                const inSec = Math.min(
+                  clip.inSec,
+                  Math.max(0, available - 1 / 24),
+                );
+                const outSec = Math.min(
+                  available,
+                  inSec + clip.durationSec * clip.speed,
+                );
+                onChange({
+                  source: {
+                    type: "asset",
+                    assetId: asset._id,
+                    proxyAssetId: asset.playbackProxyAssetId,
+                  },
+                  inSec,
+                  outSec,
+                  durationSec: (outSec - inSec) / clip.speed,
+                });
+              } catch (error) {
+                setSourceError(
+                  error instanceof Error
+                    ? error.message
+                    : "Could not replace source",
+                );
+              } finally {
+                setReplacing(false);
+              }
+            }}
+          >
+            {assets
+              ?.filter((asset) =>
+                (clip.source.type !== "text" &&
+                ["audio", "music"].includes(
+                  assets.find(
+                    (current) =>
+                      clip.source.type !== "text" &&
+                      current._id === clip.source.assetId,
+                  )?.type ?? "",
+                )
+                  ? ["audio", "music"]
+                  : ["video", "image"]
+                ).includes(asset.type),
+              )
+              .map((asset) => (
+                <option key={asset._id} value={asset._id}>
+                  {asset.name}
+                </option>
+              ))}
+          </select>
+        </label>
       )}
+      {sourceError && <p role="alert">{sourceError}</p>}
     </div>
   );
 }

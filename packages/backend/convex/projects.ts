@@ -7,10 +7,10 @@ import {
   requireProjectAccess,
   requireUser,
 } from "./lib/access";
-import { markSheetsStaleForStyleChange } from "./lib/promptSheetDeps";
-import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
+import { markSheetsStaleForStyleChange } from "./lib/promptSheetDeps";
 import { assertRateLimit } from "./lib/rateLimit";
+import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { getFileUrl } from "./storage";
 
 const briefValidator = v.object({
@@ -39,41 +39,31 @@ export async function computeProgress(
   ctx: QueryCtx,
   projectId: Id<"projects">,
 ): Promise<PipelineProgress> {
-  const [scriptTip, entities, shots, takes, timelines] = await Promise.all([
+  const [scripts, staging, assets, timeline] = await Promise.all([
     ctx.db
-      .query("promptSheets")
-      .withIndex("by_project_tip", (q) =>
-        q.eq("projectId", projectId).eq("isTip", true),
-      )
-      .filter((q) => q.eq(q.field("type"), "script"))
-      .first(),
-    ctx.db
-      .query("entities")
-      .withIndex("by_project", (q) => q.eq("projectId", projectId))
-      .first(),
-    ctx.db
-      .query("shots")
+      .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect(),
     ctx.db
-      .query("takes")
-      .filter((q) => q.eq(q.field("projectId"), projectId))
+      .query("workspaceStaging")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .first(),
+    projectAssets(ctx, projectId),
     ctx.db
       .query("timelineVersions")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .first(),
   ]);
-
-  const hasBlockout =
-    shots.some((s) => s.blockoutFileId !== undefined) || shots.length > 0;
-
   return {
-    assets: entities !== null ? "started" : "empty",
-    script: scriptTip !== null ? "started" : "empty",
-    blockout: hasBlockout ? "started" : "empty",
-    video: takes !== null ? "started" : "empty",
-    edit: timelines !== null ? "started" : "empty",
+    assets: assets.length ? "started" : "empty",
+    script: scripts.some(
+      (script) => script.isTip && (script.text?.trim() || script.contentFileId),
+    )
+      ? "started"
+      : "empty",
+    blockout: staging ? "started" : "empty",
+    video: assets.some((asset) => asset.type === "video") ? "started" : "empty",
+    edit: timeline ? "started" : "empty",
   };
 }
 
@@ -137,53 +127,6 @@ export const get = query({
     } catch {
       return null;
     }
-  },
-});
-
-export const getOverview = query({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
-    const project = await requireProjectAccess(ctx, args.projectId);
-    const progress = await computeProgress(ctx, args.projectId);
-
-    const [scenes, shots, assets, scripts, entities, timelines] =
-      await Promise.all([
-        ctx.db
-          .query("scenes")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
-        ctx.db
-          .query("shots")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
-        projectAssets(ctx, args.projectId),
-        ctx.db
-          .query("scriptVersions")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
-        ctx.db
-          .query("entities")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
-        ctx.db
-          .query("timelineVersions")
-          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-          .collect(),
-      ]);
-
-    return {
-      project,
-      progress,
-      thumbnailUrl: await resolveThumbnailUrl(ctx, project),
-      counts: {
-        scenes: scenes.length,
-        shots: shots.length,
-        assets: assets.length,
-        scriptVersions: scripts.length,
-        entities: entities.length,
-        timelineVersions: timelines.length,
-      },
-    };
   },
 });
 

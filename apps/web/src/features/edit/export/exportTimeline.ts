@@ -5,6 +5,12 @@ import { seekMediaFrame } from "../engine/mediaSeek";
  */
 
 import {
+  TIMELINE_EXPORT_MAX_DURATION_SEC,
+  TIMELINE_EXPORT_MAX_LONG_EDGE,
+  type TimelineClip,
+  type TimelineDocument,
+} from "@cinakey/shared";
+import {
   AudioBufferSource,
   BufferTarget,
   CanvasSource,
@@ -14,15 +20,9 @@ import {
   canEncodeAudio,
   canEncodeVideo,
 } from "mediabunny";
-import {
-  TIMELINE_EXPORT_MAX_DURATION_SEC,
-  TIMELINE_EXPORT_MAX_LONG_EDGE,
-  type TimelineDocument,
-  type TimelineClip,
-} from "@cinakey/shared";
-import { evenDims, videoUrlForClip, type MediaUrlMap } from "../mediaUrls";
-import { MediaCache } from "../engine/MediaCache";
 import { textClipsAt, videoClipsAt } from "../engine/AudioGraph";
+import { MediaCache } from "../engine/MediaCache";
+import { evenDims, videoUrlForClip, type MediaUrlMap } from "../mediaUrls";
 
 export type ExportProgress = {
   phase: "prepare" | "video" | "audio" | "finalize";
@@ -109,9 +109,7 @@ export async function exportTimelineMp4(opts: {
         if (clip.source.type === "text") continue;
         const url = videoUrlForClip(clip.source, opts.urls, false);
         const assetId =
-          clip.source.type === "take" || clip.source.type === "asset"
-            ? clip.source.assetId
-            : null;
+          clip.source.type === "asset" ? clip.source.assetId : null;
         if (assetId && url) {
           const kind =
             track.kind === "music" || track.kind === "sfx" ? "audio" : "video";

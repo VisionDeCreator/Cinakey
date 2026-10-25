@@ -1,7 +1,7 @@
+import { cn } from "@/lib/utils";
 import type { BlockoutLightRole, BlockoutObjectType } from "@cinakey/shared";
 import { LIGHT_ADD_ROLES, PROP_ADD_TYPES } from "./editorModel";
 import { LIGHT_DEFAULTS } from "./runtime/objects";
-import { cn } from "@/lib/utils";
 
 type Entity = { id: string; name: string; kind: string };
 
@@ -72,7 +72,7 @@ export function EditorLibrary({
         </div>
       </section>
       <p className={cn("mt-auto text-[10px] leading-snug text-zinc-600")}>
-        + places in front of the shot camera
+        + places in front of the camera
       </p>
     </aside>
   );

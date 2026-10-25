@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
-import { assembleFromShotList } from "@cinakey/shared";
+import { timelineWithMedia } from "../../../../../../packages/shared/test/timelineFixture";
+
 import { PlaybackEngine } from "./PlaybackEngine";
 const state = vi.hoisted(() => ({
   ensure: vi.fn(),
@@ -53,15 +54,13 @@ it("discards late frames and paints titles after the current frame", async () =>
   state.draw.mockClear();
   state.titles.mockClear();
   const engine = new PlaybackEngine(document.createElement("canvas"));
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });
@@ -89,15 +88,13 @@ it("presents decoded frames during continuous playback instead of starving them 
   });
   state.ensure.mockResolvedValue({ canvasSink: { getCanvas: decode } });
   const engine = new PlaybackEngine(document.createElement("canvas"));
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });
@@ -122,15 +119,13 @@ it("applies audio changes during playback without interrupting the picture", asy
   });
   state.schedule.mockResolvedValue(undefined).mockClear();
   const engine = new PlaybackEngine(document.createElement("canvas"));
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });
@@ -156,15 +151,13 @@ it("reports missing source media rather than leaving an unexplained black previe
   const engine = new PlaybackEngine(document.createElement("canvas"));
   const statuses: Array<{ error?: string }> = [];
   engine.subscribe((status) => statuses.push(status));
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });
@@ -186,15 +179,13 @@ it("replays from the beginning after reaching the end", async () => {
   });
   state.schedule.mockResolvedValue(undefined);
   const engine = new PlaybackEngine(document.createElement("canvas"));
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });

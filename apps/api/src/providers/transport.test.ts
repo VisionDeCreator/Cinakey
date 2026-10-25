@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  providerFetch,
-  setProviderTransportForTests,
-  retryAfterMs,
-} from "./transport";
+import { withProviderSignal } from "../runtime/provider-scope";
 import {
   ProviderError,
-  safeErrorMessage,
   redactSensitiveValue,
+  safeErrorMessage,
 } from "./errors";
-import { withProviderSignal } from "../runtime/provider-scope";
+import {
+  providerFetch,
+  retryAfterMs,
+  setProviderTransportForTests,
+} from "./transport";
 function live() {
   vi.stubEnv("USE_MOCK_ADAPTERS", "false");
   vi.stubEnv("PROVIDER_READ_RETRIES", "1");
@@ -122,4 +122,29 @@ describe("controlled provider transport", () => {
       redactSensitiveValue({ apiKey: "value", message: "private-test-value" }),
     ).toEqual({ apiKey: "[redacted]", message: "[redacted]" });
   });
+});
+
+it("returns a bounded validation reason without exposing provider keys or signed URLs", async () => {
+  live();
+  vi.stubEnv("SEEDANCE_API_KEY", "validation-test-secret");
+  setProviderTransportForTests(
+    async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message:
+              "Image too small validation-test-secret https://private.test/file?secret=1",
+          },
+        }),
+        { status: 400 },
+      ),
+  );
+  const error = await providerFetch(
+    "seedance",
+    "https://ark.cn-beijing.volces.com/api/v3/task",
+    { method: "POST" },
+  ).catch((e) => e);
+  expect(String(error)).toContain("Image too small");
+  expect(String(error)).not.toContain("validation-test-secret");
+  expect(String(error)).not.toContain("private.test");
 });

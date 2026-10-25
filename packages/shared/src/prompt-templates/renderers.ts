@@ -7,7 +7,6 @@ import {
   STYLE_REFERENCE_PROMPT_PREFIX,
 } from "./constants";
 import type {
-  BlockoutSheetData,
   CharacterSheetData,
   CreatureSheetData,
   EnvironmentSheetData,
@@ -119,16 +118,15 @@ export function renderEnvironmentSheet(
 ): string {
   const opening = `Wide environment illustration of ${data.place} at ${data.timeOfDay}, seen from ${data.cameraAngle}. ${ENVIRONMENT_NO_CHARACTERS_CLAUSE}`;
   const hasStyleReference = opts?.hasStyleReference === true;
-  const settingHeading = (data.settingHeading ?? "THE LAND").trim().toUpperCase();
+  const settingHeading = (data.settingHeading ?? "THE LAND")
+    .trim()
+    .toUpperCase();
   const lightHeading = (data.lightHeading ?? "SKY AND LIGHT")
     .trim()
     .toUpperCase();
   const mid: string[] = ["", `${settingHeading}: ${data.theLand.trim()}`, ""];
   for (const extra of data.extraSections ?? []) {
-    mid.push(
-      `${extra.heading.trim().toUpperCase()}: ${extra.body.trim()}`,
-      "",
-    );
+    mid.push(`${extra.heading.trim().toUpperCase()}: ${extra.body.trim()}`, "");
   }
   mid.push(
     `${lightHeading}: ${data.skyAndLight.trim()}`,
@@ -177,9 +175,7 @@ export function renderScriptPrompt(data: ScriptPromptData): string {
     return `@image_${r.imageN} = ${r.entityLabel}. Use it for ${use}`;
   });
 
-  const imageList = data.references
-    .map((r) => `@image_${r.imageN}`)
-    .join(", ");
+  const imageList = data.references.map((r) => `@image_${r.imageN}`).join(", ");
   const lastImage =
     data.references.length > 1
       ? data.references
@@ -255,114 +251,6 @@ export function renderScriptPrompt(data: ScriptPromptData): string {
   ].join("\n");
 }
 
-function formatVec3(v: [number, number, number]): string {
-  return `(${v[0]}, ${v[1]}, ${v[2]})`;
-}
-
-function formatSize(v: [number, number, number]): string {
-  return `${v[0]} × ${v[1]} × ${v[2]}`;
-}
-
-export function renderBlockoutSheet(data: BlockoutSheetData): string {
-  const parts: string[] = [
-    `BLOCKOUT SHEET — ${data.sequenceTitle} · from script prompt v${data.scriptPromptVersion}`,
-    "",
-    `SEQUENCE: ${data.durationSec}s, ${data.aspectRatio}, ${data.fps}fps, ${data.shotCount} shots. World units: metres, Y up, origin at ${data.worldOriginLandmark}.`,
-    "",
-    "REFERENCES:",
-    ...data.references.map(
-      (r) =>
-        `@image_${r.imageN} = ${r.entityLabel} → stand-in ${r.standInId}`,
-    ),
-    "",
-    "SET:",
-    ...data.set.map((s) => {
-      const rot = s.rotation ? `, rotation ${formatVec3(s.rotation)}` : "";
-      const notes = s.notes ? `, ${s.notes}` : "";
-      return `${s.id} ${s.name} — ${s.primitive}, position ${formatVec3(s.position)}, size (${formatSize(s.size)})${rot}${notes}.`;
-    }),
-    "",
-    "CAST:",
-    ...data.cast.map((c) => {
-      const sizeParts: string[] = [];
-      if (c.heightM !== undefined) sizeParts.push(`height ${c.heightM}m`);
-      if (c.lengthM !== undefined) sizeParts.push(`length ${c.lengthM}m`);
-      const size = sizeParts.length ? `, ${sizeParts.join(", ")}` : "";
-      const color = c.colorCode ? `, colour ${c.colorCode}` : "";
-      const img = c.imageN !== undefined ? `, @image_${c.imageN}` : "";
-      const rider = c.riderAttachment
-        ? `, rider attachment: ${c.riderAttachment}`
-        : "";
-      const group =
-        c.count !== undefined
-          ? `, count ${c.count}${c.spread ? ` spread ${c.spread}` : ""}`
-          : "";
-      return `${c.id} ${c.name} — ${c.proxy}${size}${color}${img}${rider}${group}.`;
-    }),
-  ];
-
-  if (data.props.length > 0) {
-    parts.push(
-      "",
-      "PROPS:",
-      ...data.props.map((p) => {
-        const att = p.attachment ? ` — ${p.attachment}` : "";
-        const img = p.imageN !== undefined ? `, @image_${p.imageN}` : "";
-        return `${p.id} ${p.name}${att}${img}.`;
-      }),
-    );
-  }
-
-  const light = data.light;
-  parts.push(
-    "",
-    "LIGHT:",
-    `Sun azimuth ${light.sunAzimuthDeg}°, elevation ${light.sunElevationDeg}°${light.colorTemperatureK ? `, ${light.colorTemperatureK}K` : ""}${light.fill ? `, fill: ${light.fill}` : ""}${light.notes ? `. ${light.notes}` : "."}`,
-    "",
-    "SHOTS:",
-  );
-
-  for (const shot of data.shots) {
-    const dur = (shot.endSec - shot.startSec).toFixed(1);
-    parts.push(
-      `SHOT ${String(shot.n).padStart(2, "0")} · ${formatShotTime(shot.startSec)}–${formatShotTime(shot.endSec)}s (${dur}s) · ${shot.shotType} · ${shot.lensMm}mm · ${shot.cameraMove}.`,
-      `Camera: ${formatVec3(shot.camera.startPosition)} looking at ${formatVec3(shot.camera.startLookAt)} → ${formatVec3(shot.camera.endPosition)} looking at ${formatVec3(shot.camera.endLookAt)}; move ${shot.camera.moveType}${shot.camera.easing ? `, ${shot.camera.easing}` : ""}.`,
-    );
-    if (shot.blocking.length > 0) {
-      const blockingLines = shot.blocking.map((b) => {
-        const keys =
-          b.timedKeys && b.timedKeys.length > 0
-            ? `; ${b.timedKeys.map((k) => `t=${k.t}s ${k.note}`).join(", ")}`
-            : "";
-        return `${b.targetId} ${formatVec3(b.startPosition)}${b.startPose ? ` ${b.startPose}` : ""} → ${formatVec3(b.endPosition)}${b.endPose ? ` ${b.endPose}` : ""}${keys}`;
-      });
-      parts.push(`Blocking: ${blockingLines.join("; ")}.`);
-    } else {
-      parts.push("Blocking: none.");
-    }
-    if (shot.events.length > 0) {
-      parts.push(
-        `Events: ${shot.events.map((e) => `t=${e.t}s ${e.label}`).join("; ")}.`,
-      );
-    } else {
-      parts.push("Events: none.");
-    }
-    parts.push(
-      `Frame must show: ${shot.frameMustShow}`,
-      `Continuity: ${shot.continuity}`,
-    );
-    if (shot.audioCue) parts.push(`Audio cue: ${shot.audioCue}`);
-    parts.push(`Transition out: ${shot.transitionOut}.`);
-    if (shot.guides && shot.guides.length > 0) {
-      parts.push(`Guides: ${shot.guides.join(", ")}.`);
-    }
-    parts.push("");
-  }
-
-  return parts.join("\n").trimEnd() + "\n";
-}
-
-/** Split rendered text into named sections for snapshot comparison. */
 export function splitAssetSheetSections(text: string): Record<string, string> {
   const lines = text.trim().split("\n");
   const sections: Record<string, string> = {};
@@ -412,7 +300,10 @@ export function normalizePromptText(text: string): string {
       /@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]\((?:image_|IMAGE_)?(\d+)\)/gi,
       (_m, a: string, b: string) => `@image_${a || b}`,
     )
-    .replace(/@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]/gi, (_m, n: string) => `@image_${n}`)
+    .replace(
+      /@\[(?:Image|IMAGE|image)[_\s-]*(\d+)\]/gi,
+      (_m, n: string) => `@image_${n}`,
+    )
     .replace(/(^|\n)LOCATIONS?\s*:\s*/gi, "$1LOCATION — ")
     .split("\n")
     .map((l) => l.trimEnd())
@@ -446,7 +337,9 @@ export function ensureStyleReferencePrefix(
 ): string {
   const text = promptText.trim();
   if (!hasStyleReference || text.length === 0) return text;
-  if (text.toLowerCase().startsWith(STYLE_REFERENCE_PROMPT_PREFIX.toLowerCase())) {
+  if (
+    text.toLowerCase().startsWith(STYLE_REFERENCE_PROMPT_PREFIX.toLowerCase())
+  ) {
     return text;
   }
   return `${STYLE_REFERENCE_PROMPT_PREFIX} ${text}`;

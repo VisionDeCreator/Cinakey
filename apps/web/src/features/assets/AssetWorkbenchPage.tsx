@@ -1,10 +1,10 @@
-import { api } from "@cinakey/backend";
-import type { AssetSheetType } from "@cinakey/shared";
-import { useMutation, useQuery } from "@/lib/api/hooks";
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { PromptWorkbench } from "@/features/prompt-workbench/PromptWorkbench";
+import { useMutation, useQuery } from "@/lib/api/hooks";
+import { api } from "@cinakey/backend";
+import type { AssetSheetType } from "@cinakey/shared";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 function entityKindToSheetType(kind: string): AssetSheetType {
   if (kind === "creature") return "creature";
@@ -21,15 +21,12 @@ export function AssetWorkbenchPage() {
   );
   const rename = useMutation(api.entities.update);
 
-  const [name, setName] = useState("");
+  const [draft, setDraft] = useState<{ entityId: string; name: string } | null>(
+    null,
+  );
+  const name =
+    draft && draft.entityId === assetId ? draft.name : (entity?.name ?? "");
   const assetType = entityKindToSheetType(entity?.kind ?? "character");
-
-  useEffect(() => {
-    if (entity) {
-      setName(entity.name);
-    }
-  }, [entity]);
-
   if (!projectId || !assetId) return null;
   if (entity === undefined) {
     return <p className="text-sm text-zinc-500">Loading…</p>;
@@ -49,7 +46,9 @@ export function AssetWorkbenchPage() {
         </Link>
         <Input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) =>
+            setDraft({ entityId: assetId, name: e.target.value })
+          }
           onBlur={() => {
             const trimmed = name.trim();
             if (trimmed && trimmed !== entity.name) {

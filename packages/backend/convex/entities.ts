@@ -295,7 +295,7 @@ export const getTipScriptInternal = internalQuery({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     const versions = await ctx.db
-      .query("scriptVersions")
+      .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
     if (versions.length === 0) return null;

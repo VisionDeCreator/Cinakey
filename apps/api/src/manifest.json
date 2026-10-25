@@ -19,46 +19,6 @@
     "kind": "mutation",
     "public": true
   },
-  "blockouts:listSequenceShotsInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "blockouts:applySavedPartBlockout": {
-    "kind": "mutation",
-    "public": false
-  },
-  "blockouts:getForSequence": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:saveForSequence": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:importToSequence": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:exportDocument": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:get": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:save": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:importToShot": {
-    "kind": "action",
-    "public": true
-  },
-  "blockouts:saveBlockout": {
-    "kind": "mutation",
-    "public": true
-  },
   "credits:getBalance": {
     "kind": "query",
     "public": true
@@ -271,14 +231,6 @@
     "kind": "mutation",
     "public": false
   },
-  "generation:createTake": {
-    "kind": "mutation",
-    "public": false
-  },
-  "generation:setShotKeyframeInternal": {
-    "kind": "mutation",
-    "public": false
-  },
   "generation:startGeneration": {
     "kind": "action",
     "public": true
@@ -294,70 +246,6 @@
   "generation:getProjectWorkspace": {
     "kind": "query",
     "public": false
-  },
-  "migrations:migratePhase4": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:listProjectsInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "migrations:listEntitiesForProjectInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "migrations:listTipSheetsInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "migrations:patchStyleReferenceInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:insertMigratedTipInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:migratePhase11A": {
-    "kind": "action",
-    "public": true
-  },
-  "migrations:migratePhase11B": {
-    "kind": "action",
-    "public": true
-  },
-  "migrations:listSequencesInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "migrations:listShotsInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "migrations:patchScriptTipRenderedInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:ensureSequenceForScriptInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:patchSequenceScriptInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:insertScriptTipInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:backfillSequenceShotsInternal": {
-    "kind": "mutation",
-    "public": false
-  },
-  "migrations:migratePhase11D": {
-    "kind": "action",
-    "public": true
   },
   "moderation:recordFlag": {
     "kind": "mutation",
@@ -383,29 +271,9 @@
     "kind": "mutation",
     "public": false
   },
-  "onboarding:createStarterProject": {
-    "kind": "action",
-    "public": true
-  },
-  "onboarding:createStarterShell": {
-    "kind": "mutation",
-    "public": false
-  },
-  "onboarding:attachStarterScript": {
-    "kind": "mutation",
-    "public": false
-  },
-  "onboarding:attachStarterScriptPrompt": {
-    "kind": "mutation",
-    "public": false
-  },
   "onboarding:trackStarterCreated": {
     "kind": "mutation",
     "public": false
-  },
-  "onboarding:attachStarterTake": {
-    "kind": "mutation",
-    "public": true
   },
   "onboarding:dismissOnboarding": {
     "kind": "mutation",
@@ -420,10 +288,6 @@
     "public": true
   },
   "projects:get": {
-    "kind": "query",
-    "public": true
-  },
-  "projects:getOverview": {
     "kind": "query",
     "public": true
   },
@@ -491,23 +355,11 @@
     "kind": "action",
     "public": true
   },
-  "promptSheets:markAssetDependentsStale": {
-    "kind": "mutation",
-    "public": false
-  },
-  "promptSheets:markScriptDependentsStale": {
-    "kind": "mutation",
-    "public": false
-  },
   "promptSheets:completeAssetGeneration": {
     "kind": "mutation",
     "public": false
   },
   "promptSheets:savePromptText": {
-    "kind": "action",
-    "public": true
-  },
-  "promptSheets:saveScriptPromptText": {
     "kind": "action",
     "public": true
   },
@@ -543,18 +395,6 @@
     "kind": "query",
     "public": true
   },
-  "promptSheets:getTipForSequence": {
-    "kind": "query",
-    "public": true
-  },
-  "promptSheets:listScriptParts": {
-    "kind": "query",
-    "public": true
-  },
-  "promptSheets:listVersionsForSequence": {
-    "kind": "query",
-    "public": true
-  },
   "promptSheets:getTipForEntity": {
     "kind": "query",
     "public": true
@@ -565,334 +405,6 @@
   },
   "promptSheets:restorePromptVersion": {
     "kind": "action",
-    "public": true
-  },
-  "scenes:listForProject": {
-    "kind": "query",
-    "public": true
-  },
-  "scenes:get": {
-    "kind": "query",
-    "public": true
-  },
-  "scenes:rename": {
-    "kind": "mutation",
-    "public": true
-  },
-  "scriptVersions:createVersion": {
-    "kind": "mutation",
-    "public": true
-  },
-  "scriptVersions:listForProject": {
-    "kind": "query",
-    "public": true
-  },
-  "scriptVersions:getTip": {
-    "kind": "query",
-    "public": true
-  },
-  "scriptVersions:getVersion": {
-    "kind": "query",
-    "public": true
-  },
-  "scriptVersions:assertAccess": {
-    "kind": "query",
-    "public": false
-  },
-  "scriptVersions:getTipInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "scriptVersions:getVersionInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "scriptVersions:commitDocument": {
-    "kind": "mutation",
-    "public": false
-  },
-  "scriptVersions:commit": {
-    "kind": "action",
-    "public": true
-  },
-  "scriptVersions:getContent": {
-    "kind": "action",
-    "public": true
-  },
-  "scriptVersions:diffVersions": {
-    "kind": "action",
-    "public": true
-  },
-  "scriptVersions:restore": {
-    "kind": "action",
-    "public": true
-  },
-  "scriptVersions:commitAsInternal": {
-    "kind": "action",
-    "public": false
-  },
-  "seed:seedDemoProject": {
-    "kind": "mutation",
-    "public": true
-  },
-  "seed:seedDemoForUser": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:list": {
-    "kind": "query",
-    "public": true
-  },
-  "sequences:listInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "sequences:getInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "sequences:upsertFromScriptPrompt": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:setShotIds": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:applyScriptPrompt": {
-    "kind": "action",
-    "public": true
-  },
-  "sequences:linkSequenceOnSheet": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:ensureScene": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:replaceSequenceShots": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:applyBlockoutSheet": {
-    "kind": "action",
-    "public": true
-  },
-  "sequences:markShotBlockoutSynced": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:setPrevizAssetId": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:setPrevizAsset": {
-    "kind": "action",
-    "public": true
-  },
-  "sequences:getShotInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "sequences:syncScriptShotsFromList": {
-    "kind": "action",
-    "public": true
-  },
-  "sequences:syncScriptShotsJob": {
-    "kind": "action",
-    "public": false
-  },
-  "sequences:writeBackBlockoutFromShot": {
-    "kind": "action",
-    "public": true
-  },
-  "sequences:markBlockoutStale": {
-    "kind": "mutation",
-    "public": false
-  },
-  "sequences:updateBlockoutFromScript": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:getProjectSpend": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:assertSpendCapInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:resolveScriptPromptForRun": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:listActiveJobsForProject": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:listShotsForGeneration": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:getShotGenerationContext": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:markShotsGenerating": {
-    "kind": "mutation",
-    "public": false
-  },
-  "shotGeneration:restoreShotsAfterFail": {
-    "kind": "mutation",
-    "public": false
-  },
-  "shotGeneration:clearGeneratingStatus": {
-    "kind": "mutation",
-    "public": false
-  },
-  "shotGeneration:createSequenceTakes": {
-    "kind": "mutation",
-    "public": false
-  },
-  "shotGeneration:createTakeWithMeta": {
-    "kind": "mutation",
-    "public": false
-  },
-  "shotGeneration:setGenerationPromptOverride": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shotGeneration:getShotsForSequenceInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:getSequenceInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:getTakeInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:getShotInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:listShotAssetsInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shotGeneration:assemblePromptAction": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:startSequenceGeneration": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:startShotGeneration": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:startTakeUpscale": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:startTakeExtend": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:listSequenceMasters": {
-    "kind": "query",
-    "public": true
-  },
-  "shotGeneration:chooseMaster": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shotGeneration:deleteMaster": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shotGeneration:startMasterUpscale": {
-    "kind": "action",
-    "public": true
-  },
-  "shotGeneration:startMasterExtend": {
-    "kind": "action",
-    "public": true
-  },
-  "shots:listByScene": {
-    "kind": "query",
-    "public": true
-  },
-  "shots:listByProject": {
-    "kind": "query",
-    "public": true
-  },
-  "shots:get": {
-    "kind": "query",
-    "public": true
-  },
-  "shots:getInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shots:listEntitiesInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "shots:listJobsForShot": {
-    "kind": "query",
-    "public": true
-  },
-  "shots:getSceneRuntime": {
-    "kind": "query",
-    "public": true
-  },
-  "shots:getKeyframePromptContext": {
-    "kind": "action",
-    "public": true
-  },
-  "shots:create": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:update": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:remove": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:reorder": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:split": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:merge": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:setKeyframe": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:clearKeyframe": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:replaceSceneShots": {
-    "kind": "mutation",
-    "public": true
-  },
-  "shots:resolveEntityNames": {
-    "kind": "query",
     "public": true
   },
   "staff:lookupUser": {
@@ -923,45 +435,9 @@
     "kind": "query",
     "public": true
   },
-  "staging:estimateForSequence": {
-    "kind": "query",
-    "public": true
-  },
-  "staging:setStagingPlan": {
-    "kind": "mutation",
-    "public": false
-  },
   "staging:generatePlan": {
     "kind": "action",
     "public": false
-  },
-  "stagingFeedback:recordRun": {
-    "kind": "mutation",
-    "public": false
-  },
-  "stagingFeedback:latestRunInternal": {
-    "kind": "query",
-    "public": false
-  },
-  "stagingFeedback:addEdit": {
-    "kind": "mutation",
-    "public": false
-  },
-  "stagingFeedback:recordEdit": {
-    "kind": "action",
-    "public": false
-  },
-  "stagingFeedback:markAccepted": {
-    "kind": "mutation",
-    "public": false
-  },
-  "stagingFeedback:rateShot": {
-    "kind": "mutation",
-    "public": true
-  },
-  "stagingFeedback:shotRatings": {
-    "kind": "query",
-    "public": true
   },
   "storage:storeJson": {
     "kind": "action",
@@ -1002,42 +478,6 @@
   "storage:deleteAsset": {
     "kind": "mutation",
     "public": true
-  },
-  "takes:listByShot": {
-    "kind": "query",
-    "public": true
-  },
-  "takes:listBySequence": {
-    "kind": "query",
-    "public": true
-  },
-  "takes:getSelectedForProject": {
-    "kind": "query",
-    "public": true
-  },
-  "takes:listSelectedForAssemble": {
-    "kind": "query",
-    "public": true
-  },
-  "takes:selectTake": {
-    "kind": "mutation",
-    "public": true
-  },
-  "takes:rateTake": {
-    "kind": "mutation",
-    "public": true
-  },
-  "takes:attachTakeProxy": {
-    "kind": "mutation",
-    "public": true
-  },
-  "takes:starTakeAsset": {
-    "kind": "mutation",
-    "public": true
-  },
-  "takes:purgeRejectedTakes": {
-    "kind": "mutation",
-    "public": false
   },
   "timelineVersions:createVersion": {
     "kind": "mutation",
@@ -1191,8 +631,92 @@
     "kind": "mutation",
     "public": true
   },
-  "shotGeneration:listProjectVideos": {
+  "workspace:list": {
     "kind": "query",
     "public": true
+  },
+  "workspace:stagingRecord": {
+    "kind": "query",
+    "public": true
+  },
+  "workspace:videos": {
+    "kind": "query",
+    "public": true
+  },
+  "workspace:saveScript": {
+    "kind": "mutation",
+    "public": true
+  },
+  "workspace:setPreviz": {
+    "kind": "mutation",
+    "public": true
+  },
+  "workspace:commitStaging": {
+    "kind": "mutation",
+    "public": false
+  },
+  "workspace:ensure": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:script": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:loadStaging": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:saveStaging": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:generateStaging": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:generate": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:estimateStaging": {
+    "kind": "query",
+    "public": true
+  },
+  "workspace:createTemplate": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:stagingHistory": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:restoreStaging": {
+    "kind": "action",
+    "public": true
+  },
+  "workspace:spend": {
+    "kind": "query",
+    "public": true
+  },
+  "workspace:scriptRecord": {
+    "kind": "query",
+    "public": true
+  },
+  "workspace:markTemplate": {
+    "kind": "mutation",
+    "public": false
+  },
+  "workspace:assertAccess": {
+    "kind": "query",
+    "public": false
+  },
+  "workspace:initialize": {
+    "kind": "mutation",
+    "public": false
+  },
+  "workspace:auditAll": {
+    "kind": "query",
+    "public": false
   }
 }

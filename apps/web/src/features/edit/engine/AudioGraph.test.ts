@@ -1,5 +1,6 @@
+import { assertTimelineDocument } from "@cinakey/shared";
 import { afterEach, expect, it, vi } from "vitest";
-import { assertTimelineDocument, assembleFromShotList } from "@cinakey/shared";
+import { timelineWithMedia } from "../../../../../../packages/shared/test/timelineFixture";
 import { AudioGraph, videoClipsAt } from "./AudioGraph";
 import type { MediaCache } from "./MediaCache";
 afterEach(() => vi.unstubAllGlobals());
@@ -15,15 +16,13 @@ it("mutes original audio while retaining video frames and persisting the mute in
       }
     },
   );
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });

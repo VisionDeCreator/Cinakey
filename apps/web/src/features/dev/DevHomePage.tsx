@@ -1,10 +1,10 @@
-import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "@/lib/api/hooks";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useMutation, useQuery } from "@/lib/api/hooks";
+import { api } from "@cinakey/backend";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
 /**
  * Staff-only /dev hub: grant credits by email + links to other tools.
@@ -13,9 +13,11 @@ export function DevHomePage() {
   const me = useQuery(api.users.viewer);
   const grantToEmail = useMutation(api.credits.grantToEmail);
 
-  const [email, setEmail] = useState("");
+  const [emailDraft, setEmail] = useState<string>();
+  const email = emailDraft ?? me?.email ?? "";
   const [amount, setAmount] = useState(100);
-  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupDraft, setLookupEmail] = useState<string>();
+  const lookupEmail = lookupDraft ?? me?.email ?? "";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +28,6 @@ export function DevHomePage() {
       ? { email: lookupEmail }
       : "skip",
   );
-
-  useEffect(() => {
-    if (me?.email && email.length === 0) {
-      setEmail(me.email);
-      setLookupEmail(me.email);
-    }
-  }, [me?.email, email.length]);
 
   if (me === undefined) {
     return <p className="text-sm text-zinc-500">Loading…</p>;

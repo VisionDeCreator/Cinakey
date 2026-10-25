@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { timelineWithMedia } from "../test/timelineFixture";
 import {
   TIMELINE_SCHEMA_ID,
-  assembleFromShotList,
   assertTimelineDocument,
   createEmptyTimeline,
   deleteClip,
@@ -9,7 +9,6 @@ import {
   rippleTrim,
   rollTrim,
   splitClip,
-  swapTakeOnClip,
   validateTimelineDocument,
 } from "./timeline";
 
@@ -30,8 +29,8 @@ describe("cinakey.timeline/1.0", () => {
     );
   });
 
-  it("assembles a rough cut from selected takes with captions", () => {
-    const doc = assembleFromShotList({
+  it("builds a timeline fixture with ordered media clips and captions", () => {
+    const doc = timelineWithMedia({
       project,
       dialogueByLineId: {
         line_a: {
@@ -40,31 +39,23 @@ describe("cinakey.timeline/1.0", () => {
           dialogue: "Hello there.",
         },
       },
-      shots: [
+      clips: [
         {
-          shotId: "shot_2",
-          sceneOrder: 0,
-          shotOrder: 1,
+          order: 1,
           durationSec: 3,
-          take: {
-            takeId: "take_2",
-            assetId: "asset_2",
-            mediaDurationSec: 10,
-          },
+
+          assetId: "asset_2",
+          mediaDurationSec: 10,
         },
         {
-          shotId: "shot_1",
-          sceneOrder: 0,
-          shotOrder: 0,
+          order: 0,
           durationSec: 2,
           dialogueLineId: "line_a",
-          take: {
-            takeId: "take_1",
-            assetId: "asset_1",
-            proxyAssetId: "proxy_1",
-            trimStartSec: 1,
-            trimEndSec: 4,
-          },
+
+          assetId: "asset_1",
+          proxyAssetId: "proxy_1",
+          trimStartSec: 1,
+          trimEndSec: 4,
         },
       ],
     });
@@ -73,16 +64,13 @@ describe("cinakey.timeline/1.0", () => {
     const video = doc.tracks.find((t) => t.kind === "video")!;
     const dialogue = doc.tracks.find((t) => t.kind === "dialogue")!;
     expect(video.clips).toHaveLength(2);
-    // Sorted by shot order: shot_1 then shot_2
+    // Ordered clips retain their media windows.
     expect(video.clips[0]!.source).toMatchObject({
-      type: "take",
-      takeId: "take_1",
-      shotId: "shot_1",
+      type: "asset",
     });
     expect(video.clips[0]!.startSec).toBe(0);
     expect(video.clips[0]!.durationSec).toBe(2);
     expect(video.clips[0]!.inSec).toBe(1);
-    expect(video.clips[0]!.linkedShotId).toBe("shot_1");
     expect(video.clips[1]!.startSec).toBe(2);
     expect(video.clips[1]!.durationSec).toBe(3);
     expect(dialogue.clips).toHaveLength(1);
@@ -94,21 +82,17 @@ describe("cinakey.timeline/1.0", () => {
     expect(doc.durationSec).toBe(5);
   });
 
-  it("uses sequence trim window for source in/out", () => {
-    const doc = assembleFromShotList({
+  it("uses media trim window for source in/out", () => {
+    const doc = timelineWithMedia({
       project,
-      shots: [
+      clips: [
         {
-          shotId: "shot_s",
-          sceneOrder: 0,
-          shotOrder: 0,
+          order: 0,
           durationSec: 5,
-          take: {
-            takeId: "take_s",
-            assetId: "master",
-            trimStartSec: 10,
-            trimEndSec: 12,
-          },
+
+          assetId: "master",
+          trimStartSec: 10,
+          trimEndSec: 12,
         },
       ],
     });
@@ -119,22 +103,20 @@ describe("cinakey.timeline/1.0", () => {
   });
 
   it("splits, moves, deletes, ripple and roll trims", () => {
-    let doc = assembleFromShotList({
+    let doc = timelineWithMedia({
       project,
-      shots: [
+      clips: [
         {
-          shotId: "a",
-          sceneOrder: 0,
-          shotOrder: 0,
+          order: 0,
           durationSec: 4,
-          take: { takeId: "ta", assetId: "aa", mediaDurationSec: 10 },
+          assetId: "aa",
+          mediaDurationSec: 10,
         },
         {
-          shotId: "b",
-          sceneOrder: 0,
-          shotOrder: 1,
+          order: 1,
           durationSec: 4,
-          take: { takeId: "tb", assetId: "ab", mediaDurationSec: 10 },
+          assetId: "ab",
+          mediaDurationSec: 10,
         },
       ],
     });
@@ -154,22 +136,20 @@ describe("cinakey.timeline/1.0", () => {
     expect(video().clips.find((c) => c.id === midId)).toBeUndefined();
 
     // Re-assemble clean two-clip timeline for ripple/roll
-    doc = assembleFromShotList({
+    doc = timelineWithMedia({
       project,
-      shots: [
+      clips: [
         {
-          shotId: "a",
-          sceneOrder: 0,
-          shotOrder: 0,
+          order: 0,
           durationSec: 4,
-          take: { takeId: "ta", assetId: "aa", mediaDurationSec: 10 },
+          assetId: "aa",
+          mediaDurationSec: 10,
         },
         {
-          shotId: "b",
-          sceneOrder: 0,
-          shotOrder: 1,
+          order: 1,
           durationSec: 4,
-          take: { takeId: "tb", assetId: "ab", mediaDurationSec: 10 },
+          assetId: "ab",
+          mediaDurationSec: 10,
         },
       ],
     });
@@ -182,68 +162,4 @@ describe("cinakey.timeline/1.0", () => {
     expect(video().clips[0]!.durationSec).toBeCloseTo(2);
     expect(video().clips[1]!.startSec).toBeCloseTo(2);
   });
-
-  it("swaps take on a linked clip in place", () => {
-    let doc = assembleFromShotList({
-      project,
-      shots: [
-        {
-          shotId: "shot_1",
-          sceneOrder: 0,
-          shotOrder: 0,
-          durationSec: 3,
-          take: { takeId: "old", assetId: "a1", mediaDurationSec: 10 },
-        },
-      ],
-    });
-    const clipId = doc.tracks.find((t) => t.kind === "video")!.clips[0]!.id;
-    doc = swapTakeOnClip(doc, clipId, {
-      takeId: "new",
-      shotId: "shot_1",
-      assetId: "a2",
-      proxyAssetId: "p2",
-      trimStartSec: 0,
-      trimEndSec: 5,
-    });
-    const clip = doc.tracks.find((t) => t.kind === "video")!.clips[0]!;
-    expect(clip.source).toMatchObject({
-      type: "take",
-      takeId: "new",
-      assetId: "a2",
-      proxyAssetId: "p2",
-    });
-    expect(clip.startSec).toBe(0);
-    expect(clip.durationSec).toBe(3);
-  });
-});
-
-it("retains a manual source offset on an explicit take swap and respects playback speed", () => {
-  const doc = assembleFromShotList({
-    project,
-    shots: [
-      {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
-        durationSec: 2,
-        take: { takeId: "old", assetId: "old-asset" },
-      },
-    ],
-  });
-  const clip = doc.tracks.flatMap((track) => track.clips)[0]!;
-  clip.speed = 2;
-  const next = swapTakeOnClip(doc, clip.id, {
-    takeId: "new",
-    shotId: "s",
-    assetId: "new-asset",
-    trimStartSec: 10,
-    trimEndSec: 15,
-    sourceOffsetSec: 2,
-  });
-  const swapped = next.tracks
-    .flatMap((track) => track.clips)
-    .find((item) => item.id === clip.id)!;
-  expect(swapped.inSec).toBe(12);
-  expect(swapped.durationSec).toBe(1.5);
-  expect(swapped.outSec).toBe(15);
 });

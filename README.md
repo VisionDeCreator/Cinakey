@@ -5,10 +5,10 @@ video generation → edit → export.
 
 Upload images or reuse existing assets as references. Cinakey does not generate
 images or provide a conversational copilot. Projects open in a unified blue-and-charcoal workspace with a connected viewer,
-scene script, references, generation history and editing timeline. Staging is
+plain-text script, references, generation history and editing timeline. Staging is
 available inside the viewer; detailed reference tools remain accessible.
 
-Type `@` in a scene script to link an image or video by name. Numbered aliases
+Type `@` in the script to link an image or video by name. Numbered aliases
 such as `@image_1` and `@video_1` bind once per project, so all occurrences use
 the same media ID even after the asset is renamed. Unresolved or ambiguous
 references block generation before credits are reserved. The current video
@@ -19,9 +19,16 @@ Preview generations independently of the edit, mark a source range, and use
 **Add to timeline** to insert it. Drag library media or a generation onto a timeline
 lane, or drop local files onto a lane to upload and insert them. Insertions split
 footage at the drop point and shift later clips on the destination lane; other
-lanes keep their timing. One undo restores the previous edit. Scenes are optional
-for imports and editing; scene, sequence and shot records still support script,
-staging and AI generation workflows.
+lanes keep their timing. One undo restores the previous edit. Script planning,
+staging, generation and assembly use project documents, assets and timeline clips;
+they do not create scenes, sequences, shots or takes. Generation duration is an
+explicit setting. Select videos in the desired order and use **Add selected videos**
+for assembly; use **Replace clip source** to swap footage.
+
+Existing projects now use the document model. Media, generation history, script
+and staging history, and saved edits are preserved. Obsolete production records,
+endpoints and schema tables have been removed. Saved timeline clips reference
+assets directly. See [Workspace model](docs/workspace-model.md).
 
 Resize the library, inspector and timeline using their dividers (arrow keys also
 work; double-click resets the size). Panel buttons collapse the library,
@@ -125,8 +132,8 @@ measurement. The migration preserves existing data and IDs. File storage remains
 on Convex, including its storage and download costs.
 
 Staff accounts still use `users.isStaff=true`; staff tools are at `/staff` and
-`/dev`. New workspaces receive 100 starter credits. Worker retention scheduling
-purges eligible rejected takes after 30 days. Settings controls email preferences.
+`/dev`. New workspaces receive 100 starter credits. Saved edits protect their
+source media. Settings controls email preferences.
 
 See [production safety and workflow](docs/production-safety.md) and the
 [video provider contract](docs/provider-contract.md) for save recovery, media

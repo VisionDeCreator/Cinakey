@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { TimelineClip } from "@cinakey/shared";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MediaUrlMap } from "../mediaUrls";
 import type { EditorMedia } from "./EditorMedia";
 import { sourceTime } from "./analysis";
@@ -23,7 +23,7 @@ export function ClipMedia({
   const entry = urls[id];
   const hasProxy =
     !!entry?.proxyUrl ||
-    (clip.source.type === "take" &&
+    (clip.source.type !== "text" &&
       !!clip.source.proxyAssetId &&
       !!urls[clip.source.proxyAssetId]?.url);
   const analysis = useSyncExternalStore(media.subscribe, () => media.get(id));

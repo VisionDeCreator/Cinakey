@@ -63,3 +63,49 @@ describe("API client", () => {
     expect(entry.data).toEqual([{ alias: "image_1", assetId: "new" }]);
   });
 });
+
+it("keeps the current query data during a network interruption and recovers through polling", async () => {
+  const client = new ApiClient("http://api.test", "token");
+  const entry = client.entry("workspace:list", { projectId: "p" });
+  entry.listeners.add(() => {});
+  vi.stubGlobal(
+    "fetch",
+    vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: { script: "saved" } })),
+      )
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue(
+        new Response(JSON.stringify({ value: { script: "saved" } })),
+      ),
+  );
+  await client.load(entry, true);
+  await client.load(entry, true);
+  expect(entry.data).toEqual({ script: "saved" });
+  expect(entry.error).toBeUndefined();
+  expect(entry.transientError).toBe(true);
+  await client.poll();
+  expect(entry.transientError).toBe(false);
+  client.close();
+});
+it("polls workspace generation jobs without waiting for a notification", async () => {
+  const client = new ApiClient("http://api.test", "token");
+  const entry = client.entry("workspace:videos", { projectId: "p" });
+  entry.listeners.add(() => {});
+  entry.data = { jobs: [{ status: "running" }] };
+  const send = vi
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ value: { jobs: [{ status: "succeeded" }] } }),
+        ),
+      ),
+    );
+  vi.stubGlobal("fetch", send);
+  await client.poll();
+  expect(entry.data.jobs[0].status).toBe("succeeded");
+  expect(send).toHaveBeenCalled();
+  client.close();
+});

@@ -18,14 +18,14 @@ export function videoUrlForClip(
   urls: MediaUrlMap,
   preferProxy: boolean,
 ): string | null {
-  if (source.type === "take" || source.type === "asset") {
+  if (source.type === "asset") {
     const assetId = source.assetId;
     if (!assetId) return null;
     const entry = urls[assetId];
     if (!entry) return null;
     if (preferProxy) {
       const proxyId =
-        source.type === "take" && "proxyAssetId" in source
+        "proxyAssetId" in source
           ? (source as { proxyAssetId?: string }).proxyAssetId
           : undefined;
       if (proxyId && urls[proxyId]?.url) return urls[proxyId]!.url;
@@ -52,7 +52,7 @@ export function audioUrlForClip(
   source: { type: string; assetId?: string },
   urls: MediaUrlMap,
 ): string | null {
-  if (source.type === "take" || source.type === "asset") {
+  if (source.type === "asset") {
     const assetId = source.assetId;
     if (!assetId) return null;
     return urls[assetId]?.url ?? null;

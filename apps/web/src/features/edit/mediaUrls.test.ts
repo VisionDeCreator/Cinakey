@@ -14,8 +14,8 @@ it("switches raw assets to local proxies without polluting original/audio/export
   expect(videoUrlForClip(source, proxied, false)).toBe("original");
   expect(audioUrlForClip(source, proxied)).toBe("original");
 });
-it("preserves existing take proxies and uses the original when the proxy is missing", () => {
-  const source = { type: "take", assetId: "a", proxyAssetId: "p" };
+it("preserves saved asset proxies and uses the original when the proxy is missing", () => {
+  const source = { type: "asset", assetId: "a", proxyAssetId: "p" };
   const urls = {
     a: { url: "original", proxyUrl: "blob:local" },
     p: { url: "existing" },

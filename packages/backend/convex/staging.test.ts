@@ -96,47 +96,21 @@ async function setup() {
   const t = makeTest();
   const userId = await createTestUser(t, "stage@test.com", { isStaff: true });
   const asUser = t.withIdentity(authIdentity(userId));
-  const seeded = await asUser.mutation(api.seed.seedDemoProject, {});
-  await asUser.mutation(api.credits.grantDev, { amount: 500 });
-  const { sequenceId, scriptPromptId } = await t.run(async (ctx) => {
-    const now = Date.now();
-    const sequenceId = await ctx.db.insert("sequences", {
-      projectId: seeded.projectId,
-      order: 0,
-      title: "Part 1",
-      durationSec: 4,
-      shotIds: [],
-      createdAt: now,
-      updatedAt: now,
-    });
-    const scriptPromptId = await ctx.db.insert("promptSheets", {
-      projectId: seeded.projectId,
-      type: "script",
-      sequenceId,
-      structuredFileId: await ctx.storage.store(new Blob(["{}"])),
-      renderedText: SCRIPT,
-      templateVersion: "1",
-      status: "approved",
-      isCustom: false,
-      version: 1,
-      isTip: true,
-      createdAt: now,
-      updatedAt: now,
-    } as never);
-    return { sequenceId, scriptPromptId };
+  const projectId = await asUser.mutation(api.projects.create, {
+    title: "Staging",
   });
-  const run = () =>
-    t.action(internal.staging.generatePlan, {
-      projectId: seeded.projectId,
-      sequenceId,
-      userId,
-      scriptPromptId,
-      scriptText: SCRIPT,
-      shotCount: 2,
-      durationSec: 4,
-      aspectRatio: "16:9",
-    });
-  return { run };
+  await asUser.mutation(api.credits.grantDev, { amount: 500 });
+  return {
+    run: () =>
+      t.action(internal.staging.generatePlan, {
+        projectId,
+        userId,
+        scriptText: SCRIPT,
+        shotCount: 2,
+        durationSec: 4,
+        aspectRatio: "16:9",
+      }),
+  };
 }
 
 describe("staging repair pass", () => {

@@ -1,8 +1,8 @@
 import {
   newTimelineId,
   recomputeTimelineDuration,
-  type TimelineDocument,
   type TimelineClip,
+  type TimelineDocument,
 } from "@cinakey/shared";
 import type { StudioInsert } from "../studio/StudioWorkspace";
 
@@ -49,7 +49,6 @@ export function insertMedia(
     speed: 1,
     source: { type: "asset", assetId: media.assetId },
     volume: 1,
-    linkedShotId: media.shotId,
   };
   const next = {
     ...doc,

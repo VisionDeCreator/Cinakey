@@ -1,6 +1,6 @@
-import { currentProviderSignal } from "../runtime/provider-scope";
 import { providerConfig, type ProviderName } from "../config/env";
-import { ProviderError } from "./errors";
+import { currentProviderSignal } from "../runtime/provider-scope";
+import { ProviderError, safeErrorMessage } from "./errors";
 export type ProviderTransport = (
   url: string | URL,
   init: RequestInit,
@@ -95,15 +95,29 @@ export async function providerFetch(
       await wait(delay, parentSignal);
       continue;
     }
-    // Never include provider response bodies, request headers, keys or signed URLs in errors.
+    // Only retain the bounded, redacted error message, never headers or raw bodies.
+    let detail = "";
+    if (status === 400 || status === 422) {
+      try {
+        const payload = (await response.json()) as {
+          error?: { message?: unknown; code?: unknown };
+        };
+        const message = payload.error?.message;
+        if (typeof message === "string")
+          detail = safeErrorMessage(new Error(message)).slice(0, 240);
+      } catch {
+        /* Non-JSON provider errors use the HTTP status. */
+      }
+    }
     const retryDelay = retryAfterMs(response.headers.get("retry-after"));
-    await response.body?.cancel();
+    if (!response.bodyUsed) await response.body?.cancel();
     throw new ProviderError(
       provider,
       status,
       (read && retryable) || status === 429,
       !read && (status >= 500 || status === 408),
       retryDelay,
+      detail,
     );
   }
   throw new ProviderError(provider);

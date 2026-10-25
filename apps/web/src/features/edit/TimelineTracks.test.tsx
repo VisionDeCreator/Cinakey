@@ -1,6 +1,6 @@
+import { createEmptyTimeline } from "@cinakey/shared";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { createEmptyTimeline } from "@cinakey/shared";
 import { TimelineTracks } from "./TimelineTracks";
 import { MEDIA_DRAG_TYPE } from "./mediaDrag";
 afterEach(cleanup);
@@ -53,4 +53,30 @@ it("accepts project assets and local files at a frame-aligned track position", (
     getData: () => "",
   });
   expect(drop).toHaveBeenLastCalledWith(null, [file], 1, doc.tracks[0]!.id);
+});
+
+it("seeks from the ruler without clearing the selected clip", () => {
+  const doc = createEmptyTimeline({ id: "p", fps: 24, aspectRatio: "16:9" });
+  const select = vi.fn(),
+    seek = vi.fn();
+  render(
+    <TimelineTracks
+      doc={doc}
+      playheadSec={0}
+      pxPerSec={60}
+      selectedClipId="clip"
+      trimMode="ripple"
+      onSelectClip={select}
+      onSeek={seek}
+      onMoveClip={vi.fn()}
+      onTrim={vi.fn()}
+      onRoll={vi.fn()}
+      onZoom={vi.fn()}
+    />,
+  );
+  fireEvent.pointerDown(screen.getByLabelText("Timeline time ruler"), {
+    clientX: 90,
+  });
+  expect(seek).toHaveBeenCalled();
+  expect(select).not.toHaveBeenCalled();
 });

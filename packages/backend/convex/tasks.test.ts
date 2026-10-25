@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { internal, api } from "./_generated/api";
-import { makeTest, createTestUser, authIdentity } from "../test/helpers";
+import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { api, internal } from "./_generated/api";
 
 afterEach(() => vi.useRealTimers());
 describe("API worker persistence", () => {
@@ -27,7 +27,7 @@ describe("API worker persistence", () => {
     await t.mutation(internal.tasks.complete, { id, owner: "b" });
     expect(await t.run((ctx) => ctx.db.get(id))).toBeNull();
   });
-  it("deduplicates job callbacks and daily retention scheduling", async () => {
+  it("deduplicates job callbacks", async () => {
     const t = makeTest();
     const first = await t.mutation(internal.tasks.enqueue, {
       operation: "generation:pollJob",
@@ -40,11 +40,9 @@ describe("API worker persistence", () => {
       delay: 0,
     });
     expect(second).toBe(first);
-    await t.mutation(internal.tasks.scheduleRetention, {});
-    await t.mutation(internal.tasks.scheduleRetention, {});
     expect(
       await t.run((ctx) => ctx.db.query("apiTasks").collect()),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
   it("atomically queues a reservation and settles it only once", async () => {
     const t = makeTest();
@@ -115,8 +113,8 @@ describe("API worker persistence", () => {
     await expect(
       t
         .withIdentity(authIdentity(stranger))
-        .query(api.projects.getOverview, { projectId }),
-    ).rejects.toThrow("Project access denied");
+        .query(api.projects.get, { projectId }),
+    ).resolves.toBeNull();
   });
   it("keeps request-bound text jobs out of the provider queue and recovers interrupted reservations", async () => {
     vi.useFakeTimers();

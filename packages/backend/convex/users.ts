@@ -1,4 +1,3 @@
-import { enqueueTask } from "./tasks";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -12,6 +11,7 @@ import { requireUser } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { deleteFile } from "./storage";
+import { enqueueTask } from "./tasks";
 
 export const viewer = query({
   args: {},
@@ -210,14 +210,6 @@ async function tryDeleteStorage(
 }
 
 async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
-  const takes = await ctx.db
-    .query("takes")
-    .withIndex("by_project_created", (q) => q.eq("projectId", projectId))
-    .collect();
-  for (const t of takes) {
-    await ctx.db.delete(t._id);
-  }
-
   const assets = await ctx.db
     .query("assets")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -236,23 +228,6 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
     await ctx.db.delete(j._id);
   }
 
-  const shots = await ctx.db
-    .query("shots")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
-  for (const s of shots) {
-    await tryDeleteStorage(ctx, s.blockoutFileId);
-    await ctx.db.delete(s._id);
-  }
-
-  const scenes = await ctx.db
-    .query("scenes")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
-  for (const s of scenes) {
-    await ctx.db.delete(s._id);
-  }
-
   const entities = await ctx.db
     .query("entities")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -263,7 +238,7 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
   }
 
   const scripts = await ctx.db
-    .query("scriptVersions")
+    .query("workspaceScripts")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
     .collect();
   for (const s of scripts) {
@@ -271,6 +246,14 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
     await ctx.db.delete(s._id);
   }
 
+  for (const document of await ctx.db
+    .query("workspaceStaging")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect()) {
+    await tryDeleteStorage(ctx, document.contentFileId);
+    await tryDeleteStorage(ctx, document.planFileId);
+    await ctx.db.delete(document._id);
+  }
   const timelines = await ctx.db
     .query("timelineVersions")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -312,15 +295,6 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
   for (const s of sheets) {
     await tryDeleteStorage(ctx, s.structuredFileId);
     await tryDeleteStorage(ctx, s.renderedFileId);
-    await ctx.db.delete(s._id);
-  }
-
-  const sequences = await ctx.db
-    .query("sequences")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
-  for (const s of sequences) {
-    await tryDeleteStorage(ctx, s.blockoutFileId);
     await ctx.db.delete(s._id);
   }
 

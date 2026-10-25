@@ -1,5 +1,5 @@
-import { services } from "./services";
 import type { Registry, ServiceOperation } from "./runtime/context";
+import { services } from "./services";
 export const registry: Registry = new Map();
 for (const [module, exports] of Object.entries(services)) {
   for (const [name, value] of Object.entries(exports)) {
@@ -8,7 +8,10 @@ for (const [module, exports] of Object.entries(services)) {
       typeof value === "object" &&
       "kind" in value &&
       value.kind === "action"
-    )
-      registry.set(`${module}:${name}`, value as ServiceOperation);
+    ) {
+      const key = `${module}:${name}`;
+      const operation = value as ServiceOperation;
+      registry.set(key, operation);
+    }
   }
 }

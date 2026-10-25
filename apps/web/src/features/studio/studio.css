@@ -190,38 +190,21 @@
   color: #80cfff;
   padding: 6px;
 }
-.studio-scene {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  text-align: left;
-  padding: 10px 8px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  margin-bottom: 5px;
-}
-.studio-scene:hover,
+
 .studio-asset:hover {
   background: #2a3138;
 }
-.studio-scene.selected,
 .studio-asset.selected {
   background: #183244;
   border-color: #28648a;
 }
-.studio-scene-number {
-  font-size: 12px;
-  color: #80cfff;
-}
-.studio-scene strong,
+
 .studio-asset strong {
   display: block;
   font-weight: 500;
   overflow-wrap: anywhere;
   font-size: 12px;
 }
-.studio-scene small,
 .studio-asset small {
   display: block;
   color: #a5b0bb;
@@ -283,35 +266,35 @@
 .studio-generations {
   flex-shrink: 0;
 }
-.studio-take-strip {
+.studio-generation-strip {
   display: flex;
   gap: 9px;
   overflow-x: auto;
   padding-bottom: 5px;
 }
-.studio-take {
+.studio-generation {
   flex: 0 0 155px;
   position: relative;
   border: 1px solid #363e46;
   border-radius: 6px;
   background: #20252b;
 }
-.studio-take.selected {
+.studio-generation.selected {
   border-color: #28a5eb;
 }
-.studio-take-preview {
+.studio-generation-preview {
   width: 100%;
   text-align: left;
   padding: 5px;
 }
-.studio-take-preview video {
+.studio-generation-preview video {
   width: 100%;
   height: 65px;
   object-fit: cover;
   border-radius: 3px;
   background: #11161b;
 }
-.studio-take-preview strong {
+.studio-generation-preview strong {
   display: block;
   font-size: 12px;
   font-weight: 500;
@@ -321,7 +304,7 @@
   text-overflow: ellipsis;
   padding-right: 17px;
 }
-.studio-take-preview small {
+.studio-generation-preview small {
   display: block;
   font-size: 11px;
   color: #a5b0bb;
@@ -540,10 +523,7 @@
   .studio-center {
     padding: 10px;
   }
-  .studio-scene {
-    padding: 8px 4px;
-    gap: 5px;
-  }
+
   .studio-source-toolbar label:first-child {
     flex-basis: 100%;
   }
@@ -589,14 +569,7 @@
   .studio-library-tabs {
     display: none;
   }
-  .studio-scenes {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-  }
-  .studio-scene {
-    min-width: 135px;
-  }
+
   .studio-center {
     flex-shrink: 0;
   }
@@ -872,4 +845,22 @@
   background: #15181ce6;
   padding: 6px 12px;
   border-radius: 4px;
+}
+
+.studio-preview-staging {
+  min-height: 320px;
+  max-height: 480px;
+  flex-basis: 320px;
+}
+.studio-staging-panel {
+  display: flex;
+  min-height: 0;
+  width: 100%;
+}
+.studio-staging .studio-media-preview {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  min-height: 180px;
+  margin: 12px 0;
+  background: #0b0f12;
 }

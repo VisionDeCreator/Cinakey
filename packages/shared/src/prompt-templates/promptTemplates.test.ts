@@ -3,36 +3,29 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  blockoutSheetToDocuments,
+  assetSheetSectionKeys,
+  CHARACTER_EXAMPLE_ART_STYLE,
+  characterSheetFixture,
   characterSheetSchema,
+  CREATURE_EXAMPLE_ART_STYLE,
+  creatureSheetFixture,
   creatureSheetSchema,
+  ENVIRONMENT_EXAMPLE_ART_STYLE,
+  environmentSheetFixture,
   environmentSheetSchema,
-  productSheetSchema,
-  scriptPromptSchema,
-  blockoutSheetSchema,
+  lookDevPatchFromAssetSheet,
   normalizePromptText,
-  renderBlockoutSheet,
+  parseScriptPromptText,
+  PRODUCT_EXAMPLE_ART_STYLE,
+  productSheetFixture,
+  productSheetSchema,
   renderCharacterSheet,
   renderCreatureSheet,
   renderEnvironmentSheet,
   renderProductSheet,
   renderScriptPrompt,
-  assetSheetSectionKeys,
-  assembleSingleShotPrompt,
-  CHARACTER_EXAMPLE_ART_STYLE,
-  CREATURE_EXAMPLE_ART_STYLE,
-  ENVIRONMENT_EXAMPLE_ART_STYLE,
-  PRODUCT_EXAMPLE_ART_STYLE,
-  characterSheetFixture,
-  creatureSheetFixture,
-  environmentSheetFixture,
-  productSheetFixture,
   scriptPromptFixture,
-  blockoutSheetFixture,
-  deriveCastBlockFromAssetSheet,
-  deriveDescription,
-  lookDevPatchFromAssetSheet,
-  parseScriptPromptText,
+  scriptPromptSchema,
   validateScriptPromptText,
 } from "./index";
 
@@ -42,9 +35,7 @@ const examplesDir = join(
 );
 
 function loadExample(name: string): string {
-  return normalizePromptText(
-    readFileSync(join(examplesDir, name), "utf8"),
-  );
+  return normalizePromptText(readFileSync(join(examplesDir, name), "utf8"));
 }
 
 function expectSameSectionStructure(rendered: string, example: string) {
@@ -152,7 +143,9 @@ describe("script prompt", () => {
   it("parses rendered fixture shots and references", () => {
     const text = renderScriptPrompt(scriptPromptFixture);
     const parsed = parseScriptPromptText(text);
-    expect(parsed.references).toHaveLength(scriptPromptFixture.references.length);
+    expect(parsed.references).toHaveLength(
+      scriptPromptFixture.references.length,
+    );
     expect(parsed.references[0]!.entityLabel).toBe("the boy");
     expect(parsed.shots).toHaveLength(scriptPromptFixture.shots.length);
     expect(parsed.shots[2]!.shotType).toBe("Extreme close-up");
@@ -203,96 +196,15 @@ describe("script prompt", () => {
   });
 });
 
-describe("assembleSingleShotPrompt", () => {
-  it("slices to one remapped shot with multiShot false", () => {
-    const single = assembleSingleShotPrompt(scriptPromptFixture, 3);
-    expect(single.multiShot).toBe(false);
-    expect(single.shots).toHaveLength(1);
-    expect(single.shots[0]!.n).toBe(1);
-    expect(single.shots[0]!.startSec).toBe(0);
-    expect(single.shots[0]!.endSec).toBe(1);
-    expect(single.totalDurationSec).toBe(1);
-    expect(single.shots[0]!.action).toBe(scriptPromptFixture.shots[2]!.action);
-    const text = renderScriptPrompt(single);
-    expect(text).toContain("single-shot");
-    expect(text).toContain("Shot 1 (0.0s–1.0s)");
-  });
-});
-
-describe("deriveCastBlockFromAssetSheet", () => {
-  it("builds description from character sheet fields", () => {
-    const block = deriveCastBlockFromAssetSheet("character", characterSheetFixture, {
-      name: "boy",
-      imageN: 1,
-      suffix: ", identical in every shot",
-    });
-    expect(block.description).toContain("Deep brown skin");
-    expect(block.description).toContain("goggles");
-    expect(deriveDescription("character", characterSheetFixture)).toBe(
-      block.description,
-    );
-  });
-});
-
 describe("lookDevPatchFromAssetSheet", () => {
   it("maps character fields into Look Dev sheet patch", () => {
-    const patch = lookDevPatchFromAssetSheet("character", characterSheetFixture);
+    const patch = lookDevPatchFromAssetSheet(
+      "character",
+      characterSheetFixture,
+    );
     expect(patch.description).toContain("teenage boy");
     expect(patch.sheetPatch.look).toContain("Deep brown skin");
     expect(patch.sheetPatch.wardrobe).toContain("leather");
     expect(patch.sheetPatch.personality).toContain("goggles");
-  });
-});
-
-describe("blockout sheet", () => {
-  it("validates fixture", () => {
-    expect(blockoutSheetSchema.parse(blockoutSheetFixture)).toBeTruthy();
-  });
-
-  it("renders SHOT 03 and SHOT 22 worked examples", () => {
-    const text = renderBlockoutSheet(blockoutSheetFixture);
-    expect(text).toContain(
-      "SHOT 03 · 3.0–4.0s (1.0s) · Extreme close-up · 100mm · slow push-in.",
-    );
-    expect(text).toContain("Frame must show: eyes centre, goggles on forehead");
-    expect(text).toContain("Continuity: goggles UP");
-    expect(text).toContain(
-      "SHOT 22 · 25.0–26.0s (1.0s) · POV through scope · 200mm · slight settle.",
-    );
-    expect(text).toContain("Continuity: goggles DOWN, rifle drawn");
-  });
-
-  it("maps to cinakey.blockout/2.0 part document", () => {
-    const docs = blockoutSheetToDocuments(
-      blockoutSheetFixture,
-      { id: "p1", title: "Hunt", aspectRatio: "16:9", fps: 24 },
-      [
-        {
-          id: "shot-3",
-          sceneId: "sc1",
-          order: 2,
-          durationSec: 1,
-          shotType: "Extreme close-up",
-          characterIds: [],
-          n: 3,
-        },
-        {
-          id: "shot-22",
-          sceneId: "sc1",
-          order: 21,
-          durationSec: 1,
-          shotType: "POV through scope",
-          characterIds: [],
-          n: 22,
-        },
-      ],
-      { sequenceId: "seq-1" },
-    );
-    expect(docs.size).toBe(1);
-    const part = docs.get("seq-1");
-    expect(part?.schema).toBe("cinakey.blockout/2.0");
-    expect(part?.shots).toHaveLength(2);
-    expect(part?.shots.find((s) => s.n === 3)?.lensMm).toBe(100);
-    expect(part?.camera.keys.length).toBeGreaterThan(0);
   });
 });

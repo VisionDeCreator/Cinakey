@@ -2,20 +2,16 @@ import { SCRIPT_ART_STYLE_LOCKING } from "./constants";
 import { normalizePromptText } from "./renderers";
 import type { ScriptPromptData, ScriptReference, ScriptShot } from "./schemas";
 
-const REF_LINE =
-  /^@image_(\d+)\s*=\s*(.+?)\.\s*(Use it for .+)$/i;
-const CAST_BLOCK =
-  /^THE\s+(.+?)\s+—\s+@image_(\d+)([^:]*)\s*:\s*(.*)$/is;
-const LOCATION =
-  /^LOCATION\s+—\s+@image_(\d+)\s*:\s*(.+)$/is;
+const REF_LINE = /^@image_(\d+)\s*=\s*(.+?)\.\s*(Use it for .+)$/i;
+const CAST_BLOCK = /^THE\s+(.+?)\s+—\s+@image_(\d+)([^:]*)\s*:\s*(.*)$/is;
+const LOCATION = /^LOCATION\s+—\s+@image_(\d+)\s*:\s*(.+)$/is;
 /** Freeform: LOCATION — the @image_4 campfire…, then the @image_3 forest… */
 const LOCATION_FREEFORM = /^LOCATION\s+—\s*(.+)$/is;
 const SHOTS_HEADER =
   /^SHOTS\s*\(\s*([\d.]+)\s*seconds?\s+total\s*,\s*(multi-shot|single-shot)\s*,\s*([^)]+)\s*\)\s*:?\s*$/i;
 const SHOT_LINE =
   /^Shot\s+(\d+)\s*\(\s*([\d.]+)s\s*[–-]\s*([\d.]+)s\s*\)\s*[—-]\s*(.+)$/i;
-const AUDIO_CUE =
-  /([\d.]+)s\s+([^0-9]+?)(?=\s+[\d.]+s\s+|$)/g;
+const AUDIO_CUE = /([\d.]+)s\s+([^0-9]+?)(?=\s+[\d.]+s\s+|$)/g;
 
 /**
  * Extract content for a section. Includes same-line content after the heading
@@ -78,9 +74,7 @@ function parseArtStyle(block: string): {
   artStyleBlock: string;
   artStyleExtras?: string;
 } {
-  const brought = block.match(
-    /brought to life:\s*([\s\S]+)$/i,
-  );
+  const brought = block.match(/brought to life:\s*([\s\S]+)$/i);
   let rest = (brought?.[1] ?? block).trim();
   for (const lock of SCRIPT_ART_STYLE_LOCKING) {
     const idx = rest.indexOf(lock);
@@ -92,26 +86,24 @@ function parseArtStyle(block: string): {
   // Heuristic: first sentence = artStyleBlock; remainder = artStyleExtras.
   const sentences = rest.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [rest];
   const first = (sentences[0] ?? rest).trim();
-  const extras = sentences
-    .slice(1)
-    .join(" ")
-    .trim();
+  const extras = sentences.slice(1).join(" ").trim();
   return {
     artStyleBlock: first.replace(/\s+/g, " ").trim() || rest,
     ...(extras ? { artStyleExtras: extras.replace(/\s+/g, " ").trim() } : {}),
   };
 }
 
-function parseCastBlocks(
-  text: string,
-): ScriptPromptData["castBlocks"] {
+function parseCastBlocks(text: string): ScriptPromptData["castBlocks"] {
   const blocks: ScriptPromptData["castBlocks"] = [];
   // Find THE … — @image_N blocks between IMAGE QUALITY and LOCATION(S)
   const iqEnd = text.search(/\nLOCATIONS?\s*[—:]/i);
   const iqStart = text.search(/IMAGE QUALITY/i);
   if (iqStart < 0) return blocks;
   const region = text.slice(iqStart, iqEnd >= 0 ? iqEnd : undefined);
-  const afterIq = region.replace(/^[\s\S]*?IMAGE QUALITY[^\n]*\n[\s\S]*?\n\n/, "");
+  const afterIq = region.replace(
+    /^[\s\S]*?IMAGE QUALITY[^\n]*\n[\s\S]*?\n\n/,
+    "",
+  );
   const chunk = afterIq.length < region.length ? afterIq : region;
 
   const re =
@@ -183,10 +175,14 @@ function parseShots(block: string): ScriptShot[] {
   return shots;
 }
 
-function parseAudioCues(
-  block: string,
-): { audioIntro?: string; audioCues: ScriptPromptData["audioCues"] } {
-  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+function parseAudioCues(block: string): {
+  audioIntro?: string;
+  audioCues: ScriptPromptData["audioCues"];
+} {
+  const lines = block
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   let audioIntro: string | undefined;
   let body = block.trim();
   if (lines[0]?.toUpperCase().startsWith("AUDIO")) {
@@ -199,9 +195,10 @@ function parseAudioCues(
   while ((m = AUDIO_CUE.exec(body)) !== null) {
     cues.push({
       atSec: Number(m[1]),
-      description: m[2]!.trim().replace(/[.\s]+$/, (s) =>
-        s.includes(".") ? "." : "",
-      ).replace(/\s+$/, ""),
+      description: m[2]!
+        .trim()
+        .replace(/[.\s]+$/, (s) => (s.includes(".") ? "." : ""))
+        .replace(/\s+$/, ""),
     });
   }
   // Clean trailing punctuation on descriptions
@@ -259,7 +256,7 @@ export function parseScriptPromptText(text: string): ScriptPromptData {
       "location";
     const img = desc.match(/@image_(\d+)/i);
     location = {
-      imageN: img ? Number(img[1]) : references[0]?.imageN ?? 1,
+      imageN: img ? Number(img[1]) : (references[0]?.imageN ?? 1),
       description: desc,
     };
   }
@@ -267,9 +264,7 @@ export function parseScriptPromptText(text: string): ScriptPromptData {
   const shotsHeaderLine =
     normalized.split("\n").find((l) => /^SHOTS\s*\(/i.test(l.trim())) ?? "";
   const headerMatch = shotsHeaderLine.trim().match(SHOTS_HEADER);
-  const totalDurationSec = headerMatch
-    ? Number(headerMatch[1])
-    : 0;
+  const totalDurationSec = headerMatch ? Number(headerMatch[1]) : 0;
   const multiShot = headerMatch
     ? headerMatch[2]!.toLowerCase() === "multi-shot"
     : true;
@@ -285,20 +280,15 @@ export function parseScriptPromptText(text: string): ScriptPromptData {
   const consistency = sectionBody(normalized, /^CONSISTENCY\b/im, [
     /^MOTION AND PHYSICS\b/im,
   ]);
-  const motionAndPhysics = sectionBody(
-    normalized,
-    /^MOTION AND PHYSICS\b/im,
-    [/^LIGHTING\b/im],
-  );
-  const lighting = sectionBody(normalized, /^LIGHTING\b/im, [
-    /^TECHNICAL\b/im,
+  const motionAndPhysics = sectionBody(normalized, /^MOTION AND PHYSICS\b/im, [
+    /^LIGHTING\b/im,
   ]);
+  const lighting = sectionBody(normalized, /^LIGHTING\b/im, [/^TECHNICAL\b/im]);
   const technical = sectionBody(normalized, /^TECHNICAL\b/im, [/^MUSIC\b/im]);
   const music = sectionBody(normalized, /^MUSIC\b/im, [/^AUDIO\b/im]);
   const audioBlock = sectionBody(normalized, /^AUDIO\b/im, []);
   const { audioIntro, audioCues } = parseAudioCues(
-    audioBlock ||
-      (normalized.match(/^AUDIO\b[\s\S]*$/im)?.[0] ?? ""),
+    audioBlock || (normalized.match(/^AUDIO\b[\s\S]*$/im)?.[0] ?? ""),
   );
 
   const duration =
@@ -348,23 +338,4 @@ export function parseScriptPromptText(text: string): ScriptPromptData {
     ...(audioIntro ? { audioIntro } : {}),
     audioCues,
   };
-}
-
-/** Fingerprint of a script shot line for selective blockout rebuilds. */
-export function scriptShotFingerprint(shot: {
-  n?: number;
-  startSec: number;
-  endSec: number;
-  shotType: string;
-  cameraMove?: string;
-  action: string;
-}): string {
-  return [
-    shot.n ?? "",
-    shot.startSec,
-    shot.endSec,
-    shot.shotType.trim(),
-    (shot.cameraMove ?? "").trim(),
-    shot.action.trim(),
-  ].join("|");
 }

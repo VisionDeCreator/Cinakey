@@ -34,10 +34,6 @@ const schema = defineSchema(
       .index("by_dedupe", ["dedupeKey"])
       .index("by_state_due", ["state", "dueAt"])
       .index("by_state_lease", ["state", "leaseUntil"]),
-    apiTaskSchedules: defineTable({
-      key: v.string(),
-      lastDay: v.string(),
-    }).index("by_key", ["key"]),
 
     // Extend Convex Auth users with staff flag and personal workspace link.
     users: defineTable({
@@ -140,6 +136,36 @@ const schema = defineSchema(
       .index("by_asset", ["assetId"])
       .index("by_project_asset", ["projectId", "assetId"]),
 
+    workspaceScripts: defineTable({
+      projectId: v.id("projects"),
+      text: v.optional(v.string()),
+      contentFileId: v.optional(v.id("_storage")),
+      parentId: v.optional(v.id("workspaceScripts")),
+      label: v.string(),
+      isTip: v.boolean(),
+      createdAt: v.number(),
+    }).index("by_project", ["projectId"]),
+    workspaceStaging: defineTable({
+      planHistory: v.optional(
+        v.array(
+          v.object({
+            contentFileId: v.id("_storage"),
+            planFileId: v.optional(v.id("_storage")),
+            scriptVersionId: v.optional(v.id("workspaceScripts")),
+          }),
+        ),
+      ),
+      mediaAssetIds: v.optional(v.array(v.id("assets"))),
+      projectId: v.id("projects"),
+      name: v.string(),
+      contentFileId: v.id("_storage"),
+      planFileId: v.optional(v.id("_storage")),
+      previzAssetId: v.optional(v.id("assets")),
+      scriptVersionId: v.optional(v.id("workspaceScripts")),
+      rating: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_project", ["projectId"]),
     projects: defineTable({
       seriesId: v.optional(v.id("series")),
       episodeNumber: v.optional(v.number()),
@@ -178,112 +204,8 @@ const schema = defineSchema(
       .index("by_workspace", ["workspaceId"])
       .index("by_series", ["seriesId"]),
 
-    scriptVersions: defineTable({
-      projectId: v.id("projects"),
-      parentId: v.optional(v.id("scriptVersions")),
-      format: v.union(v.literal("screenplay"), v.literal("av")),
-      label: v.optional(v.string()),
-      contentFileId: v.id("_storage"),
-      createdBy: v.id("users"),
-      createdAt: v.number(),
-    })
-      .index("by_project", ["projectId"])
-      .index("by_parent", ["parentId"]),
-
-    scenes: defineTable({
-      projectId: v.id("projects"),
-      /** Stable id from cinakey.script/1.0 scene.id — keeps Convex _id stable across versions. */
-      elementId: v.string(),
-      order: v.number(),
-      heading: v.string(),
-      synopsis: v.optional(v.string()),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    })
-      .index("by_project", ["projectId"])
-      .index("by_project_order", ["projectId", "order"])
-      .index("by_project_element", ["projectId", "elementId"]),
-
-    shots: defineTable({
-      projectId: v.id("projects"),
-      sceneId: v.id("scenes"),
-      /** Seedance generation unit (optional until a script prompt is accepted). */
-      sequenceId: v.optional(v.id("sequences")),
-      order: v.number(),
-      shotType: v.string(),
-      lensMm: v.optional(v.number()),
-      cameraMove: v.optional(v.string()),
-      durationSec: v.number(),
-      /** Contiguous timing within the sequence (seconds from sequence start). */
-      startSec: v.optional(v.number()),
-      endSec: v.optional(v.number()),
-      characterIds: v.array(v.id("entities")),
-      locationId: v.optional(v.id("entities")),
-      /** Stable dialogue line uuid from cinakey.script/1.0. */
-      dialogueLineId: v.optional(v.string()),
-      /** Denormalized snapshot of linked dialogue text. */
-      dialogue: v.optional(v.string()),
-      status: v.union(
-        v.literal("planned"),
-        v.literal("blocked_out"),
-        v.literal("generating"),
-        v.literal("selected"),
-      ),
-      /** True when linked script dialogue line changed or was removed. */
-      outdated: v.boolean(),
-      keyframeAssetId: v.optional(v.id("assets")),
-      selectedTakeId: v.optional(v.id("takes")),
-      blockoutFileId: v.optional(v.id("_storage")),
-      /** Fingerprint of the script SHOT line last synced from the script prompt. */
-      scriptLineKey: v.optional(v.string()),
-      /** scriptLineKey at the time the current blockout was built (selective rebuild). */
-      blockoutScriptLineKey: v.optional(v.string()),
-      notes: v.optional(v.string()),
-      /** Accepted propose_shot_prompt override used by single-shot generation. */
-      generationPromptOverride: v.optional(v.string()),
-      /** Status before entering `generating`, restored on job failure. */
-      statusBeforeGenerating: v.optional(
-        v.union(
-          v.literal("planned"),
-          v.literal("blocked_out"),
-          v.literal("generating"),
-          v.literal("selected"),
-        ),
-      ),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    })
-      .index("by_project", ["projectId"])
-      .index("by_scene", ["sceneId"])
-      .index("by_scene_order", ["sceneId", "order"])
-      .index("by_sequence", ["sequenceId"]),
-
-    /** Seedance generation unit: consecutive shots ≤ maxDuration / max refs. */
-    sequences: defineTable({
-      projectId: v.id("projects"),
-      order: v.number(),
-      title: v.string(),
-      durationSec: v.number(),
-      scriptPromptId: v.optional(v.id("promptSheets")),
-      shotIds: v.array(v.id("shots")),
-      /** Browser-encoded animatic MP4 for this part (pre-viz). */
-      previzAssetId: v.optional(v.id("assets")),
-      /** Part-scoped cinakey.blockout/2.0 JSON (file-backed). */
-      blockoutFileId: v.optional(v.id("_storage")),
-      /** LLM-written cinakey.staging/1.0 plan the blockout was compiled from. */
-      stagingPlanFileId: v.optional(v.id("_storage")),
-      /** Script prompt tip the staging plan was written for. */
-      stagingScriptPromptId: v.optional(v.id("promptSheets")),
-      /** Chosen sequence-master asset for Edit assemble (trimmed takes selected). */
-      chosenMasterAssetId: v.optional(v.id("assets")),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    })
-      .index("by_project", ["projectId"])
-      .index("by_project_order", ["projectId", "order"]),
-
     /**
-     * Structured prompt sheets (asset / script / blockout). Large structured
+     * Structured asset prompt sheets. Large structured
      * JSON lives in storage; tip row points at current version via parent chain.
      */
     promptSheets: defineTable({
@@ -293,11 +215,8 @@ const schema = defineSchema(
         v.literal("creature"),
         v.literal("environment"),
         v.literal("product"),
-        v.literal("script"),
-        v.literal("blockout"),
       ),
       entityId: v.optional(v.id("entities")),
-      sequenceId: v.optional(v.id("sequences")),
       structuredFileId: v.id("_storage"),
       /** Inline when small; otherwise use renderedFileId. */
       renderedText: v.optional(v.string()),
@@ -313,17 +232,6 @@ const schema = defineSchema(
       isCustom: v.boolean(),
       parentId: v.optional(v.id("promptSheets")),
       version: v.number(),
-      /** Script: @image_N → entity mapping. */
-      referenceMap: v.optional(
-        v.array(
-          v.object({
-            imageN: v.number(),
-            entityId: v.id("entities"),
-          }),
-        ),
-      ),
-      sourceAssetSheetIds: v.optional(v.array(v.id("promptSheets"))),
-      sourceScriptPromptId: v.optional(v.id("promptSheets")),
       /** Tip pointer: only the current version row is listed in pipeline. */
       isTip: v.boolean(),
       createdAt: v.number(),
@@ -332,7 +240,7 @@ const schema = defineSchema(
       .index("by_project", ["projectId"])
       .index("by_project_type", ["projectId", "type"])
       .index("by_entity", ["entityId"])
-      .index("by_sequence", ["sequenceId"])
+
       .index("by_parent", ["parentId"])
       .index("by_project_tip", ["projectId", "isTip"]),
 
@@ -357,11 +265,11 @@ const schema = defineSchema(
       .index("by_project_kind", ["projectId", "kind"]),
 
     assets: defineTable({
+      playbackProxyAssetId: v.optional(v.id("assets")),
+      rating: v.optional(v.number()),
       projectId: v.optional(v.id("projects")),
       workspaceId: v.optional(v.id("workspaces")),
       mediaFileId: v.optional(v.id("mediaFiles")),
-      sceneId: v.optional(v.id("scenes")),
-      shotId: v.optional(v.id("shots")),
       entityId: v.optional(v.id("entities")),
       jobId: v.optional(v.id("generationJobs")),
       type: v.union(
@@ -394,7 +302,7 @@ const schema = defineSchema(
     })
       .index("by_project", ["projectId"])
       .index("by_project_type", ["projectId", "type"])
-      .index("by_shot", ["shotId"])
+
       .index("by_entity", ["entityId"])
       .index("by_job", ["jobId"])
       .index("by_storage", ["storageId"])
@@ -406,8 +314,6 @@ const schema = defineSchema(
 
     generationJobs: defineTable({
       projectId: v.id("projects"),
-      shotId: v.optional(v.id("shots")),
-      sequenceId: v.optional(v.id("sequences")),
       entityId: v.optional(v.id("entities")),
       promptSheetId: v.optional(v.id("promptSheets")),
       model: v.string(),
@@ -454,33 +360,9 @@ const schema = defineSchema(
       .index("by_status", ["status"])
       .index("by_provider_job", ["providerJobId"])
       .index("by_entity", ["entityId"])
-      .index("by_shot", ["shotId"])
-      .index("by_sequence", ["sequenceId"])
+
       .index("by_prompt_sheet", ["promptSheetId"])
       .index("by_model", ["model"]),
-
-    takes: defineTable({
-      projectId: v.id("projects"),
-      shotId: v.id("shots"),
-      assetId: v.id("assets"),
-      /** Optional for starter-template sample takes (no generation job). */
-      jobId: v.optional(v.id("generationJobs")),
-      /** Trim window into a sequence master asset (seconds). */
-      trimStartSec: v.optional(v.number()),
-      trimEndSec: v.optional(v.number()),
-      /** Lightweight playback proxy (browser-encoded). */
-      proxyAssetId: v.optional(v.id("assets")),
-      /** Lineage for upscale/extend. */
-      parentTakeId: v.optional(v.id("takes")),
-      rating: v.optional(v.number()),
-      selected: v.boolean(),
-      createdAt: v.number(),
-    })
-      .index("by_shot", ["shotId"])
-      .index("by_job", ["jobId"])
-      .index("by_parent", ["parentTakeId"])
-      .index("by_project_created", ["projectId", "createdAt"])
-      .index("by_created", ["createdAt"]),
 
     timelineVersions: defineTable({
       mediaAssetIds: v.optional(v.array(v.id("assets"))),
@@ -497,17 +379,12 @@ const schema = defineSchema(
 
     notes: defineTable({
       projectId: v.id("projects"),
-      shotId: v.optional(v.id("shots")),
-      takeId: v.optional(v.id("takes")),
       body: v.string(),
       authorId: v.id("users"),
       resolved: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),
-    })
-      .index("by_project", ["projectId"])
-      .index("by_shot", ["shotId"]),
-
+    }).index("by_project", ["projectId"]),
     creditLedger: defineTable({
       workspaceId: v.id("workspaces"),
       userId: v.id("users"),
@@ -620,74 +497,7 @@ const schema = defineSchema(
      * One row per blockout staging (Update / Regenerate): what the director
      * produced and what happened next — the learning signal for the director.
      */
-    stagingRuns: defineTable({
-      projectId: v.id("projects"),
-      workspaceId: v.id("workspaces"),
-      sequenceId: v.id("sequences"),
-      userId: v.id("users"),
-      scriptPromptId: v.optional(v.id("promptSheets")),
-      /** plan = new AI plan; plan_reused = stored plan recompiled; rules = rule director. */
-      source: v.union(
-        v.literal("plan"),
-        v.literal("plan_reused"),
-        v.literal("rules"),
-      ),
-      fresh: v.boolean(),
-      planFileId: v.optional(v.id("_storage")),
-      /** The compiled blockout as first saved (edits are diffed against it). */
-      documentFileId: v.optional(v.id("_storage")),
-      /** Automatic check: problems in the model's first plan / after the repair pass. */
-      issuesBefore: v.number(),
-      issuesAfter: v.number(),
-      issueSample: v.array(v.string()),
-      repaired: v.boolean(),
-      creditsSpent: v.number(),
-      stagingNote: v.optional(v.string()),
-      /** Replaced by a later Update / Regenerate of the same part. */
-      supersededAt: v.optional(v.number()),
-      supersededBy: v.optional(
-        v.union(v.literal("update"), v.literal("regenerate")),
-      ),
-      /** User edits in the 3D editor, as corrections vs the compiled blockout (latest few). */
-      editCount: v.number(),
-      lastEditedAt: v.optional(v.number()),
-      edits: v.array(
-        v.object({
-          at: v.number(),
-          fileId: v.id("_storage"),
-          corrections: v.array(
-            v.object({
-              shot: v.union(v.number(), v.null()),
-              kind: v.string(),
-              target: v.optional(v.string()),
-              amount: v.optional(v.number()),
-            }),
-          ),
-        }),
-      ),
-      /** Video generation was started from this blockout / pre-viz. */
-      acceptedAt: v.optional(v.number()),
-      createdAt: v.number(),
-    })
-      .index("by_sequence_time", ["sequenceId", "createdAt"])
-      .index("by_project", ["projectId"])
-      .index("by_workspace_time", ["workspaceId", "createdAt"]),
-
     /** Per-shot thumbs up / down on a staged blockout. */
-    stagingShotFeedback: defineTable({
-      runId: v.id("stagingRuns"),
-      sequenceId: v.id("sequences"),
-      projectId: v.id("projects"),
-      userId: v.id("users"),
-      shotN: v.number(),
-      rating: v.union(v.literal("up"), v.literal("down")),
-      reason: v.optional(v.string()),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    })
-      .index("by_run", ["runId"])
-      .index("by_run_user_shot", ["runId", "userId", "shotN"]),
-
     rateLimitBuckets: defineTable({
       key: v.string(),
       windowStart: v.number(),

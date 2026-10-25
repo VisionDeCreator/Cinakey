@@ -1,12 +1,4 @@
-import { assertMediaRemovable } from "./lib/mediaProtection";
-import {
-  projectAssets,
-  projectCanUseAsset,
-  requireAssetAccess,
-  requireProjectAccess,
-  requireUser,
-} from "./lib/access";
-import { buildSearchText } from "./lib/assetSearch";
+import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -17,7 +9,15 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { v } from "convex/values";
+import {
+  projectAssets,
+  projectCanUseAsset,
+  requireAssetAccess,
+  requireProjectAccess,
+  requireUser,
+} from "./lib/access";
+import { buildSearchText } from "./lib/assetSearch";
+import { assertMediaRemovable } from "./lib/mediaProtection";
 
 type StorageCtx = MutationCtx | ActionCtx;
 
@@ -274,8 +274,7 @@ export const createAssetFromUpload = mutation({
     type: assetType,
     name: v.string(),
     format: v.optional(v.string()),
-    sceneId: v.optional(v.id("scenes")),
-    shotId: v.optional(v.id("shots")),
+
     entityId: v.optional(v.id("entities")),
     jobId: v.optional(v.id("generationJobs")),
     tags: v.optional(v.array(v.string())),
@@ -343,8 +342,7 @@ export const createAssetFromUpload = mutation({
       workspaceId: ownerProject.workspaceId,
       mediaFileId,
       projectId: args.projectId,
-      sceneId: args.sceneId,
-      shotId: args.shotId,
+
       entityId: args.entityId,
       jobId: args.jobId,
       type: args.type,
@@ -405,9 +403,9 @@ export const createAssetFromGeneration = internalMutation({
     createdBy: v.id("users"),
     jobId: v.id("generationJobs"),
     outputIndex: v.optional(v.number()),
-    shotId: v.optional(v.id("shots")),
+
     entityId: v.optional(v.id("entities")),
-    sceneId: v.optional(v.id("scenes")),
+
     durationSec: v.optional(v.number()),
     width: v.optional(v.number()),
     height: v.optional(v.number()),
@@ -449,8 +447,7 @@ export const createAssetFromGeneration = internalMutation({
       workspaceId: ownerProject.workspaceId,
       mediaFileId,
       projectId: args.projectId,
-      sceneId: args.sceneId,
-      shotId: args.shotId,
+
       entityId: args.entityId,
       jobId: args.jobId,
       outputIndex: args.outputIndex,

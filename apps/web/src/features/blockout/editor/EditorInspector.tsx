@@ -1,3 +1,6 @@
+import { Button } from "@/components/ui/button";
+import { webCodecsSupported } from "@/features/blockout/export/videoExport";
+import { cn } from "@/lib/utils";
 import {
   BLOCKOUT_EASES,
   CAMERA_MOVE_PRESETS,
@@ -9,10 +12,7 @@ import {
   type CameraMovePresetId,
   type CameraPose,
 } from "@cinakey/shared";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { SelKey } from "./editorModel";
-import { webCodecsSupported } from "@/features/blockout/export/videoExport";
 
 type Props = {
   doc: BlockoutDocument;
@@ -132,7 +132,7 @@ export function EditorInspector({
     <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-l border-zinc-800 bg-zinc-950 p-2 text-xs">
       <section className="space-y-2 border-b border-zinc-800 pb-3">
         <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-          Shot
+          Staging
         </h3>
         <label className="flex items-center gap-2 text-[11px] text-zinc-400">
           Duration
@@ -274,7 +274,7 @@ export function EditorInspector({
                   : "border-zinc-800 text-zinc-400",
               )}
             >
-              {r === "part" ? "Whole part" : "This shot"}
+              {r === "part" ? "Whole staging" : "Current camera cut"}
             </button>
           ))}
         </div>

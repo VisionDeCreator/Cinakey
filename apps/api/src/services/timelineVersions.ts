@@ -1,13 +1,13 @@
 import { assertTimelineDocument, type TimelineDocument } from "@cinakey/shared";
-import { v, ConvexError } from "convex/values";
-import { internal } from "../operations";
+import { ConvexError, v } from "convex/values";
 import type {
   Doc,
   Id,
 } from "../../../../packages/backend/convex/_generated/dataModel";
+import { loadJson } from "../../../../packages/backend/convex/storage";
+import { internal } from "../operations";
 import { action, type ActionCtx } from "../runtime/operation";
 import { saveJson } from "./storage";
-import { loadJson } from "../../../../packages/backend/convex/storage";
 
 async function requireActionUser(ctx: ActionCtx) {
   const { getAuthUserId } = await import("@convex-dev/auth/server");
@@ -87,7 +87,7 @@ export const save = action({
       for (const clip of track.clips) {
         if (clip.source.type === "text") continue;
         ids.add(clip.source.assetId as Id<"assets">);
-        if (clip.source.type === "take" && clip.source.proxyAssetId)
+        if (clip.source.proxyAssetId)
           ids.add(clip.source.proxyAssetId as Id<"assets">);
       }
     const { storageId } = await saveJson(ctx, document);

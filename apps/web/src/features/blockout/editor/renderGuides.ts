@@ -141,8 +141,3 @@ export async function renderGuidesForDocument(doc: BlockoutDocument): Promise<
   }
   return out;
 }
-
-/** @deprecated Use renderGuidesForDocument */
-export async function renderGuideImages() {
-  throw new Error("renderGuideImages removed — use renderGuidesForDocument");
-}

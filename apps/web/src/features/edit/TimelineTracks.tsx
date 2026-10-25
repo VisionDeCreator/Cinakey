@@ -1,20 +1,20 @@
+import { cn } from "@/lib/utils";
+import type {
+  TimelineClip,
+  TimelineDocument,
+  TrackKind,
+} from "@cinakey/shared";
+import { snapTime } from "@cinakey/shared";
 import { useEffect, useRef, useState } from "react";
+import { ClipMedia } from "./media/ClipMedia";
+import type { EditorMedia } from "./media/EditorMedia";
 import {
   MEDIA_DRAG_TYPE,
   MEDIA_POINTER_EVENT,
   type MediaPointerDetail,
   readDraggedAsset,
 } from "./mediaDrag";
-import { ClipMedia } from "./media/ClipMedia";
-import type { EditorMedia } from "./media/EditorMedia";
 import type { MediaUrlMap } from "./mediaUrls";
-import { snapTime } from "@cinakey/shared";
-import type {
-  TimelineClip,
-  TimelineDocument,
-  TrackKind,
-} from "@cinakey/shared";
-import { cn } from "@/lib/utils";
 
 const TRACK_COLORS: Record<TrackKind, string> = {
   video: "bg-[#31566c] border-[#4484a4]",
@@ -230,7 +230,8 @@ export function TimelineTracks({
                 rect.left +
                 (e.currentTarget as HTMLElement).scrollLeft;
               onSeek(Math.max(0, x / pxPerSec));
-              onSelectClip(null);
+              if (!(e.target as HTMLElement).closest(".studio-time-ruler"))
+                onSelectClip(null);
             }}
           >
             <div className="studio-time-ruler" aria-label="Timeline time ruler">
@@ -421,10 +422,7 @@ function ClipBlock({
   const label =
     clip.source.type === "text"
       ? clip.source.text.slice(0, 24)
-      : (urls?.[clip.source.assetId]?.name ??
-        (clip.source.type === "take"
-          ? `Take ${clip.source.takeId.slice(-4)}`
-          : "Asset"));
+      : (urls?.[clip.source.assetId]?.name ?? "Asset");
 
   return (
     <div

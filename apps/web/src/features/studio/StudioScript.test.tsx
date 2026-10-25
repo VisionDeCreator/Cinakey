@@ -17,16 +17,17 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
     switch (getFunctionName(ref)) {
-      case "promptSheets:getTipForSequence":
-        return { _id: "tip", renderedText: state.text, referenceMap: [] };
+      case "workspace:list":
+        return { migrated: true, script: { _id: "tip" }, scripts: [] };
       case "assets:list":
         return [{ _id: "asset-james", name: "James", type: "image" }];
       default:
         return [];
     }
   },
-  useAction: () => state.save,
-  useMutation: () => state.bind,
+  useAction: () => async () => ({ id: "tip", text: state.text }),
+  useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
+    getFunctionName(ref) === "workspace:saveScript" ? state.save : state.bind,
 }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploadFiles: vi.fn(), uploads: [] }),
@@ -37,8 +38,6 @@ function mount() {
     ...render(
       <StudioScript
         projectId="project"
-        sequenceId="scene"
-        title="Scene"
         onDirty={state.dirty}
         saveRef={saveRef}
       />,
@@ -48,7 +47,7 @@ function mount() {
 }
 beforeEach(() => {
   state.text = "@image_1 meets @image_1. @james walks.";
-  state.save.mockReset().mockResolvedValue({ promptSheetId: "saved" });
+  state.save.mockReset().mockResolvedValue("saved");
   state.bind
     .mockReset()
     .mockResolvedValue({ alias: "image_1", assetId: "asset-james" });
@@ -78,7 +77,7 @@ describe("connected script references and safe autosave", () => {
       alias: "image_1",
       assetId: "asset-james",
     });
-    expect(screen.getByRole("textbox", { name: "Scene script" })).toHaveValue(
+    expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
       state.text,
     );
   });
@@ -86,7 +85,7 @@ describe("connected script references and safe autosave", () => {
     mount();
     await act(async () => {});
     const input = screen.getByRole("textbox", {
-      name: "Scene script",
+      name: "Script",
     }) as HTMLTextAreaElement;
     fireEvent.change(input, {
       target: { value: "@james walks. @ja", selectionStart: 17 },
@@ -102,7 +101,7 @@ describe("connected script references and safe autosave", () => {
   });
   it("serializes saves and retains edits typed while an older snapshot is saving", async () => {
     vi.useFakeTimers();
-    let finish!: (result: { promptSheetId: string }) => void;
+    let finish!: (result: string) => void;
     state.save
       .mockImplementationOnce(
         () =>
@@ -110,10 +109,10 @@ describe("connected script references and safe autosave", () => {
             finish = resolve;
           }),
       )
-      .mockResolvedValue({ promptSheetId: "second" });
+      .mockResolvedValue("second");
     const { saveRef } = mount();
     await act(async () => {});
-    const input = screen.getByRole("textbox", { name: "Scene script" });
+    const input = screen.getByRole("textbox", { name: "Script" });
     fireEvent.change(input, { target: { value: "First edit" } });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1100);
@@ -121,14 +120,14 @@ describe("connected script references and safe autosave", () => {
     fireEvent.change(input, { target: { value: "Second edit" } });
     expect(state.save).toHaveBeenCalledTimes(1);
     await act(async () => {
-      finish({ promptSheetId: "first" });
+      finish("first");
     });
     expect(state.save).toHaveBeenCalledTimes(2);
-    expect(state.save.mock.calls[1]![0].promptText).toBe("Second edit");
+    expect(state.save.mock.calls[1]![0].text).toBe("Second edit");
     expect(input).toHaveValue("Second edit");
     expect(await saveRef.current?.()).toBe(true);
     expect(
-      localStorage.getItem("cinakey.scriptDraft.project.scene"),
+      localStorage.getItem("cinakey.scriptDraft.project.plain"),
     ).toBeNull();
   });
 });

@@ -1,17 +1,7 @@
-import { api, type Id } from "@cinakey/backend";
-import type { AssetType } from "@cinakey/shared";
-import { useMutation, useQuery } from "@/lib/api/hooks";
-import {
-  LayoutGrid,
-  List,
-  Star,
-  Upload,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -19,10 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { AssetDetailDrawer } from "@/features/assets/AssetDetailDrawer";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
+import { useMutation, useQuery } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
+import { api, type Id } from "@cinakey/backend";
+import type { AssetType } from "@cinakey/shared";
+import { LayoutGrid, List, Star, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 const TYPES: AssetType[] = ["video", "image", "audio", "music", "logo"];
 
@@ -39,16 +34,15 @@ export function AssetLibrary({
   requireProject?: boolean;
 }) {
   const projects = useQuery(api.projects.listMine, {});
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(
-    projectId,
-  );
+  const [selectedProjectId, setSelectedProjectId] = useState<
+    string | undefined
+  >(projectId);
   const effectiveProjectId = projectId ?? selectedProjectId;
 
   const [view, setView] = useState<"grid" | "list">("grid");
   const [type, setType] = useState<string>("all");
   const [tag, setTag] = useState<string>("all");
   const [characterId, setCharacterId] = useState<string>("all");
-  const [shotId, setShotId] = useState<string>("all");
   const [starredOnly, setStarredOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -78,10 +72,7 @@ export function AssetLibrary({
     type: type === "all" ? undefined : (type as AssetType),
     tag: tag === "all" ? undefined : tag,
     characterId:
-      characterId === "all"
-        ? undefined
-        : (characterId as Id<"entities">),
-    shotId: shotId === "all" ? undefined : (shotId as Id<"shots">),
+      characterId === "all" ? undefined : (characterId as Id<"entities">),
     starredOnly: starredOnly || undefined,
     query: debouncedSearch || undefined,
   });
@@ -131,11 +122,7 @@ export function AssetLibrary({
             size="sm"
             disabled={!canUpload}
             onClick={() => fileRef.current?.click()}
-            title={
-              canUpload
-                ? "Upload files"
-                : "Select a project to upload"
-            }
+            title={canUpload ? "Upload files" : "Select a project to upload"}
           >
             <Upload className="size-4" />
             Upload
@@ -266,25 +253,16 @@ export function AssetLibrary({
             ))}
           </SelectContent>
         </Select>
-        <Select value={shotId} onValueChange={setShotId}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Shot" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All shots</SelectItem>
-            {(filterOpts?.shots ?? []).map((s) => (
-              <SelectItem key={s._id} value={s._id}>
-                {s.shotType} #{s.order + 1}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Button
           variant={starredOnly ? "secondary" : "outline"}
           size="sm"
           onClick={() => setStarredOnly((v) => !v)}
         >
-          <Star className={starredOnly ? "fill-amber-400 text-amber-400" : undefined} />
+          <Star
+            className={
+              starredOnly ? "fill-amber-400 text-amber-400" : undefined
+            }
+          />
           Starred
         </Button>
       </div>

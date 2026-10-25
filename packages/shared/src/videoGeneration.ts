@@ -47,3 +47,40 @@ export function validateVideoInput(input: BuildRequestInput) {
   if (input.kind === "extend" && !input.referenceVideoUrl)
     throw new Error("Extension requires a source video");
 }
+
+/** Known media constraints are checked before reserving generation credits. */
+export function validateVideoReference(asset: {
+  name: string;
+  type: string;
+  width?: number;
+  height?: number;
+  durationSec?: number;
+  sizeBytes?: number;
+}) {
+  const prefix = `Reference “${asset.name}”`;
+  if (asset.width !== undefined && asset.height !== undefined) {
+    const { width, height } = asset;
+    if (width < 300 || height < 300 || width > 6000 || height > 6000)
+      throw new Error(`${prefix} must be 300–6000 pixels on each side.`);
+    if (width / height < 0.4 || width / height > 2.5)
+      throw new Error(`${prefix} must have an aspect ratio from 0.4 to 2.5.`);
+    if (
+      asset.type === "video" &&
+      (width * height < 407696 || width * height > 8295044)
+    )
+      throw new Error(
+        `${prefix} needs a supported video resolution (at least 407,696 pixels).`,
+      );
+  }
+  if (
+    asset.type === "video" &&
+    asset.durationSec !== undefined &&
+    (asset.durationSec < 2 || asset.durationSec > 30)
+  )
+    throw new Error(`${prefix} must be 2–30 seconds long.`);
+  if (
+    asset.sizeBytes !== undefined &&
+    asset.sizeBytes > (asset.type === "video" ? 200 : 30) * 1024 * 1024
+  )
+    throw new Error(`${prefix} exceeds the provider's file size limit.`);
+}

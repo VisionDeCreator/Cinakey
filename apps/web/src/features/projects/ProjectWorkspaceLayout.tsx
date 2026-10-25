@@ -1,14 +1,14 @@
 import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
-import { api } from "@cinakey/backend";
 import { useQuery } from "@/lib/api/hooks";
+import { api } from "@cinakey/backend";
+import { ArrowLeft, Clapperboard } from "lucide-react";
 import {
   NavLink,
   Navigate,
   Outlet,
-  useParams,
   useLocation,
+  useParams,
 } from "react-router-dom";
-import { ArrowLeft, Clapperboard } from "lucide-react";
 
 export function ProjectWorkspaceLayout() {
   const { projectId } = useParams();
@@ -17,9 +17,12 @@ export function ProjectWorkspaceLayout() {
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  const activeJobs = useQuery(
-    api.shotGeneration.listActiveJobsForProject,
+  const footage = useQuery(
+    api.workspace.videos,
     projectId ? { projectId: projectId as never } : "skip",
+  );
+  const activeJobs = footage?.jobs.filter((job) =>
+    ["queued", "submitted", "running"].includes(job.status),
   );
   if (!projectId) return <Navigate to="/projects" replace />;
   if (project === undefined)

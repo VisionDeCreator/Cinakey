@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConvexHttpClient } from "convex/browser";
 import { getFunctionName } from "convex/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runWorker } from "./worker";
 
 beforeEach(() => {
@@ -25,9 +25,9 @@ describe("worker startup", () => {
       async (...[reference]) => {
         const name = getFunctionName(reference as never);
         calls.push(name);
-        if (name === "tasks:scheduleRetention" && ++attempts <= 2)
+        if (name === "tasks:reconcileGeneration" && ++attempts <= 2)
           throw new Error(
-            "Could not find public function for 'tasks:scheduleRetention'.",
+            "Could not find public function for 'tasks:reconcileGeneration'.",
           );
         if (name === "tasks:reconcileGeneration")
           return { isDone: true, cursor: "" };
@@ -44,7 +44,7 @@ describe("worker startup", () => {
     expect(calls).not.toContain("tasks:claim");
     await vi.advanceTimersByTimeAsync(4_000);
     await running;
-    expect(attempts).toBe(3);
+    expect(attempts).toBe(5);
     expect(calls).toContain("tasks:claim");
     expect(info).toHaveBeenCalledWith(expect.stringContaining("resuming"));
     expect(errors).not.toHaveBeenCalled();
@@ -54,7 +54,7 @@ describe("worker startup", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(ConvexHttpClient.prototype, "mutation").mockRejectedValue(
       new Error(
-        "Could not find public function for 'tasks:scheduleRetention'.",
+        "Could not find public function for 'tasks:reconcileGeneration'.",
       ),
     );
     const running = runWorker(controller.signal);

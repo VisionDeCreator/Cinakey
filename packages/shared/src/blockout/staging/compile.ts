@@ -10,8 +10,8 @@
 
 import type { ScriptPromptData } from "../../prompt-templates/schemas";
 import { camAt } from "../engine/camera";
-import { objAt } from "../engine/object";
 import { applyEase } from "../engine/math";
+import { objAt } from "../engine/object";
 import {
   BLOCKOUT_SCHEMA_ID,
   DEFAULT_OBJECT_DEFS,
@@ -26,27 +26,17 @@ import {
   type Vec2,
   type Vec3,
 } from "../types";
-import type { DirectorShotLink } from "../director/cameras";
-import { lookAt as lookAtKeys, lookOffsetKeys } from "../director/castMotion";
-import { mergeKeptRanges } from "../director/merge";
+import { lookAt as lookAtKeys, lookOffsetKeys } from "./lookMotion";
+import { clamp, fwd, hashSeed, lerp, mulberry32, r3 } from "./math";
 import { resolveRiding, seatHeight, type RidingInterval } from "./riding";
-import { clamp, fwd, hashSeed, lerp, mulberry32, r3 } from "../director/util";
 import type {
   CARRY_STYLES,
   StagingCamera,
-  StagingFeature,
   StagingCast,
+  StagingFeature,
   StagingMove,
   StagingPlan,
 } from "./schema";
-
-export type CompileStagingOpts = {
-  sequenceId?: string;
-  sequenceTitle?: string;
-  liveShots?: DirectorShotLink[];
-  existing?: BlockoutDocument | null;
-  keepShotIds?: Set<string>;
-};
 
 const HIDE = -30;
 const CAST_COLORS = [
@@ -1723,9 +1713,8 @@ export function compileStagingPlan(
   plan: StagingPlan,
   script: ScriptPromptData,
   project: BlockoutProject,
-  opts: CompileStagingOpts = {},
 ): BlockoutDocument {
-  return compileStagingPlanWithInfo(plan, script, project, opts).document;
+  return compileStagingPlanWithInfo(plan, script, project).document;
 }
 
 export type StagingCompileInfo = {
@@ -1738,7 +1727,6 @@ export function compileStagingPlanWithInfo(
   planIn: StagingPlan,
   script: ScriptPromptData,
   project: BlockoutProject,
-  opts: CompileStagingOpts = {},
 ): StagingCompileInfo {
   // Work on a copy: gaps / leaps get aligned below.
   const plan: StagingPlan = JSON.parse(JSON.stringify(planIn));
@@ -1761,8 +1749,16 @@ export function compileStagingPlanWithInfo(
       }))
     : plan.shots.map((s, i) => ({
         n: s.n,
-        start: i * 3,
-        end: i * 3 + 3,
+        start:
+          i *
+          (script.totalDurationSec > 0
+            ? script.totalDurationSec / plan.shots.length
+            : 3),
+        end:
+          (i + 1) *
+          (script.totalDurationSec > 0
+            ? script.totalDurationSec / plan.shots.length
+            : 3),
         desc: "",
         shotType: "",
       }));
@@ -2144,9 +2140,7 @@ export function compileStagingPlanWithInfo(
     maxZ = Math.max(maxZ, f.at[1]);
   }
   if (!Number.isFinite(minX)) [minX, maxX, minZ, maxZ] = [-10, 10, -10, 10];
-  const seed = hashSeed(
-    `${opts.sequenceTitle ?? project.title}|${JSON.stringify(plan.set)}`,
-  );
+  const seed = hashSeed(`${project.title}|${JSON.stringify(plan.set)}`);
   const setObjects = buildSet(
     plan,
     { minX, maxX, minZ, maxZ },
@@ -2275,9 +2269,6 @@ export function compileStagingPlanWithInfo(
   const fallback = subjectOf(firstVisible.id)!;
   let keyN = 0;
   const nextId = () => `k${++keyN}`;
-  const byN = new Map(
-    (opts.liveShots ?? []).map((s) => [s.n ?? 0, s] as const),
-  );
   const cameraKeys: BlockoutCameraKey[] = [];
   const cuts: BlockoutCutMarker[] = [];
   timings.forEach((tm, i) => {
@@ -2410,27 +2401,23 @@ export function compileStagingPlanWithInfo(
         ease: "hold",
       });
     }
-    const live = byN.get(tm.n);
     cuts.push({
       n: tm.n,
       start: Math.round(tm.start * fps),
       end: Math.max(Math.round(tm.start * fps) + 1, Math.round(tm.end * fps)),
       desc: tm.desc,
       shotType: tm.shotType,
-      shotId: live?.id,
-      sceneHeading: live?.sceneHeading,
       cameraMove: tm.cameraMove,
       lensMm: focal,
     });
   });
 
-  let doc: BlockoutDocument = {
+  const doc: BlockoutDocument = {
     schema: BLOCKOUT_SCHEMA_ID,
     version: 1,
     project,
-    sequenceId: opts.sequenceId,
-    name: opts.sequenceTitle ?? project.title,
-    title: opts.sequenceTitle ?? project.title,
+    name: project.title,
+    title: project.title,
     fps,
     frames,
     aspect: project.aspectRatio,
@@ -2441,8 +2428,5 @@ export function compileStagingPlanWithInfo(
     notes:
       "Staged from a cinakey.staging/1.0 plan. Hard cuts are camera keys with ease hold.",
   };
-  if (opts.existing && opts.keepShotIds && opts.keepShotIds.size > 0) {
-    doc = mergeKeptRanges(doc, opts.existing, opts.keepShotIds);
-  }
   return { document: doc, riding };
 }

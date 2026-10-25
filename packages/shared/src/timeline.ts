@@ -37,17 +37,10 @@ export type CaptionLine = {
   characterName?: string;
 };
 
-export type TakeClipSource = {
-  type: "take";
-  takeId: string;
-  shotId: string;
-  assetId: string;
-  proxyAssetId?: string;
-};
-
 export type AssetClipSource = {
   type: "asset";
   assetId: string;
+  proxyAssetId?: string;
 };
 
 export type TextClipSource = {
@@ -57,7 +50,7 @@ export type TextClipSource = {
   lines?: CaptionLine[];
 };
 
-export type ClipSource = TakeClipSource | AssetClipSource | TextClipSource;
+export type ClipSource = AssetClipSource | TextClipSource;
 
 export type TimelineClip = {
   id: string;
@@ -75,7 +68,6 @@ export type TimelineClip = {
   fadeInSec?: number;
   fadeOutSec?: number;
   /** Denormalized shot link for take-backed video clips. */
-  linkedShotId?: string;
 };
 
 export type TimelineTrack = {
@@ -117,17 +109,10 @@ const captionLineSchema = z.object({
   characterName: z.string().optional(),
 });
 
-const takeSourceSchema = z.object({
-  type: z.literal("take"),
-  takeId: z.string().min(1),
-  shotId: z.string().min(1),
-  assetId: z.string().min(1),
-  proxyAssetId: z.string().min(1).optional(),
-});
-
 const assetSourceSchema = z.object({
   type: z.literal("asset"),
   assetId: z.string().min(1),
+  proxyAssetId: z.string().min(1).optional(),
 });
 
 const textSourceSchema = z.object({
@@ -138,7 +123,6 @@ const textSourceSchema = z.object({
 });
 
 const clipSourceSchema = z.discriminatedUnion("type", [
-  takeSourceSchema,
   assetSourceSchema,
   textSourceSchema,
 ]);
@@ -154,7 +138,6 @@ const clipSchema = z.object({
   volume: z.number().finite().min(0).max(2).optional(),
   fadeInSec: z.number().finite().nonnegative().optional(),
   fadeOutSec: z.number().finite().nonnegative().optional(),
-  linkedShotId: z.string().min(1).optional(),
 });
 
 const trackSchema = z.object({
@@ -279,146 +262,6 @@ export function findClip(
 // ---------------------------------------------------------------------------
 // Assemble from shot list
 // ---------------------------------------------------------------------------
-
-export type AssembleShotInput = {
-  shotId: string;
-  sceneOrder: number;
-  shotOrder: number;
-  durationSec: number;
-  dialogueLineId?: string;
-  dialogue?: string;
-  take: {
-    takeId: string;
-    assetId: string;
-    proxyAssetId?: string;
-    trimStartSec?: number;
-    trimEndSec?: number;
-    /** Fallback media duration when trim/shot duration missing. */
-    mediaDurationSec?: number;
-  };
-};
-
-export type AssembleDialogueLine = {
-  id: string;
-  characterName: string;
-  dialogue: string;
-};
-
-export type AssembleFromShotListInput = {
-  project: TimelineProjectMeta;
-  shots: AssembleShotInput[];
-  /** Map of dialogueLineId → line for caption seeding. */
-  dialogueByLineId?: Record<string, AssembleDialogueLine>;
-  parentFileId?: string;
-  version?: number;
-};
-
-function sourceWindow(
-  take: AssembleShotInput["take"],
-  plannedSec: number,
-): {
-  inSec: number;
-  outSec: number;
-  durationSec: number;
-} {
-  const inSec = take.trimStartSec ?? 0;
-  let outSec: number;
-  if (take.trimEndSec !== undefined && take.trimEndSec > inSec) {
-    outSec = take.trimEndSec;
-  } else if (
-    take.mediaDurationSec !== undefined &&
-    take.mediaDurationSec > inSec
-  ) {
-    outSec = Math.min(inSec + plannedSec, take.mediaDurationSec);
-  } else {
-    outSec = inSec + plannedSec;
-  }
-  const sourceLen = Math.max(0.1, outSec - inSec);
-  const durationSec = Math.min(plannedSec, sourceLen);
-  return { inSec, outSec: inSec + durationSec, durationSec };
-}
-
-/**
- * Build a rough cut: every shot's selected take in order at planned duration,
- * plus dialogue captions when line text is available.
- */
-export function assembleFromShotList(
-  input: AssembleFromShotListInput,
-): TimelineDocument {
-  const sorted = [...input.shots].sort((a, b) => {
-    if (a.sceneOrder !== b.sceneOrder) return a.sceneOrder - b.sceneOrder;
-    return a.shotOrder - b.shotOrder;
-  });
-
-  const tracks = defaultTracks();
-  const video = tracks.find((t) => t.kind === "video")!;
-  const dialogue = tracks.find((t) => t.kind === "dialogue")!;
-
-  let cursor = 0;
-  for (const shot of sorted) {
-    const planned = Math.max(0.1, shot.durationSec);
-    const { inSec, outSec, durationSec } = sourceWindow(shot.take, planned);
-
-    video.clips.push({
-      id: newTimelineId("clip"),
-      startSec: cursor,
-      durationSec,
-      inSec,
-      outSec,
-      speed: 1,
-      source: {
-        type: "take",
-        takeId: shot.take.takeId,
-        shotId: shot.shotId,
-        assetId: shot.take.assetId,
-        proxyAssetId: shot.take.proxyAssetId,
-      },
-      volume: 1,
-      linkedShotId: shot.shotId,
-    });
-
-    const line =
-      shot.dialogueLineId && input.dialogueByLineId
-        ? input.dialogueByLineId[shot.dialogueLineId]
-        : undefined;
-    const captionText = line?.dialogue?.trim() || shot.dialogue?.trim() || "";
-    if (captionText) {
-      const lines: CaptionLine[] = [
-        {
-          id: newTimelineId("cap"),
-          text: captionText,
-          characterName: line?.characterName,
-        },
-      ];
-      dialogue.clips.push({
-        id: newTimelineId("clip"),
-        startSec: cursor,
-        durationSec,
-        inSec: 0,
-        outSec: durationSec,
-        speed: 1,
-        source: {
-          type: "text",
-          text: captionText,
-          styleId: "caption",
-          lines,
-        },
-        linkedShotId: shot.shotId,
-      });
-    }
-
-    cursor += durationSec;
-  }
-
-  return recomputeTimelineDuration({
-    schema: TIMELINE_SCHEMA_ID,
-    version: input.version ?? 1,
-    parentFileId: input.parentFileId,
-    project: { ...input.project },
-    durationSec: cursor,
-    tracks,
-  });
-}
 
 // ---------------------------------------------------------------------------
 // Edit operations (pure)
@@ -641,7 +484,6 @@ export function updateClip(
       | "outSec"
       | "durationSec"
       | "startSec"
-      | "linkedShotId"
     >
   >,
 ): TimelineDocument {
@@ -649,53 +491,6 @@ export function updateClip(
     ...track,
     clips: track.clips.map((c) => (c.id === clipId ? { ...c, ...patch } : c)),
   }));
-}
-
-/** Replace take source on a linked clip in place. */
-export function swapTakeOnClip(
-  doc: TimelineDocument,
-  clipId: string,
-  take: {
-    takeId: string;
-    shotId: string;
-    assetId: string;
-    proxyAssetId?: string;
-    trimStartSec?: number;
-    sourceOffsetSec?: number;
-    trimEndSec?: number;
-  },
-): TimelineDocument {
-  const found = findClip(doc, clipId);
-  if (!found) return doc;
-  const { clip } = found;
-  const baseIn = take.trimStartSec ?? 0;
-  const baseOut =
-    take.trimEndSec !== undefined && take.trimEndSec > baseIn
-      ? take.trimEndSec
-      : baseIn + clip.durationSec * clip.speed;
-  const offset = Math.min(
-    Math.max(0, take.sourceOffsetSec ?? 0),
-    Math.max(0, baseOut - baseIn - 0.05 * clip.speed),
-  );
-  const inSec = baseIn + offset;
-  const durationSec = Math.min(
-    clip.durationSec,
-    (baseOut - inSec) / clip.speed,
-  );
-
-  return updateClip(doc, clipId, {
-    inSec,
-    outSec: inSec + durationSec * clip.speed,
-    durationSec,
-    linkedShotId: take.shotId,
-    source: {
-      type: "take",
-      takeId: take.takeId,
-      shotId: take.shotId,
-      assetId: take.assetId,
-      proxyAssetId: take.proxyAssetId,
-    },
-  });
 }
 
 export function addClip(

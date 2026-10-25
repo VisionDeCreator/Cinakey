@@ -1,16 +1,15 @@
-import { projectCanUseAsset } from "./lib/access";
-import { deleteFile } from "./storage";
-import { insertNotification } from "./notifications";
-import { enqueueTask } from "./tasks";
-import { v, ConvexError } from "convex/values";
 import type { BuildRequestInput } from "@cinakey/shared";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { getAdapter, listAdapters } from "./adapters";
 import { appendLedgerEntry } from "./credits";
-import { internalMutation, internalQuery, query } from "./_generated/server";
-import { requireProjectAccess } from "./lib/access";
+import { projectCanUseAsset, requireProjectAccess } from "./lib/access";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
 import { scanText } from "./moderation";
+import { insertNotification } from "./notifications";
+import { deleteFile } from "./storage";
+import { enqueueTask } from "./tasks";
 
 // ---------------------------------------------------------------------------
 // Public queries
@@ -113,8 +112,7 @@ export const createQueuedJob = internalMutation({
   args: {
     projectId: v.id("projects"),
     workspaceId: v.id("workspaces"),
-    shotId: v.optional(v.id("shots")),
-    sequenceId: v.optional(v.id("sequences")),
+
     entityId: v.optional(v.id("entities")),
     promptSheetId: v.optional(v.id("promptSheets")),
     model: v.string(),
@@ -178,8 +176,7 @@ export const createQueuedJob = internalMutation({
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
-      shotId: args.shotId,
-      sequenceId: args.sequenceId,
+
       entityId: args.entityId,
       promptSheetId: args.promptSheetId,
       model: args.model,
@@ -221,24 +218,6 @@ export const createQueuedJob = internalMutation({
       throw err;
     }
 
-    if (args.inputsFileId && args.model === "seedance-2.5") {
-      const shots = args.shotId
-        ? [await ctx.db.get(args.shotId)]
-        : args.sequenceId
-          ? await ctx.db
-              .query("shots")
-              .withIndex("by_sequence", (q) =>
-                q.eq("sequenceId", args.sequenceId!),
-              )
-              .collect()
-          : [];
-      for (const shot of shots)
-        if (shot)
-          await ctx.db.patch(shot._id, {
-            status: "generating",
-            updatedAt: now,
-          });
-    }
     // Request-bound text jobs share the ledger but execute in their API request.
     if (args.inputsFileId)
       await enqueueTask(ctx, 0, "generation:submitAndTrack", { jobId });
@@ -317,13 +296,9 @@ export const markSucceeded = internalMutation({
       errorMessage: undefined,
     });
     if (job.inputsFileId) {
-      const href = job.shotId
-        ? `/projects/${job.projectId}/video/${job.shotId}`
-        : job.sequenceId
-          ? `/projects/${job.projectId}/video`
-          : job.entityId
-            ? `/projects/${job.projectId}/assets/${job.entityId}`
-            : `/dev/generation?jobId=${job._id}`;
+      const href = job.entityId
+        ? `/projects/${job.projectId}/assets/${job.entityId}`
+        : `/projects/${job.projectId}/studio`;
       await insertNotification(ctx, {
         userId: job.createdBy,
         projectId: job.projectId,
@@ -384,13 +359,9 @@ export const markRefunded = internalMutation({
       providerResultFileId: undefined,
     });
     if (job.inputsFileId) {
-      const href = job.shotId
-        ? `/projects/${job.projectId}/video/${job.shotId}`
-        : job.sequenceId
-          ? `/projects/${job.projectId}/video`
-          : job.entityId
-            ? `/projects/${job.projectId}/assets/${job.entityId}`
-            : `/dev/generation?jobId=${job._id}`;
+      const href = job.entityId
+        ? `/projects/${job.projectId}/assets/${job.entityId}`
+        : `/projects/${job.projectId}/studio`;
       await insertNotification(ctx, {
         userId: job.createdBy,
         projectId: job.projectId,
@@ -497,54 +468,6 @@ export const flagOutputIfNeeded = internalMutation({
       snippet: scan.snippet,
       status: "open",
       createdAt: Date.now(),
-    });
-  },
-});
-
-export const createTake = internalMutation({
-  args: {
-    projectId: v.id("projects"),
-    shotId: v.id("shots"),
-    assetId: v.id("assets"),
-    jobId: v.id("generationJobs"),
-    parentTakeId: v.optional(v.id("takes")),
-    trimStartSec: v.optional(v.number()),
-    trimEndSec: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("takes")
-      .withIndex("by_job", (q) => q.eq("jobId", args.jobId))
-      .collect();
-    const match = existing.find(
-      (take) => take.shotId === args.shotId && take.assetId === args.assetId,
-    );
-    if (match) return match._id;
-    return await ctx.db.insert("takes", {
-      projectId: args.projectId,
-      shotId: args.shotId,
-      assetId: args.assetId,
-      jobId: args.jobId,
-      parentTakeId: args.parentTakeId,
-      trimStartSec: args.trimStartSec,
-      trimEndSec: args.trimEndSec,
-      selected: false,
-      createdAt: Date.now(),
-    });
-  },
-});
-
-export const setShotKeyframeInternal = internalMutation({
-  args: {
-    shotId: v.id("shots"),
-    keyframeAssetId: v.id("assets"),
-  },
-  handler: async (ctx, args) => {
-    const shot = await ctx.db.get(args.shotId);
-    if (shot === null) return;
-    await ctx.db.patch(args.shotId, {
-      keyframeAssetId: args.keyframeAssetId,
-      updatedAt: Date.now(),
     });
   },
 });

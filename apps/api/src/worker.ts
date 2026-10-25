@@ -1,8 +1,8 @@
-import { withProviderSignal } from "./runtime/provider-scope";
-import { safeErrorMessage, SubmissionUncertainError } from "./providers/errors";
 import { makeFunctionReference } from "convex/server";
-import { adminClient, createContext } from "./runtime/context";
+import { safeErrorMessage, SubmissionUncertainError } from "./providers/errors";
 import { registry } from "./registry";
+import { adminClient, createContext } from "./runtime/context";
+import { withProviderSignal } from "./runtime/provider-scope";
 const ref = (name: string) => makeFunctionReference<any>(name);
 
 function workerFunctionsMissing(error: unknown): boolean {
@@ -18,7 +18,6 @@ export async function runWorker(signal: AbortSignal) {
   const client = adminClient();
   const owner = crypto.randomUUID();
   let idleMs = 1_000,
-    lastRetention = 0,
     lastReconciliation = 0,
     waitingForDeployment = false;
   const sleep = (ms: number) =>
@@ -37,14 +36,6 @@ export async function runWorker(signal: AbortSignal) {
     });
   while (!signal.aborted) {
     try {
-      if (Date.now() - lastRetention > 3_600_000) {
-        await client.mutation(ref("tasks:scheduleRetention"), {});
-        lastRetention = Date.now();
-        if (waitingForDeployment) {
-          console.info("[worker] Convex worker functions are ready; resuming.");
-          waitingForDeployment = false;
-        }
-      }
       if (Date.now() - lastReconciliation > 300_000) {
         for (const status of ["queued", "submitted", "running"]) {
           let cursor: string | null = null;
@@ -59,6 +50,10 @@ export async function runWorker(signal: AbortSignal) {
           }
         }
         lastReconciliation = Date.now();
+        if (waitingForDeployment) {
+          console.info("[worker] Convex worker functions are ready; resuming.");
+          waitingForDeployment = false;
+        }
       }
       const tasks = (await client.mutation(ref("tasks:claim"), {
         owner,
@@ -107,7 +102,6 @@ export async function runWorker(signal: AbortSignal) {
             "[worker] Waiting for Convex worker functions. Fix backend typecheck errors and keep dev:convex running; verify CONVEX_URL targets that deployment.",
           );
         waitingForDeployment = true;
-        lastRetention = 0;
       } else {
         console.error("[worker] tick failed", safeErrorMessage(error));
       }

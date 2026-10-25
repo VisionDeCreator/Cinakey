@@ -1,7 +1,8 @@
+import { createEmptyTimeline } from "@cinakey/shared";
 import { describe, expect, it } from "vitest";
-import { createEmptyTimeline, assembleFromShotList } from "@cinakey/shared";
 import { api, internal } from "../../../apps/api/src/operations";
-import { makeTest, createTestUser, authIdentity } from "../test/helpers";
+import { timelineWithMedia } from "../../shared/test/timelineFixture";
+import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 async function fixture() {
   const t = makeTest();
@@ -23,15 +24,13 @@ async function fixture() {
     type: "video",
     name: "fixture.mp4",
   });
-  const document = assembleFromShotList({
+  const document = timelineWithMedia({
     project: { id: projectId, aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "shot",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "take", assetId },
+        assetId,
       },
     ],
   });
@@ -192,50 +191,6 @@ describe("production safety", () => {
         skipSpendCapCheck: true,
       } as never),
     ).rejects.toThrow("Unexpected args.skipSpendCapCheck");
-  });
-  it("keeps an old unselected take and its file when a saved timeline uses them", async () => {
-    const { t, asUser, projectId, assetId, document } = await fixture();
-    await asUser.action(api.timelineVersions.save, {
-      projectId,
-      parentId: null,
-      document,
-      requestId: "keep-history",
-    });
-    const takeId = await t.run(async (ctx) => {
-      const now = Date.now();
-      const sceneId = await ctx.db.insert("scenes", {
-        projectId,
-        elementId: "s",
-        order: 0,
-        heading: "INT. TEST",
-        createdAt: now,
-        updatedAt: now,
-      });
-      const shotId = await ctx.db.insert("shots", {
-        projectId,
-        sceneId,
-        order: 0,
-        shotType: "WS",
-        durationSec: 5,
-        characterIds: [],
-        status: "planned",
-        outdated: false,
-        createdAt: now,
-        updatedAt: now,
-      });
-      return ctx.db.insert("takes", {
-        projectId,
-        shotId,
-        assetId,
-        selected: false,
-        createdAt: now - 40 * 24 * 60 * 60_000,
-      });
-    });
-    await t.mutation(internal.takes.purgeRejectedTakes, {});
-    expect(await t.run((ctx) => ctx.db.get(takeId))).toBeTruthy();
-    expect(
-      await asUser.query(api.storage.getAssetUrl, { assetId }),
-    ).toBeTruthy();
   });
   it("allows at most one of two concurrent reservations that would exceed a cap", async () => {
     const { t, asUser, projectId } = await fixture();

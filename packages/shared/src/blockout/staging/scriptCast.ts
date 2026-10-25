@@ -490,7 +490,8 @@ export function buildCast(script: ScriptPromptData): CastRole[] {
 }
 
 /** Does this SHOT line name the role (by @image_N or by name)? */
-export function mentionsRole(s: ScriptShot, r: CastRole): boolean {
+
+function mentionsRole(s: ScriptShot, r: CastRole): boolean {
   const text = `${s.shotType} ${s.action}`.toLowerCase();
   if (r.imageN !== undefined && new RegExp(`@image_${r.imageN}\\b`).test(text))
     return true;
@@ -499,21 +500,4 @@ export function mentionsRole(s: ScriptShot, r: CastRole): boolean {
     .replace(/[^a-z0-9 -]/g, "")
     .trim();
   return word.length > 0 && new RegExp(`\\b${word}\\b`).test(text);
-}
-
-export function primaryMount(cast: CastRole[]): CastRole | undefined {
-  return (
-    cast.find((r) => r.role === "mount") ??
-    cast.find((r) => r.type === "hare") ??
-    cast.find((c) => cast.some((h) => h.mountId === c.id))
-  );
-}
-
-export function primaryRider(cast: CastRole[]): CastRole | undefined {
-  return (
-    cast.find((r) => r.role === "rider") ??
-    cast.find(
-      (r) => r.mountId && r.type === "character" && !/^Bandit/i.test(r.name),
-    )
-  );
 }

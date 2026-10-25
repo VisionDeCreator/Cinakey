@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { createEmptyTimeline } from "@cinakey/shared";
+import { describe, expect, it } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
-import { makeTest, createTestUser, authIdentity } from "../test/helpers";
+import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 async function setup() {
   const t = makeTest();
@@ -549,71 +549,6 @@ describe("Series production model", () => {
         ctx.storage.get(file.storageId).then((blob) => !!blob),
       ),
     ).toBe(false);
-  });
-  it("retention keeps an old rejected take promoted into a series library", async () => {
-    const { t, owner, seriesId, projectId } = await setup();
-    const take = await t.run(async (ctx) => {
-      const old = Date.now() - 40 * 24 * 60 * 60 * 1000;
-      const sceneId = await ctx.db.insert("scenes", {
-        projectId,
-        elementId: "scene",
-        order: 0,
-        heading: "EXT. HARBOUR",
-        createdAt: old,
-        updatedAt: old,
-      });
-      const shotId = await ctx.db.insert("shots", {
-        projectId,
-        sceneId,
-        order: 0,
-        shotType: "WS",
-        durationSec: 3,
-        characterIds: [],
-        status: "planned",
-        outdated: false,
-        createdAt: old,
-        updatedAt: old,
-      });
-      const storageId = await ctx.storage.store(
-        new Blob(["local video"], { type: "video/mp4" }),
-      );
-      const user = await ctx.db.get((await ctx.db.get(projectId))!.workspaceId);
-      const assetId = await ctx.db.insert("assets", {
-        projectId,
-        type: "video",
-        name: "Old take",
-        searchText: "old take",
-        storageId,
-        format: "video/mp4",
-        sizeBytes: 11,
-        tags: [],
-        starred: false,
-        createdBy: user!.ownerUserId,
-        createdAt: old,
-        updatedAt: old,
-      });
-      const takeId = await ctx.db.insert("takes", {
-        projectId,
-        shotId,
-        assetId,
-        selected: false,
-        createdAt: old,
-      });
-      return { assetId, takeId };
-    });
-    await owner.mutation(api.resources.publish, {
-      seriesId,
-      kind: "media",
-      name: "Reusable harbour shot",
-      description: "",
-      assetIds: [take.assetId],
-    });
-    await t.mutation(internal.takes.purgeRejectedTakes, {
-      now: Date.now(),
-      limit: 50,
-    });
-    expect(await t.run((ctx) => ctx.db.get(take.takeId))).not.toBeNull();
-    expect(await t.run((ctx) => ctx.db.get(take.assetId))).not.toBeNull();
   });
   it("rejects registering another workspace's stored file as a series upload", async () => {
     const { t, upload } = await setup();

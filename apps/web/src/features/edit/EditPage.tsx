@@ -1,40 +1,10 @@
-import { EditorMedia } from "./media/EditorMedia";
-import { api, type Id } from "@cinakey/backend";
-import {
-  addClip,
-  newTimelineId,
-  assertTimelineDocument,
-  assembleFromShotList,
-  createEmptyTimeline,
-  deleteClip,
-  findClip,
-  moveClip,
-  recomputeTimelineDuration,
-  rippleTrim,
-  rollTrim,
-  snapTime,
-  splitClip,
-  swapTakeOnClip,
-  updateClip,
-  type AssembleDialogueLine,
-  type TimelineClip,
-  type TimelineDocument,
-} from "@cinakey/shared";
-import { useAction, useQuery } from "@/lib/api/hooks";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/components/ConfirmProvider";
-import { ClipInspector } from "@/features/edit/ClipInspector";
-import { ExportDialog } from "@/features/edit/ExportDialog";
+import { useConfirm } from "@/components/use-confirm";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { insertMedia, resolveMediaDuration } from "./insertMedia";
-import type { StudioInsert } from "@/features/studio/StudioWorkspace";
-import { StudioWorkspace } from "@/features/studio/StudioWorkspace";
+import { ClipInspector } from "@/features/edit/ClipInspector";
 import { PlaybackEngine } from "@/features/edit/engine/PlaybackEngine";
+import { ExportDialog } from "@/features/edit/ExportDialog";
 import { formatTimecode, type MediaUrlMap } from "@/features/edit/mediaUrls";
-import { TimelineTracks, type TrimMode } from "@/features/edit/TimelineTracks";
-import { TimelineHistoryDialog } from "@/features/edit/TimelineHistoryDialog";
 import {
   createHistory,
   documentHash,
@@ -44,6 +14,33 @@ import {
   undo,
   type TimelineHistoryState,
 } from "@/features/edit/timelineHistory";
+import { TimelineHistoryDialog } from "@/features/edit/TimelineHistoryDialog";
+import { TimelineTracks, type TrimMode } from "@/features/edit/TimelineTracks";
+import type { StudioInsert } from "@/features/studio/StudioWorkspace";
+import { StudioWorkspace } from "@/features/studio/StudioWorkspace";
+import { useAction, useQuery } from "@/lib/api/hooks";
+import { api, type Id } from "@cinakey/backend";
+import {
+  addClip,
+  assertTimelineDocument,
+  createEmptyTimeline,
+  deleteClip,
+  findClip,
+  moveClip,
+  newTimelineId,
+  recomputeTimelineDuration,
+  rippleTrim,
+  rollTrim,
+  snapTime,
+  splitClip,
+  updateClip,
+  type TimelineClip,
+  type TimelineDocument,
+} from "@cinakey/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import { insertMedia, resolveMediaDuration } from "./insertMedia";
+import { EditorMedia } from "./media/EditorMedia";
 
 const AUTOSAVE_MS = 2000;
 const SNAP_SEC = 0.15;
@@ -63,17 +60,17 @@ function ProjectEditor() {
     api.timelineVersions.getTip,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  const assembleRows = useQuery(
-    api.takes.listSelectedForAssemble,
-    projectId ? { projectId: projectId as never } : "skip",
-  );
   const assets = useQuery(
     api.assets.list,
     projectId ? { projectId: projectId as never } : "skip",
   );
 
+  const workspaceState = useQuery(
+    api.workspace.list,
+    projectId ? { projectId: projectId as never } : "skip",
+  );
+  const ensureWorkspace = useAction(api.workspace.ensure);
   const getTimelineContent = useAction(api.timelineVersions.getContent);
-  const getScriptContent = useAction(api.scriptVersions.getContent);
   const saveTimeline = useAction(api.timelineVersions.save);
 
   const confirm = useConfirm();
@@ -101,8 +98,28 @@ function ProjectEditor() {
     null,
   );
   const pendingSeek = useRef<number | null>(null);
-  const engineCanvas = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<PlaybackEngine | null>(null);
+  const bindCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    setCanvasElement(canvas);
+    engineRef.current?.dispose();
+    engineRef.current = null;
+    if (!canvas) return;
+    setPreviewError(null);
+    try {
+      const engine = new PlaybackEngine(canvas);
+      engineRef.current = engine;
+      engine.subscribe((state) => {
+        setPlayheadSec(state.currentSec);
+        setPlaying(state.playing);
+        setPreviewError(state.error ?? null);
+        setPreviewLoading(state.loading ?? false);
+      });
+    } catch (error) {
+      setPreviewError(
+        error instanceof Error ? error.message : "Preview could not start",
+      );
+    }
+  }, []);
   const tipIdRef = useRef<string | null>(null);
   const [savePaused, setSavePaused] = useState(false);
   const pendingSave = useRef<{
@@ -130,25 +147,11 @@ function ProjectEditor() {
         name: asset.name,
       };
     }
-    for (const row of assembleRows ?? []) {
-      map[row.take.assetId] = {
-        url: row.take.assetUrl ?? "",
-        proxyUrl: row.take.proxyUrl ?? undefined,
-        durationSec: row.take.mediaDurationSec,
-        type: "video",
-      };
-      if (row.take.proxyAssetId && row.take.proxyUrl) {
-        map[row.take.proxyAssetId] = {
-          url: row.take.proxyUrl,
-          type: "video",
-        };
-      }
-    }
     return map;
-  }, [assets, assembleRows]);
+  }, [assets]);
 
   // Enrich asset URLs via storage.getAssetUrl is heavy; use a query per asset lazily.
-  // For MVP, MediaBin adds assets — we fetch URLs when engine needs them via ensure.
+  // Resolve library asset URLs before configuring playback.
   // Patch urls with getAssetUrl through a small helper query list:
   const assetUrls = useQuery(
     api.storage.listProjectAssetUrls,
@@ -161,7 +164,13 @@ function ProjectEditor() {
       for (const row of assetUrls) {
         map[row.assetId] = {
           url: row.url ?? map[row.assetId]?.url ?? "",
-          proxyUrl: map[row.assetId]?.proxyUrl,
+          proxyUrl:
+            assetUrls.find(
+              (proxy) =>
+                proxy.assetId ===
+                assets?.find((asset) => asset._id === row.assetId)
+                  ?.playbackProxyAssetId,
+            )?.url ?? map[row.assetId]?.proxyUrl,
           durationSec: row.durationSec ?? map[row.assetId]?.durationSec,
           type: row.type ?? map[row.assetId]?.type,
           name: map[row.assetId]?.name,
@@ -169,7 +178,7 @@ function ProjectEditor() {
       }
     }
     return map;
-  }, [urls, assetUrls]);
+  }, [urls, assetUrls, assets]);
 
   const [editorMedia, setEditorMedia] = useState<EditorMedia>();
   const [localProxies, setLocalProxies] = useState<Record<string, string>>({});
@@ -196,61 +205,80 @@ function ProjectEditor() {
   const aspectRatio = project?.aspectRatio;
   const projectFps = project?.fps;
   const recoveryKey = `cinakey.timelineRecovery.${projectId}`;
-  const load = useCallback(async () => {
-    if (!projectId || !aspectRatio || !projectFps || loaded.current) return;
+  const workspaceReady = workspaceState?.migrated;
+  const workspaceKnown = workspaceState !== undefined;
+  const load = useCallback(() => {
+    if (
+      !projectId ||
+      !aspectRatio ||
+      !projectFps ||
+      loaded.current ||
+      !workspaceReady
+    )
+      return;
     loaded.current = true;
-    setLoadError(null);
-    try {
-      const result = await getTimelineContent({
-        projectId: projectId as never,
-      });
-      if (!mounted.current) return;
-      let next =
-        result.document ??
-        createEmptyTimeline({ id: projectId, aspectRatio, fps: projectFps });
-      next = recomputeTimelineDuration(next);
-      lastSavedHash.current = documentHash(next);
-      tipIdRef.current = result.version?._id ?? null;
-      let recovered = false;
-      try {
-        const raw = localStorage.getItem(recoveryKey);
-        if (raw) {
-          const draft = JSON.parse(raw) as { document: TimelineDocument };
-          const candidate = assertTimelineDocument(draft.document);
-          if (
-            candidate.project.id === projectId &&
-            documentHash(candidate) !== documentHash(next)
-          ) {
-            const restore = await confirm({
-              title: "Recover unsaved edits?",
-              description:
-                "This browser has a local draft from an interrupted session.",
-              confirmLabel: "Recover",
-            });
-            if (restore) {
-              next = candidate;
-              recovered = true;
-            } else localStorage.removeItem(recoveryKey);
+    return getTimelineContent({ projectId: projectId as never })
+      .then(async (result) => {
+        if (!mounted.current) return;
+        setLoadError(null);
+        let next =
+          result.document ??
+          createEmptyTimeline({ id: projectId, aspectRatio, fps: projectFps });
+        next = recomputeTimelineDuration(next);
+        lastSavedHash.current = documentHash(next);
+        tipIdRef.current = result.version?._id ?? null;
+        let recovered = false;
+        try {
+          const raw = localStorage.getItem(recoveryKey);
+          if (raw) {
+            const draft = JSON.parse(raw) as { document: TimelineDocument };
+            const candidate = assertTimelineDocument(draft.document);
+            if (
+              candidate.project.id === projectId &&
+              documentHash(candidate) !== documentHash(next)
+            ) {
+              const restore = await confirm({
+                title: "Recover unsaved edits?",
+                description:
+                  "This browser has a local draft from an interrupted session.",
+                confirmLabel: "Recover",
+              });
+              if (restore) {
+                next = candidate;
+                recovered = true;
+              } else localStorage.removeItem(recoveryKey);
+            }
           }
+        } catch {
+          /* Server copy remains authoritative if recovery storage is unavailable. */
         }
-      } catch {
-        /* Server copy remains authoritative if recovery storage is unavailable. */
-      }
-      if (mounted.current)
-        setHistory(replacePresent(createHistory(next), next, recovered));
-    } catch (err) {
-      loaded.current = false;
-      if (mounted.current)
-        setLoadError(err instanceof Error ? err.message : "Failed to load");
-    }
+        if (mounted.current)
+          setHistory(replacePresent(createHistory(next), next, recovered));
+      })
+      .catch((err) => {
+        loaded.current = false;
+        if (mounted.current)
+          setLoadError(err instanceof Error ? err.message : "Failed to load");
+      });
   }, [
     getTimelineContent,
+    workspaceReady,
     projectId,
     aspectRatio,
     projectFps,
     recoveryKey,
     confirm,
   ]);
+  useEffect(() => {
+    if (projectId && workspaceKnown && !workspaceReady)
+      void ensureWorkspace({ projectId: projectId as never }).catch((error) =>
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Could not initialize workspace",
+        ),
+      );
+  }, [projectId, workspaceKnown, workspaceReady, ensureWorkspace]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -282,25 +310,7 @@ function ProjectEditor() {
   useEffect(() => {
     const canvas = canvasElement;
     if (!canvas || !doc) return;
-    if (!engineRef.current || engineCanvas.current !== canvas) {
-      engineRef.current?.dispose();
-      engineRef.current = null;
-      engineCanvas.current = canvas;
-      try {
-        engineRef.current = new PlaybackEngine(canvas);
-      } catch (error) {
-        setPreviewError(
-          error instanceof Error ? error.message : "Preview could not start",
-        );
-        return;
-      }
-      engineRef.current.subscribe((s) => {
-        setPlayheadSec(s.currentSec);
-        setPlaying(s.playing);
-        setPreviewError(s.error ?? null);
-        setPreviewLoading(s.loading ?? false);
-      });
-    }
+    if (!engineRef.current) return;
     engineRef.current.setDocument(doc, playbackUrls);
     if (pendingSeek.current !== null) {
       engineRef.current.seek(pendingSeek.current);
@@ -315,7 +325,6 @@ function ProjectEditor() {
     return () => {
       engineRef.current?.dispose();
       engineRef.current = null;
-      engineCanvas.current = null;
     };
   }, []);
 
@@ -491,71 +500,6 @@ function ProjectEditor() {
     return () => window.removeEventListener("keydown", onKey);
   }, [apply, markIn, playheadSec, selectedClipId]);
 
-  const handleAssemble = async () => {
-    if (!project || !projectId || !assembleRows) return;
-    const hasClips = doc?.tracks.some((t) => t.clips.length > 0);
-    if (hasClips) {
-      const ok = await confirm({
-        title: "Replace timeline?",
-        description:
-          "Replace the current timeline with a new rough cut? Your saved versions remain in History.",
-        confirmLabel: "Replace",
-      });
-      if (!ok) return;
-    }
-
-    let dialogueByLineId: Record<string, AssembleDialogueLine> | undefined;
-    try {
-      const script = await getScriptContent({ projectId: projectId as never });
-      if (script.document) {
-        dialogueByLineId = {};
-        for (const scene of script.document.scenes) {
-          for (const beat of scene.beats) {
-            for (const line of beat.lines) {
-              dialogueByLineId[line.id] = {
-                id: line.id,
-                characterName: line.characterName,
-                dialogue: line.dialogue,
-              };
-            }
-          }
-        }
-      }
-    } catch {
-      /* captions optional */
-    }
-
-    const assembled = assembleFromShotList({
-      project: {
-        id: projectId,
-        aspectRatio: project.aspectRatio,
-        fps: project.fps,
-      },
-      parentFileId: tip?.timelineFileId,
-      dialogueByLineId,
-      shots: assembleRows.map((row) => ({
-        shotId: row.shotId,
-        sceneOrder: row.sceneOrder,
-        shotOrder: row.shotOrder,
-        durationSec: row.durationSec,
-        dialogueLineId: row.dialogueLineId,
-        dialogue: row.dialogue,
-        take: {
-          takeId: row.take.takeId,
-          assetId: row.take.assetId,
-          proxyAssetId: row.take.proxyAssetId,
-          trimStartSec: row.take.trimStartSec,
-          trimEndSec: row.take.trimEndSec,
-          mediaDurationSec: row.take.mediaDurationSec,
-        },
-      })),
-    });
-    setHistory(replacePresent(createHistory(assembled), assembled, true));
-    tipIdRef.current = tip?._id ?? null;
-    setPlayheadSec(0);
-    engineRef.current?.seek(0);
-  };
-
   const restoreVersion = async (versionId: string) => {
     if (!projectId) return;
     const result = await getTimelineContent({
@@ -689,7 +633,30 @@ function ProjectEditor() {
     }
   }
   if (project === undefined || history === null) {
-    return <p className="text-sm text-zinc-500">Loading editor…</p>;
+    return loadError ? (
+      <div role="alert">
+        {loadError}
+        <Button
+          onClick={() => {
+            setLoadError(null);
+            if (projectId)
+              void ensureWorkspace({ projectId: projectId as never })
+                .then(() => load())
+                .catch((error) =>
+                  setLoadError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not initialize workspace",
+                  ),
+                );
+          }}
+        >
+          Retry loading project
+        </Button>
+      </div>
+    ) : (
+      <p className="text-sm text-zinc-500">Loading editor…</p>
+    );
   }
   if (project === null) {
     return (
@@ -760,6 +727,26 @@ function ProjectEditor() {
         )}
         onPreview={() => engineRef.current?.pause()}
         onInsert={insert}
+        onInsertMany={(media) => {
+          const ids = media.map(() => newTimelineId("clip"));
+          apply((current) => {
+            let next = current;
+            let cursor = playheadSec;
+            for (const [index, item] of media.entries()) {
+              const inserted = insertMedia(
+                next,
+                { ...item, startSec: cursor },
+                playheadSec,
+                ids[index],
+              );
+              next = inserted.doc;
+              cursor += item.durationSec;
+            }
+            return next;
+          });
+          setSelectedClipId(ids[0] ?? null);
+          pendingSeek.current = playheadSec;
+        }}
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
             <div className="flex items-center gap-3">
@@ -802,20 +789,6 @@ function ProjectEditor() {
                 onClick={() => setHistory((h) => (h ? redo(h) : h))}
               >
                 Redo
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!assembleRows || assembleRows.length === 0}
-                title={
-                  !assembleRows || assembleRows.length === 0
-                    ? "Add footage or choose takes to assemble."
-                    : undefined
-                }
-                onClick={() => void handleAssemble()}
-              >
-                Assemble chosen takes
               </Button>
               <Button
                 type="button"
@@ -911,10 +884,7 @@ function ProjectEditor() {
         }
         viewer={
           <>
-            <canvas
-              ref={setCanvasElement}
-              aria-label="Timeline video preview"
-            />
+            <canvas ref={bindCanvas} aria-label="Timeline video preview" />
             {(() => {
               const hasClips = doc?.tracks.some((track) => track.clips.length);
               const visible = doc?.tracks.some(
@@ -953,7 +923,10 @@ function ProjectEditor() {
                           setPreviewError(null);
                           if (engineRef.current)
                             engineRef.current.seek(playheadSec);
-                          else setPreviewRetry((value) => value + 1);
+                          else {
+                            bindCanvas(canvasElement);
+                            setPreviewRetry((value) => value + 1);
+                          }
                         }}
                       >
                         Retry preview
@@ -1025,10 +998,6 @@ function ProjectEditor() {
             onChange={(patch) => {
               if (!selectedClipId) return;
               apply((d) => updateClip(d, selectedClipId, patch));
-            }}
-            onSwapTake={(take) => {
-              if (!selectedClipId) return;
-              apply((d) => swapTakeOnClip(d, selectedClipId, take));
             }}
             onDelete={() => {
               if (!selectedClipId) return;

@@ -2,20 +2,14 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { requireProjectAccess } from "./lib/access";
-import {
-  markBlockoutStaleForScriptPrompt,
-  markScriptPromptsStaleForAssetSheet,
-  markSheetsStaleForStyleChange,
-} from "./lib/promptSheetDeps";
 import { PROMPT_TEMPLATE_VERSION, isAssetSheetType } from "./lib/promptRender";
+import { markSheetsStaleForStyleChange } from "./lib/promptSheetDeps";
 
 const typeValidator = v.union(
   v.literal("character"),
   v.literal("creature"),
   v.literal("environment"),
   v.literal("product"),
-  v.literal("script"),
-  v.literal("blockout"),
 );
 
 const statusValidator = v.union(
@@ -57,7 +51,7 @@ export const listTips = query({
       _id: sheet._id,
       _creationTime: sheet._creationTime,
       entityId: sheet.entityId,
-      sequenceId: sheet.sequenceId,
+
       type: sheet.type,
       status: sheet.status,
       version: sheet.version,
@@ -123,7 +117,7 @@ export const insertTip = internalMutation({
     projectId: v.id("projects"),
     type: typeValidator,
     entityId: v.optional(v.id("entities")),
-    sequenceId: v.optional(v.id("sequences")),
+
     structuredFileId: v.id("_storage"),
     renderedText: v.optional(v.string()),
     renderedFileId: v.optional(v.id("_storage")),
@@ -131,16 +125,7 @@ export const insertTip = internalMutation({
     isCustom: v.boolean(),
     parentId: v.optional(v.id("promptSheets")),
     version: v.number(),
-    referenceMap: v.optional(
-      v.array(
-        v.object({
-          imageN: v.number(),
-          entityId: v.id("entities"),
-        }),
-      ),
-    ),
-    sourceAssetSheetIds: v.optional(v.array(v.id("promptSheets"))),
-    sourceScriptPromptId: v.optional(v.id("promptSheets")),
+
     demoteTipId: v.optional(v.id("promptSheets")),
   },
   handler: async (ctx, args) => {
@@ -152,7 +137,7 @@ export const insertTip = internalMutation({
       projectId: args.projectId,
       type: args.type,
       entityId: args.entityId,
-      sequenceId: args.sequenceId,
+
       structuredFileId: args.structuredFileId,
       renderedText: args.renderedText,
       renderedFileId: args.renderedFileId,
@@ -161,9 +146,7 @@ export const insertTip = internalMutation({
       isCustom: args.isCustom,
       parentId: args.parentId,
       version: args.version,
-      referenceMap: args.referenceMap,
-      sourceAssetSheetIds: args.sourceAssetSheetIds,
-      sourceScriptPromptId: args.sourceScriptPromptId,
+
       isTip: true,
       createdAt: now,
       updatedAt: now,
@@ -188,20 +171,6 @@ export const markStyleStale = internalMutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     return await markSheetsStaleForStyleChange(ctx, args.projectId);
-  },
-});
-
-export const markAssetDependentsStale = internalMutation({
-  args: { promptSheetId: v.id("promptSheets") },
-  handler: async (ctx, args) => {
-    return await markScriptPromptsStaleForAssetSheet(ctx, args.promptSheetId);
-  },
-});
-
-export const markScriptDependentsStale = internalMutation({
-  args: { promptSheetId: v.id("promptSheets") },
-  handler: async (ctx, args) => {
-    return await markBlockoutStaleForScriptPrompt(ctx, args.promptSheetId);
   },
 });
 
@@ -304,147 +273,7 @@ export const patchEntityKindInternal = internalMutation({
 });
 
 /** Pipeline summary for the Copilot tab. */
-export const pipelineSummary = query({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
-    const tips = await ctx.db
-      .query("promptSheets")
-      .withIndex("by_project_tip", (q) =>
-        q.eq("projectId", args.projectId).eq("isTip", true),
-      )
-      .collect();
-    const sequences = await ctx.db
-      .query("sequences")
-      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
-      .collect();
-    const project = await ctx.db.get(args.projectId);
-    const assetSheets = tips.filter((t) => isAssetSheetType(t.type));
-    const scriptSheets = tips.filter((t) => t.type === "script");
-    const blockoutSheets = tips.filter((t) => t.type === "blockout");
-    const gptCreditsPerImage = 10;
-    const estimatedAssetCredits =
-      assetSheets.filter(
-        (s) => s.status === "draft" || s.status === "out_of_date",
-      ).length * gptCreditsPerImage;
-
-    return {
-      story: {
-        hasBrief: Boolean(project?.brief?.logline),
-        logline: project?.brief?.logline ?? null,
-      },
-      assetSheets,
-      scriptSheets,
-      blockoutSheets,
-      sequences,
-      estimatedAssetCredits,
-    };
-  },
-});
-
 export type PromptSheetDoc = Doc<"promptSheets">;
-
-/** Tip script prompt sheet for a sequence (part). */
-export const getTipForSequence = query({
-  args: { sequenceId: v.id("sequences") },
-  handler: async (ctx, args) => {
-    const sequence = await ctx.db.get(args.sequenceId);
-    if (sequence === null) return null;
-    await requireProjectAccess(ctx, sequence.projectId);
-    if (sequence.scriptPromptId) {
-      const tip = await ctx.db.get(sequence.scriptPromptId);
-      if (tip?.isTip && tip.type === "script") return tip;
-    }
-    const tips = await ctx.db
-      .query("promptSheets")
-      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
-      .collect();
-    return (
-      tips
-        .filter((t) => t.isTip && t.type === "script")
-        .sort((a, b) => b.version - a.version)[0] ?? null
-    );
-  },
-});
-
-/** Ordered script parts (sequences) with tip + previz + stale flags. */
-export const listScriptParts = query({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
-    const sequences = await ctx.db
-      .query("sequences")
-      .withIndex("by_project_order", (q) => q.eq("projectId", args.projectId))
-      .collect();
-    const tips = await ctx.db
-      .query("promptSheets")
-      .withIndex("by_project_tip", (q) =>
-        q.eq("projectId", args.projectId).eq("isTip", true),
-      )
-      .collect();
-    return sequences.map((seq, i) => {
-      const scriptTip =
-        (seq.scriptPromptId
-          ? tips.find((t) => t._id === seq.scriptPromptId)
-          : undefined) ??
-        tips.find((t) => t.type === "script" && t.sequenceId === seq._id);
-      const blockoutTip = tips.find(
-        (t) => t.type === "blockout" && t.sequenceId === seq._id,
-      );
-      const scriptChanged =
-        !blockoutTip ||
-        blockoutTip.status === "out_of_date" ||
-        blockoutTip.status === "draft" ||
-        (scriptTip != null &&
-          blockoutTip.sourceScriptPromptId !== undefined &&
-          blockoutTip.sourceScriptPromptId !== scriptTip._id);
-      return {
-        sequenceId: seq._id,
-        order: seq.order,
-        label: seq.title?.trim() || `Part ${i + 1}`,
-        durationSec: seq.durationSec,
-        previzAssetId: seq.previzAssetId ?? null,
-        scriptTipId: scriptTip?._id ?? null,
-        scriptVersion: scriptTip?.version ?? null,
-        scriptStatus: scriptTip?.status ?? null,
-        renderedText: scriptTip?.renderedText ?? null,
-        referenceMap: scriptTip?.referenceMap ?? [],
-        blockoutTipId: blockoutTip?._id ?? null,
-        blockoutStatus: blockoutTip?.status ?? null,
-        scriptChanged,
-        shotIds: seq.shotIds,
-        /** A staging plan is stored, so "Rebuild from saved plan" can run free. */
-        hasStagingPlan: Boolean(seq.stagingPlanFileId),
-      };
-    });
-  },
-});
-
-/** Version history for a sequence's script prompt (newest first). */
-export const listVersionsForSequence = query({
-  args: { sequenceId: v.id("sequences") },
-  handler: async (ctx, args) => {
-    const sequence = await ctx.db.get(args.sequenceId);
-    if (sequence === null) return [];
-    await requireProjectAccess(ctx, sequence.projectId);
-    const rows = await ctx.db
-      .query("promptSheets")
-      .withIndex("by_sequence", (q) => q.eq("sequenceId", args.sequenceId))
-      .collect();
-    return rows
-      .filter((t) => t.type === "script")
-      .sort((a, b) => b.version - a.version)
-      .map((t) => ({
-        _id: t._id,
-        version: t.version,
-        status: t.status,
-        isTip: t.isTip,
-        isCustom: t.isCustom,
-        createdAt: t.createdAt,
-        preview: (t.renderedText ?? "").slice(0, 120),
-      }));
-  },
-});
 
 /** Tip asset prompt sheet for an entity, with resolved rendered text. */
 export const getTipForEntity = query({

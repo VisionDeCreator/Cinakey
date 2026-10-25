@@ -7,8 +7,8 @@ import type {
   TimelineDocument,
   TimelineTrack,
 } from "@cinakey/shared";
-import type { MediaCache } from "./MediaCache";
 import { audioUrlForClip, type MediaUrlMap } from "../mediaUrls";
+import type { MediaCache } from "./MediaCache";
 
 const DUCK_GAIN = 0.25;
 const DUCK_RAMP_SEC = 0.05;
@@ -110,9 +110,7 @@ export class AudioGraph {
         const url = audioUrlForClip(clip.source, urls);
         if (!url) continue;
         const assetId =
-          clip.source.type === "take" || clip.source.type === "asset"
-            ? clip.source.assetId
-            : null;
+          clip.source.type === "asset" ? clip.source.assetId : null;
         if (!assetId) continue;
 
         const buffer = decoded.get(assetId);

@@ -1,30 +1,30 @@
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/use-confirm";
+import { useAssetUpload } from "@/features/assets/useAssetUpload";
+import { BlockoutPage } from "@/features/blockout/BlockoutPage";
+import { resolveMediaDuration } from "@/features/edit/insertMedia";
+import { beginMediaPointerDrag } from "@/features/edit/mediaDrag";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import {
   COST_CONFIRM_THRESHOLD_CREDITS,
   type TimelineClip,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
+import { Film, Image, Link2, Music, Plus, Star, Upload } from "lucide-react";
 import {
   useCallback,
   useEffect,
-  useRef,
   useMemo,
+  useRef,
   useState,
-  type ReactNode,
   type CSSProperties,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/components/ConfirmProvider";
-import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { ShotProduction } from "@/features/shots/ShotProduction";
-import { BlockoutPage } from "@/features/blockout/BlockoutPage";
-import { Film, Image, Link2, Music, Plus, Star, Upload } from "lucide-react";
-import { beginMediaPointerDrag } from "@/features/edit/mediaDrag";
-import { StudioScript } from "./StudioScript";
 import { MediaPreview } from "./MediaPreview";
 import "./studio.css";
+import { StudioScript } from "./StudioScript";
 
 export type StudioInsert = {
   assetId: string;
@@ -32,7 +32,6 @@ export type StudioInsert = {
   durationSec: number;
   inSec: number;
   outSec: number;
-  shotId?: string;
   startSec?: number;
   trackId?: string;
 };
@@ -44,6 +43,7 @@ export function StudioWorkspace({
   selectedClip,
   hasTimelineClips = false,
   onInsert,
+  onInsertMany,
   onPreview,
 }: {
   toolbar: ReactNode;
@@ -53,46 +53,54 @@ export function StudioWorkspace({
   selectedClip: TimelineClip | null;
   hasTimelineClips?: boolean;
   onInsert: (media: StudioInsert) => void;
+  onInsertMany?: (media: StudioInsert[]) => void;
   onPreview: () => void;
 }) {
   const { projectId = "" } = useParams();
-  const [params, setParams] = useSearchParams();
-  const parts = useQuery(api.promptSheets.listScriptParts, {
+  const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
   });
+  const ensure = useAction(api.workspace.ensure);
+  const [migrationAttempt, setMigrationAttempt] = useState(0);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void ensure({ projectId: projectId as never }).catch((error) => {
+      if (!cancelled)
+        setMigrationError(
+          error instanceof Error ? error.message : "Project migration failed",
+        );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, ensure, migrationAttempt]);
+  const [durationSec, setDurationSec] = useState(5);
+  const [workspaceParams, setWorkspaceParams] = useSearchParams();
+  const staging =
+    workspace?.staging.find(
+      (item) => item._id === workspaceParams.get("staging"),
+    ) ?? workspace?.staging[0];
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
   const urls = useQuery(api.storage.listProjectAssetUrls, {
     projectId: projectId as never,
   });
-  const footage = useQuery(api.shotGeneration.listProjectVideos, {
+  const footage = useQuery(api.workspace.videos, {
     projectId: projectId as never,
   });
-  const shots = useQuery(api.shots.listByProject, {
-    projectId: projectId as never,
-  });
-  const spend = useQuery(api.shotGeneration.getProjectSpend, {
+  const spend = useQuery(api.workspace.spend, {
     projectId: projectId as never,
   });
   const bindings = useQuery(api.references.list, {
     projectId: projectId as never,
   });
-  const saveScript = useAction(api.promptSheets.saveScriptPromptText);
-  const generate = useAction(api.shotGeneration.startSequenceGeneration);
-  const chooseMaster = useMutation(api.shotGeneration.chooseMaster);
+  const generate = useAction(api.workspace.generate);
   const extend = useAction(api.generation.startGeneration);
   const rename = useMutation(api.assets.update);
   const star = useMutation(api.assets.setStarred);
   const confirm = useConfirm();
   const { uploadFiles, uploads } = useAssetUpload(projectId);
-  const requestedSequence =
-    params.get("sequence") ??
-    params.get("sequenceId") ??
-    shots?.find((shot) => shot._id === params.get("shotId"))?.sequenceId;
-  const active =
-    parts?.find((p) => p.sequenceId === requestedSequence) ??
-    parts?.[0] ??
-    null;
-  const sequenceId = active?.sequenceId ?? null;
+  const [assemblyIds, setAssemblyIds] = useState<string[]>([]);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const compareRef = useRef<HTMLDivElement>(null);
   const [sourceId, setSourceId] = useState<string | null>(null);
@@ -100,7 +108,6 @@ export function StudioWorkspace({
     "edit",
   );
   const [library, setLibrary] = useState<"references" | "media">("media");
-  const [allGenerations, setAllGenerations] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -113,7 +120,9 @@ export function StudioWorkspace({
   );
   const [inSec, setInSec] = useState(0);
   const [outSec, setOutSec] = useState(0);
-  const [inspectorView, setInspectorView] = useState<"scene" | "clip">("scene");
+  const [inspectorView, setInspectorView] = useState<"script" | "clip">(
+    "script",
+  );
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState(() => {
     const defaults = {
@@ -236,26 +245,16 @@ export function StudioWorkspace({
   }
   const scriptSave = useRef<(() => Promise<boolean>) | null>(null);
   const dirtyChanged = useCallback((value: boolean) => setDirty(value), []);
-  const estimate = useQuery(
-    api.generation.estimateCost,
-    active
-      ? {
-          adapterId: "seedance-2.5",
-          kind: "text-to-video",
-          input: {
-            durationSec: active.durationSec,
-            resolution,
-            prompt: "sequence",
-          },
-        }
-      : "skip",
-  );
+  const estimate = useQuery(api.generation.estimateCost, {
+    adapterId: "seedance-2.5",
+    kind: "text-to-video",
+    input: {
+      durationSec,
+      resolution,
+      prompt: "video",
+    },
+  });
   const videos = useMemo(() => footage?.videos ?? [], [footage]);
-  const masters = useQuery(
-    api.shotGeneration.listSequenceMasters,
-    sequenceId ? { sequenceId: sequenceId as never } : "skip",
-  );
-  const sourceMaster = masters?.find((m) => m.assetId === sourceId);
   const source = assets?.find((a) => a._id === sourceId);
   const sourceVideo = videos.find((a) => a.assetId === sourceId);
   const sourceDuration = sourceId
@@ -263,15 +262,12 @@ export function StudioWorkspace({
     : undefined;
   const sourceUrl =
     sourceVideo?.url ?? urls?.find((u) => u.assetId === sourceId)?.url ?? null;
-  const jobs = footage?.jobs.filter((j) => j.sequenceId === sequenceId) ?? [];
+  const jobs = footage?.jobs ?? [];
   const running = jobs.some((j) =>
     ["queued", "submitted", "running"].includes(j.status),
   );
-  const scopedVideos =
-    allGenerations || !sequenceId
-      ? videos
-      : videos.filter((v) => v.sequenceId === sequenceId || !v.sequenceId);
-  const legacySourceSelected = useRef<string | null>(null);
+  const scopedVideos = videos;
+  const initialSourceSelected = useRef<string | null>(null);
   useEffect(() => {
     // Restore a project with footage but no script directly into a useful viewer.
     if (
@@ -279,101 +275,25 @@ export function StudioWorkspace({
       !hasTimelineClips &&
       videos[0] &&
       !selectedClip &&
-      legacySourceSelected.current !== projectId
+      initialSourceSelected.current !== projectId
     ) {
-      legacySourceSelected.current = projectId;
+      initialSourceSelected.current = projectId;
       setSourceId(videos[0].assetId);
       setInSec(0);
       setOutSec(videos[0].durationSec ?? 0);
       setView("source");
     }
   }, [videos, sourceId, selectedClip, projectId, hasTimelineClips]);
-  const followedClip = useRef<string | null>(null);
-  useEffect(() => {
-    if (!selectedClip) {
-      followedClip.current = null;
-      return;
-    }
-    if (followedClip.current === selectedClip.id || !shots || !footage) return;
-    const assetId =
-      selectedClip.source.type === "text" ? null : selectedClip.source.assetId;
-    const shotId =
-      selectedClip.source.type === "take"
-        ? selectedClip.source.shotId
-        : selectedClip.linkedShotId;
-    const target =
-      shots.find((s) => s._id === shotId)?.sequenceId ??
-      videos.find((v) => v.assetId === assetId)?.sequenceId;
-    let cancelled = false;
-    const follow = async () => {
-      if (
-        target &&
-        target !== sequenceId &&
-        scriptSave.current &&
-        !(await scriptSave.current())
-      ) {
-        if (!cancelled)
-          setError(
-            "Save this scene's draft before switching to the clip's scene.",
-          );
-        return;
-      }
-      if (cancelled) return;
-      followedClip.current = selectedClip.id;
-      if (target && target !== sequenceId)
-        setParams(
-          (old) => {
-            const next = new URLSearchParams(old);
-            next.set("sequence", target);
-            return next;
-          },
-          { replace: true },
-        );
+  const selectedId = selectedClip?.id ?? null;
+  const [lastSelection, setLastSelection] = useState(selectedId);
+  if (lastSelection !== selectedId) {
+    setLastSelection(selectedId);
+    if (selectedId) {
       setView("edit");
       setInspectorView("clip");
-    };
-    void follow();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedClip, shots, footage, videos, sequenceId, setParams]);
-
-  async function selectScene(id: string) {
-    if (scriptSave.current && !(await scriptSave.current())) return;
-    setParams(
-      (old) => {
-        const next = new URLSearchParams(old);
-        next.set("sequence", id);
-        return next;
-      },
-      { replace: true },
-    );
-    setInspectorView("scene");
-    setDirty(false);
-    setUseStaging(false);
-    setCompareIds([]);
-    const first = videos.find((v) => v.sequenceId === id);
-    if (first) preview(first.assetId);
-    else {
-      setSourceId(null);
-      setView("source");
-      onPreview();
     }
   }
   async function preview(id: string) {
-    const target = videos.find((v) => v.assetId === id)?.sequenceId;
-    if (target && target !== sequenceId) {
-      if (scriptSave.current && !(await scriptSave.current())) return;
-      setParams(
-        (old) => {
-          const next = new URLSearchParams(old);
-          next.set("sequence", target);
-          return next;
-        },
-        { replace: true },
-      );
-      setInspectorView("scene");
-    }
     const asset = assets?.find((a) => a._id === id);
     setSourceId(id);
     setInSec(0);
@@ -414,7 +334,6 @@ export function StudioWorkspace({
         adapterId: "seedance-2.5",
         kind: "extend",
         prompt: "Continue the motion seamlessly.",
-        sequenceId: sourceVideo.sequenceId ?? undefined,
         parentAssetIds: [sourceVideo.assetId],
         input: { durationSec: 5 },
       });
@@ -428,17 +347,14 @@ export function StudioWorkspace({
   const credits = estimate?.credits ?? 0;
   const overCap = spend?.remaining != null && credits > spend.remaining;
   const validDuration =
-    active &&
-    Number.isInteger(active.durationSec) &&
-    active.durationSec >= 4 &&
-    active.durationSec <= 30;
+    Number.isInteger(durationSec) && durationSec >= 4 && durationSec <= 30;
   async function startGeneration() {
-    if (!active || busy || running || !validDuration || overCap) return;
+    if (busy || running || !validDuration || overCap) return;
     if (scriptSave.current && !(await scriptSave.current())) return;
     if (
       credits >= COST_CONFIRM_THRESHOLD_CREDITS &&
       !(await confirm({
-        title: "Generate new take?",
+        title: "Generate video?",
         description: `Approximately ${credits} credits. Previous footage and timeline edits are preserved.`,
         confirmLabel: "Generate",
       }))
@@ -448,9 +364,11 @@ export function StudioWorkspace({
     setError(null);
     try {
       await generate({
-        sequenceId: active.sequenceId as never,
+        projectId: projectId as never,
+        durationSec,
         resolution,
-        usePrevizAsReference: useStaging || undefined,
+        stagingId:
+          useStaging && staging?.previzAssetId ? staging._id : undefined,
       });
       setNotice("Generation started. You can keep editing while it runs.");
     } catch (e) {
@@ -459,23 +377,40 @@ export function StudioWorkspace({
       setBusy(false);
     }
   }
-  async function createScene() {
-    if (busy) return;
-    if (scriptSave.current && !(await scriptSave.current())) return;
+  async function insertSelected() {
+    if (!onInsertMany || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const created = await saveScript({
-        projectId: projectId as never,
-        newPart: true,
-        title: `Scene ${(parts?.length ?? 0) + 1}`,
-        promptText:
-          "SHOTS (5 seconds total, multi-shot, 16:9):\nShot 1 (0.0s–5.0s) — Wide shot: opening beat.\n\nTECHNICAL:\n16:9, 24fps.",
-        applyShots: true,
-      });
-      await selectScene(created.sequenceId);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create scene");
+      const selected: StudioInsert[] = [];
+      for (const id of assemblyIds) {
+        const asset = assets?.find((asset) => asset._id === id);
+        if (!asset) continue;
+        const duration =
+          mediaDurations[id] ??
+          asset.durationSec ??
+          (await resolveMediaDuration(
+            videos.find((video) => video.assetId === id)?.url ?? "",
+            "video",
+          ));
+        selected.push({
+          assetId: id,
+          type: "video",
+          durationSec: duration,
+          inSec: 0,
+          outSec: duration,
+        });
+      }
+      onInsertMany(selected);
+      setNotice("Selected videos inserted in selection order.");
+      setAssemblyIds([]);
+      setView("edit");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not insert selected videos",
+      );
     } finally {
       setBusy(false);
     }
@@ -498,7 +433,6 @@ export function StudioWorkspace({
       durationSec: outSec - inSec,
       inSec,
       outSec,
-      shotId: sourceVideo?.shotId ?? undefined,
     });
     setNotice(`${source.name} added to the timeline. The source is preserved.`);
     setView("edit");
@@ -559,7 +493,7 @@ export function StudioWorkspace({
       <aside
         hidden={!layout.library}
         className="studio-library"
-        aria-label="Scenes and project library"
+        aria-label="Project library"
         onDragOver={(event) => {
           if (event.dataTransfer.types.includes("Files")) {
             event.preventDefault();
@@ -579,46 +513,21 @@ export function StudioWorkspace({
       >
         {divider("left")}
         <div className="studio-section-heading">
-          <h2>Scenes</h2>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label="Add scene"
-            disabled={busy}
-            onClick={() => void createScene()}
-          >
-            <Plus />
-          </Button>
+          <h2>Project media</h2>
         </div>
-        <div className="studio-scenes">
-          {parts?.map((part, i) => (
-            <button
-              key={part.sequenceId}
-              className={`studio-scene ${sequenceId === part.sequenceId ? "selected" : ""}`}
-              onClick={() => void selectScene(part.sequenceId)}
+        {migrationError && (
+          <p role="alert">
+            {migrationError}
+            <Button
+              onClick={() => {
+                setMigrationError(null);
+                setMigrationAttempt((value) => value + 1);
+              }}
             >
-              <span className="studio-scene-number">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <span>
-                <strong>{part.label}</strong>
-                <small>
-                  {part.durationSec}s ·{" "}
-                  {
-                    videos.filter((v) => v.sequenceId === part.sequenceId)
-                      .length
-                  }{" "}
-                  generations
-                </small>
-              </span>
-            </button>
-          ))}
-          {parts?.length === 0 && (
-            <p className="studio-muted">
-              Start a scene, or import footage to edit directly.
-            </p>
-          )}
-        </div>
+              Retry migration
+            </Button>
+          </p>
+        )}
         <div className="studio-library-tabs">
           <button
             aria-pressed={library === "references"}
@@ -722,9 +631,9 @@ export function StudioWorkspace({
             <div>
               <h2>
                 {view === "source"
-                  ? (source?.name ?? active?.label ?? "Viewer")
+                  ? (source?.name ?? "Viewer")
                   : view === "staging"
-                    ? `${active?.label ?? "Scene"} · Staging`
+                    ? "Staging"
                     : "Timeline preview"}
               </h2>
               <span className="studio-muted">
@@ -794,7 +703,9 @@ export function StudioWorkspace({
               </Button>
             </div>
           )}
-          <div className="studio-preview-content">
+          <div
+            className={`studio-preview-content ${view === "staging" ? "studio-preview-staging" : ""}`}
+          >
             {view === "compare" && (
               <div ref={compareRef} className="studio-compare">
                 {compareIds.map((id) => {
@@ -839,7 +750,7 @@ export function StudioWorkspace({
                 </div>
               ))}
             {view === "staging" && (
-              <div className="studio-staging">
+              <div className="studio-staging-panel">
                 <BlockoutPage />
               </div>
             )}
@@ -911,29 +822,6 @@ export function StudioWorkspace({
                   Extend +5s · ~10 cr
                 </Button>
               )}
-              {sourceMaster && sequenceId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={sourceMaster.chosen}
-                  onClick={() =>
-                    void chooseMaster({
-                      sequenceId: sequenceId as never,
-                      masterAssetId: sourceMaster.assetId,
-                    })
-                      .then(() =>
-                        setNotice(
-                          "Preferred take set for the next assembly. Existing timeline clips are unchanged.",
-                        ),
-                      )
-                      .catch((e: Error) => setError(e.message))
-                  }
-                >
-                  {sourceMaster.chosen
-                    ? "Preferred for assembly"
-                    : "Use for next assembly"}
-                </Button>
-              )}
             </div>
           )}
         </section>
@@ -947,34 +835,36 @@ export function StudioWorkspace({
               Generations{" "}
               <span className="studio-muted">{scopedVideos.length}</span>
             </h2>
-            <label className="studio-check">
-              <input
-                type="checkbox"
-                checked={allGenerations}
-                onChange={(e) => setAllGenerations(e.target.checked)}
-              />
-              All scenes
-            </label>
           </div>
-          <div className="studio-take-strip">
+          {onInsertMany && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!assemblyIds.length || busy}
+              onClick={() => void insertSelected()}
+            >
+              Add selected videos ({assemblyIds.length})
+            </Button>
+          )}
+          <div className="studio-generation-strip">
             {scopedVideos.map((video, index) => (
               <div
                 key={video.assetId}
-                className={`studio-take ${sourceId === video.assetId ? "selected" : ""}`}
+                className={`studio-generation ${sourceId === video.assetId ? "selected" : ""}`}
                 draggable={false}
                 data-media-draggable
                 onDragStart={(event) => event.preventDefault()}
                 onPointerDown={(event) => {
                   if (
                     !(event.target as HTMLElement).closest(
-                      ".studio-compare-button, .studio-favourite",
+                      ".studio-compare-button, .studio-favourite, input, label",
                     )
                   )
                     beginMediaPointerDrag(event, video.assetId);
                 }}
               >
                 <button
-                  className="studio-take-preview"
+                  className="studio-generation-preview"
                   onClick={() => preview(video.assetId)}
                   aria-label={`Preview ${video.name}`}
                 >
@@ -991,15 +881,34 @@ export function StudioWorkspace({
                   )}
                   <strong>
                     {video.generated
-                      ? `Take ${String(scopedVideos.length - index).padStart(2, "0")}`
+                      ? `Video ${String(scopedVideos.length - index).padStart(2, "0")}`
                       : video.name}
                   </strong>
                   <small>
                     {video.durationSec ?? mediaDurations[video.assetId] ?? "?"}s
                     · {video.generated ? "Generated" : "Imported"}
-                    {!video.sequenceId ? " · Unlinked" : ""}
                   </small>
                 </button>
+                {onInsertMany && (
+                  <label className="studio-check">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${video.name} for editing`}
+                      checked={assemblyIds.includes(video.assetId)}
+                      onChange={(event) =>
+                        setAssemblyIds((ids) =>
+                          event.target.checked
+                            ? [...ids, video.assetId]
+                            : ids.filter((id) => id !== video.assetId),
+                        )
+                      }
+                    />
+                    Add to edit
+                    {assemblyIds.includes(video.assetId)
+                      ? ` · ${assemblyIds.indexOf(video.assetId) + 1}`
+                      : ""}
+                  </label>
+                )}
                 <button
                   className="studio-compare-button"
                   aria-pressed={compareIds.includes(video.assetId)}
@@ -1027,8 +936,7 @@ export function StudioWorkspace({
             ))}
             {footage && scopedVideos.length === 0 && (
               <p className="studio-muted">
-                No footage for this scene yet. Generate a take or import a
-                video.
+                No footage yet. Generate a video or import a video.
               </p>
             )}
           </div>
@@ -1039,13 +947,24 @@ export function StudioWorkspace({
               <p
                 key={job.jobId}
                 className={
-                  job.status === "failed" ? "studio-error" : "studio-muted"
+                  ["failed", "refunded"].includes(job.status)
+                    ? "studio-error"
+                    : "studio-muted"
                 }
               >
                 {job.submissionState === "uncertain"
                   ? "Submission needs review. Credits remain reserved; do not resubmit."
                   : `${job.status} · ${job.estimatedCostCredits} credits`}{" "}
                 · {new Date(job.createdAt).toLocaleString()}
+                {job.errorMessage && (
+                  <span className="block">{job.errorMessage}</span>
+                )}
+                {job.status === "refunded" && (
+                  <span className="block">
+                    Credits refunded. Your existing media and edit are
+                    preserved.
+                  </span>
+                )}
               </p>
             ))}
         </section>
@@ -1063,16 +982,16 @@ export function StudioWorkspace({
       <aside
         hidden={!layout.inspector}
         className="studio-inspector"
-        aria-label="Scene and clip inspector"
+        aria-label="Script and clip inspector"
       >
         {divider("right")}
         <div className="studio-inspector-tabs">
           <button
-            aria-pressed={inspectorView === "scene"}
-            onClick={() => setInspectorView("scene")}
+            aria-pressed={inspectorView === "script"}
+            onClick={() => setInspectorView("script")}
           >
             <Link2 size={14} />
-            Scene direction
+            Script & generation
           </button>
           <button
             aria-pressed={inspectorView === "clip"}
@@ -1081,26 +1000,13 @@ export function StudioWorkspace({
             Clip settings
           </button>
         </div>
-        <div hidden={inspectorView !== "scene"}>
-          {active ? (
-            <StudioScript
-              key={active.sequenceId}
-              projectId={projectId}
-              sequenceId={active.sequenceId}
-              title={active.label}
-              onDirty={dirtyChanged}
-              onValidityChange={setReferencesValid}
-              saveRef={scriptSave}
-            />
-          ) : (
-            <div className="studio-empty-inspector">
-              <p>Create a scene to write a script and connect references.</p>
-              <Button onClick={() => void createScene()} disabled={busy}>
-                <Plus />
-                Start scene
-              </Button>
-            </div>
-          )}
+        <div hidden={inspectorView !== "script"}>
+          <StudioScript
+            projectId={projectId}
+            onDirty={dirtyChanged}
+            onValidityChange={setReferencesValid}
+            saveRef={scriptSave}
+          />
           <section className="studio-generation-settings">
             <h2>Generation</h2>
             <label>
@@ -1116,17 +1022,50 @@ export function StudioWorkspace({
                 <option>1080p</option>
               </select>
             </label>
-            <p className="studio-muted">
-              {active
-                ? `${active.durationSec} seconds · ${active.label}`
-                : "Select a scene to generate"}
-            </p>
-            {active?.previzAssetId && (
+            <label>
+              Duration (seconds)
+              <input
+                aria-label="Generation duration"
+                type="number"
+                min={4}
+                max={30}
+                value={durationSec}
+                onChange={(event) => setDurationSec(Number(event.target.value))}
+              />
+            </label>
+            {workspace && workspace.staging.length > 0 && (
+              <label>
+                Staging
+                <select
+                  aria-label="Generation staging"
+                  value={staging?._id ?? ""}
+                  onChange={(event) => {
+                    const id = event.target.value;
+                    setUseStaging(false);
+                    setWorkspaceParams(
+                      (old) => {
+                        const next = new URLSearchParams(old);
+                        next.set("staging", id);
+                        return next;
+                      },
+                      { replace: true },
+                    );
+                  }}
+                >
+                  {workspace.staging.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {staging?.previzAssetId && (
               <label className="studio-check">
                 <input
                   type="checkbox"
                   checked={useStaging}
-                  onChange={(e) => setUseStaging(e.target.checked)}
+                  onChange={(event) => setUseStaging(event.target.checked)}
                 />
                 Use staging as video reference
               </label>
@@ -1148,27 +1087,20 @@ export function StudioWorkspace({
                 ? "Starting…"
                 : running
                   ? "Generating…"
-                  : `Generate new take · ${credits} cr`}
+                  : `Generate video · ${credits} cr`}
             </Button>
             <p className="studio-muted">
               {dirty
                 ? "Save the script before generating."
-                : active && !referencesValid
+                : !referencesValid
                   ? "Link unresolved or ambiguous references before generating."
                   : overCap
                     ? "Project spend cap reached."
-                    : active && !validDuration
-                      ? "Use a whole-number duration of 4–30 seconds per scene."
-                      : "Previous takes and timeline edits are preserved."}
+                    : !validDuration
+                      ? "Use a whole-number duration of 4–30 seconds per video."
+                      : "Previous videos and timeline edits are preserved."}
             </p>
           </section>
-          {sequenceId && (
-            <ShotProduction
-              projectId={projectId}
-              sequenceId={sequenceId}
-              generationBusy={running || busy}
-            />
-          )}
         </div>
         <div hidden={inspectorView !== "clip"}>{inspector}</div>
       </aside>
@@ -1176,14 +1108,8 @@ export function StudioWorkspace({
         hidden={!layout.timeline}
         className="studio-timeline"
         aria-label="Project timeline"
-        onDropCapture={() => {
-          setView("edit");
-          setInspectorView("clip");
-        }}
-        onPointerDownCapture={() => {
-          setView("edit");
-          setInspectorView("clip");
-        }}
+        onDropCapture={() => setView("edit")}
+        onPointerDownCapture={() => setView("edit")}
         onClickCapture={(e) => {
           const button = (e.target as HTMLElement).closest("button");
           if (button?.textContent?.trim() === "Play") setView("edit");

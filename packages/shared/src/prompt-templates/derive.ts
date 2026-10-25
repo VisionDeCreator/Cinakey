@@ -5,22 +5,7 @@ import type {
   CreatureSheetData,
   EnvironmentSheetData,
   ProductSheetData,
-  ScriptCastBlock,
 } from "./schemas";
-
-/** Build a script cast/location description from an approved asset sheet. */
-export function deriveCastBlockFromAssetSheet(
-  type: AssetSheetType,
-  data: AssetSheetData,
-  opts: { name: string; imageN: number; suffix?: string },
-): ScriptCastBlock {
-  return {
-    name: opts.name,
-    imageN: opts.imageN,
-    suffix: opts.suffix,
-    description: deriveDescription(type, data),
-  };
-}
 
 export function deriveDescription(
   type: AssetSheetType,
@@ -39,7 +24,10 @@ export function deriveDescription(
       const parts = [d.body, d.head, d.markings];
       if (d.gear) parts.push(d.gear.body);
       if (d.signatureDetail) parts.push(d.signatureDetail.body);
-      return parts.map((s) => s.trim()).filter(Boolean).join(" ");
+      return parts
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .join(" ");
     }
     case "environment": {
       const d = data as EnvironmentSheetData;
@@ -58,9 +46,7 @@ export function deriveDescription(
   }
 }
 
-export function deriveLocationDescription(
-  data: EnvironmentSheetData,
-): string {
+export function deriveLocationDescription(data: EnvironmentSheetData): string {
   return `${data.place} at ${data.timeOfDay}: ${data.theLand} ${data.skyAndLight} No readable text, no logos, no brand names anywhere.`;
 }
 
@@ -78,7 +64,10 @@ export function lookDevPatchFromAssetSheet(
       return {
         description: d.subjectLine,
         sheetPatch: {
-          look: [d.faceAndHair, d.moodAndColor ? `Palette: ${d.moodAndColor}` : ""]
+          look: [
+            d.faceAndHair,
+            d.moodAndColor ? `Palette: ${d.moodAndColor}` : "",
+          ]
             .map((s) => s.trim())
             .filter(Boolean)
             .join("\n\n"),

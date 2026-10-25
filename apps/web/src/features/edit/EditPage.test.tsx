@@ -1,3 +1,4 @@
+import { type TimelineDocument } from "@cinakey/shared";
 import {
   act,
   cleanup,
@@ -5,11 +6,11 @@ import {
   render,
   screen,
 } from "@testing-library/react";
+import { getFunctionName } from "convex/server";
 import { useState, type ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { getFunctionName } from "convex/server";
-import { assembleFromShotList, type TimelineDocument } from "@cinakey/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { timelineWithMedia } from "../../../../../packages/shared/test/timelineFixture";
 import { EditPage } from "./EditPage";
 
 const state = vi.hoisted(() => ({
@@ -18,14 +19,15 @@ const state = vi.hoisted(() => ({
   confirm: vi.fn(),
   document: null as unknown,
   canvases: [] as HTMLCanvasElement[],
+  previewFailures: 0,
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
     const name = getFunctionName(ref);
+    if (name === "workspace:list") return { migrated: true };
     if (name === "projects:get")
       return { _id: "p", title: "Film", aspectRatio: "16:9", fps: 24 };
-    if (name === "shotGeneration:listProjectVideos")
-      return { videos: [], jobs: [] };
+    if (name === "workspace:videos") return { videos: [], jobs: [] };
     if (name === "timelineVersions:getTip")
       return { _id: "v1", timelineFileId: "f1" };
     return [];
@@ -38,12 +40,13 @@ vi.mock("@/lib/api/hooks", () => ({
         ? state.save
         : state.get,
 }));
-vi.mock("@/components/ConfirmProvider", () => ({
+vi.mock("@/components/use-confirm", () => ({
   useConfirm: () => state.confirm,
 }));
 vi.mock("@/features/edit/engine/PlaybackEngine", () => ({
   PlaybackEngine: class {
     constructor(canvas: HTMLCanvasElement) {
+      if (state.previewFailures-- > 0) throw new Error("Preview unavailable");
       state.canvases.push(canvas);
     }
     subscribe() {}
@@ -116,18 +119,17 @@ beforeEach(() => {
     clear: () => storage.clear(),
   });
   state.canvases = [];
+  state.previewFailures = 0;
   state.get.mockReset();
   state.save.mockReset();
   state.confirm.mockReset();
-  state.document = assembleFromShotList({
+  state.document = timelineWithMedia({
     project: { id: "p", aspectRatio: "16:9", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "shot",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "take", assetId: "asset" },
+        assetId: "asset",
       },
     ],
   });
@@ -221,5 +223,22 @@ describe("safe editor persistence", () => {
     );
     expect(state.get).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Move 0" })).toBeInTheDocument();
+  });
+  it("recreates a failed playback engine when preview is retried", async () => {
+    state.previewFailures = 1;
+    mount();
+    await flush();
+    expect(
+      screen.getByText("Preview unavailable: Preview unavailable"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry preview" }));
+    await flush();
+    expect(state.canvases.at(-1)).toBe(
+      screen.getByLabelText("Timeline video preview"),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Retry preview" }),
+    ).not.toBeInTheDocument();
+    expect(state.get).toHaveBeenCalledOnce();
   });
 });

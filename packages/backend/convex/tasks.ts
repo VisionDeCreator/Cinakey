@@ -1,8 +1,8 @@
-import { appendLedgerEntry } from "./credits";
-import { v } from "convex/values";
 import { getFunctionName, type FunctionReference } from "convex/server";
-import { internalMutation } from "./_generated/server";
+import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
+import { appendLedgerEntry } from "./credits";
 
 export async function enqueueTask(
   ctx: MutationCtx,
@@ -118,26 +118,6 @@ export const retry = internalMutation({
     });
   },
 });
-/** One durable daily retention task, even when multiple workers start. */
-export const scheduleRetention = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const day = new Date().toISOString().slice(0, 10);
-    const existing = await ctx.db
-      .query("apiTaskSchedules")
-      .withIndex("by_key", (q) => q.eq("key", "retention"))
-      .unique();
-    if (existing?.lastDay === day) return;
-    await enqueueTask(ctx, 0, "takes:purgeRejectedTakes", {});
-    if (existing) await ctx.db.patch(existing._id, { lastDay: day });
-    else
-      await ctx.db.insert("apiTaskSchedules", {
-        key: "retention",
-        lastDay: day,
-      });
-  },
-});
-
 /** Recover pre-migration generation jobs or a missed dispatch, in bounded pages. */
 export const reconcileGeneration = internalMutation({
   args: {

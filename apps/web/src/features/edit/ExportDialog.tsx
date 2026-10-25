@@ -1,8 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { useMutation } from "@/lib/api/hooks";
-import { api, type Id } from "@cinakey/backend";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
+import { useMutation } from "@/lib/api/hooks";
+import { api, type Id } from "@cinakey/backend";
 import type { TimelineDocument } from "@cinakey/shared";
 import {
   TIMELINE_EXPORT_MAX_DURATION_SEC,
   TIMELINE_EXPORT_MAX_LONG_EDGE,
 } from "@cinakey/shared";
-import { evenDims } from "./mediaUrls";
-import type { MediaUrlMap } from "./mediaUrls";
+import { useEffect, useRef, useState } from "react";
 import {
   downloadBlob,
   exportCapsOk,
@@ -25,6 +23,8 @@ import {
   webCodecsExportSupported,
   type ExportProgress,
 } from "./export/exportTimeline";
+import type { MediaUrlMap } from "./mediaUrls";
+import { evenDims } from "./mediaUrls";
 
 type Props = {
   open: boolean;
@@ -35,7 +35,10 @@ type Props = {
   projectId: Id<"projects">;
 };
 
-export function ExportDialog({
+export function ExportDialog(props: Props) {
+  return props.open ? <ExportSession {...props} /> : null;
+}
+function ExportSession({
   open,
   onOpenChange,
   doc,
@@ -47,14 +50,21 @@ export function ExportDialog({
   const [supported, setSupported] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [exportError, setError] = useState<string | null>(null);
+  const error = exportError ?? exportCapsOk(doc);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    void webCodecsExportSupported().then(setSupported);
-    setError(exportCapsOk(doc));
-  }, [open, doc]);
+    let active = true;
+    void webCodecsExportSupported().then((value) => {
+      if (active) setSupported(value);
+    });
+    return () => {
+      active = false;
+      abortRef.current?.abort();
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!running) return;

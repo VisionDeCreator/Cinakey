@@ -1,5 +1,3 @@
-import { safeErrorMessage } from "../providers/errors";
-import { ConvexError, v } from "convex/values";
 import {
   auditStagedDocument,
   buildAuditRepairMessage,
@@ -12,11 +10,13 @@ import {
   type StagingIssue,
   type StagingPlan,
 } from "@cinakey/shared";
-import { internal } from "../operations";
+import { ConvexError, v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
-import { internalAction } from "../runtime/operation";
+import { requireProviderKey, useMockProviders } from "../config/env";
+import { internal } from "../operations";
 import { completeChat, type ChatMessage } from "../providers/deepseek";
-import { useMockProviders, requireProviderKey } from "../config/env";
+import { safeErrorMessage } from "../providers/errors";
+import { internalAction } from "../runtime/operation";
 import { saveJson } from "./storage";
 
 /**
@@ -58,9 +58,9 @@ export type StagingResult =
 export const generatePlan = internalAction({
   args: {
     projectId: v.id("projects"),
-    sequenceId: v.id("sequences"),
+
     userId: v.id("users"),
-    scriptPromptId: v.id("promptSheets"),
+
     scriptText: v.string(),
     shotCount: v.number(),
     durationSec: v.number(),
@@ -129,6 +129,10 @@ export const generatePlan = internalAction({
     });
     // The same compile + check the blockout build runs, so repairs target what the user would see.
     const script = parseScriptPromptText(args.scriptText);
+    {
+      script.shots = [];
+      script.totalDurationSec = args.durationSec;
+    }
     const blockoutProject = {
       id: args.projectId,
       title: project.title,
@@ -208,11 +212,6 @@ export const generatePlan = internalAction({
       }
 
       const { storageId } = await saveJson(ctx, best.plan);
-      await ctx.runMutation(internal.staging.setStagingPlan, {
-        sequenceId: args.sequenceId,
-        storageId,
-        scriptPromptId: args.scriptPromptId,
-      });
       await settle(true, tokens);
       return {
         ok: true,

@@ -1,10 +1,13 @@
+import { Button } from "@/components/ui/button";
+import { useAssetUpload } from "@/features/assets/useAssetUpload";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import {
   referenceAlias,
   resolveReferences,
   scriptMentions,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
+import { Check, Link2, Upload, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -12,28 +15,24 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { Button } from "@/components/ui/button";
-import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { Check, Link2, Upload, X } from "lucide-react";
 
 export function StudioScript({
   projectId,
-  sequenceId,
-  title,
   onDirty,
   onValidityChange,
   saveRef,
 }: {
   projectId: string;
-  sequenceId: string;
-  title: string;
   onDirty: (dirty: boolean) => void;
   onValidityChange?: (valid: boolean) => void;
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
-  const tip = useQuery(api.promptSheets.getTipForSequence, {
-    sequenceId: sequenceId as never,
+  const workspace = useQuery(api.workspace.list, {
+    projectId: projectId as never,
   });
+  const currentId = useRef<
+    import("@cinakey/backend").Id<"workspaceScripts"> | undefined
+  >(undefined);
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
   const entities = useQuery(api.entities.listForProject, {
     projectId: projectId as never,
@@ -41,13 +40,14 @@ export function StudioScript({
   const bindings = useQuery(api.references.list, {
     projectId: projectId as never,
   });
-  const save = useAction(api.promptSheets.saveScriptPromptText);
-  const loadContent = useAction(api.promptSheets.getWithContent);
+  const save = useMutation(api.workspace.saveScript);
+  const loadContent = useAction(api.workspace.script);
   const bind = useMutation(api.references.bind);
   const { uploadFiles, uploads } = useAssetUpload(projectId);
   const [text, setText] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [ready, setReady] = useState(false);
+  const [historyText, setHistoryText] = useState<string | null>(null);
   const [status, setStatus] = useState("Loading script…");
   const [error, setError] = useState<string | null>(null);
   const [bindingBusy, setBindingBusy] = useState(false);
@@ -60,7 +60,7 @@ export function StudioScript({
   const initialized = useRef(false);
   const saving = useRef<Promise<boolean> | null>(null);
   const alive = useRef(true);
-  const key = `cinakey.scriptDraft.${projectId}.${sequenceId}`;
+  const key = `cinakey.scriptDraft.${projectId}.plain`;
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -68,13 +68,13 @@ export function StudioScript({
     };
   }, []);
   useEffect(() => {
-    if (tip === undefined || initialized.current) return;
+    if (!workspace?.migrated || initialized.current) return;
     let cancelled = false;
     const load = async () => {
       try {
-        const content = tip?.renderedFileId
-          ? (await loadContent({ promptSheetId: tip._id })).renderedText
-          : (tip?.renderedText ?? "");
+        const loaded = await loadContent({ projectId: projectId as never });
+        const content = loaded.text;
+        currentId.current = loaded.id;
         if (cancelled) return;
         initialized.current = true;
         let value = content;
@@ -106,7 +106,7 @@ export function StudioScript({
     };
     // A version refresh must not cancel the initial file-backed read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tip === undefined, loadContent, key, onDirty, loadAttempt]);
+  }, [workspace?.migrated, loadContent, key, onDirty, loadAttempt]);
 
   const saveLatest = useCallback(async (): Promise<boolean> => {
     if (saving.current) return saving.current;
@@ -114,23 +114,15 @@ export function StudioScript({
     const run = async () => {
       while (draft.current !== saved.current) {
         const snapshot = draft.current;
-        if (!snapshot.trim()) {
-          if (alive.current)
-            setError(
-              "A script cannot be empty. Restore its text before saving.",
-            );
-          return false;
-        }
         if (alive.current) {
           setStatus("Saving…");
           setError(null);
         }
         try {
-          await save({
+          currentId.current = await save({
             projectId: projectId as never,
-            sequenceId: sequenceId as never,
-            title,
-            promptText: snapshot,
+            expectedId: currentId.current,
+            text: snapshot,
           });
           saved.current = snapshot;
           if (draft.current === snapshot) {
@@ -161,7 +153,7 @@ export function StudioScript({
     } finally {
       saving.current = null;
     }
-  }, [save, projectId, sequenceId, title, key, onDirty]);
+  }, [save, projectId, key, onDirty]);
   useEffect(() => {
     saveRef.current = saveLatest;
     return () => {
@@ -197,15 +189,7 @@ export function StudioScript({
   const candidates = (assets ?? []).filter(
     (a) => a.type === "image" || a.type === "video",
   );
-  const legacy = (tip?.referenceMap ?? []).flatMap((r) => {
-    const id = entities?.find((e) => e._id === r.entityId)
-      ?.lockedReferenceAssetIds[0];
-    return id ? [{ alias: `image_${r.imageN}`, assetId: id }] : [];
-  });
-  const links = [
-    ...(bindings ?? []),
-    ...legacy.filter((r) => !bindings?.some((b) => b.alias === r.alias)),
-  ];
+  const links = bindings ?? [];
   const namedCandidates = candidates.map((a) => ({
     assetId: a._id as string,
     name: a.name,
@@ -252,7 +236,7 @@ export function StudioScript({
         const start = partial ? caret - partial[0].length : caret;
         edit(
           draft.current.slice(0, start) +
-            `@${alias} ` +
+            `${start > 0 && !/\s$/.test(draft.current.slice(0, start)) ? " " : ""}@${alias} ` +
             draft.current.slice(caret),
         );
       }
@@ -271,7 +255,7 @@ export function StudioScript({
     }
   }
   return (
-    <section className="studio-script" aria-label="Scene script and references">
+    <section className="studio-script" aria-label="Script and references">
       <div className="studio-section-heading">
         <h2>Script & references</h2>
         <span className="studio-save">
@@ -279,16 +263,16 @@ export function StudioScript({
           {status}
         </span>
       </div>
-      <label className="sr-only" htmlFor={`script-${sequenceId}`}>
-        Scene script
+      <label className="sr-only" htmlFor={`script-${projectId}`}>
+        Script
       </label>
       <textarea
-        id={`script-${sequenceId}`}
+        id={`script-${projectId}`}
         ref={textarea}
         value={text}
         disabled={!ready}
         spellCheck={false}
-        placeholder="Write your scene. Type @ to link an image or video reference."
+        placeholder="Write your script. Type @ to link an image or video reference."
         onChange={(e) => {
           edit(e.target.value);
           const before = e.target.value.slice(0, e.target.selectionStart);
@@ -301,6 +285,55 @@ export function StudioScript({
         }}
         onBlur={() => void saveLatest()}
       />
+      <details>
+        <summary>Script history ({workspace?.scripts.length ?? 0})</summary>
+        <select
+          aria-label="Script history"
+          defaultValue=""
+          onChange={async (event) => {
+            if (!event.target.value) return;
+            try {
+              const old = await loadContent({
+                projectId: projectId as never,
+                id: event.target.value as never,
+              });
+              setHistoryText(old.text);
+            } catch (error) {
+              setError(
+                error instanceof Error
+                  ? error.message
+                  : "Could not load history",
+              );
+            }
+          }}
+        >
+          <option value="">Preview a saved version</option>
+          {workspace?.scripts.map((version) => (
+            <option key={version._id} value={version._id}>
+              {version.label} · {new Date(version.createdAt).toLocaleString()}
+            </option>
+          ))}
+        </select>
+        {historyText !== null && (
+          <>
+            <textarea
+              readOnly
+              aria-label="Script history preview"
+              value={historyText}
+            />
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!(await saveLatest())) return;
+                edit(historyText);
+                setHistoryText(null);
+              }}
+            >
+              Use this version as draft
+            </Button>
+          </>
+        )}
+      </details>
       <div className="studio-reference-list">
         {mentions.map((alias) => {
           const ref = resolved.resolved.find((r) => r.alias === alias);

@@ -58,19 +58,24 @@ export async function assertMediaRemovable(
     throw new Error(
       "This media is used by a saved timeline or its history. Keep it to preserve your edits.",
     );
-  const takes = await ctx.db
-    .query("takes")
-    .filter((q) =>
-      q.or(
-        q.eq(q.field("assetId"), assetId),
-        q.eq(q.field("proxyAssetId"), assetId),
-      ),
+  const staging = await ctx.db
+    .query("workspaceStaging")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  if (
+    staging.some(
+      (document) =>
+        document.previzAssetId === assetId ||
+        document.mediaAssetIds?.includes(assetId),
     )
-    .first();
-  if (takes)
-    throw new Error(
-      "This media belongs to a video take. Remove it through Video instead.",
-    );
+  )
+    throw new Error("This media is used by a staging document.");
+  const assets = await ctx.db
+    .query("assets")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  if (assets.some((asset) => asset.playbackProxyAssetId === assetId))
+    throw new Error("This media is a playback proxy for another asset.");
   const asset = await ctx.db.get(assetId);
   if (asset) {
     const aliases = await ctx.db
@@ -82,19 +87,6 @@ export async function assertMediaRemovable(
         "This file is shared by another asset and cannot be deleted",
       );
   }
-  const shots = await ctx.db
-    .query("shots")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
-  const sequences = await ctx.db
-    .query("sequences")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
-  if (
-    shots.some((shot) => shot.keyframeAssetId === assetId) ||
-    sequences.some((sequence) => sequence.previzAssetId === assetId)
-  )
-    throw new Error("This media is used as a shot or staging reference");
   const entities = await ctx.db
     .query("entities")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

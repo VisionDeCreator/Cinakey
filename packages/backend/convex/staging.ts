@@ -1,8 +1,5 @@
-import { v } from "convex/values";
-import { estimateStagingTokens, type StagingPlan } from "@cinakey/shared";
+import { type StagingPlan } from "@cinakey/shared";
 import type { Id } from "./_generated/dataModel";
-import { internalMutation, query } from "./_generated/server";
-import { requireProjectAccess } from "./lib/access";
 import { convexEnv } from "./lib/env";
 
 /**
@@ -22,38 +19,6 @@ export function stagingUsesLlm(): boolean {
 }
 
 /** Cost shown before Update / Regenerate. */
-export const estimateForSequence = query({
-  args: { projectId: v.id("projects"), sequenceId: v.id("sequences") },
-  handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
-    const seq = await ctx.db.get(args.sequenceId);
-    if (!seq || seq.projectId !== args.projectId) return null;
-    const sheet = seq.scriptPromptId
-      ? await ctx.db.get(seq.scriptPromptId)
-      : null;
-    const text = sheet?.renderedText ?? "";
-    const tokens = text
-      ? estimateStagingTokens(text, seq.shotIds.length)
-      : 2500 + seq.shotIds.length * 400;
-    const llm = stagingUsesLlm();
-    return { credits: llm ? stagingCredits(tokens) : 0, llm };
-  },
-});
-
-export const setStagingPlan = internalMutation({
-  args: {
-    sequenceId: v.id("sequences"),
-    storageId: v.id("_storage"),
-    scriptPromptId: v.id("promptSheets"),
-  },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.sequenceId, {
-      stagingPlanFileId: args.storageId,
-      stagingScriptPromptId: args.scriptPromptId,
-      updatedAt: Date.now(),
-    });
-  },
-});
 
 export type StagingResult =
   | {

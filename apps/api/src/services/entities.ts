@@ -1,27 +1,27 @@
-import { safeErrorMessage } from "../providers/errors";
 import {
+  assertSheetDocument,
   createEmptySheet,
   lockedIdsFromSheet,
   mergeSheet,
   type IdentitySlotKey,
   type SheetDocument,
-  assertSheetDocument,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
-import { api, internal } from "../operations";
 import type {
   Doc,
   Id,
 } from "../../../../packages/backend/convex/_generated/dataModel";
-import { action, internalAction, type ActionCtx } from "../runtime/operation";
-import { getAdapter } from "../providers";
-import { completeChat } from "../providers/deepseek";
-import { useMockProviders, requireProviderKey } from "../config/env";
 import {
   getFileUrl,
   loadJson,
 } from "../../../../packages/backend/convex/storage";
+import { requireProviderKey, useMockProviders } from "../config/env";
+import { api, internal } from "../operations";
+import { getAdapter } from "../providers";
+import { completeChat } from "../providers/deepseek";
+import { safeErrorMessage } from "../providers/errors";
+import { action, internalAction, type ActionCtx } from "../runtime/operation";
 import { saveJson } from "./storage";
 
 const identitySlotValidator = v.union(
@@ -426,13 +426,9 @@ export const autofillSheet = action({
     let scriptSummary = "(no script yet)";
     if (tip) {
       try {
-        const { assertScriptDocument } = await import("@cinakey/shared");
-        const { scriptSummaryFromDocument } =
-          await import("../../../../packages/backend/convex/lib/productionPrompts");
-        const doc = assertScriptDocument(
-          await loadJson(ctx, tip.contentFileId),
-        );
-        scriptSummary = scriptSummaryFromDocument(doc);
+        scriptSummary = tip.contentFileId
+          ? String(await loadJson(ctx, tip.contentFileId))
+          : (tip.text ?? "(no script yet)");
       } catch {
         scriptSummary = "(script could not be loaded)";
       }

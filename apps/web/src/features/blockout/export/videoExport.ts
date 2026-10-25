@@ -303,12 +303,3 @@ export async function encodePartToMp4(input: EncodePartOptions): Promise<Blob> {
     renderer.forceContextLoss?.();
   }
 }
-
-/** @deprecated Prefer encodePartToMp4 */
-export async function encodeClipsToMp4(): Promise<Blob> {
-  throw new Error("encodeClipsToMp4 removed — use encodePartToMp4");
-}
-
-export function framesForDuration(durationSec: number, fps: number): number {
-  return Math.max(1, Math.round(durationSec * fps));
-}

@@ -10,11 +10,13 @@ export type QueryEntry = {
   args: Record<string, unknown>;
   data: any;
   error?: Error;
+  transientError?: boolean;
   listeners: Set<() => void>;
   pending?: Promise<void>;
   loadedAt: number;
   snapshot: number;
 };
+class ApiUnavailableError extends Error {}
 export class ApiClient {
   private generationRequests = new Map<string, string>();
   disposalTimer?: ReturnType<typeof setTimeout>;
@@ -48,9 +50,7 @@ export class ApiClient {
   async call(name: string, args: Record<string, unknown>): Promise<any> {
     if (!this.token) throw new Error("Authentication required");
     const isGeneration =
-      /^(generation:startGeneration|shotGeneration:start(?:SequenceGeneration|ShotGeneration|TakeUpscale|TakeExtend|MasterUpscale|MasterExtend))$/.test(
-        name,
-      );
+      /^(generation:startGeneration|workspace:generate)$/.test(name);
     const key = name + JSON.stringify(args);
     if (isGeneration && !args.requestId) {
       if (!this.generationRequests.has(key))
@@ -74,6 +74,8 @@ export class ApiClient {
         ? new ConvexError(jsonToConvex(payload.data))
         : new Error(payload.message ?? "API request failed");
     };
+    if ([502, 503, 504].includes(response.status))
+      throw new ApiUnavailableError("Reconnecting to the workspace…");
     const payload = await response.json();
     if (isGeneration && response.status < 500)
       this.generationRequests.delete(key);
@@ -90,12 +92,18 @@ export class ApiClient {
           JSON.stringify(entry.data) !== JSON.stringify(data);
         if (changed) entry.data = data;
         entry.error = undefined;
+        entry.transientError = false;
         entry.loadedAt = Date.now();
         if (changed) this.notify(entry);
       })
       .catch((error) => {
         if (!this.controller.signal.aborted) {
-          entry.error = error;
+          if (
+            error instanceof TypeError ||
+            error instanceof ApiUnavailableError
+          ) {
+            entry.transientError = true;
+          } else entry.error = error;
           this.notify(entry);
         }
       })
@@ -119,6 +127,13 @@ export class ApiClient {
   async poll() {
     const watched = [...this.queries.values()].filter((e) => {
       if (!e.listeners.size) return false;
+      if (e.transientError) return true;
+      if (e.name === "workspace:videos")
+        return (
+          e.data?.jobs?.some((job: { status: string }) =>
+            ["queued", "submitted", "running"].includes(job.status),
+          ) || Date.now() - e.loadedAt >= 30_000
+        );
       if (/listActiveJobsForProject/.test(e.name))
         return e.data?.length > 0 || Date.now() - e.loadedAt >= 30_000;
       if (/getJob$/.test(e.name))

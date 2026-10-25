@@ -58,7 +58,7 @@ export const LENS_DEFAULTS_MM: Record<string, number> = {
   "top-down": 24,
   aerial: 24,
   "top-down aerial": 24,
-  "pov": 200,
+  pov: 200,
   "point of view": 200,
   "scope pov": 200,
   "point of view through the scope": 200,
@@ -83,15 +83,10 @@ export const SCRIPT_IMAGE_QUALITY_DEFAULT =
   "Every frame sharp, crisp and clean. Faces, eyes, hands, fur and key subjects stay in sharp focus and clearly readable, even at full sprint. Motion is shown with painted speed streaks and flying debris in the background only; primary subjects are never blurred or smeared. No noise, no flicker, no warping, no melting shapes, no ghosting between frames." as const;
 
 export type StandInPrimitive =
-  | "plane"
-  | "box"
-  | "cylinder"
-  | "sphere"
-  | "strip"
-  | "cliff edge"
-  | "tree";
+  "plane" | "box" | "cylinder" | "sphere" | "strip" | "cliff edge" | "tree";
 
-export type CastProxyKind = "humanoid mannequin" | "quadruped" | "creature proxy";
+export type CastProxyKind =
+  "humanoid mannequin" | "quadruped" | "creature proxy";
 
 export type CameraMoveType =
   | "static"
@@ -107,3 +102,6 @@ export type CameraMoveType =
   | "top-down"
   | "POV"
   | "handheld";
+
+/** Confirm generation requests above this credit cost. */
+export const COST_CONFIRM_THRESHOLD_CREDITS = 50;

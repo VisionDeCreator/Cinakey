@@ -1,22 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { assembleFromShotList } from "@cinakey/shared";
-import { exportTimelineMp4 } from "./exportTimeline";
+import { timelineWithMedia } from "../../../../../../packages/shared/test/timelineFixture";
+
 import { evenDims } from "../mediaUrls";
+import { exportTimelineMp4 } from "./exportTimeline";
 vi.mock("mediabunny", async () => ({
   ...(await vi.importActual("mediabunny")),
   canEncodeVideo: async () => true,
   canEncodeAudio: async () => true,
 }));
 describe("export preflight", () => {
-  const doc = assembleFromShotList({
+  const doc = timelineWithMedia({
     project: { id: "p", aspectRatio: "9:16", fps: 24 },
-    shots: [
+    clips: [
       {
-        shotId: "s",
-        sceneOrder: 0,
-        shotOrder: 0,
+        order: 0,
         durationSec: 5,
-        take: { takeId: "t", assetId: "a" },
+        assetId: "a",
       },
     ],
   });

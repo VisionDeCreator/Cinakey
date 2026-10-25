@@ -1,3 +1,11 @@
+import { Button } from "@/components/ui/button";
+import { useAssetUpload } from "@/features/assets/useAssetUpload";
+import {
+  encodePrevizMp4,
+  runExport,
+} from "@/features/blockout/export/runExport";
+import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
+import { cn } from "@/lib/utils";
 import { api } from "@cinakey/backend";
 import {
   CAMERA_MOVE_PRESETS,
@@ -13,7 +21,6 @@ import {
   type CameraMovePresetId,
   type CameraPose,
 } from "@cinakey/shared";
-import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import {
   ArrowLeft,
   Camera,
@@ -36,16 +43,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useAssetUpload } from "@/features/assets/useAssetUpload";
-import { runExport } from "@/features/blockout/export/runExport";
-import { cn } from "@/lib/utils";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { EditorInspector } from "./EditorInspector";
 import { EditorLibrary } from "./EditorLibrary";
 import { EditorTimeline } from "./EditorTimeline";
@@ -110,55 +108,43 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function BlockoutEditorPage() {
-  const { projectId, shotId: routeShotId } = useParams();
-  const [search] = useSearchParams();
-  const navigate = useNavigate();
-  const sequenceIdParam = search.get("sequenceId");
-  const shotIdParam = search.get("shotId") ?? routeShotId ?? null;
+  const { projectId } = useParams();
+  const [search, setSearch] = useSearchParams();
 
   const project = useQuery(
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  const shot = useQuery(
-    api.shots.get,
-    shotIdParam ? { shotId: shotIdParam as never } : "skip",
-  );
-  const parts = useQuery(
-    api.promptSheets.listScriptParts,
+  const workspace = useQuery(
+    api.workspace.list,
     projectId ? { projectId: projectId as never } : "skip",
   );
+  const loadedFile = useRef<
+    import("@cinakey/backend").Id<"_storage"> | undefined
+  >(undefined);
   const entities = useQuery(
     api.entities.listForProject,
     projectId ? { projectId: projectId as never } : "skip",
   );
-  const scenes = useQuery(
-    api.scenes.listForProject,
-    projectId ? { projectId: projectId as never } : "skip",
-  );
-
-  const getForSequence = useAction(api.blockouts.getForSequence);
-  const saveForSequence = useAction(api.blockouts.saveForSequence);
-  const setPrevizAsset = useAction(api.sequences.setPrevizAsset);
+  const loadStaging = useAction(api.workspace.loadStaging);
+  const saveStaging = useAction(api.workspace.saveStaging);
+  const setPrevizAsset = useMutation(api.workspace.setPreviz);
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
   const { uploadFiles } = useAssetUpload(projectId);
 
-  const resolvedSequenceId =
-    sequenceIdParam ?? shot?.sequenceId ?? parts?.[0]?.sequenceId ?? null;
-
-  // Redirect legacy shot route → edit?shotId=
-  useEffect(() => {
-    if (routeShotId && projectId && !search.get("shotId")) {
-      navigate(`/projects/${projectId}/blockout/edit?shotId=${routeShotId}`, {
-        replace: true,
-      });
-    }
-  }, [routeShotId, projectId, search, navigate]);
+  const stagingId = search.get("new")
+    ? null
+    : (search.get("staging") ?? workspace?.staging[0]?._id ?? null);
 
   const [doc, setDoc] = useState<BlockoutDocument | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const editRevision = useRef(0);
+  const markDirty = () => {
+    editRevision.current++;
+    setDirty(true);
+  };
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -195,62 +181,58 @@ export function BlockoutEditorPage() {
     (e) => e.kind === "character" || e.kind === "creature",
   );
   const cut = doc ? currentCut(doc, frame) : null;
-  const location =
-    (scenes ?? []).find((s) => s._id === shot?.sceneId)?.heading ??
-    cut?.sceneHeading ??
-    "";
+  const location = cut?.sceneHeading ?? "";
 
   // Load document
-  const applyLoaded = useEffectEvent(
-    (loaded: BlockoutDocument, zoomShotId: string | null) => {
-      setDoc(loaded);
-      setDirty(false);
-      undoStack.current = [];
-      let start = 0;
-      if (zoomShotId) {
-        const c = loaded.shots.find(
-          (s) => s.shotId === zoomShotId || String(s.n) === zoomShotId,
-        );
-        if (c) start = c.start;
-      }
-      setFrame(start);
-      setCameraDirty(false);
-      setSelectedId(null);
-      setSelectedKey(null);
-      runtimeRef.current?.setDocument(loaded);
-      runtimeRef.current?.setFrame(start, true);
-      const pose = runtimeRef.current?.getLivePose();
-      if (pose) setLive(pose);
-    },
-  );
+  const applyLoaded = useEffectEvent((loaded: BlockoutDocument) => {
+    setDoc(loaded);
+    setDirty(false);
+    undoStack.current = [];
+    const start = 0;
+    setFrame(start);
+    setCameraDirty(false);
+    setSelectedId(null);
+    setSelectedKey(null);
+    runtimeRef.current?.setDocument(loaded);
+    runtimeRef.current?.setFrame(start, true);
+    const pose = runtimeRef.current?.getLivePose();
+    if (pose) setLive(pose);
+  });
 
+  const loadedProjectId = project?._id;
+  const projectTitle = project?.title ?? "";
+  const projectAspect = project?.aspectRatio ?? "16:9";
+  const projectFps = project?.fps ?? 24;
+  const newDocument = search.get("new") === "1";
   useEffect(() => {
-    if (!resolvedSequenceId || !project) return;
+    if (!loadedProjectId || !projectId) return;
     let cancelled = false;
     (async () => {
       try {
-        const stored = await getForSequence({
-          sequenceId: resolvedSequenceId as never,
+        const stored = await loadStaging({
+          projectId: projectId as never,
+          id: (stagingId as never) ?? undefined,
+          newDocument: newDocument,
         });
         if (cancelled) return;
+        loadedFile.current = stored.fileId ?? undefined;
         const projectMeta: BlockoutProject = {
-          id: project._id,
-          title: project.title,
-          aspectRatio: project.aspectRatio,
-          fps: project.fps,
+          id: loadedProjectId,
+          title: projectTitle,
+          aspectRatio: projectAspect,
+          fps: projectFps,
         };
         let document: BlockoutDocument;
         if (stored?.document) {
           document = migrateToV2(stored.document, {
             project: projectMeta,
-            sequenceId: resolvedSequenceId,
           });
         } else {
-          document = createPartDocument(projectMeta, resolvedSequenceId, {
-            name: project.title,
+          document = createPartDocument(projectMeta, "", {
+            name: projectTitle,
           });
         }
-        applyLoaded(document, shotIdParam);
+        applyLoaded(document);
       } catch (err) {
         if (!cancelled) {
           setLoadError(err instanceof Error ? err.message : String(err));
@@ -260,7 +242,16 @@ export function BlockoutEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [resolvedSequenceId, project, getForSequence, shotIdParam, applyLoaded]);
+  }, [
+    stagingId,
+    loadedProjectId,
+    projectTitle,
+    projectAspect,
+    projectFps,
+    newDocument,
+    projectId,
+    loadStaging,
+  ]);
 
   const pushUndo = () => {
     if (!doc) return;
@@ -295,6 +286,7 @@ export function BlockoutEditorPage() {
       onSelectObject: (id) => setSelectedId(id),
       onCameraDirty: () => {
         setCameraDirty(true);
+        markDirty();
         const pose = runtimeRef.current?.getLivePose();
         if (pose) setLive(pose);
       },
@@ -318,7 +310,7 @@ export function BlockoutEditorPage() {
             ),
           };
         });
-        setDirty(true);
+        markDirty();
       },
     });
     runtimeRef.current = rt;
@@ -347,7 +339,7 @@ export function BlockoutEditorPage() {
     if (!doc || !runtimeRef.current) return;
     runtimeRef.current.refreshObjects(doc.objects);
     runtimeRef.current.refreshCameraPath();
-  }, [doc?.objects, doc?.camera.keys, doc?.env]);
+  }, [doc]);
 
   useEffect(() => {
     runtimeRef.current?.setFrame(frame, !cameraDirty);
@@ -412,7 +404,7 @@ export function BlockoutEditorPage() {
   const commitDoc = (next: BlockoutDocument, opts?: { undo?: boolean }) => {
     if (opts?.undo !== false) pushUndo();
     setDoc(next);
-    setDirty(true);
+    markDirty();
     runtimeRef.current?.setDocument(next);
   };
 
@@ -424,7 +416,7 @@ export function BlockoutEditorPage() {
     }
     const prev = JSON.parse(raw) as BlockoutDocument;
     setDoc(prev);
-    setDirty(true);
+    markDirty();
     setCameraDirty(false);
     runtimeRef.current?.setDocument(prev);
     runtimeRef.current?.setFrame(frame, true);
@@ -434,6 +426,7 @@ export function BlockoutEditorPage() {
   const onLiveChange = (pose: CameraPose) => {
     setLive(pose);
     setCameraDirty(true);
+    markDirty();
     runtimeRef.current?.setLivePose(pose, true);
   };
 
@@ -442,7 +435,7 @@ export function BlockoutEditorPage() {
     pushUndo();
     const { doc: next, key } = keyCameraAtFrame(doc, frame, live);
     setDoc(next);
-    setDirty(true);
+    markDirty();
     setCameraDirty(false);
     setSelectedKey({ kind: "cam", id: key.id });
     runtimeRef.current?.setCameraDirty(false);
@@ -463,22 +456,39 @@ export function BlockoutEditorPage() {
     const o = createObject(type, live, opts);
     const next = { ...doc, objects: [...doc.objects, o] };
     setDoc(next);
-    setDirty(true);
+    markDirty();
     setSelectedId(o.id);
     runtimeRef.current?.refreshObjects(next.objects);
   };
 
   const onSave = async () => {
-    if (!doc || !resolvedSequenceId || busy) return;
+    if (!doc || !projectId || busy) return;
+    const snapshot = cameraDirty ? keyCameraAtFrame(doc, frame, live).doc : doc;
+    const revision = editRevision.current;
+    if (cameraDirty) {
+      pushUndo();
+      setDoc(snapshot);
+      docRef.current = snapshot;
+      setCameraDirty(false);
+      runtimeRef.current?.setCameraDirty(false);
+      runtimeRef.current?.setDocument(snapshot);
+    }
     setBusy("saving");
     setStatus(null);
     try {
-      await saveForSequence({
-        sequenceId: resolvedSequenceId as never,
-        document: doc,
+      const saved = await saveStaging({
+        projectId: projectId as never,
+        id: (stagingId as never) ?? undefined,
+        document: snapshot,
+        expectedFileId: loadedFile.current,
       });
-      setDirty(false);
-      setStatus("Saved");
+      loadedFile.current = saved.fileId;
+      if (!stagingId) setSearch({ staging: saved.id }, { replace: true });
+      const unchanged = editRevision.current === revision;
+      if (unchanged) setDirty(false);
+      setStatus(
+        unchanged ? "Saved" : "Version saved · newer changes remain unsaved",
+      );
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Save failed");
     } finally {
@@ -507,12 +517,10 @@ export function BlockoutEditorPage() {
         const keyIds = await uploadFiles(keyFiles, {
           type: "image",
           tags: [...GUIDE_TAGS.keyframe],
-          shotId: g.shotId,
         });
         const depthIds = await uploadFiles(depthFiles, {
           type: "image",
           tags: [...GUIDE_TAGS.depth],
-          shotId: g.shotId,
         });
         const key = g.shotId ?? `n${g.n}`;
         guideMap[key] = {
@@ -522,11 +530,14 @@ export function BlockoutEditorPage() {
       }
       const next = { ...doc, guides: guideMap };
       commitDoc(next, { undo: false });
-      if (resolvedSequenceId) {
-        await saveForSequence({
-          sequenceId: resolvedSequenceId as never,
+      if (projectId) {
+        const saved = await saveStaging({
+          projectId: projectId as never,
+          id: (stagingId as never) ?? undefined,
           document: next,
+          expectedFileId: loadedFile.current,
         });
+        loadedFile.current = saved.fileId;
         setDirty(false);
       }
       setStatus(`Rendered ${guides.length} guide pairs`);
@@ -538,7 +549,7 @@ export function BlockoutEditorPage() {
   };
 
   const onExportMp4 = async () => {
-    if (!doc || !resolvedSequenceId || busy) return;
+    if (!doc || !projectId || busy) return;
     setBusy("export");
     setStatus(null);
     const ac = new AbortController();
@@ -564,8 +575,6 @@ export function BlockoutEditorPage() {
       });
       // Also upload as previz when whole part
       if (exportRange === "part" && projectId) {
-        const { encodePrevizMp4 } =
-          await import("@/features/blockout/export/runExport");
         const blob = await encodePrevizMp4({
           document: doc,
           signal: ac.signal,
@@ -588,9 +597,19 @@ export function BlockoutEditorPage() {
           tags: ["previz", "blockout"],
           durationSec: doc.frames / doc.fps,
         });
+        let savedStagingId = stagingId;
+        if (!savedStagingId) {
+          const saved = await saveStaging({
+            projectId: projectId as never,
+            document: doc,
+          });
+          savedStagingId = saved.id;
+          loadedFile.current = saved.fileId;
+          setSearch({ staging: saved.id }, { replace: true });
+        }
         await setPrevizAsset({
-          sequenceId: resolvedSequenceId as never,
-          previzAssetId: assetId as never,
+          id: savedStagingId as never,
+          assetId: assetId as never,
         });
       }
       setStatus("Export done");
@@ -629,7 +648,7 @@ export function BlockoutEditorPage() {
       return;
     }
     const withProject =
-      project && resolvedSequenceId
+      project && stagingId
         ? {
             ...next,
             project: {
@@ -638,7 +657,6 @@ export function BlockoutEditorPage() {
               aspectRatio: project.aspectRatio,
               fps: project.fps,
             },
-            sequenceId: resolvedSequenceId,
           }
         : next;
     commitDoc(withProject);
@@ -751,7 +769,7 @@ export function BlockoutEditorPage() {
 
   const selectedObject = doc.objects.find((o) => o.id === selectedId) ?? null;
   const shotTitle = cut
-    ? `Shot ${cut.n}${cut.shotType ? ` · ${cut.shotType.toUpperCase()}` : ""}`
+    ? `Camera cut ${cut.n}${cut.shotType ? ` · ${cut.shotType.toUpperCase()}` : ""}`
     : doc.name;
 
   return (
@@ -760,7 +778,7 @@ export function BlockoutEditorPage() {
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-2 py-1.5">
         <Button type="button" size="sm" variant="ghost" className="h-8" asChild>
           <Link
-            to={`/projects/${projectId}/studio${resolvedSequenceId ? `?sequence=${resolvedSequenceId}` : ""}`}
+            to={`/projects/${projectId}/studio${stagingId ? `?staging=${stagingId}` : ""}`}
           >
             <ArrowLeft className="size-3.5" />
             Workspace
@@ -795,7 +813,7 @@ export function BlockoutEditorPage() {
             onChange={setMaximize}
             options={[
               { value: "split", label: "Split", icon: <Maximize2 /> },
-              { value: "shot", label: "Shot cam", icon: <Camera /> },
+              { value: "shot", label: "Camera view", icon: <Camera /> },
               { value: "director", label: "Director", icon: <Orbit /> },
             ]}
           />
@@ -907,7 +925,7 @@ export function BlockoutEditorPage() {
                 />
               </div>
               <span className="absolute left-2 top-2 text-[10px] uppercase tracking-wide text-zinc-500">
-                Shot cam
+                Camera
               </span>
             </div>
             <div

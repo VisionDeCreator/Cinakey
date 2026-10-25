@@ -1,5 +1,5 @@
-import type { PipelineProgress, PipelineStage } from "@cinakey/shared";
 import { cn } from "@/lib/utils";
+import type { PipelineProgress, PipelineStage } from "@cinakey/shared";
 
 const STAGES: { key: PipelineStage; label: string }[] = [
   { key: "assets", label: "References" },
@@ -39,21 +39,4 @@ export function StageProgressBar({
       })}
     </div>
   );
-}
-
-export function firstEmptyStage(
-  progress: PipelineProgress,
-): PipelineStage | null {
-  for (const stage of STAGES) {
-    if (progress[stage.key] === "empty") return stage.key;
-  }
-  return null;
-}
-
-export function stagePath(stage: PipelineStage): string {
-  return stage;
-}
-
-export function stageLabel(stage: PipelineStage): string {
-  return STAGES.find((s) => s.key === stage)?.label ?? stage;
 }
