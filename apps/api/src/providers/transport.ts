@@ -56,7 +56,7 @@ export async function providerFetch(
         ? "https://api.openai.com"
         : provider === "deepseek"
           ? "https://api.deepseek.com"
-          : new URL(config.seedanceBaseUrl).origin;
+          : new URL(config.sumeBaseUrl).origin;
   if (parsed.origin !== expected)
     throw new Error(
       "Provider request origin does not match configured provider",

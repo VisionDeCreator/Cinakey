@@ -1,17 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { seedance25Adapter as adapter } from "./seedance25";
+import { remixLiteAdapter } from "./sume";
 import { setProviderTransportForTests } from "./transport";
-
-describe("documented Seedance task contract (no network)", () => {
-  it("submits model IDs, reference roles and seeds using recorded request shapes", async () => {
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
-    vi.stubEnv("SEEDANCE_API_KEY", "test-key");
+function fixture(data: unknown) {
+  return new Response(JSON.stringify({ data }));
+}
+function live() {
+  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  vi.stubEnv("ENABLED_PROVIDERS", "deepseek,sume");
+  vi.stubEnv("SUME_API_KEY", "test-key");
+}
+describe("Sume video contracts (no paid network)", () => {
+  it("routes Seedance references and sends a stable idempotency key outside the JSON body", async () => {
+    live();
     const send = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ id: "fixture-task" })));
+      .mockResolvedValue(fixture({ job: { id: "job_fixture" } }));
     setProviderTransportForTests(send);
     const body = await adapter.buildRequest({
-      kind: "text-to-video",
       prompt: "A scene",
       durationSec: 5,
       seed: 42,
@@ -19,85 +25,115 @@ describe("documented Seedance task contract (no network)", () => {
       referenceVideoUrl: "https://fixture.test/previz.mp4",
     });
     expect(body).toMatchObject({
-      model: "doubao-seedance-2-5-260628",
-      seed: 42,
+      model: "seedance-2.5",
       duration: 5,
-      omni_reference_task_type: "reference",
+      seed: 42,
+      reference_image_urls: ["https://fixture.test/ref.png"],
+      reference_video_urls: ["https://fixture.test/previz.mp4"],
     });
-    expect(body.content).toEqual([
-      { type: "text", text: "A scene" },
-      {
-        type: "image_url",
-        image_url: { url: "https://fixture.test/ref.png" },
-        role: "reference_image",
-      },
-      {
-        type: "video_url",
-        video_url: { url: "https://fixture.test/previz.mp4" },
-        role: "reference_video",
-      },
-    ]);
-    expect(await adapter.submit(body)).toEqual({
-      providerJobId: "fixture-task",
-    });
-    expect(JSON.parse(send.mock.calls[0]![1].body)).toEqual(body);
-    expect(send).toHaveBeenCalledOnce();
-  });
-  it("uses adaptive first-frame and extension requests without invented operation fields", async () => {
-    const frame = await adapter.buildRequest({
-      kind: "image-to-video",
-      startFrameUrl: "https://fixture.test/frame.png",
-      endFrameUrl: "https://fixture.test/end.png",
-      durationSec: 5,
-    });
-    expect(frame.ratio).toBe("adaptive");
-    expect(frame).not.toHaveProperty("operation");
-    const extension = await adapter.buildRequest({
-      kind: "extend",
-      referenceVideoUrl: "https://fixture.test/video.mp4",
-      durationSec: 5,
-    });
-    expect(extension).toMatchObject({
-      ratio: "adaptive",
-      omni_reference_task_type: "extend",
-    });
-    await expect(adapter.buildRequest({ kind: "upscale" })).rejects.toThrow(
-      "not supported",
+    expect(
+      await adapter.submit({ ...body, _idempotencyKey: "cinakey:job:1" }),
+    ).toEqual({ providerJobId: "job_fixture" });
+    expect(send.mock.calls[0]![0]).toBe(
+      "https://api.sume.com/v1/video-router/generate",
     );
+    expect(send.mock.calls[0]![1].headers["Idempotency-Key"]).toBe(
+      "cinakey:job:1",
+    );
+    expect(JSON.parse(send.mock.calls[0]![1].body)).toEqual(body);
+  });
+  it("maps first/last frames and extension without Ark content fields", async () => {
+    expect(
+      await adapter.buildRequest({
+        kind: "image-to-video",
+        startFrameUrl: "https://fixture.test/first.png",
+        endFrameUrl: "https://fixture.test/last.png",
+      }),
+    ).toMatchObject({
+      image_url: "https://fixture.test/first.png",
+      end_image_url: "https://fixture.test/last.png",
+      aspect_ratio: "adaptive",
+    });
+    expect(
+      await adapter.buildRequest({
+        kind: "extend",
+        referenceVideoUrl: "https://fixture.test/video.mp4",
+      }),
+    ).toMatchObject({
+      video_url: "https://fixture.test/video.mp4",
+      extend: true,
+    });
     await expect(adapter.buildRequest({ durationSec: 31 })).rejects.toThrow(
       "4 to 30",
     );
-    await expect(
-      adapter.buildRequest({
-        startFrameUrl: "https://fixture.test/f.png",
-        referenceImageUrls: ["https://fixture.test/r.png"],
-      }),
-    ).rejects.toThrow("cannot be combined");
   });
-  it("handles expiry, unknown responses, and provider output metadata", async () => {
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
-    vi.stubEnv("SEEDANCE_API_KEY", "test-key");
+  it("routes Genjutsu to Remix Lite and rejects invalid source duration or missing references", async () => {
+    live();
+    const send = vi
+      .fn()
+      .mockResolvedValue(fixture({ request_id: "job_remix" }));
+    setProviderTransportForTests(send);
+    const input = {
+      durationSec: 10,
+      referenceVideoUrl: "https://fixture.test/person.mp4",
+      referenceImageUrls: ["https://fixture.test/character.png"],
+      resolution: "1080p",
+    };
+    const body = await remixLiteAdapter.buildRequest(input);
+    expect(body).toMatchObject({
+      video_url: input.referenceVideoUrl,
+      image_urls: input.referenceImageUrls,
+      duration: 10,
+      resolution: "1080p",
+    });
+    await remixLiteAdapter.submit(body);
+    expect(send.mock.calls[0]![0]).toBe(
+      "https://api.sume.com/v1/sume/remix-lite/object-swap/v1.0",
+    );
+    await expect(
+      remixLiteAdapter.buildRequest({ ...input, durationSec: 16 }),
+    ).rejects.toThrow("4–15");
+    await expect(
+      remixLiteAdapter.buildRequest({ ...input, referenceImageUrls: [] }),
+    ).rejects.toThrow("1–8");
+  });
+  it("maps canonical and transport states and collects only video artifacts", async () => {
+    live();
     const send = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: "expired" })),
+        fixture({ status: "IN_PROGRESS", sume_status: "processing" }),
       )
+      .mockResolvedValueOnce(fixture({ status: "COMPLETED" }))
+      .mockResolvedValueOnce(fixture({ job: { status: "canceled" } }))
+      .mockResolvedValueOnce(fixture({ status: "unexpected" }))
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ status: "unexpected" })),
+        fixture({
+          result: {
+            artifacts: [
+              { type: "image", url: "https://fixture.test/poster.png" },
+              {
+                type: "video",
+                url: "https://fixture.test/video.mp4",
+                content_type: "video/mp4",
+              },
+            ],
+          },
+        }),
       )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            content: { video_url: "https://fixture.test/result.mp4" },
-            duration: 5,
-          }),
-        ),
-      );
+      .mockResolvedValueOnce(fixture({ result: { artifacts: [] } }));
     setProviderTransportForTests(send);
-    expect((await adapter.poll("task")).status).toBe("failed");
-    await expect(adapter.poll("task")).rejects.toThrow("unrecognized");
-    expect(
-      (await adapter.collect("task")).outputs[0]?.metadata?.durationSec,
-    ).toBe(5);
+    expect(await adapter.poll("job")).toEqual({ status: "running" });
+    expect(await adapter.poll("job")).toEqual({ status: "succeeded" });
+    expect((await adapter.poll("job")).status).toBe("failed");
+    await expect(adapter.poll("job")).rejects.toThrow("unrecognized");
+    expect((await adapter.collect("job")).outputs).toEqual([
+      {
+        type: "video",
+        url: "https://fixture.test/video.mp4",
+        contentType: "video/mp4",
+      },
+    ]);
+    await expect(adapter.collect("job")).rejects.toThrow("no video");
   });
 });

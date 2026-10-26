@@ -1,5 +1,9 @@
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
-import { validateVideoInput, validateVideoReference } from "@cinakey/shared";
+import {
+  validateVideoInput,
+  validateVideoReference,
+  validateRemixInput,
+} from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type {
@@ -76,7 +80,7 @@ export const startGeneration = action({
       !["text-to-video", "image-to-video", "upscale", "extend"].includes(
         args.kind,
       ) ||
-      args.adapterId !== "seedance-2.5"
+      !["seedance-2.5", "sume-remix-lite"].includes(args.adapterId)
     ) {
       throw new Error("Only video generation is supported");
     }
@@ -178,7 +182,7 @@ export const startGeneration = action({
         }))
       )
         throw new Error("Parent media is not in this project");
-      validateVideoReference(asset);
+      validateVideoReference(asset, args.adapterId === "sume-remix-lite");
       if (asset.type === "video") parentVideoUrl = await urlFor(assetId);
       else throw new Error("Video operations require a video parent");
     }
@@ -188,7 +192,7 @@ export const startGeneration = action({
       });
       if (asset?.type !== "image")
         throw new Error("Image references must be image assets");
-      validateVideoReference(asset);
+      validateVideoReference(asset, args.adapterId === "sume-remix-lite");
       referenceImageUrls.push(await urlFor(assetId));
     }
     const maskUrl = args.maskAssetId
@@ -208,7 +212,7 @@ export const startGeneration = action({
       });
       if (video?.type !== "video")
         throw new Error("Video references must be video assets");
-      validateVideoReference(video);
+      validateVideoReference(video, args.adapterId === "sume-remix-lite");
     }
     const buildInput: BuildRequestInput = {
       ...(args.input as BuildRequestInput | undefined),
@@ -237,6 +241,8 @@ export const startGeneration = action({
       entityId: args.entityId,
     };
     validateVideoInput(buildInput);
+    if (args.adapterId === "sume-remix-lite") validateRemixInput(buildInput);
+    await adapter.buildRequest(buildInput);
     if (
       args.requestId !== undefined &&
       (!args.requestId || args.requestId.length > 128)
@@ -260,7 +266,9 @@ export const startGeneration = action({
         model: adapter.capabilities.id,
         modelVersion: useMockProviders()
           ? adapter.capabilities.id
-          : providerConfig().seedanceModel,
+          : args.adapterId === "sume-remix-lite"
+            ? "sume/remix-lite/object-swap/v1.0"
+            : providerConfig().seedanceModel,
         kind: args.kind,
         prompt: args.prompt,
         seed: args.seed,
@@ -273,6 +281,7 @@ export const startGeneration = action({
           : undefined,
         requestFingerprint: args.requestId
           ? JSON.stringify({
+              adapterId: args.adapterId,
               entityId: args.entityId,
               kind: args.kind,
               prompt: args.prompt,
@@ -358,6 +367,17 @@ export const submitAndTrack = internalAction({
       return;
     }
 
+    if (
+      !useMockProviders() &&
+      job.model === "seedance-2.5" &&
+      !job.modelVersion?.startsWith("sume/")
+    ) {
+      await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+        jobId: job._id,
+      });
+      throw new SubmissionUncertainError();
+    }
+
     const adapter =
       job.model === "gpt-image-2" ? retiredImageAdapter : getAdapter(job.model);
     if (!adapter) {
@@ -411,7 +431,10 @@ export const submitAndTrack = internalAction({
       // Pass attempt for mock transient-retry tests.
       if (useMockProviders())
         (request as Record<string, unknown>)._attempt = attempt;
-      const result = await adapter.submit(request);
+      const result = await adapter.submit({
+        ...request,
+        _idempotencyKey: `cinakey:${job._id}:${attempt}`,
+      });
 
       let providerResultFileId: Id<"_storage"> | undefined;
       let providerActualUnits: number | undefined;
@@ -532,6 +555,17 @@ export const pollJob = internalAction({
     if (!job.providerJobId) {
       await failAndRefund(ctx, job, "Missing providerJobId");
       return;
+    }
+
+    if (
+      !useMockProviders() &&
+      job.model === "seedance-2.5" &&
+      !job.modelVersion?.startsWith("sume/")
+    ) {
+      await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+        jobId: job._id,
+      });
+      throw new SubmissionUncertainError();
     }
 
     const adapter =

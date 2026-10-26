@@ -47,7 +47,7 @@ const props = {
   onStarted: vi.fn(),
 };
 beforeEach(() => {
-  mocks.bindings = [];
+  mocks.bindings = [{ alias: "replacement_actor", assetId: "actor" }];
   mocks.bind.mockImplementation(
     async ({ alias, assetId }: { alias: string; assetId: string }) => {
       mocks.bindings = [
@@ -70,7 +70,7 @@ afterEach(() => {
   localStorage.clear?.();
   vi.resetAllMocks();
 });
-function prompt(value = "Make the outfit red and the village snowy") {
+function prompt(value = "Make @replacement_actor wear red in a snowy village") {
   fireEvent.change(screen.getByLabelText("Describe the change"), {
     target: { value },
   });
@@ -80,7 +80,7 @@ async function generate() {
     fireEvent.click(screen.getByRole("button", { name: /^Generate ·/ }));
   });
 }
-it("automatically analyzes then generates from a prompt with one click and no selected categories or references", async () => {
+it("automatically analyzes then generates from a prompt with one click using a reference and no selected categories", async () => {
   render(<VideoTransformPanel {...props} />);
   expect(
     screen.queryByRole("button", { name: /Analyze source/ }),
@@ -88,7 +88,7 @@ it("automatically analyzes then generates from a prompt with one click and no se
   expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
   prompt();
   expect(
-    screen.getByRole("button", { name: "Generate · up to 25 cr" }),
+    screen.getByRole("button", { name: "Generate · up to 26 cr" }),
   ).toBeEnabled();
   await generate();
   expect(mocks.sample).toHaveBeenCalledOnce();
@@ -96,10 +96,10 @@ it("automatically analyzes then generates from a prompt with one click and no se
     mocks.generate.mock.invocationCallOrder[0]!,
   );
   expect(mocks.generate.mock.calls[0]![0]).toMatchObject({
-    referenceAssetIds: [],
+    referenceAssetIds: ["actor"],
     plan: {
       targets: [],
-      instruction: "Make the outfit red and the village snowy",
+      instruction: "Make @replacement_actor wear red in a snowy village",
       analysis,
       analysisModel: "deepseek-flash",
       sampledFrameTimes: [0, 1, 2],
@@ -183,7 +183,7 @@ it("reanalyzes changed prompts but reuses analysis for optional target changes",
     "recast",
     "environment",
   ]);
-  prompt("A different transformation");
+  prompt("A different transformation using @replacement_actor");
   await generate();
   expect(mocks.analyze).toHaveBeenCalledTimes(2);
 });
@@ -220,9 +220,33 @@ it("blocks unresolved image mentions before analysis or generation", () => {
   render(<VideoTransformPanel {...props} />);
   prompt("Use @missing_image everywhere");
   expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Link missing image @missing_image",
-  );
+  expect(
+    screen
+      .getAllByRole("alert")
+      .some((el) =>
+        el.textContent?.includes("Link missing image @missing_image"),
+      ),
+  ).toBe(true);
   expect(mocks.analyze).not.toHaveBeenCalled();
   expect(mocks.generate).not.toHaveBeenCalled();
+});
+
+it("requires a Remix reference before analysis and blocks overlong source footage", () => {
+  const { rerender } = render(<VideoTransformPanel {...props} />);
+  prompt("Change the outfit without an image");
+  expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
+  expect(
+    screen.getByText("Add at least one image reference for Remix Lite."),
+  ).toBeInTheDocument();
+  prompt();
+  rerender(
+    <VideoTransformPanel
+      {...props}
+      assets={props.assets.map((a) =>
+        a.type === "video" ? { ...a, durationSec: 16 } : a,
+      )}
+    />,
+  );
+  expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
+  expect(mocks.analyze).not.toHaveBeenCalled();
 });

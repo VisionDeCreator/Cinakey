@@ -249,7 +249,7 @@ function TransformationWorkspace({
               }).catch((error: Error) => setError(error.message));
           }}
         />
-        <span>Seedance 2.5 · DeepSeek Flash</span>
+        <span>Sume Remix Lite · DeepSeek Flash</span>
       </div>
       <div className="genjutsu-workspace">
         <aside className="genjutsu-inputs" aria-label="Transformation inputs">
@@ -293,7 +293,7 @@ function TransformationWorkspace({
             >
               <Upload size={22} />
               <strong>Upload a source video</strong>
-              <span>4–30 seconds · up to 200 MiB</span>
+              <span>4–15 seconds · up to 200 MiB</span>
             </MediaDropzone>
           )}
           <div className="genjutsu-section-title">

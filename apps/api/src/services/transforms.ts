@@ -101,7 +101,7 @@ async function sourceContext(
       assetId,
     });
     if (!asset) throw new Error("Asset not found in this project");
-    validateVideoReference(asset);
+    validateVideoReference(asset, true);
     assets.push(asset);
   }
   const source = assets[0]!;
@@ -297,7 +297,7 @@ export const generate = action({
     );
     return ctx.runAction(api.generation.startGeneration, {
       projectId: args.projectId,
-      adapterId: "seedance-2.5",
+      adapterId: "sume-remix-lite",
       kind: "text-to-video",
       prompt,
       referenceVideoAssetId: args.sourceAssetId,

@@ -127,7 +127,7 @@ export function VideoTransformPanel({
     /* Metadata is required. */
   }
   const estimate = useQuery(api.generation.estimateCost, {
-    adapterId: "seedance-2.5",
+    adapterId: "sume-remix-lite",
     kind: "text-to-video",
     input: {
       durationSec: duration || 5,
@@ -150,6 +150,9 @@ export function VideoTransformPanel({
     ...resolvedReferences.ambiguous.map(
       (alias) => `Choose which image @${alias} refers to.`,
     ),
+    ...(references.length === 0
+      ? ["Add at least one image reference for Remix Lite."]
+      : []),
     ...(references.length > 8
       ? ["Use up to eight distinct image references."]
       : []),
@@ -277,7 +280,7 @@ export function VideoTransformPanel({
       </label>
       {!duration && (
         <p className="transform-muted">
-          Source needs saved duration metadata and must be 4–30 seconds.
+          Source needs saved duration metadata and must be 4–15 seconds.
         </p>
       )}
       <fieldset disabled={busy || uploading} className="transform-fields">
@@ -393,9 +396,10 @@ export function VideoTransformPanel({
         </details>
       )}
       <p className="transform-muted">
-        Seedance receives the original video and selected images. Preservation
-        is a generation instruction, not a pixel lock. Output requests{" "}
-        {duration || "—"} seconds, rounded to the nearest whole second.
+        Sume Remix Lite receives the original video and selected images.
+        Preservation is a generation instruction, not a pixel lock. Output
+        requests {duration || "—"} seconds for billing, rounded up. Remix Lite
+        follows the source duration and aspect ratio.
       </p>
       <Button
         disabled={
@@ -424,7 +428,7 @@ export function VideoTransformPanel({
             ? "Preparing frames for automatic analysis."
             : phase === "analyzing"
               ? "Analyzing the video automatically. Generation will start next."
-              : "Submitting the transformation to Seedance."
+              : "Submitting the transformation to Sume Remix Lite."
           : currentReview
             ? "Video analysis is ready and will be reused for these inputs."
             : "Includes automatic video analysis and rendering. Unused reserved analysis credits are returned."}

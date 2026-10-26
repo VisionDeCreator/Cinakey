@@ -76,11 +76,11 @@ export const videoTransformSchema = z.object({
 export type VideoTransform = z.infer<typeof videoTransformSchema>;
 
 export function transformDuration(duration: number): number {
-  if (!Number.isFinite(duration) || duration < 4 || duration > 30)
+  if (!Number.isFinite(duration) || duration < 4 || duration > 15)
     throw new Error(
-      "Transform requires a whole source video between 4 and 30 seconds.",
+      "Transform requires a whole source video between 4 and 15 seconds.",
     );
-  return Math.max(4, Math.min(30, Math.round(duration)));
+  return Math.max(4, Math.min(15, Math.ceil(duration)));
 }
 
 /** Versioned, deterministic instructions; reference ordering matches the provider payload. */

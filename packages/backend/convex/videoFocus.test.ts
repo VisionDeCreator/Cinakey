@@ -55,7 +55,7 @@ describe("video-focused production", () => {
       (await asUser.query(api.generation.listCapabilities, {})).map(
         (c) => c.kind,
       ),
-    ).toEqual(["video"]);
+    ).toEqual(["video", "video"]);
   });
 
   it("preserves image files when references are assigned, replaced and cleared", async () => {

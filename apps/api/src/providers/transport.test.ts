@@ -60,12 +60,8 @@ describe("controlled provider transport", () => {
       .mockResolvedValueOnce(new Response("{}"));
     setProviderTransportForTests(send);
     expect(
-      (
-        await providerFetch(
-          "seedance",
-          "https://ark.cn-beijing.volces.com/api/v3/task",
-        )
-      ).ok,
+      (await providerFetch("sume", "https://api.sume.com/v1/jobs/task/status"))
+        .ok,
     ).toBe(true);
     expect(send).toHaveBeenCalledTimes(2);
     expect(retryAfterMs("120")).toBe(30_000);
@@ -126,7 +122,7 @@ describe("controlled provider transport", () => {
 
 it("returns a bounded validation reason without exposing provider keys or signed URLs", async () => {
   live();
-  vi.stubEnv("SEEDANCE_API_KEY", "validation-test-secret");
+  vi.stubEnv("SUME_API_KEY", "validation-test-secret");
   setProviderTransportForTests(
     async () =>
       new Response(
@@ -140,8 +136,8 @@ it("returns a bounded validation reason without exposing provider keys or signed
       ),
   );
   const error = await providerFetch(
-    "seedance",
-    "https://ark.cn-beijing.volces.com/api/v3/task",
+    "sume",
+    "https://api.sume.com/v1/jobs/task/status",
     { method: "POST" },
   ).catch((e) => e);
   expect(String(error)).toContain("Image too small");

@@ -70,13 +70,13 @@ it("saves a reviewed transformation snapshot and replays the request without a s
   const first = await asUser.action(api.transforms.generate, request);
   const replay = await asUser.action(api.transforms.generate, request);
   expect(replay.jobId).toBe(first.jobId);
-  expect(first.estimatedCostCredits).toBe(10);
+  expect(first.estimatedCostCredits).toBe(12);
   const job = await t.run((ctx) => ctx.db.get(first.jobId));
   const snapshot = await t.run(async (ctx) =>
     JSON.parse(await (await ctx.storage.get(job!.inputsFileId!))!.text()),
   );
   expect(snapshot).toMatchObject({
-    durationSec: 5,
+    durationSec: 6,
     aspectRatio: "adaptive",
     parentAssetIds: [args.sourceAssetId],
     referenceVideoAssetId: args.sourceAssetId,
@@ -157,11 +157,11 @@ it("enforces the project spend cap before paid analysis", async () => {
   expect(send).not.toHaveBeenCalled();
 });
 
-it("accepts prompt-only and combined transformations without mandatory image references", async () => {
+it("accepts combined transformations with Remix Lite image references", async () => {
   const { t, asUser, args } = await fixture();
   const { analysis } = await asUser.action(api.transforms.analyze, {
     ...args,
-    referenceAssetIds: [],
+    referenceAssetIds: args.referenceAssetIds,
   });
   for (const [index, targets] of [
     [],
@@ -170,7 +170,7 @@ it("accepts prompt-only and combined transformations without mandatory image ref
     const result = await asUser.action(api.transforms.generate, {
       projectId: args.projectId,
       sourceAssetId: args.sourceAssetId,
-      referenceAssetIds: [],
+      referenceAssetIds: args.referenceAssetIds,
       resolution: "720p",
       requestId: `combined-${index}`,
       plan: {
@@ -189,7 +189,7 @@ it("accepts prompt-only and combined transformations without mandatory image ref
       JSON.parse(await (await ctx.storage.get(job!.inputsFileId!))!.text()),
     );
     expect(snapshot.transformation.targets).toEqual(targets);
-    expect(snapshot.referenceAssetIds).toEqual([]);
+    expect(snapshot.referenceAssetIds).toEqual(args.referenceAssetIds);
     expect(job!.prompt).toContain("apply all requested changes together");
     if (targets.length)
       expect(job!.prompt).toContain(
@@ -354,4 +354,41 @@ it("accepts the source video alias alongside an image without trying to bind vid
       assetId: imageId,
     }),
   ).rejects.toThrow("reference name must match the media type");
+});
+
+it("rejects Remix Lite renders without images or with sources longer than 15 seconds before reserving credits", async () => {
+  const { t, asUser, args } = await fixture();
+  const { analysis } = await asUser.action(api.transforms.analyze, args);
+  const request = {
+    projectId: args.projectId,
+    sourceAssetId: args.sourceAssetId,
+    referenceAssetIds: [],
+    resolution: "720p" as const,
+    requestId: "invalid-remix",
+    plan: {
+      version: 1,
+      targets: [],
+      instruction: "Recast the actor",
+      preserveCamera: true,
+      preserveMotion: true,
+      analysis,
+      analysisModel: "mock",
+      sampledFrameTimes: [0.1, 2, 4],
+    },
+  };
+  await expect(asUser.action(api.transforms.generate, request)).rejects.toThrow(
+    "1–8",
+  );
+  await t.run((ctx) =>
+    ctx.db.patch(args.sourceAssetId, { durationSec: 15.01 }),
+  );
+  await expect(
+    asUser.action(api.transforms.generate, {
+      ...request,
+      referenceAssetIds: args.referenceAssetIds,
+    }),
+  ).rejects.toThrow("4–15");
+  expect(
+    await t.run((ctx) => ctx.db.query("generationJobs").collect()),
+  ).toHaveLength(0);
 });

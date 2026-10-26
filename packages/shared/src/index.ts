@@ -219,7 +219,11 @@ export type {
   TrackKind,
 } from "./timeline";
 
-export { validateVideoInput, validateVideoReference } from "./videoGeneration";
+export {
+  validateVideoInput,
+  validateRemixInput,
+  validateVideoReference,
+} from "./videoGeneration";
 
 export {
   referenceAlias,

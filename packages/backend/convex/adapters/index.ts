@@ -51,7 +51,20 @@ const deepseekAdapter: Pick<
     },
   };
 })();
-const adapters = [seedance25Adapter, deepseekAdapter];
+const remixLiteAdapter: typeof seedance25Adapter = {
+  capabilities: {
+    ...seedance25Adapter.capabilities,
+    id: "sume-remix-lite",
+    operations: ["text-to-video"],
+    inputs: ["text", "referenceImages", "referenceVideo"],
+    durations: [5, 10, 15],
+    maxDurationSec: 15,
+    maxReferenceImages: 8,
+    features: ["edit"],
+  },
+  estimateCost: seedance25Adapter.estimateCost,
+};
+const adapters = [seedance25Adapter, remixLiteAdapter, deepseekAdapter];
 export function listAdapters() {
   return adapters;
 }

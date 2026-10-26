@@ -85,9 +85,9 @@ describe("video transformation contract", () => {
     );
   });
   it("rounds source duration within the supported whole-second range without silently trimming long videos", () => {
-    expect(transformDuration(5.056)).toBe(5);
-    expect(transformDuration(29.9)).toBe(30);
-    for (const value of [NaN, Infinity, 3.99, 30.01])
+    expect(transformDuration(5.056)).toBe(6);
+    expect(transformDuration(14.9)).toBe(15);
+    for (const value of [NaN, Infinity, 3.99, 15.01])
       expect(() => transformDuration(value)).toThrow();
   });
 });

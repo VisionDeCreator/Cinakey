@@ -1,5 +1,6 @@
 import { deepseekAdapter } from "./deepseek";
 import { createMockAdapter } from "./mock";
+import { remixLiteAdapter } from "./sume";
 import { seedance25Adapter } from "./seedance25";
 import type { GenerationAdapter } from "@cinakey/shared";
 import { useMockProviders, requireProviderKey } from "../config/env";
@@ -8,6 +9,7 @@ export type { GenerationAdapter, ModelCapabilities } from "@cinakey/shared";
 
 const realAdapters: Record<string, GenerationAdapter> = {
   "seedance-2.5": seedance25Adapter,
+  "sume-remix-lite": remixLiteAdapter,
   deepseek: deepseekAdapter,
 };
 
@@ -21,7 +23,7 @@ function resolveAdapter(id: string): GenerationAdapter | undefined {
   if (useMockAdapters()) {
     return createMockAdapter(real);
   }
-  requireProviderKey(id === "seedance-2.5" ? "seedance" : "deepseek");
+  requireProviderKey(real.capabilities.kind === "video" ? "sume" : "deepseek");
   return real;
 }
 

@@ -4,7 +4,9 @@ import { getAdapter, listAdapters, listRealAdapters } from "./index";
 describe("model adapters", () => {
   it("registers launch adapters with operations and estimateCost", () => {
     const ids = listAdapters().map((a) => a.capabilities.id);
-    expect(ids).toEqual(expect.arrayContaining(["seedance-2.5", "deepseek"]));
+    expect(ids).toEqual(
+      expect.arrayContaining(["seedance-2.5", "sume-remix-lite", "deepseek"]),
+    );
     expect(getAdapter("seedance-2.5")?.capabilities.kind).toBe("video");
     expect(getAdapter("gpt-image-2")).toBeUndefined();
     expect(

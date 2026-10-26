@@ -30,3 +30,37 @@ it("validates known reference dimensions, video duration and size before provide
     }),
   ).toThrow("resolution");
 });
+
+it("accepts the original 480×854 Remix footage while keeping Seedance reference limits", async () => {
+  const { validateVideoReference, validateRemixInput } =
+    await import("./videoGeneration");
+  const source = {
+    name: "Basketball",
+    type: "video",
+    width: 480,
+    height: 854,
+    durationSec: 9.041667,
+  };
+  expect(() => validateVideoReference(source, true)).not.toThrow();
+  expect(() =>
+    validateVideoReference({ ...source, durationSec: 16 }, true),
+  ).toThrow("4–15");
+  const input = {
+    durationSec: 10,
+    referenceVideoUrl: "https://fixture.test/source.mp4",
+    referenceImageUrls: ["https://fixture.test/character.png"],
+  };
+  expect(() => validateRemixInput(input)).not.toThrow();
+  expect(() => validateRemixInput({ ...input, durationSec: 16 })).toThrow(
+    "4–15",
+  );
+  expect(() =>
+    validateRemixInput({ ...input, referenceImageUrls: [] }),
+  ).toThrow("1–8");
+  expect(() =>
+    validateRemixInput({
+      ...input,
+      referenceImageUrls: Array(9).fill("https://fixture.test/image.png"),
+    }),
+  ).toThrow("1–8");
+});

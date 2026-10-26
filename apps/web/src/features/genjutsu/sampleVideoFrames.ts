@@ -14,8 +14,8 @@ export async function sampleVideoFrames(url: string, signal: AbortSignal) {
   });
   try {
     const duration = await input.computeDuration();
-    if (!Number.isFinite(duration) || duration < 4 || duration > 30)
-      throw new Error("Choose a whole video between 4 and 30 seconds");
+    if (!Number.isFinite(duration) || duration < 4 || duration > 15)
+      throw new Error("Choose a whole video between 4 and 15 seconds");
     const track = await input.getPrimaryVideoTrack();
     if (!track || !(await track.canDecode()))
       throw new Error(

@@ -149,11 +149,9 @@ not appear in Projects, and cannot become series episodes. Their uploaded media
 stays separate from the general project asset library. The project inspector no
 longer contains transformation controls.
 
-Recast a character, restyle footage, or change its environment using the existing
-Seedance provider. The prompt determines what changes by default. Optional checkboxes can combine
+Recast a character, restyle footage, or change its environment using Sume Remix Lite. The prompt determines what changes by default. Optional checkboxes can combine
 characters, visual style, environment, clothing, objects/products, and lighting
-in one request. Image references are optional; select up to eight in their desired
-reference order. Type `@` in **Describe the change** to open the image picker,
+in one request. Select one to eight image references in their desired reference order. Type `@` in **Describe the change** to open the image picker,
 or click/drag a library thumbnail into the prompt. The prompt uses the same
 plain-text mention editor and alias resolver as project scripts: searchable
 keyboard selection, previews, replacing all occurrences, renaming everywhere, and
@@ -166,7 +164,7 @@ without overwriting existing image aliases.
 
 Click **Generate** after uploading a video and writing a prompt. Cinakey decodes
 eight timestamped frames locally, analyzes them and the selected reference images
-with `deepseek-flash`, then submits the transformation to Seedance automatically.
+with `deepseek-flash`, then submits the transformation to Sume Remix Lite automatically.
 The button shows the combined maximum estimate for analysis and rendering. Analysis
 settles to reported token usage and failed analysis is refunded; rendering does
 not start if analysis fails. Completed analysis is reused on render retries, which
@@ -187,8 +185,8 @@ locked during uploads and generation preparation to avoid changing a running
 request.
 
 The first version processes whole source videos with saved duration metadata,
-4–30 seconds long. It requests the nearest whole-second output duration, 720p or
-1080p, with adaptive aspect ratio. Camera and motion preservation are prompt
+4–15 seconds long. It rounds source duration up for billing and requests 720p or
+1080p, preserving the original source duration and aspect ratio. Camera and motion preservation are prompt
 instructions, not tracked masks or guarantees. Precise isolated object replacement
 and automatic shot-boundary detection are not implemented. Fast actions between
 sampled frames may be missed.

@@ -1,5 +1,5 @@
 import type { BuildRequestInput } from "./adapters";
-/** Deliberate supported subset of the documented Ark Seedance 2.5 contract. */
+/** Deliberate supported subset of the documented Sume Seedance 2.5 contract. */
 export function validateVideoInput(input: BuildRequestInput) {
   if (
     !["text-to-video", "image-to-video", "extend"].includes(
@@ -49,14 +49,17 @@ export function validateVideoInput(input: BuildRequestInput) {
 }
 
 /** Known media constraints are checked before reserving generation credits. */
-export function validateVideoReference(asset: {
-  name: string;
-  type: string;
-  width?: number;
-  height?: number;
-  durationSec?: number;
-  sizeBytes?: number;
-}) {
+export function validateVideoReference(
+  asset: {
+    name: string;
+    type: string;
+    width?: number;
+    height?: number;
+    durationSec?: number;
+    sizeBytes?: number;
+  },
+  remix = false,
+) {
   const prefix = `Reference “${asset.name}”`;
   if (asset.width !== undefined && asset.height !== undefined) {
     const { width, height } = asset;
@@ -65,6 +68,7 @@ export function validateVideoReference(asset: {
     if (width / height < 0.4 || width / height > 2.5)
       throw new Error(`${prefix} must have an aspect ratio from 0.4 to 2.5.`);
     if (
+      !remix &&
       asset.type === "video" &&
       (width * height < 407696 || width * height > 8295044)
     )
@@ -75,12 +79,32 @@ export function validateVideoReference(asset: {
   if (
     asset.type === "video" &&
     asset.durationSec !== undefined &&
-    (asset.durationSec < 2 || asset.durationSec > 30)
+    (asset.durationSec < (remix ? 4 : 2) ||
+      asset.durationSec > (remix ? 15 : 30))
   )
-    throw new Error(`${prefix} must be 2–30 seconds long.`);
+    throw new Error(
+      `${prefix} must be ${remix ? "4–15" : "2–30"} seconds long.`,
+    );
   if (
     asset.sizeBytes !== undefined &&
     asset.sizeBytes > (asset.type === "video" ? 200 : 30) * 1024 * 1024
   )
     throw new Error(`${prefix} exceeds the provider's file size limit.`);
+}
+
+/** Remix Lite Object Swap requires an original video and replacement images. */
+export function validateRemixInput(input: BuildRequestInput) {
+  validateVideoInput(input);
+  if (!input.durationSec || input.durationSec > 15)
+    throw new Error("Remix Lite requires a 4–15 second source video");
+  if (!input.referenceVideoUrl)
+    throw new Error("Remix Lite requires a source video");
+  if (!input.referenceImageUrls?.length || input.referenceImageUrls.length > 8)
+    throw new Error("Remix Lite requires 1–8 reference images");
+  if (
+    (input.kind && input.kind !== "text-to-video") ||
+    input.startFrameUrl ||
+    input.endFrameUrl
+  )
+    throw new Error("Unsupported Remix Lite operation");
 }

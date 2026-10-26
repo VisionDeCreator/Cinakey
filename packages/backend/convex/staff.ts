@@ -197,7 +197,12 @@ export const providerHealth = query({
   handler: async (ctx, args) => {
     await requireStaff(ctx);
     const limit = Math.min(args.limitPerModel ?? 100, 500);
-    const models = ["seedance-2.5", "gpt-image-2", "deepseek"] as const;
+    const models = [
+      "seedance-2.5",
+      "sume-remix-lite",
+      "gpt-image-2",
+      "deepseek",
+    ] as const;
     const results = [];
 
     for (const model of models) {
