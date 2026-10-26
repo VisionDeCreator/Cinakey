@@ -192,6 +192,7 @@ export const videos = query({
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((j) => ({
           jobId: j._id,
+          model: j.model,
           status: j.status,
           errorMessage: j.errorMessage,
           submissionState: j.submissionState,

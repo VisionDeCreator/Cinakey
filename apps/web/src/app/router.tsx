@@ -18,6 +18,7 @@ import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayo
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SeriesIndexPage } from "@/features/series/SeriesIndexPage";
 import { SeriesPage } from "@/features/series/SeriesPage";
+import { GenjutsuPage } from "@/features/genjutsu/GenjutsuPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import {
   StaffAuditPage,
@@ -89,6 +90,8 @@ export function AppRouter() {
             <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="/series" element={<SeriesIndexPage />} />
             <Route path="/series/:seriesId" element={<SeriesPage />} />
+            <Route path="/genjutsu" element={<GenjutsuPage />} />
+            <Route path="/genjutsu/:sessionId" element={<GenjutsuPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route
               path="/projects/:projectId"

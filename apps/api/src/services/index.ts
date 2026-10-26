@@ -1,3 +1,4 @@
+import * as transforms from "./transforms";
 import * as email from "./email";
 import * as entities from "./entities";
 import * as generation from "./generation";
@@ -8,6 +9,7 @@ import * as staging from "./staging";
 import * as storage from "./storage";
 import * as timelineVersions from "./timelineVersions";
 export const services = {
+  transforms,
   workspace,
   email,
   entities,

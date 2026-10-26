@@ -1,4 +1,12 @@
 {
+  "genjutsu:removeInput": { "kind": "mutation", "public": true },
+  "genjutsu:inputState": { "kind": "query", "public": false },
+  "genjutsu:list": { "kind": "query", "public": true },
+  "genjutsu:get": { "kind": "query", "public": true },
+  "genjutsu:create": { "kind": "mutation", "public": true },
+  "genjutsu:update": { "kind": "mutation", "public": true },
+  "transforms:analyze": { "kind": "action", "public": true },
+  "transforms:generate": { "kind": "action", "public": true },
   "assets:list": {
     "kind": "query",
     "public": true

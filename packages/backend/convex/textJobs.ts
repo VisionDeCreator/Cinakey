@@ -9,13 +9,43 @@ export const createChatJob = internalMutation({
     userId: v.id("users"),
     estimatedCostCredits: v.number(),
     prompt: v.string(),
+    modelVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.workspaceId !== args.workspaceId)
+      throw new Error("Project/workspace mismatch");
+    if (
+      !Number.isSafeInteger(args.estimatedCostCredits) ||
+      args.estimatedCostCredits <= 0
+    )
+      throw new Error("Invalid analysis credit reservation");
+    if (project.spendCapCredits !== undefined) {
+      const entries = await ctx.db
+        .query("creditLedger")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+        .collect();
+      const spent = Math.max(
+        0,
+        -entries
+          .filter(
+            (entry) =>
+              entry.projectId === args.projectId &&
+              ["reserve", "settle", "refund"].includes(entry.reason),
+          )
+          .reduce((sum, entry) => sum + entry.delta, 0),
+      );
+      if (spent + args.estimatedCostCredits > project.spendCapCredits)
+        throw new ConvexError({
+          code: "SPEND_CAP",
+          message: "Project spend cap reached",
+        });
+    }
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
       model: "deepseek",
-      modelVersion: "deepseek-chat",
+      modelVersion: args.modelVersion ?? "deepseek-chat",
       kind: "chat",
       prompt: args.prompt.slice(0, 500),
       estimatedCostCredits: args.estimatedCostCredits,

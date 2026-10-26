@@ -162,6 +162,8 @@ export const setMembership = mutation({
   },
   handler: async (ctx, args) => {
     const project = await requireProjectAccess(ctx, args.projectId);
+    if (project.purpose === "genjutsu")
+      throw new Error("Transformation sessions cannot become series episodes");
     if (args.seriesId === null) {
       await ctx.db.patch(project._id, {
         seriesId: undefined,

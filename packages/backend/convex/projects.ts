@@ -106,7 +106,11 @@ export const listMine = query({
       .collect();
 
     const visible = projects
-      .filter((p) => includeArchived || p.archivedAt === undefined)
+      .filter(
+        (p) =>
+          p.purpose !== "genjutsu" &&
+          (includeArchived || p.archivedAt === undefined),
+      )
       .sort((a, b) => b.updatedAt - a.updatedAt);
 
     return await Promise.all(
@@ -123,7 +127,8 @@ export const get = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     try {
-      return await requireProjectAccess(ctx, args.projectId);
+      const project = await requireProjectAccess(ctx, args.projectId);
+      return project.purpose === "genjutsu" ? null : project;
     } catch {
       return null;
     }

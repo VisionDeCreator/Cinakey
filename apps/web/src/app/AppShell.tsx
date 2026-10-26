@@ -6,6 +6,7 @@ import {
   Coins,
   FolderKanban,
   Images,
+  WandSparkles,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/series", label: "Series", icon: FolderKanban },
   { to: "/projects", label: "Projects", icon: FolderKanban },
+  { to: "/genjutsu", label: "Genjutsu", icon: WandSparkles },
   { to: "/assets", label: "Assets", icon: Images },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

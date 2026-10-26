@@ -166,7 +166,20 @@ const schema = defineSchema(
       createdAt: v.number(),
       updatedAt: v.number(),
     }).index("by_project", ["projectId"]),
+    genjutsuSessions: defineTable({
+      workspaceId: v.id("workspaces"),
+      storageScopeId: v.id("projects"),
+      removedInputAssetIds: v.optional(v.array(v.id("assets"))),
+      title: v.string(),
+      sourceAssetId: v.optional(v.id("assets")),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_workspace", ["workspaceId"])
+      .index("by_scope", ["storageScopeId"]),
+
     projects: defineTable({
+      purpose: v.optional(v.literal("genjutsu")),
       seriesId: v.optional(v.id("series")),
       episodeNumber: v.optional(v.number()),
       episodeOrder: v.optional(v.number()),

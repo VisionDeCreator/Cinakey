@@ -66,6 +66,7 @@ export const startGeneration = action({
     imageCount: v.optional(v.number()),
     input: v.optional(v.any()),
     requestId: v.optional(v.string()),
+    omitProjectStyle: v.optional(v.boolean()),
   },
   handler: async (
     ctx,
@@ -111,7 +112,7 @@ export const startGeneration = action({
     }
 
     const styleRefId =
-      args.startFrameAssetId || args.kind === "extend"
+      args.omitProjectStyle || args.startFrameAssetId || args.kind === "extend"
         ? undefined
         : project.styleReferenceAssetId;
     const referenceAssetIds = [
@@ -679,12 +680,29 @@ async function finishSuccess(
           ? ("json" as const)
           : ("other" as const);
 
+    let transformedName: string | undefined;
     let parentAssetIds: Id<"assets">[] | undefined;
     let referenceAssetIds: Id<"assets">[] | undefined;
 
     if (job.inputsFileId) {
       try {
         const inputs = await loadJson<BuildRequestInput>(ctx, job.inputsFileId);
+        const transform = inputs.transformation as
+          | { mode?: unknown; targets?: unknown; sourceName?: unknown }
+          | undefined;
+        if (transform && typeof transform.sourceName === "string") {
+          const targets = Array.isArray(transform.targets)
+            ? transform.targets.filter(
+                (target): target is string => typeof target === "string",
+              )
+            : [];
+          const label = targets.length
+            ? targets.join(" + ")
+            : typeof transform.mode === "string"
+              ? transform.mode
+              : "Transform";
+          transformedName = `${label} · ${transform.sourceName}`.slice(0, 200);
+        }
         if (Array.isArray(inputs.parentAssetIds)) {
           parentAssetIds = inputs.parentAssetIds as Id<"assets">[];
         }
@@ -703,6 +721,7 @@ async function finishSuccess(
         storageId,
         type: assetType,
         format,
+        name: transformedName,
         sizeBytes: blob.size,
         durationSec: mediaMetadata?.durationSec,
         width: mediaMetadata?.width,

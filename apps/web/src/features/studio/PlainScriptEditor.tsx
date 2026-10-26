@@ -23,7 +23,15 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
     onDropAsset,
     expanded,
     activeOption,
+    label = "Script",
+    placeholder = "Write your script. Type @ to link an image or video reference.",
+    suggestionsId = "script-reference-suggestions",
+    maxLength,
   }: {
+    label?: string;
+    placeholder?: string;
+    suggestionsId?: string;
+    maxLength?: number;
     expanded: boolean;
     activeOption?: string;
     value: string;
@@ -104,12 +112,13 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
       <textarea
         ref={forwardedRef}
         id={`script-${projectId}`}
-        aria-label="Script"
+        aria-label={label}
         value={value}
         disabled={disabled}
         readOnly={readOnly}
         spellCheck={false}
-        placeholder="Write your script. Type @ to link an image or video reference."
+        placeholder={placeholder}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
         onSelect={(e) => onCaret(e.currentTarget)}
         onClick={(e) => onCaret(e.currentTarget)}
@@ -128,7 +137,7 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
         aria-expanded={expanded}
         aria-activedescendant={activeOption}
         aria-autocomplete="list"
-        aria-controls="script-reference-suggestions"
+        aria-controls={suggestionsId}
       />
     </div>
   );

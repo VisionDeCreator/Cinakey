@@ -296,9 +296,18 @@ export const markSucceeded = internalMutation({
       errorMessage: undefined,
     });
     if (job.inputsFileId) {
-      const href = job.entityId
-        ? `/projects/${job.projectId}/assets/${job.entityId}`
-        : `/projects/${job.projectId}/studio`;
+      const transformationSession =
+        project.purpose === "genjutsu"
+          ? await ctx.db
+              .query("genjutsuSessions")
+              .withIndex("by_scope", (q) => q.eq("storageScopeId", project._id))
+              .first()
+          : null;
+      const href = transformationSession
+        ? `/genjutsu/${transformationSession._id}`
+        : job.entityId
+          ? `/projects/${job.projectId}/assets/${job.entityId}`
+          : `/projects/${job.projectId}/studio`;
       await insertNotification(ctx, {
         userId: job.createdBy,
         projectId: job.projectId,
@@ -359,9 +368,18 @@ export const markRefunded = internalMutation({
       providerResultFileId: undefined,
     });
     if (job.inputsFileId) {
-      const href = job.entityId
-        ? `/projects/${job.projectId}/assets/${job.entityId}`
-        : `/projects/${job.projectId}/studio`;
+      const transformationSession =
+        project.purpose === "genjutsu"
+          ? await ctx.db
+              .query("genjutsuSessions")
+              .withIndex("by_scope", (q) => q.eq("storageScopeId", project._id))
+              .first()
+          : null;
+      const href = transformationSession
+        ? `/genjutsu/${transformationSession._id}`
+        : job.entityId
+          ? `/projects/${job.projectId}/assets/${job.entityId}`
+          : `/projects/${job.projectId}/studio`;
       await insertNotification(ctx, {
         userId: job.createdBy,
         projectId: job.projectId,

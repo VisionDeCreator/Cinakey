@@ -20,6 +20,7 @@ import type * as email from "../email.js";
 import type * as entities from "../entities.js";
 import type * as exports from "../exports.js";
 import type * as generation from "../generation.js";
+import type * as genjutsu from "../genjutsu.js";
 import type * as http from "../http.js";
 import type * as lib_access from "../lib/access.js";
 import type * as lib_analytics from "../lib/analytics.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   entities: typeof entities;
   exports: typeof exports;
   generation: typeof generation;
+  genjutsu: typeof genjutsu;
   http: typeof http;
   "lib/access": typeof lib_access;
   "lib/analytics": typeof lib_analytics;

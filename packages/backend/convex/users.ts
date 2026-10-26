@@ -175,6 +175,11 @@ export const purgeUserData = internalMutation({
         await ctx.db.delete(row._id);
       }
 
+      const sessions = await ctx.db
+        .query("genjutsuSessions")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+        .collect();
+      for (const session of sessions) await ctx.db.delete(session._id);
       await ctx.db.delete(workspaceId);
     }
 

@@ -138,3 +138,65 @@ source media. Settings controls email preferences.
 See [production safety and workflow](docs/production-safety.md) and the
 [video provider contract](docs/provider-contract.md) for save recovery, media
 retention, spending limits, supported provider operations and validation.
+
+## Genjutsu
+
+Open **Genjutsu** in the main sidebar to work with video transformations in a
+standalone section. Create a transformation session, upload source footage and
+image references, then use its dedicated source, comparison, version-history and
+transformation-control layout. Sessions do not require a project or series, do
+not appear in Projects, and cannot become series episodes. Their uploaded media
+stays separate from the general project asset library. The project inspector no
+longer contains transformation controls.
+
+Recast a character, restyle footage, or change its environment using the existing
+Seedance provider. The prompt determines what changes by default. Optional checkboxes can combine
+characters, visual style, environment, clothing, objects/products, and lighting
+in one request. Image references are optional; select up to eight in their desired
+reference order. Type `@` in **Describe the change** to open the image picker,
+or click/drag a library thumbnail into the prompt. The prompt uses the same
+plain-text mention editor and alias resolver as project scripts: searchable
+keyboard selection, previews, replacing all occurrences, renaming everywhere, and
+undoing reference replacements. Referenced images are passed to both analysis and
+rendering in first-mention order; missing or ambiguous references block spending.
+Prompt drafts recover in the current browser. `@video_1` automatically refers to
+the selected source video. When converting a mismatched numbered video alias to
+an image, the editor chooses an unused `@image_N` alias and rewrites all mentions
+without overwriting existing image aliases.
+
+Click **Generate** after uploading a video and writing a prompt. Cinakey decodes
+eight timestamped frames locally, analyzes them and the selected reference images
+with `deepseek-flash`, then submits the transformation to Seedance automatically.
+The button shows the combined maximum estimate for analysis and rendering. Analysis
+settles to reported token usage and failed analysis is refunded; rendering does
+not start if analysis fails. Completed analysis is reused on render retries, which
+also retain their submission request ID. Analysis and generation details remain
+available in an optional disclosure. Explicit mock mode uses marked placeholder
+observations without a DeepSeek request or analysis charge.
+
+The selected source video replaces its upload area with a preview and **Remove
+video** control. Remove it before uploading another source. Each reference image
+also has a **Remove** control. Removal hides the input from the active session and
+blocks its use in new generations while preserving existing generation files and
+history. Mentions of removed images stay visible as missing until relinked.
+
+Both source and reference upload areas accept desktop drag-and-drop as well as
+file selection. The source area accepts one video per drop; references accept
+multiple images. Invalid media and multi-video drops show an error. Inputs are
+locked during uploads and generation preparation to avoid changing a running
+request.
+
+The first version processes whole source videos with saved duration metadata,
+4–30 seconds long. It requests the nearest whole-second output duration, 720p or
+1080p, with adaptive aspect ratio. Camera and motion preservation are prompt
+instructions, not tracked masks or guarantees. Precise isolated object replacement
+and automatic shot-boundary detection are not implemented. Fast actions between
+sampled frames may be missed.
+
+Sessions live in `genjutsuSessions`. An isolated infrastructure scope marked
+`purpose: genjutsu` reuses existing asset storage, generation workers and credit
+accounting; these scopes are excluded from production-project listings and routes.
+Generation notifications link back to the session. Rendering retries reuse the
+request ID. Outputs retain source lineage; input snapshots include the versioned
+plan, analysis model, sample times and selected references. Original footage stays
+intact. Compare versions and open/download the selected result within Genjutsu.

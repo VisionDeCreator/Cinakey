@@ -5,6 +5,8 @@ import {
   type FunctionReference,
 } from "convex/server";
 type Operations = ApiFromModules<{
+  genjutsu: typeof import("../../../packages/backend/convex/genjutsu");
+  transforms: typeof import("./services/transforms");
   workspace: typeof import("../../../packages/backend/convex/workspace") &
     typeof import("./services/workspace");
   series: typeof import("../../../packages/backend/convex/series");

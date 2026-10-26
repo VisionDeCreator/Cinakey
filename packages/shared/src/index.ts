@@ -233,3 +233,18 @@ export { mentionAtCaret, renameReferenceMentions } from "./references";
 
 export { scriptMentionRanges } from "./references";
 export { replacementReferenceAlias } from "./references";
+
+export {
+  TRANSFORM_TARGETS,
+  resolveTransformPrompt,
+  compileVideoTransform,
+  transformAnalysisCredits,
+  transformAnalysisSchema,
+  transformDuration,
+  videoTransformSchema,
+} from "./videoTransform";
+export type {
+  TransformAnalysis,
+  TransformTarget,
+  VideoTransform,
+} from "./videoTransform";
