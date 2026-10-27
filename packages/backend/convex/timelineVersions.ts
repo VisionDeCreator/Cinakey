@@ -1,7 +1,8 @@
-import { projectCanUseAsset } from "./lib/access";
+import { projectCanUseAsset, requireProjectAccessForUser } from "./lib/access";
 import { v, ConvexError } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
+import { assertTimelineLease } from "./timelineLeases";
 import { insertVersion } from "./lib/versioning";
 
 /**
@@ -12,11 +13,20 @@ export const createVersion = internalMutation({
     projectId: v.id("projects"),
     parentId: v.optional(v.id("timelineVersions")),
     label: v.optional(v.string()),
+    sessionId: v.string(),
+    fence: v.number(),
     timelineFileId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     await requireProjectAccess(ctx, args.projectId);
+    await assertTimelineLease(
+      ctx,
+      args.projectId,
+      user._id,
+      args.sessionId,
+      args.fence,
+    );
 
     if (args.parentId !== undefined) {
       const parent = await ctx.db.get(args.parentId);
@@ -51,7 +61,17 @@ export const listForProject = query({
       .query("timelineVersions")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    return versions.sort((a, b) => b.createdAt - a.createdAt);
+    return await Promise.all(
+      versions
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(async (version) => {
+          const author = await ctx.db.get(version.createdBy);
+          return {
+            ...version,
+            createdByName: author?.name ?? author?.email ?? "Former teammate",
+          };
+        }),
+    );
   },
 });
 
@@ -83,14 +103,7 @@ export const assertAccess = internalQuery({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
-    if (project === null) throw new Error("Project not found");
-    const user = await ctx.db.get(args.userId);
-    if (user === null) throw new Error("User not found");
-    if (user.isStaff === true) return true;
-    if (user.personalWorkspaceId !== project.workspaceId) {
-      throw new Error("Forbidden");
-    }
+    await requireProjectAccessForUser(ctx, args.projectId, args.userId);
     return true;
   },
 });
@@ -117,6 +130,8 @@ export const commitSnapshot = internalMutation({
   args: {
     projectId: v.id("projects"),
     parentId: v.union(v.id("timelineVersions"), v.null()),
+    sessionId: v.string(),
+    fence: v.number(),
     timelineFileId: v.id("_storage"),
     mediaAssetIds: v.array(v.id("assets")),
     requestId: v.string(),
@@ -133,7 +148,18 @@ export const commitSnapshot = internalMutation({
     const prior = versions.find(
       (version) => version.saveRequestId === args.requestId,
     );
-    if (prior) return prior._id;
+    if (prior) {
+      if (prior.createdBy !== user._id)
+        throw new Error("Save request belongs to another editor");
+      return prior._id;
+    }
+    await assertTimelineLease(
+      ctx,
+      args.projectId,
+      user._id,
+      args.sessionId,
+      args.fence,
+    );
     if ((versions[0]?._id ?? null) !== args.parentId)
       throw new ConvexError({
         code: "TIMELINE_CONFLICT",

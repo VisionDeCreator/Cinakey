@@ -1,3 +1,5 @@
+import { ShareWatchPage } from "@/features/sharing/ShareWatchPage";
+import { authDestination } from "@/features/auth/auth-errors";
 import { AppShell } from "@/app/AppShell";
 import { ErrorBoundary } from "@/app/ErrorBoundary";
 import { NotFoundPage } from "@/app/NotFoundPage";
@@ -19,6 +21,7 @@ import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SeriesIndexPage } from "@/features/series/SeriesIndexPage";
 import { SeriesPage } from "@/features/series/SeriesPage";
 import { GenjutsuPage } from "@/features/genjutsu/GenjutsuPage";
+import { BillingPage } from "@/features/settings/BillingPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import {
   StaffAuditPage,
@@ -30,9 +33,16 @@ import {
 } from "@/features/staff/StaffPages";
 import { useConvexAuth } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
 function AuthRedirect({ children }: { children: ReactNode }) {
+  const [params] = useSearchParams();
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (isLoading) {
@@ -44,7 +54,7 @@ function AuthRedirect({ children }: { children: ReactNode }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/projects" replace />;
+    return <Navigate to={authDestination(params.get("next"))} replace />;
   }
 
   return children;
@@ -69,6 +79,7 @@ export function AppRouter() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/share/:linkId" element={<ShareWatchPage />} />
         <Route
           path="/sign-in"
           element={
@@ -112,6 +123,10 @@ export function AppRouter() {
             </Route>
             <Route path="/assets" element={<AssetsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/billing/:billingWorkspaceId?"
+              element={<BillingPage />}
+            />
             <Route
               path="/staff"
               element={

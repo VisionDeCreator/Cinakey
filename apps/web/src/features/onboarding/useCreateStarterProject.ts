@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAction, useMutation } from "@/lib/api/hooks";
 import { api, type Id } from "@cinakey/backend";
 import { useCallback, useState } from "react";
@@ -12,6 +13,7 @@ const STARTER_CLIPS = [
  * Create the guided starter project and upload sample clips as project media.
  */
 export function useCreateStarterProject() {
+  const { workspaceId } = useWorkspace();
   const createStarter = useAction(api.workspace.createTemplate);
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
@@ -22,7 +24,7 @@ export function useCreateStarterProject() {
     setBusy(true);
     setError(null);
     try {
-      const shell = await createStarter({});
+      const shell = await createStarter(workspaceId ? { workspaceId } : {});
 
       for (let i = 0; i < STARTER_CLIPS.length; i++) {
         const clip = STARTER_CLIPS[i]!;
@@ -31,7 +33,7 @@ export function useCreateStarterProject() {
           throw new Error(`Failed to load sample clip ${clip.path}`);
         }
         const blob = await res.blob();
-        const uploadUrl = await createUploadUrl({});
+        const uploadUrl = await createUploadUrl({ projectId: shell.projectId });
         const uploadRes = await fetch(uploadUrl, {
           method: "POST",
           headers: { "Content-Type": blob.type || "video/mp4" },
@@ -64,7 +66,7 @@ export function useCreateStarterProject() {
     } finally {
       setBusy(false);
     }
-  }, [createAsset, createStarter, createUploadUrl]);
+  }, [createAsset, createStarter, createUploadUrl, workspaceId]);
 
   return { run, busy, error };
 }

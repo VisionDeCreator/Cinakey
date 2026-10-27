@@ -1,3 +1,9 @@
+import { StoredExports } from "./StoredExports";
+import { useTimelineLease } from "./useTimelineLease";
+import {
+  useWorkspace,
+  useDraftScope,
+} from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/use-confirm";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
@@ -52,6 +58,9 @@ export function EditPage() {
 
 function ProjectEditor() {
   const { projectId } = useParams();
+  const { canWrite, subscriptionMessage } = useWorkspace();
+  const lease = useTimelineLease(projectId, canWrite !== false);
+  const canEditNow = lease.canEditNow;
   const project = useQuery(
     api.projects.get,
     projectId ? { projectId: projectId as never } : "skip",
@@ -204,7 +213,8 @@ function ProjectEditor() {
 
   const aspectRatio = project?.aspectRatio;
   const projectFps = project?.fps;
-  const recoveryKey = `cinakey.timelineRecovery.${projectId}`;
+  const draftScope = useDraftScope();
+  const recoveryKey = `cinakey.timelineRecovery.${draftScope}${projectId}`;
   const workspaceReady = workspaceState?.migrated;
   const workspaceKnown = workspaceState !== undefined;
   const load = useCallback(() => {
@@ -328,16 +338,21 @@ function ProjectEditor() {
     };
   }, []);
 
-  const apply = useCallback((fn: (d: TimelineDocument) => TimelineDocument) => {
-    setHistory((h) => {
-      if (!h) return h;
-      return pushDocument(h, recomputeTimelineDuration(fn(h.present)));
-    });
-  }, []);
+  const apply = useCallback(
+    (fn: (d: TimelineDocument) => TimelineDocument) => {
+      if (!canEditNow()) return;
+      setHistory((h) => {
+        if (!h) return h;
+        return pushDocument(h, recomputeTimelineDuration(fn(h.present)));
+      });
+    },
+    [canEditNow],
+  );
 
   // One request at a time. Acknowledging an older snapshot never replaces newer edits.
   useEffect(() => {
     if (
+      !lease.canEdit ||
       !history?.dirty ||
       !projectId ||
       !doc ||
@@ -365,10 +380,17 @@ function ProjectEditor() {
         requestId: crypto.randomUUID(),
       };
       pendingSave.current = attempt;
+      if (!canEditNow()) {
+        savingRef.current = false;
+        setSaving(false);
+        return;
+      }
       void saveTimeline({
         projectId: projectId as never,
         parentId: attempt.parentId,
         document: attempt.snapshot,
+        sessionId: lease.sessionId,
+        fence: lease.fence!,
         requestId: attempt.requestId,
         label: "Autosave",
       })
@@ -408,6 +430,10 @@ function ProjectEditor() {
     }, AUTOSAVE_MS);
     return () => window.clearTimeout(timer);
   }, [
+    lease.canEdit,
+    lease.sessionId,
+    lease.fence,
+    canEditNow,
     history?.dirty,
     doc,
     projectId,
@@ -433,7 +459,8 @@ function ProjectEditor() {
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        setHistory((h) => (h ? (e.shiftKey ? redo(h) : undo(h)) : h));
+        if (canEditNow())
+          setHistory((h) => (h ? (e.shiftKey ? redo(h) : undo(h)) : h));
         return;
       }
 
@@ -498,15 +525,15 @@ function ProjectEditor() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [apply, markIn, playheadSec, selectedClipId]);
+  }, [apply, canEditNow, markIn, playheadSec, selectedClipId]);
 
   const restoreVersion = async (versionId: string) => {
-    if (!projectId) return;
+    if (!projectId || !canEditNow()) return;
     const result = await getTimelineContent({
       projectId: projectId as never,
       versionId: versionId as never,
     });
-    if (!result.document) return;
+    if (!result.document || !canEditNow()) return;
     setHistory(
       replacePresent(createHistory(result.document), result.document, true),
     );
@@ -526,7 +553,11 @@ function ProjectEditor() {
       </div>
     );
   function insert(media: StudioInsert) {
-    if (!doc) return;
+    if (!doc) return false;
+    if (!canEditNow()) {
+      setEditError("Request editing access before changing this timeline.");
+      return false;
+    }
     try {
       // Compute once so undo/redo retains stable clip identifiers.
       const result = insertMedia(doc, media, playheadSec);
@@ -535,10 +566,12 @@ function ProjectEditor() {
       setPlayheadSec(result.startSec);
       pendingSeek.current = result.startSec;
       setEditError(null);
+      return true;
     } catch (error) {
       setEditError(
         error instanceof Error ? error.message : "Could not insert media",
       );
+      return false;
     }
   }
   async function dropMedia(
@@ -548,6 +581,12 @@ function ProjectEditor() {
     trackId: string,
   ) {
     if (dropBusy || !doc) return;
+    if (!canEditNow()) {
+      setEditError(
+        "Request editing access before dropping media into this timeline.",
+      );
+      return;
+    }
     setDropBusy(true);
     setEditError(null);
     try {
@@ -603,6 +642,10 @@ function ProjectEditor() {
       )
         throw new Error(
           "Files were imported, but their duration could not be read. Preview them in the library before adding them.",
+        );
+      if (!canEditNow())
+        throw new Error(
+          "Editing access was lost. Imported files are kept in the library.",
         );
       const clipIds = pending.map(() => newTimelineId("clip"));
       // Apply against the latest document: uploads must never replace intervening edits.
@@ -668,14 +711,55 @@ function ProjectEditor() {
 
   return (
     <div className="studio-editor flex min-h-0 flex-1 flex-col">
+      <StoredExports projectId={projectId} />
+      {!lease.canEdit && (
+        <div
+          role="status"
+          className="flex items-center gap-2 bg-amber-950 p-2 text-sm"
+        >
+          <span>
+            {(canWrite === false ? subscriptionMessage : null) ??
+              lease.error ??
+              (lease.editor
+                ? `${lease.editor} is editing this timeline. This session is read-only.`
+                : "Read-only while editing access is acquired.")}{" "}
+            Local drafts are preserved.
+          </span>
+          <Button disabled={canWrite === false} onClick={() => lease.request()}>
+            Request editing access
+          </Button>
+          {canWrite !== false && lease.canTakeover && (
+            <Button
+              onClick={() => {
+                void confirm({
+                  title: "Take over timeline editing?",
+                  description:
+                    "The other editor will become read-only. Their local draft will be preserved.",
+                  confirmLabel: "Take over",
+                }).then((ok) => {
+                  if (ok) lease.request(true);
+                });
+              }}
+            >
+              Take over editing
+            </Button>
+          )}
+        </div>
+      )}
       {savePaused && (
         <div
           role="alert"
           className="flex items-center gap-2 bg-amber-950 p-2 text-sm"
         >
           <span>{loadError}</span>
-          <Button onClick={() => setSavePaused(false)}>Retry save</Button>
           <Button
+            disabled={!lease.canEdit}
+            onClick={() => setSavePaused(false)}
+          >
+            Retry save
+          </Button>
+          <Button
+            disabled={!lease.canEdit}
             onClick={() => {
               void confirm({
                 title: "Save local draft as a new version?",
@@ -683,7 +767,7 @@ function ProjectEditor() {
                   "Keeps the other saved version in history and appends your local edit.",
                 confirmLabel: "Save local draft",
               }).then((ok) => {
-                if (ok) {
+                if (ok && canEditNow()) {
                   tipIdRef.current = tip?._id ?? null;
                   pendingSave.current = null;
                   setSavePaused(false);
@@ -695,7 +779,7 @@ function ProjectEditor() {
           </Button>
         </div>
       )}
-      {loadError && (
+      {loadError && !savePaused && (
         <p role="alert" className="studio-error">
           {loadError}
         </p>
@@ -721,6 +805,7 @@ function ProjectEditor() {
           </p>
         ))}
       <StudioWorkspace
+        readOnly={!lease.canEdit}
         selectedClip={selectedClip}
         hasTimelineClips={Boolean(
           doc?.tracks.some((track) => track.clips.length),
@@ -728,6 +813,12 @@ function ProjectEditor() {
         onPreview={() => engineRef.current?.pause()}
         onInsert={insert}
         onInsertMany={(media) => {
+          if (!canEditNow()) {
+            setEditError(
+              "Request editing access before changing this timeline.",
+            );
+            return false;
+          }
           const ids = media.map(() => newTimelineId("clip"));
           apply((current) => {
             let next = current;
@@ -746,6 +837,7 @@ function ProjectEditor() {
           });
           setSelectedClipId(ids[0] ?? null);
           pendingSeek.current = playheadSec;
+          return true;
         }}
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
@@ -778,7 +870,10 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setHistory((h) => (h ? undo(h) : h))}
+                disabled={!lease.canEdit}
+                onClick={() => {
+                  if (canEditNow()) setHistory((h) => (h ? undo(h) : h));
+                }}
               >
                 Undo
               </Button>
@@ -786,7 +881,10 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => setHistory((h) => (h ? redo(h) : h))}
+                disabled={!lease.canEdit}
+                onClick={() => {
+                  if (canEditNow()) setHistory((h) => (h ? redo(h) : h));
+                }}
               >
                 Redo
               </Button>
@@ -794,7 +892,7 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={!selectedClipId}
+                disabled={!lease.canEdit || !selectedClipId}
                 onClick={() => {
                   if (selectedClipId)
                     apply((d) => splitClip(d, selectedClipId, playheadSec));
@@ -806,7 +904,11 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={!selectedClip || selectedClip.source.type === "text"}
+                disabled={
+                  !lease.canEdit ||
+                  !selectedClip ||
+                  selectedClip.source.type === "text"
+                }
                 onClick={() => {
                   if (!selectedClip || selectedClip.source.type === "text")
                     return;
@@ -841,6 +943,7 @@ function ProjectEditor() {
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={!lease.canEdit}
                 onClick={() => {
                   if (!doc) return;
                   const titles = doc.tracks.find((t) => t.kind === "titles");
@@ -992,19 +1095,21 @@ function ProjectEditor() {
           ) : null
         }
         inspector={
-          <ClipInspector
-            projectId={projectId}
-            clip={selectedClip}
-            onChange={(patch) => {
-              if (!selectedClipId) return;
-              apply((d) => updateClip(d, selectedClipId, patch));
-            }}
-            onDelete={() => {
-              if (!selectedClipId) return;
-              apply((d) => deleteClip(d, selectedClipId));
-              setSelectedClipId(null);
-            }}
-          />
+          <fieldset disabled={!lease.canEdit} className="contents">
+            <ClipInspector
+              projectId={projectId}
+              clip={selectedClip}
+              onChange={(patch) => {
+                if (!selectedClipId) return;
+                apply((d) => updateClip(d, selectedClipId, patch));
+              }}
+              onDelete={() => {
+                if (!selectedClipId) return;
+                apply((d) => deleteClip(d, selectedClipId));
+                setSelectedClipId(null);
+              }}
+            />
+          </fieldset>
         }
       />
 
@@ -1023,6 +1128,7 @@ function ProjectEditor() {
             onOpenChange={setHistoryOpen}
             projectId={projectId}
             tipId={tip?._id ?? null}
+            canRestore={lease.canEdit}
             onRestore={(id) => void restoreVersion(id)}
           />
         </>

@@ -11,7 +11,7 @@ available inside the viewer; detailed reference tools remain accessible.
 Type `@` in the script to link an image or video by name. Numbered aliases
 such as `@image_1` and `@video_1` bind once per project, so all occurrences use
 the same media ID even after the asset is renamed. Unresolved or ambiguous
-references block generation before credits are reserved. The current video
+references block generation before funds are reserved. The current video
 provider accepts one video reference per run. Existing generated footage keeps
 its input snapshot and is never replaced when a reference changes.
 
@@ -80,6 +80,10 @@ bunx convex env set AUTH_GOOGLE_ID '<client id>'
 bunx convex env set AUTH_GOOGLE_SECRET '<client secret>'
 ```
 
+Email login and signup use single-use codes sent by Nodemailer from the API.
+Passwords are no longer supported. Existing accounts retain their workspace and billing
+identity. See [email OTP configuration and cutover](docs/email-otp-auth.md).
+
 Google's callback remains
 `https://<deployment>.convex.site/api/auth/callback/google`.
 Provider keys are loaded exclusively from the ignored root `.env`; missing live
@@ -132,12 +136,33 @@ measurement. The migration preserves existing data and IDs. File storage remains
 on Convex, including its storage and download costs.
 
 Staff accounts still use `users.isStaff=true`; staff tools are at `/staff` and
-`/dev`. New workspaces receive 100 starter credits. Saved edits protect their
+`/dev`. Mock/development workspaces can receive a one-time $5 fixture balance; paid subscription allowances remain deferred. Saved edits protect their
 source media. Settings controls email preferences.
 
 See [production safety and workflow](docs/production-safety.md) and the
 [video provider contract](docs/provider-contract.md) for save recovery, media
 retention, spending limits, supported provider operations and validation.
+
+## Workspace teams
+
+Settings → Workspace team supports verified-email invitations, member roles, removal,
+and Creator project/series assignments. Invitations appear in the recipient's Settings
+after they sign in with the verified invited email; this release does not send email.
+Owners and Admins manage access, assigned Creators collaborate on production documents,
+and Reviewers cannot open production files. Shared projects and episodes appear in
+Projects. Removing a member revokes subsequent production requests and clears assignments.
+
+Polar integration is disabled by default; team changes do not automatically purchase seats.
+Payment-bound workspaces require available paid capacity for new Admin/Creator memberships.
+The header workspace switcher scopes production lists, new projects/templates, series,
+assets, transformations, and administrative balance/history views. Selection is stored
+per account; opening a production link uses that production’s workspace. Workspace
+switches close open productions after confirmation, and draft recovery is scoped by
+account, workspace, and project. Owners can transfer ownership to a verified active
+Admin or Creator in Settings; the previous owner remains an Admin.
+
+Multiplayer timeline editing and external review links are still pending. See the
+[Phase 1 implementation progress](docs/phase-1-implementation-plan.md#product-implementation-progress).
 
 ## Genjutsu
 
@@ -192,9 +217,53 @@ and automatic shot-boundary detection are not implemented. Fast actions between
 sampled frames may be missed.
 
 Sessions live in `genjutsuSessions`. An isolated infrastructure scope marked
-`purpose: genjutsu` reuses existing asset storage, generation workers and credit
+`purpose: genjutsu` reuses existing asset storage, generation workers and USD
 accounting; these scopes are excluded from production-project listings and routes.
 Generation notifications link back to the session. Rendering retries reuse the
 request ID. Outputs retain source lineage; input snapshots include the versioned
 plan, analysis model, sample times and selected references. Original footage stays
 intact. Compare versions and open/download the selected result within Genjutsu.
+
+### Development budget controls
+
+Settings includes Owner/Admin budget controls for the selected workspace's UTC calendar
+month and lifetime series/project/episode caps. Blank removes a cap; zero blocks new
+paid jobs. Video and analysis reservations check all applicable caps atomically.
+Spending reports distinguish settled usage from outstanding reservations. Series and
+month attribution are pinned when reserving, including jobs completed after an episode
+moves or a month ends. Assigned Creators can see project usage in Studio; workspace
+financial reports and budget changes require Owner/Admin access.
+
+Accounting now uses integer micro-USD, versioned video quotes and indexed account/scope
+totals. The development rate card is provisional; real provider calls require the explicit
+`ALLOW_DEVELOPMENT_PRICES=true` opt-in. Payment funding, recurring allowances and final
+retail rates remain deferred. See [USD accounting](docs/usd-accounting.md) for invariants,
+quote behavior, development funding and reconciliation. No credit conversion, legacy
+billing bridge or payment integration was added.
+
+### Team collaboration, stored video and sharing
+
+See [implementation status and deployment requirements](docs/collaboration-sharing-implementation.md)
+and the [permission audit](docs/collaboration-permissions-audit.md).
+
+In the editor, Export can store a saved edit after downloading a local MP4. Stored videos
+provides download/delete and private-link controls. Links support optional passwords,
+expiry, watch/download permissions and revocation; recipients do not need an account.
+Default limits are 200 MiB per stored video and 5 GiB of exports per workspace.
+
+Workspace email now uses Nodemailer SMTP. Configure the `EMAIL_NOTIFICATIONS_ENABLED`
+and `SMTP_*` variables in the ignored root `.env` (see `.env.example`). The API and worker
+load that file; no SMTP credentials should be added to frontend environment files.
+Use implicit TLS with `SMTP_SECURE=true` (normally port 465), or required STARTTLS with
+`SMTP_SECURE=false` (normally port 587). Tests mock SMTP and never send live emails.
+
+## Polar payments
+
+The payment base is implemented and disabled by default. The dedicated Billing page
+(`/billing`, available in the sidebar, account menu and balance display) supports Owner
+subscription/seat management, manual USD top-ups, invoices/payment methods through the
+Polar portal, members, spending limits and balance history. Admins can inspect finances;
+financial changes and portal access are Owner-only.
+Server placeholders are in root `.env` and `.env.example`; no live keys were added.
+Follow [Polar setup and activation](docs/polar-payments.md) for products, signed webhooks,
+worker processing, the $5 monthly allowance and remaining sandbox qualification.

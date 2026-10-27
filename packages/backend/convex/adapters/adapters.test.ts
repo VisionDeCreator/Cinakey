@@ -9,12 +9,12 @@ describe("model adapters", () => {
     expect(getAdapter("gpt-image-2")).toBeUndefined();
     expect(
       getAdapter("deepseek")?.estimateCost({ estimatedTokens: 2000 }),
-    ).toBe(2);
+    ).toBe(4000);
   });
 
   it("real adapters expose non-zero placeholder rates", () => {
     for (const a of listAdapters()) {
-      expect(a.capabilities.costModel.creditsPerUnit).toBeGreaterThan(0);
+      expect(a.capabilities.costModel.usdMicrosPerUnit).toBeGreaterThan(0);
       expect(a.capabilities.operations.length).toBeGreaterThan(0);
     }
   });

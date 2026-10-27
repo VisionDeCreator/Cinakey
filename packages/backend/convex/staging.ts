@@ -1,14 +1,14 @@
+import { stagingPrice } from "@cinakey/shared";
 import { type StagingPlan } from "@cinakey/shared";
 import type { Id } from "./_generated/dataModel";
 import { convexEnv } from "./lib/env";
 
 /**
- * Credits reserved for one plan: token estimate at the DeepSeek rate
- * (1 credit / 1k) with room for the check-driven repair turn, which re-sends
+ * Development USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
  * the conversation. Settled to actual usage afterwards.
  */
-export function stagingCredits(tokens: number): number {
-  return Math.max(2, Math.ceil((tokens * 2.2) / 1000));
+export function stagingUsdMicros(tokens: number): number {
+  return stagingPrice(tokens);
 }
 
 export function stagingUsesLlm(): boolean {
@@ -25,7 +25,7 @@ export type StagingResult =
       ok: true;
       plan: StagingPlan;
       planFileId: Id<"_storage">;
-      credits: number;
+      usdMicros: number;
       /** Automatic check before / after the repair pass (shots with problems). */
       issuesBefore: number;
       issuesAfter: number;

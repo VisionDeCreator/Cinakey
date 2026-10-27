@@ -139,7 +139,7 @@ export type {
 export {
   CAMERA_HEIGHT_DEFAULTS_M,
   COLOR_PALETTE_SUFFIX,
-  COST_CONFIRM_THRESHOLD_CREDITS,
+  COST_CONFIRM_THRESHOLD_USD_MICROS,
   DEFAULT_CHARACTER_VIEWS,
   DEFAULT_CREATURE_VIEWS,
   DEFAULT_PRODUCT_VIEWS,
@@ -242,7 +242,7 @@ export {
   TRANSFORM_TARGETS,
   resolveTransformPrompt,
   compileVideoTransform,
-  transformAnalysisCredits,
+  transformAnalysisUsdMicros,
   transformAnalysisSchema,
   transformDuration,
   videoTransformSchema,
@@ -252,3 +252,20 @@ export type {
   TransformTarget,
   VideoTransform,
 } from "./videoTransform";
+
+export {
+  chargeForUnits,
+  USD_MICROS,
+  assertUsdMicros,
+  parseUsdToMicros,
+  usdInputValue,
+  formatUsd,
+  PRICE_VERSION,
+  QUOTE_TTL_MS,
+  DEV_VIDEO_RATES,
+  DEV_TOKEN_USD_MICROS_PER_1K,
+  videoRate,
+  videoPrice,
+  tokenPrice,
+  stagingPrice,
+} from "./money";

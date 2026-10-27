@@ -1,11 +1,13 @@
+import { convexEnv } from "./env";
+import { appendLedgerEntry } from "./ledger";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { STARTER_CREDITS } from "./limits";
+import { STARTER_USD_MICROS } from "./limits";
 
 /**
  * Create a personal workspace for a user and link it on the user doc.
  * No-ops if the user already has a personalWorkspaceId.
- * Grants one-time starter credits on first create.
+ * Grants one-time starter usdMicros on first create.
  */
 export async function ensurePersonalWorkspaceForUser(
   ctx: MutationCtx,
@@ -17,8 +19,8 @@ export async function ensurePersonalWorkspaceForUser(
   }
   if (user.personalWorkspaceId !== undefined) {
     const existing = await ctx.db.get(user.personalWorkspaceId);
-    if (existing !== null) {
-      await maybeGrantStarterCredits(ctx, existing._id, userId);
+    if (existing !== null && existing.ownerUserId === userId) {
+      await maybeGrantStarterBalance(ctx, existing._id, userId);
       return existing._id;
     }
   }
@@ -39,36 +41,35 @@ export async function ensurePersonalWorkspaceForUser(
   });
 
   await ctx.db.patch(userId, { personalWorkspaceId: workspaceId });
-  await maybeGrantStarterCredits(ctx, workspaceId, userId);
+  await maybeGrantStarterBalance(ctx, workspaceId, userId);
   return workspaceId;
 }
 
-async function maybeGrantStarterCredits(
+async function maybeGrantStarterBalance(
   ctx: MutationCtx,
   workspaceId: Id<"workspaces">,
   userId: Id<"users">,
 ): Promise<void> {
+  if (
+    convexEnv("ALLOW_DEV_USD") !== "true" &&
+    convexEnv("USE_MOCK_ADAPTERS") !== "true"
+  )
+    return;
   const workspace = await ctx.db.get(workspaceId);
   if (workspace === null) return;
-  if (workspace.starterCreditsGrantedAt !== undefined) return;
+  if (workspace.starterBalanceGrantedAt !== undefined) return;
 
-  const latest = await ctx.db
-    .query("creditLedger")
-    .withIndex("by_workspace_time", (q) => q.eq("workspaceId", workspaceId))
-    .order("desc")
-    .first();
-  const prev = latest?.balanceAfter ?? 0;
+  // Development funding fixture, not a paid subscription allowance.
   const now = Date.now();
-  await ctx.db.insert("creditLedger", {
+  await appendLedgerEntry(ctx, {
     workspaceId,
     userId,
-    delta: STARTER_CREDITS,
+    delta: STARTER_USD_MICROS,
     reason: "grant",
-    balanceAfter: prev + STARTER_CREDITS,
-    createdAt: now,
+    requestId: "development-starter",
   });
   await ctx.db.patch(workspaceId, {
-    starterCreditsGrantedAt: now,
+    starterBalanceGrantedAt: now,
     updatedAt: now,
   });
 }

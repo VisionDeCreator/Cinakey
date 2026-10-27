@@ -1,9 +1,25 @@
+import {
+  PRICE_VERSION,
+  QUOTE_TTL_MS,
+  videoPrice,
+  videoRate,
+} from "@cinakey/shared";
 import type { BuildRequestInput } from "@cinakey/shared";
 import { ConvexError, v } from "convex/values";
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { getAdapter, listAdapters } from "./adapters";
-import { appendLedgerEntry } from "./credits";
-import { projectCanUseAsset, requireProjectAccess } from "./lib/access";
+import { appendLedgerEntry } from "./billing";
+import {
+  requireUser,
+  projectCanUseAsset,
+  requireProjectAccess,
+  requireProjectAccessForUser,
+} from "./lib/access";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
 import { scanText } from "./moderation";
@@ -46,10 +62,72 @@ export const estimateCost = query({
       kind: args.kind,
     };
     return {
-      credits: adapter.estimateCost(input),
-      costModel: adapter.capabilities.costModel,
+      usdMicros: adapter.estimateCost(input),
+      priceVersion: PRICE_VERSION,
+      developmentPrice: true,
+      costModel: {
+        ...adapter.capabilities.costModel,
+        usdMicrosPerUnit: videoRate(args.adapterId, input.resolution),
+      },
     };
   },
+});
+
+export const quote = mutation({
+  args: {
+    projectId: v.id("projects"),
+    adapterId: v.string(),
+    kind: v.string(),
+    durationSec: v.number(),
+    resolution: v.string(),
+    maxCostUsdMicros: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const project = await requireProjectAccess(ctx, args.projectId);
+    const adapter = getAdapter(args.adapterId);
+    if (
+      !adapter ||
+      adapter.capabilities.kind !== "video" ||
+      !adapter.capabilities.operations.includes(args.kind as never)
+    )
+      throw new Error("Unsupported priced operation");
+    await assertRateLimit(ctx, `quotes:${user._id}`, 120, 60_000);
+    const maximumUsdMicros = videoPrice(
+      args.adapterId,
+      args.durationSec,
+      args.resolution,
+    );
+    if (
+      args.maxCostUsdMicros !== undefined &&
+      (!Number.isSafeInteger(args.maxCostUsdMicros) ||
+        args.maxCostUsdMicros < maximumUsdMicros)
+    )
+      throw new ConvexError({
+        code: "PRICE_CHANGED",
+        message:
+          "The price exceeds the accepted maximum. Review the updated estimate.",
+      });
+    const snapshot = {
+      workspaceId: project.workspaceId,
+      projectId: project._id,
+      userId: user._id,
+      model: args.adapterId,
+      kind: args.kind,
+      durationSec: args.durationSec,
+      resolution: args.resolution,
+      priceVersion: PRICE_VERSION,
+      unitUsdMicros: videoRate(args.adapterId, args.resolution),
+      maximumUsdMicros,
+      expiresAt: Date.now() + QUOTE_TTL_MS,
+    };
+    const quoteId = await ctx.db.insert("usageQuotes", snapshot);
+    return { quoteId, ...snapshot };
+  },
+});
+export const getQuoteInternal = internalQuery({
+  args: { quoteId: v.id("usageQuotes") },
+  handler: (ctx, { quoteId }) => ctx.db.get(quoteId),
 });
 
 export const getJob = query({
@@ -98,12 +176,7 @@ export const loadStartContext = internalQuery({
     if (project === null) {
       throw new Error("Project not found");
     }
-    if (user.isStaff !== true) {
-      const workspace = await ctx.db.get(project.workspaceId);
-      if (workspace === null || workspace.ownerUserId !== user._id) {
-        throw new Error("Project access denied");
-      }
-    }
+    await requireProjectAccessForUser(ctx, project._id, user._id);
     return { user, project };
   },
 });
@@ -121,7 +194,10 @@ export const createQueuedJob = internalMutation({
     prompt: v.string(),
     seed: v.optional(v.number()),
     inputsFileId: v.optional(v.id("_storage")),
-    estimatedCostCredits: v.number(),
+    estimatedCostUsdMicros: v.number(),
+    quoteId: v.optional(v.id("usageQuotes")),
+    durationSec: v.optional(v.number()),
+    resolution: v.optional(v.string()),
     createdBy: v.id("users"),
     referenceAssetIds: v.optional(v.array(v.id("assets"))),
     requestKey: v.optional(v.string()),
@@ -129,13 +205,14 @@ export const createQueuedJob = internalMutation({
   },
   handler: async (ctx, args) => {
     if (
-      !Number.isSafeInteger(args.estimatedCostCredits) ||
-      args.estimatedCostCredits <= 0
+      !Number.isSafeInteger(args.estimatedCostUsdMicros) ||
+      args.estimatedCostUsdMicros <= 0
     )
-      throw new Error("Invalid credit reservation");
+      throw new Error("Invalid USD reservation");
     const project = await ctx.db.get(args.projectId);
     if (!project || project.workspaceId !== args.workspaceId)
       throw new Error("Project/workspace mismatch");
+    await requireProjectAccessForUser(ctx, args.projectId, args.createdBy);
     if (args.requestKey) {
       const existing = await ctx.db
         .query("generationJobs")
@@ -152,27 +229,22 @@ export const createQueuedJob = internalMutation({
         return existing._id;
       }
     }
-    if (project.spendCapCredits !== undefined) {
-      const entries = await ctx.db
-        .query("creditLedger")
-        .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-        .collect();
-      const spent = Math.max(
-        0,
-        -entries
-          .filter(
-            (e) =>
-              e.projectId === args.projectId &&
-              ["reserve", "settle", "refund"].includes(e.reason),
-          )
-          .reduce((sum, e) => sum + e.delta, 0),
-      );
-      if (spent + args.estimatedCostCredits > project.spendCapCredits)
-        throw new ConvexError({
-          code: "SPEND_CAP",
-          message: "Project spend cap reached",
-        });
-    }
+    const quote = args.quoteId ? await ctx.db.get(args.quoteId) : null;
+    if (
+      args.quoteId &&
+      (!quote ||
+        quote.userId !== args.createdBy ||
+        quote.projectId !== args.projectId ||
+        quote.workspaceId !== args.workspaceId ||
+        quote.model !== args.model ||
+        quote.kind !== args.kind ||
+        quote.maximumUsdMicros !== args.estimatedCostUsdMicros ||
+        quote.durationSec !== args.durationSec ||
+        quote.resolution !== args.resolution)
+    )
+      throw new Error("Quote scope or price mismatch");
+    if (quote && (quote.expiresAt <= Date.now() || quote.jobId))
+      throw new Error("Quote expired or already used");
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
@@ -187,7 +259,10 @@ export const createQueuedJob = internalMutation({
       prompt: args.prompt,
       seed: args.seed,
       inputsFileId: args.inputsFileId,
-      estimatedCostCredits: args.estimatedCostCredits,
+      estimatedCostUsdMicros: args.estimatedCostUsdMicros,
+      quoteId: args.quoteId,
+      priceVersion: quote?.priceVersion ?? PRICE_VERSION,
+      unitUsdMicros: quote?.unitUsdMicros ?? args.estimatedCostUsdMicros,
       status: "queued",
       outputAssetIds: [],
       attempts: 0,
@@ -196,24 +271,25 @@ export const createQueuedJob = internalMutation({
       updatedAt: now,
     });
 
+    if (quote) await ctx.db.patch(quote._id, { jobId });
     try {
       await appendLedgerEntry(ctx, {
         workspaceId: args.workspaceId,
         userId: args.createdBy,
         projectId: args.projectId,
         jobId,
-        delta: -args.estimatedCostCredits,
+        delta: -args.estimatedCostUsdMicros,
         reason: "reserve",
       });
     } catch (err) {
       await ctx.db.delete(jobId);
       if (
         err instanceof Error &&
-        err.message.startsWith("Insufficient credits")
+        err.message.startsWith("Insufficient USD balance")
       )
         throw new ConvexError({
-          code: "INSUFFICIENT_CREDITS",
-          message: "Insufficient credits for this generation",
+          code: "INSUFFICIENT_FUNDS",
+          message: "Insufficient USD balance for this generation",
         });
       throw err;
     }
@@ -261,15 +337,15 @@ export const markSucceeded = internalMutation({
   args: {
     jobId: v.id("generationJobs"),
     outputAssetIds: v.array(v.id("assets")),
-    actualCostCredits: v.number(),
+    actualCostUsdMicros: v.number(),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || job.status === "succeeded" || job.status === "refunded") return;
     if (
-      !Number.isFinite(args.actualCostCredits) ||
-      args.actualCostCredits < 0 ||
-      args.actualCostCredits > job.estimatedCostCredits
+      !Number.isSafeInteger(args.actualCostUsdMicros) ||
+      args.actualCostUsdMicros < 0 ||
+      args.actualCostUsdMicros > job.estimatedCostUsdMicros
     )
       throw new Error("Invalid actual cost");
     const project = await ctx.db.get(job.projectId);
@@ -279,7 +355,7 @@ export const markSucceeded = internalMutation({
       userId: job.createdBy,
       projectId: job.projectId,
       jobId: job._id,
-      delta: job.estimatedCostCredits - args.actualCostCredits,
+      delta: job.estimatedCostUsdMicros - args.actualCostUsdMicros,
       reason: "settle",
     });
     // The checkpoint is temporary; final assets have their own storage files.
@@ -289,7 +365,7 @@ export const markSucceeded = internalMutation({
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
       outputAssetIds: args.outputAssetIds,
-      actualCostCredits: args.actualCostCredits,
+      actualCostUsdMicros: args.actualCostUsdMicros,
       updatedAt: now,
       completedAt: now,
       providerResultFileId: undefined,
@@ -353,7 +429,7 @@ export const markRefunded = internalMutation({
       userId: job.createdBy,
       projectId: job.projectId,
       jobId: job._id,
-      delta: job.estimatedCostCredits,
+      delta: job.estimatedCostUsdMicros,
       reason: "refund",
     });
     // The checkpoint is temporary; final assets have their own storage files.
@@ -535,7 +611,7 @@ export const markSubmissionUncertain = internalMutation({
     await ctx.db.patch(job._id, {
       submissionState: "uncertain",
       errorMessage:
-        "Provider outcome uncertain; review before resubmitting. Credits remain reserved.",
+        "Provider outcome uncertain; review before resubmitting. Funds remain reserved.",
       updatedAt: Date.now(),
     });
   },

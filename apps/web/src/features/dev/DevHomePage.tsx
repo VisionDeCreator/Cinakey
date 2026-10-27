@@ -1,21 +1,23 @@
+import { formatUsd, parseUsdToMicros } from "@cinakey/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 /**
- * Staff-only /dev hub: grant credits by email + links to other tools.
+ * Staff-only /dev hub: grant usdMicros by email + links to other tools.
  */
 export function DevHomePage() {
+  const fundingRequest = useRef<string | null>(null);
   const me = useQuery(api.users.viewer);
-  const grantToEmail = useMutation(api.credits.grantToEmail);
+  const grantToEmail = useMutation(api.billing.grantToEmail);
 
   const [emailDraft, setEmail] = useState<string>();
   const email = emailDraft ?? me?.email ?? "";
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState("10.00");
   const [lookupDraft, setLookupEmail] = useState<string>();
   const lookupEmail = lookupDraft ?? me?.email ?? "";
   const [busy, setBusy] = useState(false);
@@ -23,7 +25,7 @@ export function DevHomePage() {
   const [error, setError] = useState<string | null>(null);
 
   const lookup = useQuery(
-    api.credits.lookupByEmail,
+    api.billing.lookupByEmail,
     me?.isStaff === true && lookupEmail.includes("@")
       ? { email: lookupEmail }
       : "skip",
@@ -56,10 +58,12 @@ export function DevHomePage() {
     try {
       const result = await grantToEmail({
         email: email.trim(),
-        amount,
+        amount: parseUsdToMicros(amount),
+        requestId: (fundingRequest.current ??= crypto.randomUUID()),
       });
+      fundingRequest.current = null;
       setMessage(
-        `Granted ${amount} credits to ${result.email}. Balance is now ${result.balanceAfter}.`,
+        `Granted ${amount} USD to ${result.email}. Balance is now ${formatUsd(result.balanceAfter)}.`,
       );
       setLookupEmail(email.trim());
     } catch (err) {
@@ -75,12 +79,12 @@ export function DevHomePage() {
         <p className="text-xs uppercase tracking-wider text-zinc-500">Admin</p>
         <h1 className="text-xl font-semibold text-zinc-100">Dev tools</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          Grant credits and open local test pages. Staff only.
+          Grant USD and open local test pages. Staff only.
         </p>
       </div>
 
       <section className="space-y-4 border border-zinc-800 p-4">
-        <h2 className="text-sm font-medium text-zinc-200">Grant credits</h2>
+        <h2 className="text-sm font-medium text-zinc-200">Grant USD</h2>
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="grant-email">User email</Label>
@@ -100,11 +104,12 @@ export function DevHomePage() {
             <Label htmlFor="grant-amount">Amount</Label>
             <Input
               id="grant-amount"
-              type="number"
+              type="text"
+              inputMode="decimal"
               min={1}
               className="w-32"
               value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
+              onChange={(e) => setAmount(e.target.value)}
             />
           </div>
 
@@ -118,7 +123,9 @@ export function DevHomePage() {
                 <p>
                   {lookup.email}
                   {lookup.name ? ` (${lookup.name})` : ""} · balance{" "}
-                  <span className="text-zinc-200">{lookup.balance}</span>
+                  <span className="text-zinc-200">
+                    {formatUsd(lookup.balance)}
+                  </span>
                   {!lookup.hasWorkspace ? " · no workspace yet" : ""}
                 </p>
               )}
@@ -128,10 +135,10 @@ export function DevHomePage() {
           <Button
             type="button"
             size="sm"
-            disabled={busy || !email.includes("@") || amount <= 0}
+            disabled={busy || !email.includes("@") || !amount.trim()}
             onClick={() => void onGrant()}
           >
-            {busy ? "Granting…" : "Grant credits"}
+            {busy ? "Granting…" : "Grant USD"}
           </Button>
 
           {message ? (
@@ -175,7 +182,7 @@ function friendlyError(err: unknown): string {
     return "Staff access required.";
   }
   if (/positive number/i.test(raw)) {
-    return "Enter a positive credit amount.";
+    return "Enter a positive USD amount.";
   }
   // Strip Convex request wrappers.
   const match = raw.match(/Uncaught Error:\s*(.+?)(?:\s+at\s|$)/i);

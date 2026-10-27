@@ -64,6 +64,8 @@ export const save = action({
   args: {
     projectId: v.id("projects"),
     parentId: v.union(v.id("timelineVersions"), v.null()),
+    sessionId: v.string(),
+    fence: v.number(),
     document: v.any(),
     requestId: v.string(),
     label: v.optional(v.string()),
@@ -76,6 +78,9 @@ export const save = action({
     await ctx.runQuery(internal.timelineVersions.assertAccess, {
       projectId: args.projectId,
       userId,
+    });
+    await ctx.runQuery(internal.payments.assertProjectWrite, {
+      projectId: args.projectId,
     });
     const document = assertTimelineDocument(args.document);
     if (document.project.id !== args.projectId)
@@ -101,6 +106,8 @@ export const save = action({
           timelineFileId: storageId,
           mediaAssetIds: [...ids],
           requestId: args.requestId,
+          sessionId: args.sessionId,
+          fence: args.fence,
           label: args.label,
         },
       );

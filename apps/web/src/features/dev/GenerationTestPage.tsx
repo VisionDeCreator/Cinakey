@@ -1,21 +1,31 @@
+import { formatUsd, parseUsdToMicros } from "@cinakey/shared";
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import type { ModelCapabilities, ModelOperation } from "@cinakey/shared";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
- * Dev/test page: pick an adapter, estimate cost, run a job, watch status + credits.
+ * Dev/test page: pick an adapter, estimate cost, run a job, watch status + usdMicros.
  */
 export function GenerationTestPage() {
   const capabilities = useQuery(api.generation.listCapabilities);
-  const projects = useQuery(api.projects.listMine, {});
-  const balance = useQuery(api.credits.getBalance);
+  const { workspaceId, canManage } = useWorkspace();
+  const projects = useQuery(
+    api.projects.listMine,
+    workspaceId ? { workspaceId } : {},
+  );
+  const balance = useQuery(
+    api.billing.getBalance,
+    canManage ? (workspaceId ? { workspaceId } : {}) : "skip",
+  );
   const unread = useQuery(api.notifications.listUnread);
   const createProject = useMutation(api.projects.create);
-  const grantDev = useMutation(api.credits.grantDev);
+  const fundingRequest = useRef<string | null>(null);
+  const grantDev = useMutation(api.billing.grantDev);
   const markAllRead = useMutation(api.notifications.markAllRead);
   const startGeneration = useAction(api.generation.startGeneration);
 
@@ -32,7 +42,7 @@ export function GenerationTestPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const [grantAmount, setGrantAmount] = useState(100);
+  const [grantAmount, setGrantAmount] = useState("10.00");
 
   const selected: ModelCapabilities | undefined = useMemo(
     () => capabilities?.find((c) => c.id === adapterId),
@@ -90,10 +100,15 @@ export function GenerationTestPage() {
 
   async function onGrant() {
     setBusy(true);
-    setStatus("Granting credits…");
+    setStatus("Granting USD…");
     try {
-      const result = await grantDev({ amount: grantAmount });
-      setStatus(`Granted. Balance now ${result.balanceAfter}`);
+      const result = await grantDev({
+        workspaceId,
+        requestId: (fundingRequest.current ??= crypto.randomUUID()),
+        amount: parseUsdToMicros(grantAmount),
+      });
+      fundingRequest.current = null;
+      setStatus(`Granted. Balance now ${formatUsd(result.balanceAfter)}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Grant failed");
     } finally {
@@ -107,6 +122,7 @@ export function GenerationTestPage() {
     try {
       const pid = await ensureProject();
       const result = await startGeneration({
+        maxCostUsdMicros: estimate?.usdMicros,
         projectId: pid as never,
         adapterId,
         kind,
@@ -118,7 +134,7 @@ export function GenerationTestPage() {
       });
       setJobId(result.jobId);
       setStatus(
-        `Job ${result.jobId} queued (est. ${result.estimatedCostCredits} credits)`,
+        `Job ${result.jobId} queued (est. ${formatUsd(result.estimatedCostUsdMicros)})`,
       );
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Start failed");
@@ -140,19 +156,20 @@ export function GenerationTestPage() {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="balance">Credits</Label>
+          <Label htmlFor="balance">USD balance</Label>
           <p id="balance" className="text-lg text-zinc-100">
-            {balance?.balance ?? "…"}
+            {balance ? formatUsd(balance.balance) : "…"}
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="grant">Grant</Label>
           <Input
             id="grant"
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="w-24"
             value={grantAmount}
-            onChange={(e) => setGrantAmount(Number(e.target.value))}
+            onChange={(e) => setGrantAmount(e.target.value)}
           />
         </div>
         <Button
@@ -161,7 +178,7 @@ export function GenerationTestPage() {
           disabled={busy}
           onClick={() => void onGrant()}
         >
-          Grant credits
+          Grant USD
         </Button>
       </div>
 
@@ -276,10 +293,10 @@ export function GenerationTestPage() {
       <p className="text-sm text-zinc-400">
         Estimated cost:{" "}
         <span className="text-zinc-100">
-          {estimate?.credits ?? "…"} credits
+          {estimate ? formatUsd(estimate.usdMicros) : "…"} USD
         </span>
         {estimate?.costModel
-          ? ` (${estimate.costModel.creditsPerUnit}/${estimate.costModel.unit})`
+          ? ` (${formatUsd(estimate.costModel.usdMicrosPerUnit)}/${estimate.costModel.unit})`
           : null}
       </p>
 
@@ -300,9 +317,17 @@ export function GenerationTestPage() {
           <dt className="text-zinc-500">Attempts</dt>
           <dd className="text-zinc-200">{job.attempts}</dd>
           <dt className="text-zinc-500">Estimated</dt>
-          <dd className="text-zinc-200">{job.estimatedCostCredits}</dd>
+          <dd className="text-zinc-200">
+            {formatUsd(job.estimatedCostUsdMicros)}
+          </dd>
+          <dt className="text-zinc-500">Price version</dt>
+          <dd className="text-zinc-200">{job.priceVersion ?? "—"}</dd>
           <dt className="text-zinc-500">Actual</dt>
-          <dd className="text-zinc-200">{job.actualCostCredits ?? "—"}</dd>
+          <dd className="text-zinc-200">
+            {job.actualCostUsdMicros === undefined
+              ? "—"
+              : formatUsd(job.actualCostUsdMicros)}
+          </dd>
           {job.errorMessage ? (
             <>
               <dt className="text-zinc-500">Error</dt>

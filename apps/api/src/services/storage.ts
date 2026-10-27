@@ -1,3 +1,4 @@
+import { internal } from "../operations";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
 import { action, type ActionCtx } from "../runtime/operation";
 import { v } from "convex/values";
@@ -36,13 +37,16 @@ export async function saveJson(
 
 /** Server-side JSON save (actions only — uses ctx.storage.store). */
 export const storeJson = action({
-  args: { value: v.any() },
+  args: { projectId: v.id("projects"), value: v.any() },
   handler: async (ctx, args) => {
     const { getAuthUserId } = await import("@convex-dev/auth/server");
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
     }
+    await ctx.runQuery(internal.payments.assertProjectWrite, {
+      projectId: args.projectId,
+    });
     return await saveJson(ctx, args.value);
   },
 });

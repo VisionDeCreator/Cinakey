@@ -1,5 +1,7 @@
+import { requireProjectWrite } from "./lib/access";
+import { projectUsage } from "./lib/budgets";
 import { estimateStagingTokens, resolveReferences } from "@cinakey/shared";
-import { stagingCredits, stagingUsesLlm } from "./staging";
+import { stagingUsdMicros, stagingUsesLlm } from "./staging";
 /** Project-owned creative documents. */
 import { v } from "convex/values";
 import {
@@ -9,6 +11,7 @@ import {
   query,
 } from "./_generated/server";
 import {
+  requireProjectAccessForUser,
   projectAssets,
   projectCanUseAsset,
   requireProjectAccess,
@@ -50,7 +53,7 @@ export const saveScript = mutation({
     expectedId: v.optional(v.id("workspaceScripts")),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectAccess(ctx, args.projectId);
+    const project = await requireProjectWrite(ctx, args.projectId);
     if (args.text.length > 200000)
       throw new Error("Script exceeds 200,000 characters");
     const rows = await ctx.db
@@ -113,6 +116,7 @@ export const commitStaging = internalMutation({
     expectedFileId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, { id, expectedFileId, ...args }) => {
+    await requireProjectWrite(ctx, args.projectId);
     if (id) {
       const row = await ctx.db.get(id);
       if (!row || row.projectId !== args.projectId)
@@ -153,7 +157,7 @@ export const setPreviz = mutation({
   handler: async (ctx, { id, assetId }) => {
     const row = await ctx.db.get(id);
     if (!row) throw new Error("Staging not found");
-    await requireProjectAccess(ctx, row.projectId);
+    await requireProjectWrite(ctx, row.projectId);
     if (!(await projectCanUseAsset(ctx, row.projectId, assetId)))
       throw new Error("Asset unavailable");
     const asset = await ctx.db.get(assetId);
@@ -197,7 +201,7 @@ export const videos = query({
           errorMessage: j.errorMessage,
           submissionState: j.submissionState,
           createdAt: j.createdAt,
-          estimatedCostCredits: j.estimatedCostCredits,
+          estimatedCostUsdMicros: j.estimatedCostUsdMicros,
         })),
     };
   },
@@ -217,7 +221,7 @@ export const estimateStaging = query({
     );
     return {
       llm: stagingUsesLlm(),
-      credits: stagingUsesLlm() ? stagingCredits(tokens) : 0,
+      usdMicros: stagingUsesLlm() ? stagingUsdMicros(tokens) : 0,
     };
   },
 });
@@ -226,35 +230,7 @@ export const spend = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     const project = await requireProjectAccess(ctx, args.projectId);
-    const entries = await ctx.db
-      .query("creditLedger")
-      .withIndex("by_workspace", (q) =>
-        q.eq("workspaceId", project.workspaceId),
-      )
-      .collect();
-    let spent = 0;
-    for (const e of entries) {
-      if (e.projectId !== args.projectId) continue;
-      // Reserves are negative; refunds positive; settle returns unused (positive).
-      // Net project spend = -sum(delta) for reserve+settle+refund on this project.
-      if (
-        e.reason === "reserve" ||
-        e.reason === "settle" ||
-        e.reason === "refund"
-      ) {
-        spent -= e.delta;
-      }
-    }
-    // Clamp: settle/refund never over-refund beyond reserve in practice.
-    spent = Math.max(0, spent);
-    return {
-      spentCredits: spent,
-      spendCapCredits: project.spendCapCredits ?? null,
-      remaining:
-        project.spendCapCredits !== undefined
-          ? Math.max(0, project.spendCapCredits - spent)
-          : null,
-    };
+    return projectUsage(ctx, project._id);
   },
 });
 /** Read-only operator audit. Counts and missing mappings only; no media is fetched. */
@@ -278,11 +254,7 @@ export const markTemplate = internalMutation({
 export const assertAccess = internalQuery({
   args: { projectId: v.id("projects"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    const project = await ctx.db.get(args.projectId);
-    const user = await ctx.db.get(args.userId);
-    if (!project || !user) throw new Error("Project or user not found");
-    if (!user.isStaff && user.personalWorkspaceId !== project.workspaceId)
-      throw new Error("Forbidden");
+    await requireProjectAccessForUser(ctx, args.projectId, args.userId);
     return true;
   },
 });

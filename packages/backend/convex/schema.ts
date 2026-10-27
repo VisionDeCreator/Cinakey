@@ -14,6 +14,69 @@ const lineage = v.object({
 const schema = defineSchema(
   {
     ...authTables,
+    publishedExports: defineTable({
+      workspaceId: v.id("workspaces"),
+      projectId: v.id("projects"),
+      versionId: v.id("timelineVersions"),
+      createdBy: v.id("users"),
+      requestId: v.string(),
+      title: v.string(),
+      state: v.union(
+        v.literal("waiting"),
+        v.literal("uploading"),
+        v.literal("ready"),
+        v.literal("failed"),
+      ),
+      reservedBytes: v.number(),
+      expectedDurationSec: v.number(),
+      expectedWidth: v.number(),
+      expectedHeight: v.number(),
+      attempt: v.optional(v.string()),
+      leaseUntil: v.optional(v.number()),
+      stagedStorageId: v.optional(v.id("_storage")),
+      storageId: v.optional(v.id("_storage")),
+      sizeBytes: v.optional(v.number()),
+      sha256: v.optional(v.string()),
+      durationSec: v.optional(v.number()),
+      width: v.optional(v.number()),
+      height: v.optional(v.number()),
+      createdAt: v.number(),
+      expiresAt: v.number(),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_project", ["projectId"])
+      .index("by_workspace", ["workspaceId"])
+      .index("by_storage", ["storageId"])
+      .index("by_staged", ["stagedStorageId"])
+      .index("by_expiry", ["state", "expiresAt"]),
+    exportShareLinks: defineTable({
+      publicationId: v.id("publishedExports"),
+      projectId: v.id("projects"),
+      createdBy: v.id("users"),
+      secretHash: v.string(),
+      passwordHash: v.optional(v.string()),
+      allowDownload: v.boolean(),
+      expiresAt: v.optional(v.number()),
+      revokedAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_publication", ["publicationId"])
+      .index("by_project", ["projectId"]),
+    exportViewerSessions: defineTable({
+      linkId: v.id("exportShareLinks"),
+      tokenHash: v.string(),
+      expiresAt: v.number(),
+    })
+      .index("by_link", ["linkId"])
+      .index("by_token", ["tokenHash"])
+      .index("by_expiry", ["expiresAt"]),
+    timelineLeases: defineTable({
+      projectId: v.id("projects"),
+      userId: v.id("users"),
+      sessionId: v.string(),
+      fence: v.number(),
+      expiresAt: v.number(),
+    }).index("by_project", ["projectId"]),
     apiTasks: defineTable({
       operation: v.string(),
       args: v.any(),
@@ -53,16 +116,86 @@ const schema = defineSchema(
       .index("email", ["email"])
       .index("phone", ["phone"]),
 
+    loginChallenges: defineTable({
+      email: v.string(),
+      challengeHash: v.string(),
+      codeHash: v.string(),
+      createdAt: v.number(),
+      expiresAt: v.number(),
+      attempts: v.number(),
+      delivered: v.boolean(),
+    })
+      .index("by_email", ["email"])
+      .index("by_challenge", ["challengeHash"])
+      .index("by_expiry", ["expiresAt"]),
+
+    emailVerifications: defineTable({
+      userId: v.id("users"),
+      email: v.string(),
+      codeHash: v.string(),
+      expiresAt: v.number(),
+      attempts: v.number(),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
     workspaces: defineTable({
       name: v.string(),
       ownerUserId: v.id("users"),
-      /** Set when the one-time starter credit grant has been applied. */
-      starterCreditsGrantedAt: v.optional(v.number()),
+      /** Set when the one-time development USD fixture grant has been applied. */
+      starterBalanceGrantedAt: v.optional(v.number()),
+      monthlySpendCapUsdMicros: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
     }).index("by_owner", ["ownerUserId"]),
 
+    workspaceMembers: defineTable({
+      workspaceId: v.id("workspaces"),
+      userId: v.id("users"),
+      role: v.union(
+        v.literal("admin"),
+        v.literal("creator"),
+        v.literal("reviewer"),
+      ),
+      createdAt: v.number(),
+    })
+      .index("by_workspace_user", ["workspaceId", "userId"])
+      .index("by_user", ["userId"])
+      .index("by_workspace", ["workspaceId"]),
+    workspaceInvitations: defineTable({
+      emailDelivery: v.optional(
+        v.union(
+          v.literal("pending"),
+          v.literal("sent"),
+          v.literal("failed"),
+          v.literal("disabled"),
+        ),
+      ),
+      deliveryGeneration: v.optional(v.number()),
+
+      workspaceId: v.id("workspaces"),
+      email: v.string(),
+      role: v.union(
+        v.literal("admin"),
+        v.literal("creator"),
+        v.literal("reviewer"),
+      ),
+      invitedBy: v.id("users"),
+      expiresAt: v.number(),
+      acceptedBy: v.optional(v.id("users")),
+      revokedAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_email", ["email"])
+      .index("by_workspace", ["workspaceId"]),
+    productionAssignments: defineTable({
+      workspaceId: v.id("workspaces"),
+      userId: v.id("users"),
+      projectId: v.optional(v.id("projects")),
+      seriesId: v.optional(v.id("series")),
+      manageReviews: v.boolean(),
+    }).index("by_workspace_user", ["workspaceId", "userId"]),
+
     series: defineTable({
+      spendCapUsdMicros: v.optional(v.number()),
       workspaceId: v.id("workspaces"),
       title: v.string(),
       description: v.string(),
@@ -206,8 +339,8 @@ const schema = defineSchema(
       referenceBindings: v.optional(
         v.array(v.object({ alias: v.string(), assetId: v.id("assets") })),
       ),
-      /** Optional per-project credit spend cap; blocks new jobs when reached. */
-      spendCapCredits: v.optional(v.number()),
+      /** Optional per-project USD spend cap; blocks new jobs when reached. */
+      spendCapUsdMicros: v.optional(v.number()),
       /** Guided trailer template project. */
       isStarter: v.optional(v.boolean()),
       archivedAt: v.optional(v.number()),
@@ -338,8 +471,12 @@ const schema = defineSchema(
       prompt: v.string(),
       seed: v.optional(v.number()),
       inputsFileId: v.optional(v.id("_storage")),
-      estimatedCostCredits: v.number(),
-      actualCostCredits: v.optional(v.number()),
+      estimatedCostUsdMicros: v.number(),
+      priceVersion: v.optional(v.string()),
+      unitUsdMicros: v.optional(v.number()),
+      quoteId: v.optional(v.id("usageQuotes")),
+      actualCostUsdMicros: v.optional(v.number()),
+      billingNeedsReview: v.optional(v.boolean()),
       status: v.union(
         v.literal("queued"),
         v.literal("submitted"),
@@ -398,7 +535,129 @@ const schema = defineSchema(
       createdAt: v.number(),
       updatedAt: v.number(),
     }).index("by_project", ["projectId"]),
-    creditLedger: defineTable({
+    usageQuotes: defineTable({
+      workspaceId: v.id("workspaces"),
+      projectId: v.id("projects"),
+      userId: v.id("users"),
+      model: v.string(),
+      kind: v.string(),
+      durationSec: v.number(),
+      resolution: v.string(),
+      priceVersion: v.string(),
+      unitUsdMicros: v.number(),
+      maximumUsdMicros: v.number(),
+      expiresAt: v.number(),
+      jobId: v.optional(v.id("generationJobs")),
+    }).index("by_workspace", ["workspaceId"]),
+    paymentWorkspaces: defineTable({
+      workspaceId: v.id("workspaces"),
+      environment: v.union(v.literal("sandbox"), v.literal("production")),
+      customerId: v.optional(v.string()),
+      subscriptionId: v.optional(v.string()),
+      status: v.string(),
+      seats: v.number(),
+      paidSeats: v.number(),
+      paidPeriodEnd: v.number(),
+      paidOrderAt: v.number(),
+      periodStart: v.number(),
+      periodEnd: v.number(),
+      cancelAtPeriodEnd: v.boolean(),
+      pendingSeats: v.optional(v.number()),
+      pastDueAt: v.optional(v.number()),
+      providerUpdatedAt: v.number(),
+      reviewReason: v.optional(v.string()),
+    })
+      .index("by_workspace", ["workspaceId"])
+      .index("by_customer", ["environment", "customerId"])
+      .index("by_subscription", ["environment", "subscriptionId"]),
+    paymentCheckouts: defineTable({
+      workspaceId: v.id("workspaces"),
+      environment: v.union(v.literal("sandbox"), v.literal("production")),
+      userId: v.id("users"),
+      requestId: v.string(),
+      kind: v.union(v.literal("subscription"), v.literal("topup")),
+      productId: v.string(),
+      seats: v.number(),
+      amountCents: v.number(),
+      state: v.union(
+        v.literal("creating"),
+        v.literal("ready"),
+        v.literal("paid"),
+        v.literal("uncertain"),
+      ),
+      checkoutId: v.optional(v.string()),
+      checkoutUrl: v.optional(v.string()),
+      fundedOrderId: v.optional(v.string()),
+      expiresAt: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_request", ["workspaceId", "requestId"])
+      .index("by_workspace", ["workspaceId"])
+      .index("by_checkout", ["environment", "checkoutId"]),
+    paymentEvents: defineTable({
+      environment: v.union(v.literal("sandbox"), v.literal("production")),
+      eventId: v.string(),
+      eventType: v.string(),
+      taskId: v.optional(v.id("apiTasks")),
+      paidSeats: v.optional(v.number()),
+      objectId: v.string(),
+      receivedAt: v.number(),
+      processedAt: v.optional(v.number()),
+    }).index("by_event", ["environment", "eventId"]),
+    paymentOrders: defineTable({
+      workspaceId: v.id("workspaces"),
+      environment: v.union(v.literal("sandbox"), v.literal("production")),
+      orderId: v.string(),
+      subscriptionId: v.optional(v.string()),
+      kind: v.union(v.literal("subscription"), v.literal("topup")),
+      netCents: v.number(),
+      refundedCents: v.number(),
+      grantedUsdMicros: v.number(),
+      reversedUsdMicros: v.number(),
+      poolId: v.optional(v.id("fundingPools")),
+      createdAt: v.number(),
+    })
+      .index("by_order", ["environment", "orderId"])
+      .index("by_workspace", ["workspaceId"]),
+    fundingPools: defineTable({
+      workspaceId: v.id("workspaces"),
+      key: v.string(),
+      kind: v.union(v.literal("purchased"), v.literal("included")),
+      granted: v.number(),
+      remaining: v.number(),
+      held: v.number(),
+      expiresAt: v.optional(v.number()),
+      revoked: v.optional(v.boolean()),
+      createdAt: v.number(),
+    })
+      .index("by_key", ["workspaceId", "key"])
+      .index("by_workspace_remaining", ["workspaceId", "remaining"])
+      .index("by_workspace", ["workspaceId"])
+      .index("by_expiry", ["expiresAt"]),
+    billingAccounts: defineTable({
+      workspaceId: v.id("workspaces"),
+      available: v.number(),
+      reserved: v.number(),
+      spent: v.number(),
+      funded: v.number(),
+      sequence: v.number(),
+    }).index("by_workspace", ["workspaceId"]),
+    spendTotals: defineTable({
+      workspaceId: v.id("workspaces"),
+      scopeKey: v.string(),
+      spentUsdMicros: v.number(),
+      reservedUsdMicros: v.number(),
+    })
+      .index("by_scope", ["scopeKey"])
+      .index("by_workspace", ["workspaceId"]),
+    usageLedger: defineTable({
+      fundingAllocations: v.optional(
+        v.array(v.object({ poolId: v.id("fundingPools"), amount: v.number() })),
+      ),
+      sequence: v.number(),
+      requestId: v.optional(v.string()),
+      seriesId: v.optional(v.id("series")),
+      budgetMonth: v.optional(v.string()),
       workspaceId: v.id("workspaces"),
       userId: v.id("users"),
       projectId: v.optional(v.id("projects")),
@@ -406,6 +665,9 @@ const schema = defineSchema(
       delta: v.number(),
       reason: v.union(
         v.literal("grant"),
+        v.literal("adjustment"),
+        v.literal("funding_expiry"),
+        v.literal("funding_reversal"),
         v.literal("reserve"),
         v.literal("settle"),
         v.literal("refund"),
@@ -415,7 +677,11 @@ const schema = defineSchema(
     })
       .index("by_workspace", ["workspaceId"])
       .index("by_job", ["jobId"])
-      .index("by_workspace_time", ["workspaceId", "createdAt"]),
+      .index("by_workspace_time", ["workspaceId", "createdAt"])
+      .index("by_project", ["projectId"])
+      .index("by_series", ["seriesId"])
+      .index("by_request", ["workspaceId", "requestId"])
+      .index("by_workspace_sequence", ["workspaceId", "sequence"]),
 
     notifications: defineTable({
       userId: v.id("users"),
@@ -473,6 +739,7 @@ const schema = defineSchema(
       projectId: v.optional(v.id("projects")),
       bytes: v.number(),
       kind: v.union(
+        v.literal("share"),
         v.literal("storage_write"),
         v.literal("playback"),
         v.literal("download"),
@@ -584,7 +851,7 @@ const schema = defineSchema(
       payload: v.optional(v.any()),
       payloadFileId: v.optional(v.id("_storage")),
       diffSummary: v.optional(v.string()),
-      estimatedCostCredits: v.optional(v.number()),
+      estimatedCostUsdMicros: v.optional(v.number()),
       createdAt: v.number(),
       resolvedAt: v.optional(v.number()),
     })

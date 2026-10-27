@@ -1,6 +1,12 @@
+import { requireProjectWrite, requireSeriesWrite } from "./lib/access";
+import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
+  requireWorkspaceMembership,
+  requireWorkspaceAccess,
+  accessibleWorkspaceIds,
+  workspaceRole,
   requireProjectAccess,
   requireSeriesAccess,
   requireUser,
@@ -15,16 +21,27 @@ function title(value: string) {
   return result;
 }
 export const list = query({
-  args: { includeArchived: v.optional(v.boolean()) },
+  args: {
+    workspaceId: v.optional(v.id("workspaces")),
+    includeArchived: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    if (!user.personalWorkspaceId) return [];
-    const rows = await ctx.db
-      .query("series")
-      .withIndex("by_workspace", (q) =>
-        q.eq("workspaceId", user.personalWorkspaceId!),
-      )
-      .collect();
+    if (args.workspaceId)
+      await requireWorkspaceMembership(ctx, args.workspaceId);
+    const rows = [];
+    for (const workspaceId of args.workspaceId
+      ? [args.workspaceId]
+      : await accessibleWorkspaceIds(ctx, user)) {
+      const role = await workspaceRole(ctx, workspaceId, user._id);
+      if (role === "owner" || role === "admin")
+        rows.push(
+          ...(await ctx.db
+            .query("series")
+            .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+            .collect()),
+        );
+    }
     return rows
       .filter((s) => args.includeArchived || !s.archivedAt)
       .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -48,6 +65,7 @@ export const get = query({
 });
 export const create = mutation({
   args: {
+    workspaceId: v.optional(v.id("workspaces")),
     title: v.string(),
     description: v.optional(v.string()),
     aspectRatio: v.optional(aspect),
@@ -55,7 +73,10 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    const workspaceId = await ensurePersonalWorkspaceForUser(ctx, user._id);
+    const workspaceId =
+      args.workspaceId ?? (await ensurePersonalWorkspaceForUser(ctx, user._id));
+    await requireWorkspaceAccess(ctx, workspaceId);
+    await assertPaymentProduction(ctx, workspaceId);
     if (args.fps !== undefined && ![24, 25, 30, 60].includes(args.fps))
       throw new Error("Unsupported frame rate");
     const now = Date.now();
@@ -84,7 +105,7 @@ export const update = mutation({
     rules: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (![24, 25, 30, 60].includes(args.fps))
       throw new Error("Unsupported frame rate");
     if (
@@ -120,7 +141,7 @@ export const createEpisode = mutation({
     episodeNumber: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt)
       throw new Error("Restore this series before creating episodes");
     const episodes = await ctx.db
@@ -161,7 +182,7 @@ export const setMembership = mutation({
     episodeNumber: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectAccess(ctx, args.projectId);
+    const project = await requireProjectWrite(ctx, args.projectId);
     if (project.purpose === "genjutsu")
       throw new Error("Transformation sessions cannot become series episodes");
     if (args.seriesId === null) {
@@ -174,7 +195,7 @@ export const setMembership = mutation({
       });
       return;
     }
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.workspaceId !== project.workspaceId)
       throw new Error("Series and episode must belong to the same workspace");
     if (project.seriesId && project.seriesId !== series._id)
@@ -207,7 +228,7 @@ export const setMembership = mutation({
 export const reorderEpisodes = mutation({
   args: { seriesId: v.id("series"), projectIds: v.array(v.id("projects")) },
   handler: async (ctx, args) => {
-    await requireSeriesAccess(ctx, args.seriesId);
+    await requireSeriesWrite(ctx, args.seriesId);
     const episodes = await ctx.db
       .query("projects")
       .withIndex("by_series", (q) => q.eq("seriesId", args.seriesId))
@@ -228,9 +249,9 @@ export const reorderEpisodes = mutation({
 export const applyDefaults = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const project = await requireProjectAccess(ctx, args.projectId);
+    const project = await requireProjectWrite(ctx, args.projectId);
     if (!project.seriesId) throw new Error("This is a standalone project");
-    const series = await requireSeriesAccess(ctx, project.seriesId);
+    const series = await requireSeriesWrite(ctx, project.seriesId);
     // Output dimensions and frame rate stay local once an episode exists: changing them can alter edits.
     await ctx.db.patch(project._id, {
       styleNotes: series.styleNotes,
@@ -238,5 +259,29 @@ export const applyDefaults = mutation({
       seriesSettingsVersion: series.settingsVersion,
       updatedAt: Date.now(),
     });
+  },
+});
+
+export const forProject = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const project = await requireProjectAccess(ctx, args.projectId);
+    if (!project.seriesId) return null;
+    const user = await requireUser(ctx);
+    const role = await workspaceRole(ctx, project.workspaceId, user._id);
+    if (role !== "owner" && role !== "admin") return null;
+    await requireWorkspaceAccess(ctx, project.workspaceId);
+    const series = await ctx.db.get(project.seriesId);
+    if (!series) return null;
+    const episodes = await ctx.db
+      .query("projects")
+      .withIndex("by_series", (q) => q.eq("seriesId", series._id))
+      .collect();
+    return {
+      series,
+      episodes: episodes.sort(
+        (a, b) => (a.episodeOrder ?? 0) - (b.episodeOrder ?? 0),
+      ),
+    };
   },
 });

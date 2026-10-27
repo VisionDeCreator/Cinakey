@@ -40,7 +40,19 @@ async function fixture() {
 describe("production safety", () => {
   it("saves indexed media, rejects stale writers and replays an acknowledged request without a new version", async () => {
     const { t, asUser, projectId, assetId, document } = await fixture();
-    const request = { projectId, parentId: null, document, requestId: "first" };
+    const lock = await asUser.mutation(api.timelineLeases.claim, {
+      projectId,
+      sessionId: "test-session",
+    });
+    if (!lock.held) throw new Error("Expected lease");
+    const credentials = { sessionId: "test-session", fence: lock.fence };
+    const request = {
+      projectId,
+      parentId: null,
+      document,
+      requestId: "first",
+      ...credentials,
+    };
     const first = await asUser.action(api.timelineVersions.save, request);
     expect(await asUser.action(api.timelineVersions.save, request)).toEqual(
       first,
@@ -70,6 +82,7 @@ describe("production safety", () => {
       parentId: first.versionId,
       document: empty,
       requestId: "empty-edit",
+      ...credentials,
     });
     // Even if no longer present in the current edit, history must remain playable.
     await expect(
@@ -103,6 +116,11 @@ describe("production safety", () => {
     const otherId = await asUser.mutation(api.projects.create, {
       title: "Other project",
     });
+    const lock = await asUser.mutation(api.timelineLeases.claim, {
+      projectId: otherId,
+      sessionId: "other-session",
+    });
+    if (!lock.held) throw new Error("Expected lease");
     const otherDocument = {
       ...document,
       project: { ...document.project, id: otherId },
@@ -113,6 +131,8 @@ describe("production safety", () => {
         parentId: null,
         document: otherDocument,
         requestId: "wrong-project",
+        sessionId: "other-session",
+        fence: lock.fence,
       }),
     ).rejects.toThrow("inaccessible media");
     expect(
@@ -125,9 +145,9 @@ describe("production safety", () => {
     const { t, asUser, projectId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapCredits: 10,
+      spendCapUsdMicros: 1_700_000,
     });
-    const before = (await asUser.query(api.credits.getBalance, {})).balance;
+    const before = (await asUser.query(api.billing.getBalance, {})).balance;
     const request = {
       projectId,
       adapterId: "seedance-2.5",
@@ -139,8 +159,8 @@ describe("production safety", () => {
     const first = await asUser.action(api.generation.startGeneration, request);
     const replay = await asUser.action(api.generation.startGeneration, request);
     expect(replay.jobId).toBe(first.jobId);
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
-      before - 10,
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
+      before - 1_700_000,
     );
     await expect(
       asUser.action(api.generation.startGeneration, {
@@ -166,7 +186,7 @@ describe("production safety", () => {
     const { t, asUser, projectId, workspaceId, userId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapCredits: 10,
+      spendCapUsdMicros: 1_700_000,
     });
     const args = {
       projectId,
@@ -176,7 +196,7 @@ describe("production safety", () => {
       modelVersion: "test",
       kind: "text-to-video",
       prompt: "fixture",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 1_700_000,
     };
     await t.mutation(internal.generation.createQueuedJob, args);
     await expect(
@@ -196,7 +216,7 @@ describe("production safety", () => {
     const { t, asUser, projectId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapCredits: 10,
+      spendCapUsdMicros: 1_700_000,
     });
     const request = {
       projectId,

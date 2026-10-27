@@ -24,7 +24,7 @@ vi.mock("@/lib/api/hooks", () => ({
     if (name === "storage:listProjectAssetUrls") return mocks.urls;
     if (name === "genjutsu:get") return mocks.session;
     if (name === "workspace:videos") return { videos: [], jobs: [] };
-    if (name === "generation:estimateCost") return { credits: 10 };
+    if (name === "generation:estimateCost") return { usdMicros: 10 };
     return [];
   },
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>

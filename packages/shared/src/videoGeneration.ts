@@ -48,7 +48,7 @@ export function validateVideoInput(input: BuildRequestInput) {
     throw new Error("Extension requires a source video");
 }
 
-/** Known media constraints are checked before reserving generation credits. */
+/** Known media constraints are checked before reserving generation usdMicros. */
 export function validateVideoReference(
   asset: {
     name: string;

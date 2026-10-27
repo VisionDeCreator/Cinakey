@@ -1,3 +1,5 @@
+import { EmailVerification } from "./EmailVerification";
+import { TeamSettings } from "./TeamSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,11 +7,10 @@ import { useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export function SettingsPage() {
   const me = useQuery(api.users.viewer);
-  const ledger = useQuery(api.credits.listLedger, { limit: 50 });
   const updateProfile = useMutation(api.users.updateProfile);
   const deleteAccount = useMutation(api.users.deleteAccount);
   const { signOut } = useAuthActions();
@@ -103,23 +104,17 @@ export function SettingsPage() {
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
       </form>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-200">Credits</h2>
-        {ledger === undefined ? (
-          <p className="text-sm text-zinc-500">Loading…</p>
-        ) : ledger.length === 0 ? (
-          <p className="text-sm text-zinc-500">No entries.</p>
-        ) : (
-          <ul className="max-h-64 space-y-1 overflow-auto text-xs text-zinc-500">
-            {ledger.map((row) => (
-              <li key={row._id}>
-                {new Date(row.createdAt).toLocaleString()} · {row.reason} ·{" "}
-                {row.delta > 0 ? "+" : ""}
-                {row.delta} → {row.balanceAfter}
-              </li>
-            ))}
-          </ul>
-        )}
+      <EmailVerification />
+      <TeamSettings />
+      <section className="space-y-2 rounded-lg border border-zinc-800 p-4">
+        <h2 className="text-sm font-semibold">Workspace billing</h2>
+        <p className="text-sm text-zinc-400">
+          Manage your subscription, invoices, paid seats, usage balance and
+          spending limits.
+        </p>
+        <Link to="/billing" className="inline-block text-sm underline">
+          Open billing
+        </Link>
       </section>
 
       <section className="space-y-3 border border-red-900/40 p-4">

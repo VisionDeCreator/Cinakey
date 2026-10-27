@@ -1,27 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
-import { STARTER_CREDITS } from "./lib/limits";
+import { STARTER_USD_MICROS } from "./lib/limits";
 
-describe("credits ledger", () => {
+describe("usdMicros ledger", () => {
   beforeEach(() => {
-    process.env.ALLOW_DEV_CREDITS = "true";
+    process.env.ALLOW_DEV_USD = "true";
   });
 
-  it("grants credits and reports balance", async () => {
+  it("grants usdMicros and reports balance", async () => {
     const t = makeTest();
-    const userId = await createTestUser(t, "credits@test.com");
+    const userId = await createTestUser(t, "usdMicros@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
 
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    const before = await asUser.query(api.credits.getBalance, {});
-    expect(before.balance).toBe(STARTER_CREDITS);
+    const before = await asUser.query(api.billing.getBalance, {});
+    expect(before.balance).toBe(STARTER_USD_MICROS);
 
-    const grant = await asUser.mutation(api.credits.grantDev, { amount: 100 });
-    expect(grant.balanceAfter).toBe(STARTER_CREDITS + 100);
+    const grant = await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    expect(grant.balanceAfter).toBe(STARTER_USD_MICROS + 100);
 
-    const after = await asUser.query(api.credits.getBalance, {});
-    expect(after.balance).toBe(STARTER_CREDITS + 100);
+    const after = await asUser.query(api.billing.getBalance, {});
+    expect(after.balance).toBe(STARTER_USD_MICROS + 100);
   });
 
   it("rejects reserve that would go negative", async () => {
@@ -29,7 +29,7 @@ describe("credits ledger", () => {
     const userId = await createTestUser(t, "poor@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    const balance = await asUser.query(api.credits.getBalance, {});
+    const balance = await asUser.query(api.billing.getBalance, {});
     const workspaceId = balance.workspaceId!;
     const projectId = await asUser.mutation(api.projects.create, {
       title: "P",
@@ -42,7 +42,7 @@ describe("credits ledger", () => {
         modelVersion: "gpt-image-2",
         kind: "text-to-video",
         prompt: "x",
-        estimatedCostCredits: STARTER_CREDITS + 50,
+        estimatedCostUsdMicros: STARTER_USD_MICROS + 50,
         status: "queued",
         outputAssetIds: [],
         attempts: 0,
@@ -53,23 +53,23 @@ describe("credits ledger", () => {
     });
 
     await expect(
-      t.mutation(internal.credits.reserve, {
+      t.mutation(internal.billing.reserve, {
         workspaceId,
         userId,
         projectId,
         jobId,
-        amount: STARTER_CREDITS + 50,
+        amount: STARTER_USD_MICROS + 50,
       }),
-    ).rejects.toThrow(/Insufficient credits/);
+    ).rejects.toThrow(/Insufficient USD balance/);
   });
 
-  it("settle returns unused reserved credits", async () => {
+  it("settle returns unused reserved usdMicros", async () => {
     const t = makeTest();
     const userId = await createTestUser(t, "settle@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.credits.grantDev, { amount: 100 });
-    const { workspaceId } = await asUser.query(api.credits.getBalance, {});
+    await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    const { workspaceId } = await asUser.query(api.billing.getBalance, {});
     const projectId = await asUser.mutation(api.projects.create, {
       title: "P",
     });
@@ -81,7 +81,7 @@ describe("credits ledger", () => {
         modelVersion: "gpt-image-2",
         kind: "text-to-video",
         prompt: "x",
-        estimatedCostCredits: 10,
+        estimatedCostUsdMicros: 10,
         status: "queued",
         outputAssetIds: [],
         attempts: 0,
@@ -91,19 +91,19 @@ describe("credits ledger", () => {
       });
     });
 
-    const base = STARTER_CREDITS + 100;
-    await t.mutation(internal.credits.reserve, {
+    const base = STARTER_USD_MICROS + 100;
+    await t.mutation(internal.billing.reserve, {
       workspaceId: workspaceId!,
       userId,
       projectId,
       jobId,
       amount: 10,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       base - 10,
     );
 
-    await t.mutation(internal.credits.settle, {
+    await t.mutation(internal.billing.settle, {
       workspaceId: workspaceId!,
       userId,
       projectId,
@@ -111,7 +111,7 @@ describe("credits ledger", () => {
       estimated: 10,
       actual: 7,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       base - 7,
     );
   });
@@ -121,8 +121,8 @@ describe("credits ledger", () => {
     const userId = await createTestUser(t, "refund@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.credits.grantDev, { amount: 50 });
-    const { workspaceId } = await asUser.query(api.credits.getBalance, {});
+    await asUser.mutation(api.billing.grantDev, { amount: 50 });
+    const { workspaceId } = await asUser.query(api.billing.getBalance, {});
     const projectId = await asUser.mutation(api.projects.create, {
       title: "P",
     });
@@ -134,7 +134,7 @@ describe("credits ledger", () => {
         modelVersion: "gpt-image-2",
         kind: "text-to-video",
         prompt: "x",
-        estimatedCostCredits: 10,
+        estimatedCostUsdMicros: 10,
         status: "queued",
         outputAssetIds: [],
         attempts: 0,
@@ -144,29 +144,29 @@ describe("credits ledger", () => {
       });
     });
 
-    const base = STARTER_CREDITS + 50;
-    await t.mutation(internal.credits.reserve, {
+    const base = STARTER_USD_MICROS + 50;
+    await t.mutation(internal.billing.reserve, {
       workspaceId: workspaceId!,
       userId,
       projectId,
       jobId,
       amount: 10,
     });
-    await t.mutation(internal.credits.refund, {
+    await t.mutation(internal.billing.refund, {
       workspaceId: workspaceId!,
       userId,
       projectId,
       jobId,
       amount: 10,
     });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(base);
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(base);
   });
 });
 
 describe("generation jobs with mock adapter", () => {
   beforeEach(() => {
     process.env.USE_MOCK_ADAPTERS = "true";
-    process.env.ALLOW_DEV_CREDITS = "true";
+    process.env.ALLOW_DEV_USD = "true";
     vi.useFakeTimers();
   });
 
@@ -181,17 +181,17 @@ describe("generation jobs with mock adapter", () => {
     });
   }
 
-  it("succeeds and settles credits", async () => {
+  it("succeeds and settles usdMicros", async () => {
     const t = makeTest();
     const userId = await createTestUser(t, "job-ok@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.credits.grantDev, { amount: 100 });
+    await asUser.mutation(api.billing.grantDev, { amount: 100 });
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });
 
-    const { jobId, estimatedCostCredits } = await asUser.action(
+    const { jobId, estimatedCostUsdMicros } = await asUser.action(
       api.generation.startGeneration,
       {
         projectId,
@@ -201,18 +201,18 @@ describe("generation jobs with mock adapter", () => {
         input: { mockDelayMs: 0 },
       },
     );
-    expect(estimatedCostCredits).toBe(10);
+    expect(estimatedCostUsdMicros).toBe(1_700_000);
 
     await drain(t);
 
     const job = await asUser.query(api.generation.getJob, { jobId });
     expect(job?.status).toBe("succeeded");
     expect(job?.outputAssetIds.length).toBeGreaterThan(0);
-    expect(job?.actualCostCredits).toBeDefined();
+    expect(job?.actualCostUsdMicros).toBeDefined();
 
-    const bal = await asUser.query(api.credits.getBalance, {});
+    const bal = await asUser.query(api.billing.getBalance, {});
     expect(bal.balance).toBe(
-      STARTER_CREDITS + 100 - (job?.actualCostCredits ?? 10),
+      STARTER_USD_MICROS + 100 - (job?.actualCostUsdMicros ?? 10),
     );
 
     const notes = await asUser.query(api.notifications.listUnread, {});
@@ -221,12 +221,12 @@ describe("generation jobs with mock adapter", () => {
     ).toBe(true);
   });
 
-  it("forceFail refunds credits", async () => {
+  it("forceFail refunds usdMicros", async () => {
     const t = makeTest();
     const userId = await createTestUser(t, "job-fail@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.credits.grantDev, { amount: 100 });
+    await asUser.mutation(api.billing.grantDev, { amount: 100 });
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });
@@ -244,8 +244,8 @@ describe("generation jobs with mock adapter", () => {
     const job = await asUser.query(api.generation.getJob, { jobId });
     expect(job?.status).toBe("refunded");
 
-    const bal = await asUser.query(api.credits.getBalance, {});
-    expect(bal.balance).toBe(STARTER_CREDITS + 100);
+    const bal = await asUser.query(api.billing.getBalance, {});
+    expect(bal.balance).toBe(STARTER_USD_MICROS + 100);
 
     const notes = await asUser.query(api.notifications.listUnread, {});
     expect(notes.some((n: { kind: string }) => n.kind === "job_failed")).toBe(
@@ -258,7 +258,7 @@ describe("generation jobs with mock adapter", () => {
     const userId = await createTestUser(t, "job-retry@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.credits.grantDev, { amount: 100 });
+    await asUser.mutation(api.billing.grantDev, { amount: 100 });
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });

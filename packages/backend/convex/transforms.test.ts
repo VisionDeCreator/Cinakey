@@ -46,10 +46,10 @@ async function fixture() {
   };
   return { t, asUser, args, imageId, userId };
 }
-it("saves a reviewed transformation snapshot and replays the request without a second credit reservation", async () => {
+it("saves a reviewed transformation snapshot and replays the request without a second USD reservation", async () => {
   const { t, asUser, args } = await fixture();
   const result = await asUser.action(api.transforms.analyze, args);
-  expect(result).toMatchObject({ mock: true, credits: 0 });
+  expect(result).toMatchObject({ mock: true, usdMicros: 0 });
   const request = {
     projectId: args.projectId,
     sourceAssetId: args.sourceAssetId,
@@ -70,7 +70,7 @@ it("saves a reviewed transformation snapshot and replays the request without a s
   const first = await asUser.action(api.transforms.generate, request);
   const replay = await asUser.action(api.transforms.generate, request);
   expect(replay.jobId).toBe(first.jobId);
-  expect(first.estimatedCostCredits).toBe(12);
+  expect(first.estimatedCostUsdMicros).toBe(900_000);
   const job = await t.run((ctx) => ctx.db.get(first.jobId));
   const snapshot = await t.run(async (ctx) =>
     JSON.parse(await (await ctx.storage.get(job!.inputsFileId!))!.text()),
@@ -93,7 +93,7 @@ it("saves a reviewed transformation snapshot and replays the request without a s
     }),
   ).rejects.toThrow("different generation settings");
 });
-it("rejects unauthorized source access and malformed sampling before invoking a model or reserving credits", async () => {
+it("rejects unauthorized source access and malformed sampling before invoking a model or reserving usdMicros", async () => {
   const { t, asUser, args } = await fixture();
   await expect(
     asUser.action(api.transforms.analyze, {
@@ -146,7 +146,7 @@ it("uses Flash image blocks and refunds invalid model analysis", async () => {
 });
 it("enforces the project spend cap before paid analysis", async () => {
   const { t, asUser, args } = await fixture();
-  await t.run((ctx) => ctx.db.patch(args.projectId, { spendCapCredits: 1 }));
+  await t.run((ctx) => ctx.db.patch(args.projectId, { spendCapUsdMicros: 1 }));
   vi.stubEnv("USE_MOCK_ADAPTERS", "false");
   vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
   const send = vi.fn();
@@ -278,7 +278,7 @@ it("resolves prompt aliases in first-mention order and updates every occurrence 
     "Use @image_1 behind @image_1, then show @image_1 again.",
   );
 });
-it("blocks missing or ambiguous prompt references before either analysis or rendering reserves credits", async () => {
+it("blocks missing or ambiguous prompt references before either analysis or rendering reserves usdMicros", async () => {
   const { t, asUser, args } = await fixture();
   await expect(
     asUser.action(api.transforms.analyze, {
@@ -356,7 +356,7 @@ it("accepts the source video alias alongside an image without trying to bind vid
   ).rejects.toThrow("reference name must match the media type");
 });
 
-it("rejects Remix Lite renders without images or with sources longer than 15 seconds before reserving credits", async () => {
+it("rejects Remix Lite renders without images or with sources longer than 15 seconds before reserving usdMicros", async () => {
   const { t, asUser, args } = await fixture();
   const { analysis } = await asUser.action(api.transforms.analyze, args);
   const request = {

@@ -1,8 +1,9 @@
+import { tokenPrice } from "@cinakey/shared";
 import {
   compileVideoTransform,
   resolveTransformPrompt,
   scriptMentions,
-  transformAnalysisCredits,
+  transformAnalysisUsdMicros,
   transformAnalysisSchema,
   transformDuration,
   validateVideoReference,
@@ -19,7 +20,7 @@ import { completeChat, type ChatContentPart } from "../providers/deepseek";
 import { safeErrorMessage } from "../providers/errors";
 import { action, type ActionCtx } from "../runtime/operation";
 
-/** Bind prompt aliases before either model sees them; unknown images never reserve credits. */
+/** Bind prompt aliases before either model sees them; unknown images never reserve usdMicros. */
 async function resolveInstruction(
   ctx: ActionCtx,
   projectId: Id<"projects">,
@@ -119,6 +120,7 @@ async function sourceContext(
 export const analyze = action({
   args: {
     projectId: v.id("projects"),
+    maxCostUsdMicros: v.optional(v.number()),
     sourceAssetId: v.id("assets"),
     referenceAssetIds: v.array(v.id("assets")),
     instruction: v.string(),
@@ -129,8 +131,9 @@ export const analyze = action({
     args,
   ): Promise<{
     analysis: TransformAnalysis;
-    credits: number;
+    usdMicros: number;
     mock: boolean;
+    settlementPending?: boolean;
   }> => {
     if (!args.instruction.trim() || args.instruction.length > 4000)
       throw new Error("Describe the requested change in 1–4000 characters");
@@ -171,7 +174,7 @@ export const analyze = action({
           setting: "Setting follows the source video unless changed.",
           uncertainties: ["Mock mode: no visual analysis was performed."],
         },
-        credits: 0,
+        usdMicros: 0,
         mock: true,
       };
     requireProviderKey("deepseek");
@@ -200,20 +203,30 @@ export const analyze = action({
         { type: "image_url", image_url: { url } },
       );
     }
-    const reserved = transformAnalysisCredits(
+    const reserved = transformAnalysisUsdMicros(
       args.frames.length,
       references.length,
     );
+    if (
+      args.maxCostUsdMicros !== undefined &&
+      (!Number.isSafeInteger(args.maxCostUsdMicros) ||
+        args.maxCostUsdMicros < reserved)
+    )
+      throw new Error(
+        "Analysis price exceeds the accepted maximum. Review the estimate.",
+      );
     const jobId = await ctx.runMutation(internal.textJobs.createChatJob, {
       projectId: args.projectId,
       workspaceId: project.workspaceId,
       userId,
-      estimatedCostCredits: reserved,
+      estimatedCostUsdMicros: reserved,
       prompt: `Analyze video transformation: ${args.instruction}`,
       modelVersion: "deepseek-flash",
     });
     let analysis: TransformAnalysis;
-    let credits: number;
+    let usdMicros: number;
+    let usageMissing: boolean;
+    let actualTokens: number | undefined;
     try {
       const result = await completeChat({
         model: "deepseek-flash",
@@ -229,12 +242,11 @@ export const analyze = action({
         ],
       });
       analysis = transformAnalysisSchema.parse(JSON.parse(result.content));
-      credits = Math.min(
+      actualTokens = result.usage?.total_tokens;
+      usageMissing = actualTokens === undefined;
+      usdMicros = Math.min(
         reserved,
-        Math.max(
-          1,
-          Math.ceil((result.usage?.total_tokens ?? reserved * 1000) / 1000),
-        ),
+        usageMissing ? 0 : tokenPrice(result.usage!.total_tokens!),
       );
     } catch (error) {
       await ctx.runMutation(internal.textJobs.settleChatJob, {
@@ -242,7 +254,7 @@ export const analyze = action({
         workspaceId: project.workspaceId,
         userId,
         projectId: args.projectId,
-        actualCostCredits: 0,
+        actualCostUsdMicros: 0,
         succeeded: false,
         errorMessage: safeErrorMessage(error),
       });
@@ -256,16 +268,25 @@ export const analyze = action({
       workspaceId: project.workspaceId,
       userId,
       projectId: args.projectId,
-      actualCostCredits: credits,
+      actualCostUsdMicros: usdMicros,
+      actualTokens,
       succeeded: true,
+      usageMissing,
     });
-    return { analysis, credits, mock: false };
+    return {
+      analysis,
+      usdMicros,
+      mock: false,
+      settlementPending: usageMissing,
+    };
   },
 });
 
 export const generate = action({
   args: {
     projectId: v.id("projects"),
+    maxCostUsdMicros: v.optional(v.number()),
+    quoteId: v.optional(v.id("usageQuotes")),
     sourceAssetId: v.id("assets"),
     referenceAssetIds: v.array(v.id("assets")),
     plan: v.any(),
@@ -275,7 +296,10 @@ export const generate = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+  ): Promise<{
+    jobId: Id<"generationJobs">;
+    estimatedCostUsdMicros: number;
+  }> => {
     const originalPlan = videoTransformSchema.parse(args.plan);
     const resolvedInput = await resolveInstruction(
       ctx,
@@ -296,6 +320,8 @@ export const generate = action({
       references.map((asset) => asset.name),
     );
     return ctx.runAction(api.generation.startGeneration, {
+      maxCostUsdMicros: args.maxCostUsdMicros,
+      quoteId: args.quoteId,
       projectId: args.projectId,
       adapterId: "sume-remix-lite",
       kind: "text-to-video",

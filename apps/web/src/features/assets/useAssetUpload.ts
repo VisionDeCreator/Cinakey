@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useMutation } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import type { AssetType } from "@cinakey/shared";
@@ -103,12 +104,17 @@ async function mediaMetadata(
 }
 
 export function useAssetUpload(projectId: string | undefined) {
+  const { canWrite } = useWorkspace();
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
 
   const uploadFiles = useCallback(
     async (files: FileList | File[], options?: UploadOptions) => {
+      if (canWrite === false)
+        throw new Error(
+          "An active workspace subscription is required for new uploads. Ask the workspace owner to manage Billing in Settings.",
+        );
       if (!projectId) {
         throw new Error("Select a project before uploading");
       }
@@ -157,7 +163,9 @@ export function useAssetUpload(projectId: string | undefined) {
 
         try {
           const metadata = await mediaMetadata(file, type);
-          const uploadUrl = await createUploadUrl();
+          const uploadUrl = await createUploadUrl({
+            projectId: projectId as never,
+          });
           setUploads((prev) =>
             prev.map((u) => (u.id === id ? { ...u, progress: 40 } : u)),
           );
@@ -220,7 +228,7 @@ export function useAssetUpload(projectId: string | undefined) {
       }
       return createdIds;
     },
-    [projectId, createUploadUrl, createAsset],
+    [projectId, createUploadUrl, createAsset, canWrite],
   );
 
   const clearFinished = useCallback(() => {

@@ -1,5 +1,6 @@
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
 import {
+  chargeForUnits,
   validateVideoInput,
   validateVideoReference,
   validateRemixInput,
@@ -16,7 +17,7 @@ import {
   saveFile,
 } from "../../../../packages/backend/convex/storage";
 import { providerConfig, serverEnv, useMockProviders } from "../config/env";
-import { internal } from "../operations";
+import { api, internal } from "../operations";
 import { getAdapter } from "../providers";
 import { isDefaultTransientError } from "../providers/cost";
 import {
@@ -53,6 +54,8 @@ function pollDelay(pollAttempt: number): number {
 export const startGeneration = action({
   args: {
     projectId: v.id("projects"),
+    quoteId: v.optional(v.id("usageQuotes")),
+    maxCostUsdMicros: v.optional(v.number()),
     adapterId: v.string(),
     kind: v.string(),
     prompt: v.string(),
@@ -75,7 +78,10 @@ export const startGeneration = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+  ): Promise<{
+    jobId: Id<"generationJobs">;
+    estimatedCostUsdMicros: number;
+  }> => {
     if (
       !["text-to-video", "image-to-video", "upscale", "extend"].includes(
         args.kind,
@@ -248,7 +254,33 @@ export const startGeneration = action({
       (!args.requestId || args.requestId.length > 128)
     )
       throw new Error("Invalid generation request ID");
-    const estimated = adapter.estimateCost(buildInput);
+    const pricedDuration = Number(buildInput.durationSec ?? 5);
+    const pricedResolution = buildInput.resolution ?? "720p";
+    const pricedQuote = args.quoteId
+      ? await ctx.runQuery(internal.generation.getQuoteInternal, {
+          quoteId: args.quoteId,
+        })
+      : await ctx.runMutation(api.generation.quote, {
+          projectId: args.projectId,
+          adapterId: args.adapterId,
+          kind: args.kind,
+          durationSec: pricedDuration,
+          resolution: pricedResolution,
+          maxCostUsdMicros: args.maxCostUsdMicros,
+        });
+    if (!pricedQuote) throw new Error("Quote not found");
+    const quoteId =
+      args.quoteId ?? (pricedQuote as { quoteId: Id<"usageQuotes"> }).quoteId;
+    const estimated = pricedQuote.maximumUsdMicros;
+    if (
+      args.maxCostUsdMicros !== undefined &&
+      (!Number.isSafeInteger(args.maxCostUsdMicros) ||
+        args.maxCostUsdMicros < estimated)
+    )
+      throw new ConvexError({
+        code: "PRICE_CHANGED",
+        message: "The quote exceeds the accepted maximum",
+      });
     if (estimated <= 0) {
       throw new Error("Estimated cost must be positive");
     }
@@ -273,7 +305,10 @@ export const startGeneration = action({
         prompt: args.prompt,
         seed: args.seed,
         inputsFileId,
-        estimatedCostCredits: estimated,
+        estimatedCostUsdMicros: estimated,
+        quoteId,
+        durationSec: pricedDuration,
+        resolution: pricedResolution,
         createdBy: user._id,
         referenceAssetIds,
         requestKey: args.requestId
@@ -307,7 +342,10 @@ export const startGeneration = action({
     });
     if (stored && stored.inputsFileId !== inputsFileId)
       await ctx.storage.delete(inputsFileId);
-    return { jobId, estimatedCostCredits: estimated };
+    return {
+      jobId,
+      estimatedCostUsdMicros: stored?.estimatedCostUsdMicros ?? estimated,
+    };
   },
 });
 
@@ -794,22 +832,25 @@ async function finishSuccess(
     }
   }
 
-  const units =
-    actualUnits ??
-    (adapter.capabilities.kind === "video"
-      ? job.estimatedCostCredits / adapter.capabilities.costModel.creditsPerUnit
-      : adapter.capabilities.kind === "llm"
-        ? 1
-        : 1);
-  const actualCost = Math.min(
-    job.estimatedCostCredits,
-    Math.ceil(units * adapter.capabilities.costModel.creditsPerUnit),
-  );
+  if (!job.priceVersion || !job.unitUsdMicros)
+    throw new Error("Missing authorized price snapshot");
+  if (
+    actualUnits !== undefined &&
+    (!Number.isFinite(actualUnits) || actualUnits < 0)
+  )
+    throw new Error("Invalid reported usage");
+  const actualCost =
+    actualUnits === undefined
+      ? job.estimatedCostUsdMicros
+      : Math.min(
+          job.estimatedCostUsdMicros,
+          chargeForUnits(actualUnits, job.unitUsdMicros),
+        );
 
   await ctx.runMutation(internal.generation.markSucceeded, {
     jobId: job._id,
     outputAssetIds,
-    actualCostCredits: actualCost,
+    actualCostUsdMicros: actualCost,
   });
 
   await ctx.runMutation(internal.generation.flagOutputIfNeeded, {

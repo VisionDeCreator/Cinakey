@@ -12,7 +12,7 @@ export const retiredImageAdapter: GenerationAdapter = {
     operations: [],
     inputs: [],
     features: [],
-    costModel: { unit: "per_image", creditsPerUnit: 10 },
+    costModel: { unit: "per_image", usdMicrosPerUnit: 10 },
   },
   estimateCost: () => 10,
   buildRequest: unavailable,

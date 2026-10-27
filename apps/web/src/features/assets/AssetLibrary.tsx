@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +34,11 @@ export function AssetLibrary({
   /** When true, show project picker if projectId missing (global page). */
   requireProject?: boolean;
 }) {
-  const projects = useQuery(api.projects.listMine, {});
+  const { workspaceId, canWrite } = useWorkspace();
+  const projects = useQuery(
+    api.projects.listMine,
+    workspaceId ? { workspaceId } : {},
+  );
   const [selectedProjectId, setSelectedProjectId] = useState<
     string | undefined
   >(projectId);
@@ -60,12 +65,14 @@ export function AssetLibrary({
   }, [search]);
 
   const filterOpts = useQuery(api.assets.filterOptions, {
+    ...(!projectId && workspaceId ? { workspaceId } : {}),
     projectId: effectiveProjectId
       ? (effectiveProjectId as Id<"projects">)
       : undefined,
   });
 
   const assets = useQuery(api.assets.list, {
+    ...(!projectId && workspaceId ? { workspaceId } : {}),
     projectId: effectiveProjectId
       ? (effectiveProjectId as Id<"projects">)
       : undefined,
@@ -80,7 +87,7 @@ export function AssetLibrary({
   const { uploads, uploadFiles } = useAssetUpload(effectiveProjectId);
   const setStarred = useMutation(api.assets.setStarred);
 
-  const canUpload = Boolean(effectiveProjectId);
+  const canUpload = canWrite !== false && Boolean(effectiveProjectId);
 
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;

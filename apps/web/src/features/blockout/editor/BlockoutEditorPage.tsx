@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import {
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useLayoutEffect,
   useEffectEvent,
   useRef,
   useState,
@@ -108,6 +110,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function BlockoutEditorPage() {
+  const { canWrite } = useWorkspace();
+  const writeAllowed = useRef(canWrite !== false);
+  useLayoutEffect(() => {
+    writeAllowed.current = canWrite !== false;
+  }, [canWrite]);
   const { projectId } = useParams();
   const [search, setSearch] = useSearchParams();
 
@@ -285,12 +292,14 @@ export function BlockoutEditorPage() {
     const rt = new PartSceneRuntime({
       onSelectObject: (id) => setSelectedId(id),
       onCameraDirty: () => {
+        if (!writeAllowed.current) return;
         setCameraDirty(true);
         markDirty();
         const pose = runtimeRef.current?.getLivePose();
         if (pose) setLive(pose);
       },
       onObjectMoved: (id, pose) => {
+        if (!writeAllowed.current) return;
         pushUndo();
         setDoc((prev) => {
           if (!prev) return prev;
@@ -354,8 +363,8 @@ export function BlockoutEditorPage() {
   }, [gizmoMode]);
 
   useEffect(() => {
-    runtimeRef.current?.selectObject(selectedId);
-  }, [selectedId]);
+    runtimeRef.current?.selectObject(canWrite === false ? null : selectedId);
+  }, [selectedId, canWrite]);
 
   useEffect(() => {
     runtimeRef.current?.setPassMode(passMode);
@@ -402,6 +411,7 @@ export function BlockoutEditorPage() {
   }, [dirty]);
 
   const commitDoc = (next: BlockoutDocument, opts?: { undo?: boolean }) => {
+    if (!writeAllowed.current) return;
     if (opts?.undo !== false) pushUndo();
     setDoc(next);
     markDirty();
@@ -409,6 +419,7 @@ export function BlockoutEditorPage() {
   };
 
   const undo = () => {
+    if (!writeAllowed.current) return;
     const raw = undoStack.current.pop();
     if (!raw) {
       setStatus("Nothing to undo");
@@ -424,6 +435,7 @@ export function BlockoutEditorPage() {
   };
 
   const onLiveChange = (pose: CameraPose) => {
+    if (!writeAllowed.current) return;
     setLive(pose);
     setCameraDirty(true);
     markDirty();
@@ -431,6 +443,7 @@ export function BlockoutEditorPage() {
   };
 
   const keyCamera = () => {
+    if (!writeAllowed.current) return;
     if (!doc) return;
     pushUndo();
     const { doc: next, key } = keyCameraAtFrame(doc, frame, live);
@@ -451,7 +464,7 @@ export function BlockoutEditorPage() {
       lightRole?: BlockoutLightRole;
     },
   ) => {
-    if (!doc) return;
+    if (!writeAllowed.current || !doc) return;
     pushUndo();
     const o = createObject(type, live, opts);
     const next = { ...doc, objects: [...doc.objects, o] };
@@ -462,6 +475,7 @@ export function BlockoutEditorPage() {
   };
 
   const onSave = async () => {
+    if (!writeAllowed.current) return;
     if (!doc || !projectId || busy) return;
     const snapshot = cameraDirty ? keyCameraAtFrame(doc, frame, live).doc : doc;
     const revision = editRevision.current;
@@ -497,6 +511,7 @@ export function BlockoutEditorPage() {
   };
 
   const onRenderGuides = async () => {
+    if (!writeAllowed.current) return;
     if (!doc || !projectId || busy) return;
     setBusy("guides");
     setStatus(null);
@@ -549,6 +564,7 @@ export function BlockoutEditorPage() {
   };
 
   const onExportMp4 = async () => {
+    if (!writeAllowed.current) return;
     if (!doc || !projectId || busy) return;
     setBusy("export");
     setStatus(null);
@@ -580,7 +596,9 @@ export function BlockoutEditorPage() {
           signal: ac.signal,
           onProgress: (p) => setStatus(p.label),
         });
-        const uploadUrl = await createUploadUrl();
+        const uploadUrl = await createUploadUrl({
+          projectId: projectId as never,
+        });
         const res = await fetch(uploadUrl, {
           method: "POST",
           headers: { "Content-Type": "video/mp4" },
@@ -640,6 +658,7 @@ export function BlockoutEditorPage() {
   };
 
   const onImportApply = () => {
+    if (!writeAllowed.current) return;
     const { doc: next, error } = normalizeImportedDocument(
       JSON.parse(importText),
     );
@@ -817,21 +836,23 @@ export function BlockoutEditorPage() {
               { value: "director", label: "Director", icon: <Orbit /> },
             ]}
           />
-          <Segmented
-            value={gizmoMode}
-            onChange={setGizmoMode}
-            options={[
-              { value: "translate", label: "Move", icon: <Move3d /> },
-              { value: "rotate", label: "Rotate", icon: <Rotate3d /> },
-              { value: "scale", label: "Scale", icon: <Scale3d /> },
-            ]}
-          />
+          <fieldset disabled={canWrite === false} className="contents">
+            <Segmented
+              value={gizmoMode}
+              onChange={setGizmoMode}
+              options={[
+                { value: "translate", label: "Move", icon: <Move3d /> },
+                { value: "rotate", label: "Rotate", icon: <Rotate3d /> },
+                { value: "scale", label: "Scale", icon: <Scale3d /> },
+              ]}
+            />
+          </fieldset>
           <Button
             type="button"
             size="sm"
             variant="outline"
             className="h-8"
-            disabled={busy === "guides"}
+            disabled={canWrite === false || busy === "guides"}
             onClick={() => void onRenderGuides()}
           >
             <ImageIcon className="size-3.5" />
@@ -864,7 +885,7 @@ export function BlockoutEditorPage() {
             type="button"
             size="sm"
             className="h-8"
-            disabled={busy === "saving"}
+            disabled={canWrite === false || busy === "saving"}
             onClick={() => void onSave()}
           >
             <Save className="size-3.5" />
@@ -989,139 +1010,143 @@ export function BlockoutEditorPage() {
           </p>
         </div>
 
-        <EditorInspector
-          doc={doc}
-          live={live}
-          cameraDirty={cameraDirty}
-          selectedObject={selectedObject}
-          selectedKey={selectedKey}
-          exportBurnIn={exportBurnIn}
-          exportMode={exportMode}
-          exportRange={exportRange}
-          onLiveChange={onLiveChange}
-          onSensorChange={(sensor) => {
-            pushUndo();
-            commitDoc(
-              { ...doc, camera: { ...doc.camera, sensor } },
-              { undo: false },
-            );
-          }}
-          onTimingChange={(opts) => {
-            pushUndo();
-            commitDoc(updateShotTiming(doc, opts), { undo: false });
-          }}
-          onPreset={(id: CameraMovePresetId) => {
-            pushUndo();
-            const next = applyPresetToDoc(doc, id, live);
-            commitDoc(next, { undo: false });
-            setCameraDirty(false);
-            setStatus(
-              `${CAMERA_MOVE_PRESETS.find((p) => p[0] === id)?.[1] ?? id}`,
-            );
-          }}
-          onKeyEase={(ease: BlockoutEase) => {
-            if (!selectedKey) return;
-            pushUndo();
-            commitDoc(updateKeyEase(doc, selectedKey, ease), { undo: false });
-          }}
-          onKeyFrame={(f) => {
-            if (!selectedKey || !doc) return;
-            pushUndo();
-            if (selectedKey.kind === "cam") {
+        <fieldset disabled={canWrite === false} className="contents">
+          <EditorInspector
+            doc={doc}
+            live={live}
+            cameraDirty={cameraDirty}
+            selectedObject={selectedObject}
+            selectedKey={selectedKey}
+            exportBurnIn={exportBurnIn}
+            exportMode={exportMode}
+            exportRange={exportRange}
+            onLiveChange={onLiveChange}
+            onSensorChange={(sensor) => {
+              pushUndo();
+              commitDoc(
+                { ...doc, camera: { ...doc.camera, sensor } },
+                { undo: false },
+              );
+            }}
+            onTimingChange={(opts) => {
+              pushUndo();
+              commitDoc(updateShotTiming(doc, opts), { undo: false });
+            }}
+            onPreset={(id: CameraMovePresetId) => {
+              pushUndo();
+              const next = applyPresetToDoc(doc, id, live);
+              commitDoc(next, { undo: false });
+              setCameraDirty(false);
+              setStatus(
+                `${CAMERA_MOVE_PRESETS.find((p) => p[0] === id)?.[1] ?? id}`,
+              );
+            }}
+            onKeyEase={(ease: BlockoutEase) => {
+              if (!selectedKey) return;
+              pushUndo();
+              commitDoc(updateKeyEase(doc, selectedKey, ease), { undo: false });
+            }}
+            onKeyFrame={(f) => {
+              if (!selectedKey || !doc) return;
+              pushUndo();
+              if (selectedKey.kind === "cam") {
+                commitDoc(
+                  {
+                    ...doc,
+                    camera: {
+                      ...doc.camera,
+                      keys: doc.camera.keys.map((k) =>
+                        k.id === selectedKey.id ? { ...k, f } : k,
+                      ),
+                    },
+                  },
+                  { undo: false },
+                );
+              } else {
+                commitDoc(
+                  {
+                    ...doc,
+                    objects: doc.objects.map((o) =>
+                      o.id !== selectedKey.objectId
+                        ? o
+                        : {
+                            ...o,
+                            keys: o.keys.map((k) =>
+                              k.f === selectedKey.f ? { ...k, f } : k,
+                            ),
+                          },
+                    ),
+                  },
+                  { undo: false },
+                );
+                setSelectedKey({
+                  kind: "obj",
+                  objectId: selectedKey.objectId,
+                  f,
+                });
+              }
+            }}
+            onKeyFocal={(focal) => {
+              if (!selectedKey || selectedKey.kind !== "cam") return;
+              pushUndo();
               commitDoc(
                 {
                   ...doc,
                   camera: {
                     ...doc.camera,
                     keys: doc.camera.keys.map((k) =>
-                      k.id === selectedKey.id ? { ...k, f } : k,
+                      k.id === selectedKey.id ? { ...k, focal } : k,
                     ),
                   },
                 },
                 { undo: false },
               );
-            } else {
+            }}
+            onDeleteKey={() => {
+              if (!selectedKey || !doc) return;
+              pushUndo();
+              if (selectedKey.kind === "cam") {
+                commitDoc(deleteCameraKey(doc, selectedKey.id), {
+                  undo: false,
+                });
+              } else {
+                commitDoc(
+                  {
+                    ...doc,
+                    objects: doc.objects.map((o) =>
+                      o.id !== selectedKey.objectId
+                        ? o
+                        : deleteObjectKey(o, selectedKey.f),
+                    ),
+                  },
+                  { undo: false },
+                );
+              }
+              setSelectedKey(null);
+            }}
+            onObjectField={(patch: Partial<BlockoutObject>) => {
+              if (!selectedId) return;
+              pushUndo();
               commitDoc(
                 {
                   ...doc,
                   objects: doc.objects.map((o) =>
-                    o.id !== selectedKey.objectId
-                      ? o
-                      : {
-                          ...o,
-                          keys: o.keys.map((k) =>
-                            k.f === selectedKey.f ? { ...k, f } : k,
-                          ),
-                        },
+                    o.id === selectedId ? { ...o, ...patch } : o,
                   ),
                 },
                 { undo: false },
               );
-              setSelectedKey({
-                kind: "obj",
-                objectId: selectedKey.objectId,
-                f,
-              });
-            }
-          }}
-          onKeyFocal={(focal) => {
-            if (!selectedKey || selectedKey.kind !== "cam") return;
-            pushUndo();
-            commitDoc(
-              {
-                ...doc,
-                camera: {
-                  ...doc.camera,
-                  keys: doc.camera.keys.map((k) =>
-                    k.id === selectedKey.id ? { ...k, focal } : k,
-                  ),
-                },
-              },
-              { undo: false },
-            );
-          }}
-          onDeleteKey={() => {
-            if (!selectedKey || !doc) return;
-            pushUndo();
-            if (selectedKey.kind === "cam") {
-              commitDoc(deleteCameraKey(doc, selectedKey.id), { undo: false });
-            } else {
-              commitDoc(
-                {
-                  ...doc,
-                  objects: doc.objects.map((o) =>
-                    o.id !== selectedKey.objectId
-                      ? o
-                      : deleteObjectKey(o, selectedKey.f),
-                  ),
-                },
-                { undo: false },
-              );
-            }
-            setSelectedKey(null);
-          }}
-          onObjectField={(patch: Partial<BlockoutObject>) => {
-            if (!selectedId) return;
-            pushUndo();
-            commitDoc(
-              {
-                ...doc,
-                objects: doc.objects.map((o) =>
-                  o.id === selectedId ? { ...o, ...patch } : o,
-                ),
-              },
-              { undo: false },
-            );
-          }}
-          onExportBurnIn={setExportBurnIn}
-          onExportMode={(m) => {
-            setExportMode(m);
-            setPassMode(m);
-          }}
-          onExportRange={setExportRange}
-          onExport={() => void onExportMp4()}
-          exporting={busy === "export"}
-        />
+            }}
+            onExportBurnIn={setExportBurnIn}
+            onExportMode={(m) => {
+              setExportMode(m);
+              setPassMode(m);
+            }}
+            onExportRange={setExportRange}
+            onExport={() => void onExportMp4()}
+            exporting={busy === "export"}
+          />
+        </fieldset>
       </div>
 
       {importOpen ? (

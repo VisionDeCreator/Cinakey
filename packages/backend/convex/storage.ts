@@ -1,3 +1,4 @@
+import { requireProjectWrite } from "./lib/access";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -142,6 +143,20 @@ export async function deleteFile(
   if ("db" in ctx) {
     if (
       await ctx.db
+        .query("publishedExports")
+        .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+        .first()
+    )
+      return;
+    if (
+      await ctx.db
+        .query("publishedExports")
+        .withIndex("by_staged", (q) => q.eq("stagedStorageId", storageId))
+        .first()
+    )
+      return;
+    if (
+      await ctx.db
         .query("resourceVersions")
         .withIndex("by_sheet_file", (q) => q.eq("sheetFileId", storageId))
         .first()
@@ -260,9 +275,9 @@ const assetType = v.union(
 );
 
 export const createUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireUser(ctx);
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    await requireProjectWrite(ctx, projectId);
     return await generateUploadUrl(ctx);
   },
 });
@@ -297,7 +312,7 @@ export const createAssetFromUpload = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectWrite(ctx, args.projectId);
 
     const name = args.name.trim();
     if (name.length === 0) {

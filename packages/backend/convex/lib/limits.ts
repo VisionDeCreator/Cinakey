@@ -1,6 +1,6 @@
 /** Launch caps and rate limits (Phase 10). */
 
-export const STARTER_CREDITS = 100;
+export const STARTER_USD_MICROS = 5_000_000;
 
 export const RATE_LIMITS = {
   startGeneration: { limit: 20, windowMs: 60 * 60 * 1000 },

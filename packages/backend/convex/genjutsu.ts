@@ -1,23 +1,38 @@
+import { requireProjectWrite } from "./lib/access";
+import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { requireProjectAccess, requireUser } from "./lib/access";
+import {
+  canAccessProject,
+  requireWorkspaceMembership,
+  workspaceRole,
+  requireProjectAccess,
+  requireUser,
+} from "./lib/access";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { workspaceId: v.optional(v.id("workspaces")) },
+  handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    if (!user.personalWorkspaceId) return [];
-    return (
+    const workspaceId = args.workspaceId ?? user.personalWorkspaceId;
+    if (!workspaceId) return [];
+    await requireWorkspaceMembership(ctx, workspaceId);
+    const sessions = (
       await ctx.db
         .query("genjutsuSessions")
-        .withIndex("by_workspace", (q) =>
-          q.eq("workspaceId", user.personalWorkspaceId!),
-        )
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
         .collect()
     ).sort((a, b) => b.updatedAt - a.updatedAt);
+    const visible = [];
+    for (const session of sessions) {
+      const project = await ctx.db.get(session.storageScopeId);
+      if (project && (await canAccessProject(ctx, project, user)))
+        visible.push(session);
+    }
+    return visible;
   },
 });
 export const get = query({
@@ -30,7 +45,7 @@ export const get = query({
   },
 });
 export const create = mutation({
-  args: { title: v.string() },
+  args: { title: v.string(), workspaceId: v.optional(v.id("workspaces")) },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     await assertRateLimit(
@@ -42,9 +57,14 @@ export const create = mutation({
     const title = args.title.trim();
     if (!title || title.length > 120)
       throw new Error("Use a session name of 1–120 characters");
-    const workspaceId = await ensurePersonalWorkspaceForUser(ctx, user._id);
+    const workspaceId =
+      args.workspaceId ?? (await ensurePersonalWorkspaceForUser(ctx, user._id));
+    const role = await workspaceRole(ctx, workspaceId, user._id);
+    if (!role || role === "reviewer")
+      throw new Error("Workspace access denied");
+    await assertPaymentProduction(ctx, workspaceId);
     const now = Date.now();
-    // An isolated infrastructure scope reuses media/credits/workers. It is never
+    // An isolated infrastructure scope reuses media/usdMicros/workers. It is never
     // presented as a production project and cannot become a series episode.
     const storageScopeId = await ctx.db.insert("projects", {
       purpose: "genjutsu",
@@ -56,6 +76,13 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    if (role === "creator")
+      await ctx.db.insert("productionAssignments", {
+        workspaceId,
+        userId: user._id,
+        projectId: storageScopeId,
+        manageReviews: false,
+      });
     return ctx.db.insert("genjutsuSessions", {
       workspaceId,
       storageScopeId,
@@ -74,7 +101,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Transformation session not found");
-    await requireProjectAccess(ctx, session.storageScopeId);
+    await requireProjectWrite(ctx, session.storageScopeId);
     if (
       args.title !== undefined &&
       (!args.title.trim() || args.title.trim().length > 120)

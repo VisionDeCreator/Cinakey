@@ -9,6 +9,7 @@ import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioScript } from "./StudioScript";
 const state = vi.hoisted(() => ({
+  canWrite: true,
   text: "@image_1 meets @image_1. @james walks.",
   save: vi.fn(),
   bind: vi.fn(),
@@ -16,6 +17,10 @@ const state = vi.hoisted(() => ({
   upload: vi.fn(),
   replace: vi.fn(),
   undoConversion: vi.fn(),
+}));
+vi.mock("@/features/workspaces/workspace-context", () => ({
+  useWorkspace: () => ({ canWrite: state.canWrite }),
+  useDraftScope: () => "",
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
@@ -58,6 +63,7 @@ function mount() {
   };
 }
 beforeEach(() => {
+  state.canWrite = true;
   state.text = "@image_1 meets @image_1. @james walks.";
   state.save.mockReset().mockResolvedValue("saved");
   state.bind
@@ -326,3 +332,39 @@ it.each(["@[Image 1](image_1)", "@image_1"])(
     rectangles.mockRestore();
   },
 );
+it("pauses autosave and makes an expired script read-only without losing the draft", async () => {
+  vi.useFakeTimers();
+  const view = mount();
+  await act(async () => {});
+  const editor = screen.getByRole("textbox", { name: "Script" });
+  fireEvent.change(editor, { target: { value: "My unsaved draft" } });
+  state.canWrite = false;
+  view.rerender(
+    <StudioScript
+      projectId="project"
+      onDirty={state.dirty}
+      saveRef={view.saveRef}
+    />,
+  );
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1500);
+  });
+  expect(editor).toHaveAttribute("readonly");
+  expect(editor).toHaveValue("My unsaved draft");
+  expect(state.save).not.toHaveBeenCalled();
+  expect(await view.saveRef.current!()).toBe(false);
+  state.canWrite = true;
+  view.rerender(
+    <StudioScript
+      projectId="project"
+      onDirty={state.dirty}
+      saveRef={view.saveRef}
+    />,
+  );
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1500);
+  });
+  expect(state.save).toHaveBeenCalledWith(
+    expect.objectContaining({ text: "My unsaved draft" }),
+  );
+});

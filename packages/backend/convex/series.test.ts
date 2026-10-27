@@ -137,11 +137,18 @@ describe("Series production model", () => {
           speed: 1,
         });
       doc.durationSec = 3;
+      const lock = await owner.mutation(api.timelineLeases.claim, {
+        projectId: id,
+        sessionId: "series-editor",
+      });
+      if (!lock.held) throw new Error("Expected lease");
       await owner.action(api.timelineVersions.save, {
         projectId: id,
         document: doc,
         parentId: null,
         requestId: "shared-save",
+        sessionId: "series-editor",
+        fence: lock.fence,
       });
     }
     expect(await t.run((ctx) => ctx.db.query("assets").collect())).toHaveLength(

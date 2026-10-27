@@ -62,5 +62,16 @@ export function replacePresent(
 
 export function documentHash(doc: TimelineDocument): string {
   const { version: _version, parentFileId: _parent, ...content } = doc;
-  return JSON.stringify(content);
+  // Convex/JSON transport can reorder object keys. Compare content, while retaining array order.
+  return JSON.stringify(content, (_key, value: unknown) => {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      const fields = value as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.keys(fields)
+          .sort()
+          .map((key) => [key, fields[key]]),
+      );
+    }
+    return value;
+  });
 }

@@ -7,7 +7,7 @@ import {
   type SheetDocument,
 } from "@cinakey/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import type {
   Doc,
   Id,
@@ -363,7 +363,7 @@ const AUTOFILL_ESTIMATED_TOKENS = 2000;
 
 /**
  * AI auto-fill for character/creature/location/prop Look Dev fields.
- * Charges DeepSeek credits; writes the sheet immediately (button click = approval).
+ * Charges DeepSeek usdMicros; writes the sheet immediately (button click = approval).
  */
 export const autofillSheet = action({
   args: { entityId: v.id("entities") },
@@ -373,8 +373,8 @@ export const autofillSheet = action({
   ): Promise<{
     sheet: SheetDocument;
     description?: string;
-    estimatedCostCredits: number;
-    actualCostCredits: number;
+    estimatedCostUsdMicros: number;
+    actualCostUsdMicros: number;
   }> => {
     if (!useMockProviders()) requireProviderKey("deepseek");
     const userId = await getAuthUserId(ctx);
@@ -406,19 +406,10 @@ export const autofillSheet = action({
 
     const adapter = getAdapter("deepseek");
     if (!adapter) throw new Error("DeepSeek adapter not found");
-    const estimatedCostCredits = Math.max(
+    const estimatedCostUsdMicros = Math.max(
       1,
       adapter.estimateCost({ estimatedTokens: AUTOFILL_ESTIMATED_TOKENS }),
     );
-
-    const balanceInfo = await ctx.runQuery(api.credits.getBalance, {});
-    if (balanceInfo.balance < estimatedCostCredits) {
-      throw new ConvexError({
-        code: "INSUFFICIENT_CREDITS" as const,
-        balance: balanceInfo.balance,
-        required: estimatedCostCredits,
-      });
-    }
 
     const tip = await ctx.runQuery(internal.entities.getTipScriptInternal, {
       projectId: entity.projectId,
@@ -442,7 +433,7 @@ export const autofillSheet = action({
       modelVersion: "deepseek-chat",
       kind: "look-dev-autofill",
       prompt: `autofill ${entity.kind} ${entity.name}`,
-      estimatedCostCredits,
+      estimatedCostUsdMicros,
       createdBy: userId as Id<"users">,
     });
 
@@ -502,34 +493,34 @@ export const autofillSheet = action({
         });
       }
 
-      const actualCostCredits = useMock ? 0 : estimatedCostCredits;
-      await ctx.runMutation(internal.credits.settle, {
+      const actualCostUsdMicros = useMock ? 0 : estimatedCostUsdMicros;
+      await ctx.runMutation(internal.billing.settle, {
         workspaceId: project.workspaceId,
         userId: userId as Id<"users">,
         projectId: entity.projectId,
         jobId,
-        estimated: estimatedCostCredits,
-        actual: actualCostCredits,
+        estimated: estimatedCostUsdMicros,
+        actual: actualCostUsdMicros,
       });
       await ctx.runMutation(internal.generation.markSucceeded, {
         jobId,
-        actualCostCredits,
+        actualCostUsdMicros,
         outputAssetIds: [],
       });
 
       return {
         sheet: savedSheet,
         description: fields.description?.trim() || entity.description,
-        estimatedCostCredits,
-        actualCostCredits,
+        estimatedCostUsdMicros,
+        actualCostUsdMicros,
       };
     } catch (err) {
-      await ctx.runMutation(internal.credits.refund, {
+      await ctx.runMutation(internal.billing.refund, {
         workspaceId: project.workspaceId,
         userId: userId as Id<"users">,
         projectId: entity.projectId,
         jobId,
-        amount: estimatedCostCredits,
+        amount: estimatedCostUsdMicros,
       });
       await ctx.runMutation(internal.generation.markFailed, {
         jobId,

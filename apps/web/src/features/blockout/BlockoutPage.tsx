@@ -1,3 +1,5 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
+import { formatUsd } from "@cinakey/shared";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/use-confirm";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
@@ -9,6 +11,7 @@ import { ExportDialog } from "./export/ExportDialog";
 import { encodePrevizMp4 } from "./export/runExport";
 
 export function BlockoutPage() {
+  const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const state = useQuery(api.workspace.list, { projectId: projectId as never });
@@ -71,13 +74,13 @@ export function BlockoutPage() {
     selected?.previzAssetId ? { assetId: selected.previzAssetId } : "skip",
   );
   async function run(reuse = false) {
-    if (busy) return;
+    if (canWrite === false || busy) return;
     if (
       !reuse &&
-      estimate?.credits &&
+      estimate?.usdMicros &&
       !(await confirm({
         title: "Generate staging?",
-        description: `Approximately ${estimate.credits} credits. Your script and saved staging versions are preserved.`,
+        description: `Approximately ${formatUsd(estimate.usdMicros)}. Your script and saved staging versions are preserved.`,
         confirmLabel: "Generate staging",
       }))
     )
@@ -99,7 +102,7 @@ export function BlockoutPage() {
     }
   }
   async function render() {
-    if (!selected || busy) return;
+    if (canWrite === false || !selected || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -112,7 +115,7 @@ export function BlockoutPage() {
         signal: new AbortController().signal,
         onProgress: (p) => setProgress(p.label),
       });
-      const upload = await createUpload();
+      const upload = await createUpload({ projectId: projectId as never });
       const response = await fetch(upload, {
         method: "POST",
         headers: { "Content-Type": "video/mp4" },
@@ -180,16 +183,16 @@ export function BlockoutPage() {
       </label>
       <div className="flex flex-wrap gap-2">
         <Button
-          disabled={busy || !state?.migrated || !estimate}
+          disabled={canWrite === false || busy || !state?.migrated || !estimate}
           onClick={() => void run()}
         >
           Generate staging
-          {estimate?.credits ? ` · ~${estimate.credits} cr` : ""}
+          {estimate?.usdMicros ? ` · ~${formatUsd(estimate.usdMicros)}` : ""}
         </Button>
         {selected?.planFileId && (
           <Button
             variant="outline"
-            disabled={busy}
+            disabled={canWrite === false || busy}
             onClick={() => void run(true)}
           >
             Recompile saved plan
@@ -209,14 +212,14 @@ export function BlockoutPage() {
         </Button>
         <Button
           variant="outline"
-          disabled={!selected || busy}
+          disabled={canWrite === false || !selected || busy}
           onClick={() => void render()}
         >
           Render previsualization
         </Button>
         <Button
           variant="outline"
-          disabled={!selected || busy}
+          disabled={canWrite === false || !selected || busy}
           onClick={() => setExportOpen(true)}
         >
           Export staging
@@ -258,7 +261,11 @@ export function BlockoutPage() {
               {version.name} · v{version.version}{" "}
               <Button
                 variant="outline"
-                disabled={busy || version.fileId === selected.contentFileId}
+                disabled={
+                  canWrite === false ||
+                  busy ||
+                  version.fileId === selected.contentFileId
+                }
                 onClick={async () => {
                   setBusy(true);
                   try {

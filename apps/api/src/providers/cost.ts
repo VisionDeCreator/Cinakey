@@ -1,10 +1,13 @@
+import { chargeForUnits } from "@cinakey/shared";
 import { ProviderError } from "./errors";
 import type { BuildRequestInput, CostModel } from "@cinakey/shared";
 
-/** Multiply units × creditsPerUnit; ceil to whole credits. */
-export function creditsFromUnits(units: number, costModel: CostModel): number {
-  if (units <= 0) return 0;
-  return Math.ceil(units * costModel.creditsPerUnit);
+/** Multiply units × usdMicrosPerUnit; ceil to whole micro-USD. */
+export function usdMicrosFromUnits(
+  units: number,
+  costModel: CostModel,
+): number {
+  return chargeForUnits(units, costModel.usdMicrosPerUnit);
 }
 
 export function estimateImageCost(
@@ -15,7 +18,7 @@ export function estimateImageCost(
     typeof input.imageCount === "number" && input.imageCount > 0
       ? input.imageCount
       : 1;
-  return creditsFromUnits(count, costModel);
+  return usdMicrosFromUnits(count, costModel);
 }
 
 export function estimateVideoCost(
@@ -26,7 +29,7 @@ export function estimateVideoCost(
     typeof input.durationSec === "number" && input.durationSec > 0
       ? input.durationSec
       : 5;
-  return creditsFromUnits(duration, costModel);
+  return usdMicrosFromUnits(duration, costModel);
 }
 
 export function estimateTokenCost(
@@ -37,7 +40,7 @@ export function estimateTokenCost(
     typeof input.estimatedTokens === "number" && input.estimatedTokens > 0
       ? input.estimatedTokens
       : 1000;
-  return creditsFromUnits(tokens / 1000, costModel);
+  return usdMicrosFromUnits(tokens / 1000, costModel);
 }
 
 /** Default transient classifier: network / 429 / 5xx. */

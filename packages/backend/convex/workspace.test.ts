@@ -106,7 +106,7 @@ it("freezes named aliases to assets while saving plain text", async () => {
     assetId,
   });
 });
-it("recompiles a saved staging plan from plain text with no production records or credit charge", async () => {
+it("recompiles a saved staging plan from plain text with no production records or USD charge", async () => {
   const { t, user, projectId } = await fixture();
   await user.action(api.workspace.ensure, { projectId });
   const script = await user.action(api.workspace.script, { projectId });
@@ -170,7 +170,7 @@ it("recompiles a saved staging plan from plain text with no production records o
     durationSec: 12,
     reuse: true,
   });
-  expect(regenerated.credits).toBe(0);
+  expect(regenerated.usdMicros).toBe(0);
   const loaded = await user.action(api.workspace.loadStaging, {
     projectId,
     id: saved.id,
@@ -230,7 +230,7 @@ it("queues generation from text and reference assets with a frozen input snapsho
   });
 });
 
-it("rejects undersized image references before charging credits or queuing a job", async () => {
+it("rejects undersized image references before charging usdMicros or queuing a job", async () => {
   vi.stubEnv("USE_MOCK_ADAPTERS", "true");
   const { t, user, userId, projectId } = await fixture();
   await user.action(api.workspace.ensure, { projectId });
@@ -258,7 +258,7 @@ it("rejects undersized image references before charging credits or queuing a job
     expectedId: script.id,
     text: "A boat in the colour of @tiny.",
   });
-  const before = await user.query(api.credits.getBalance, {});
+  const before = await user.query(api.billing.getBalance, {});
   await expect(
     user.action(api.workspace.generate, {
       projectId,
@@ -267,7 +267,7 @@ it("rejects undersized image references before charging credits or queuing a job
       requestId: "invalid-reference",
     }),
   ).rejects.toThrow("300–6000");
-  expect(await user.query(api.credits.getBalance, {})).toEqual(before);
+  expect(await user.query(api.billing.getBalance, {})).toEqual(before);
   expect(
     await t.run((ctx) => ctx.db.query("generationJobs").collect()),
   ).toHaveLength(0);

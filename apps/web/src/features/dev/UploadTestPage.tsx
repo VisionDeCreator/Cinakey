@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
@@ -8,7 +9,11 @@ import { Label } from "@/components/ui/label";
  * Dev/test page: upload a file to Convex storage, create an asset, display it.
  */
 export function UploadTestPage() {
-  const projects = useQuery(api.projects.listMine, {});
+  const { workspaceId } = useWorkspace();
+  const projects = useQuery(
+    api.projects.listMine,
+    workspaceId ? { workspaceId } : {},
+  );
   const createProject = useMutation(api.projects.create);
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
@@ -44,7 +49,7 @@ export function UploadTestPage() {
     setStatus("Uploading…");
     try {
       const pid = await ensureProject();
-      const uploadUrl = await createUploadUrl();
+      const uploadUrl = await createUploadUrl({ projectId: pid as never });
       const result = await fetch(uploadUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -54,14 +59,13 @@ export function UploadTestPage() {
         throw new Error(`Upload failed: ${result.status}`);
       }
       const { storageId } = (await result.json()) as { storageId: string };
-      const type =
-        file.type.startsWith("image/")
-          ? ("image" as const)
-          : file.type.startsWith("video/")
-            ? ("video" as const)
-            : file.type.startsWith("audio/")
-              ? ("audio" as const)
-              : ("other" as const);
+      const type = file.type.startsWith("image/")
+        ? ("image" as const)
+        : file.type.startsWith("video/")
+          ? ("video" as const)
+          : file.type.startsWith("audio/")
+            ? ("audio" as const)
+            : ("other" as const);
       const id = await createAsset({
         projectId: pid as never,
         storageId: storageId as never,

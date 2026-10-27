@@ -1,3 +1,7 @@
+import {
+  useWorkspace,
+  useDraftScope,
+} from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
@@ -13,6 +17,7 @@ import {
 import { Check, Link2, Upload, X } from "lucide-react";
 import {
   useCallback,
+  useLayoutEffect,
   useEffectEvent,
   useEffect,
   useRef,
@@ -41,6 +46,12 @@ export function StudioScript({
   onValidityChange?: (valid: boolean) => void;
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
+  const { canWrite } = useWorkspace();
+  const writeAllowed = canWrite !== false;
+  const writeAllowedRef = useRef(writeAllowed);
+  useLayoutEffect(() => {
+    writeAllowedRef.current = writeAllowed;
+  }, [writeAllowed]);
   const project = useQuery(api.projects.get, { projectId: projectId as never });
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
@@ -122,7 +133,8 @@ export function StudioScript({
   const initialized = useRef(false);
   const saving = useRef<Promise<boolean> | null>(null);
   const alive = useRef(true);
-  const key = `cinakey.scriptDraft.${projectId}.plain`;
+  const draftScope = useDraftScope();
+  const key = `cinakey.scriptDraft.${draftScope}${projectId}.plain`;
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -171,10 +183,12 @@ export function StudioScript({
   }, [workspace?.migrated, loadContent, key, onDirty, loadAttempt]);
 
   const saveLatest = useCallback(async (): Promise<boolean> => {
+    if (!writeAllowedRef.current) return draft.current === saved.current;
     if (saving.current) return saving.current;
     if (!initialized.current || draft.current === saved.current) return true;
     const run = async () => {
       while (draft.current !== saved.current) {
+        if (!writeAllowedRef.current) return false;
         const snapshot = draft.current;
         if (alive.current) {
           setStatus("Saving…");
@@ -223,10 +237,10 @@ export function StudioScript({
     };
   }, [saveRef, saveLatest]);
   useEffect(() => {
-    if (!initialized.current || text === saved.current) return;
+    if (!writeAllowed || !initialized.current || text === saved.current) return;
     const timer = window.setTimeout(() => void saveLatest(), 1000);
     return () => window.clearTimeout(timer);
-  }, [text, saveLatest]);
+  }, [text, saveLatest, writeAllowed]);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (draft.current !== saved.current) {
@@ -238,6 +252,7 @@ export function StudioScript({
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   const edit = (value: string) => {
+    if (!writeAllowedRef.current) return;
     draft.current = value;
     setText(value);
     onDirty(value !== saved.current);
@@ -274,6 +289,7 @@ export function StudioScript({
     ]),
   ];
   const validReferences =
+    writeAllowed &&
     ready &&
     !bindingBusy &&
     !uploading &&
@@ -357,7 +373,7 @@ export function StudioScript({
     forceInsert = false,
   ) {
     const asset = candidates.find((a) => a._id === assetId) ?? uploaded;
-    if (!asset || bindingBusy) return;
+    if (!writeAllowedRef.current || !asset || bindingBusy) return;
     const range = { ...insertion.current };
     const inserting = insertMention || forceInsert;
     const activePicker = forceInsert ? "" : picker;
@@ -456,7 +472,7 @@ export function StudioScript({
     }
   }
   async function renameAlias() {
-    if (!picker || bindingBusy) return;
+    if (!writeAllowedRef.current || !picker || bindingBusy) return;
     setBindingBusy(true);
     setError(null);
     try {
@@ -499,7 +515,14 @@ export function StudioScript({
   }
   const pointerDrop = useEffectEvent((detail: MediaPointerDetail) => {
     const node = textarea.current;
-    if (!node || detail.phase !== "drop" || bindingBusy || !ready) return;
+    if (
+      !writeAllowedRef.current ||
+      !node ||
+      detail.phase !== "drop" ||
+      bindingBusy ||
+      !ready
+    )
+      return;
     const box = node.getBoundingClientRect();
     if (
       detail.x < box.left ||
@@ -541,7 +564,7 @@ export function StudioScript({
         ref={textarea}
         value={text}
         disabled={!ready}
-        readOnly={bindingBusy || uploading}
+        readOnly={!writeAllowed || bindingBusy || uploading}
         references={mentions.map((alias) => {
           const ref = resolved.resolved.find((r) => r.alias === alias);
           const asset = candidates.find((a) => a._id === ref?.assetId);
@@ -715,7 +738,7 @@ export function StudioScript({
         <Button
           size="sm"
           variant="outline"
-          disabled={bindingBusy}
+          disabled={!writeAllowed || bindingBusy}
           onClick={async () => {
             setBindingBusy(true);
             setError(null);
@@ -767,7 +790,7 @@ export function StudioScript({
             <Button
               size="sm"
               variant="ghost"
-              disabled={bindingBusy}
+              disabled={!writeAllowed || bindingBusy}
               onClick={async () => {
                 setBindingBusy(true);
                 try {
@@ -925,7 +948,7 @@ export function StudioScript({
                   role="option"
                   aria-selected={index === activeIndex}
                   aria-label={`Link ${asset.name} (${asset.type})`}
-                  disabled={bindingBusy}
+                  disabled={!writeAllowed || bindingBusy}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onMouseEnter={() => setActiveIndex(index)}
@@ -1019,7 +1042,7 @@ export function StudioScript({
                     ? "image/*"
                     : "image/*,video/*"
               }
-              disabled={bindingBusy || uploading}
+              disabled={!writeAllowed || bindingBusy || uploading}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file || uploading || bindingBusy) return;

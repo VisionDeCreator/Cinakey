@@ -1,9 +1,11 @@
+import { formatUsd } from "@cinakey/shared";
+import { useDraftScope } from "@/features/workspaces/workspace-context";
 import { useEffect, useRef, useState, type Ref } from "react";
 import { api } from "@cinakey/backend";
 import {
   TRANSFORM_TARGETS,
   compileVideoTransform,
-  transformAnalysisCredits,
+  transformAnalysisUsdMicros,
   transformDuration,
   type TransformAnalysis,
   type TransformTarget,
@@ -48,7 +50,8 @@ export function VideoTransformPanel({
   const analyze = useAction(api.transforms.analyze);
   const generate = useAction(api.transforms.generate);
   const [targets, setTargets] = useState<TransformTarget[]>([]);
-  const draftKey = `cinakey.genjutsuPrompt.${projectId}`;
+  const draftScope = useDraftScope();
+  const draftKey = `cinakey.genjutsuPrompt.${draftScope}${projectId}`;
   const [instruction, setInstruction] = useState(() => {
     try {
       return localStorage.getItem(draftKey) ?? "";
@@ -104,7 +107,8 @@ export function VideoTransformPanel({
     key: string;
     analysis: TransformAnalysis;
     mock: boolean;
-    credits: number;
+    usdMicros: number;
+    settlementPending?: boolean;
     sampledFrameTimes: number[];
   } | null>(null);
   const [submittedKey, setSubmittedKey] = useState<string | null>(null);
@@ -135,8 +139,8 @@ export function VideoTransformPanel({
       prompt: "Transform video",
     },
   });
-  const cost = estimate?.credits ?? 0;
-  const analysisCost = transformAnalysisCredits(8, references.length);
+  const cost = estimate?.usdMicros ?? 0;
+  const analysisCost = transformAnalysisUsdMicros(8, references.length);
   const analysisKey = JSON.stringify([
     sourceId,
     instruction.trim(),
@@ -212,6 +216,7 @@ export function VideoTransformPanel({
         abort.signal.throwIfAborted();
         setPhase("analyzing");
         const result = await analyze({
+          maxCostUsdMicros: analysisCost,
           projectId: projectId as never,
           sourceAssetId: sourceId as never,
           referenceAssetIds: references as never[],
@@ -241,6 +246,7 @@ export function VideoTransformPanel({
       if (request.current?.key !== renderKey)
         request.current = { key: renderKey, id: crypto.randomUUID() };
       await generate({
+        maxCostUsdMicros: cost,
         projectId: projectId as never,
         sourceAssetId: sourceId as never,
         referenceAssetIds: references as never[],
@@ -364,7 +370,9 @@ export function VideoTransformPanel({
           <summary>Video analysis and generation details</summary>
           <h3>
             {currentReview.mock ? "Mock analysis" : "Source analysis"} ·{" "}
-            {currentReview.credits} cr
+            {currentReview.settlementPending
+              ? "Usage pending review; funds remain reserved"
+              : formatUsd(currentReview.usdMicros)}
           </h3>
           {(["subjects", "action", "camera", "setting"] as const).map(
             (field) => (
@@ -420,7 +428,7 @@ export function VideoTransformPanel({
               ? "Starting generation…"
               : submittedKey === renderKey
                 ? "Transformation queued"
-                : `Generate · ${duration ? `${currentReview ? "" : "up to "}${totalCost}` : "—"} cr`}
+                : `Generate · ${duration ? `${currentReview ? "" : "up to "}${formatUsd(totalCost)}` : "—"}`}
       </Button>
       <p className="transform-muted" role={busy ? "status" : undefined}>
         {busy
@@ -431,7 +439,7 @@ export function VideoTransformPanel({
               : "Submitting the transformation to Sume Remix Lite."
           : currentReview
             ? "Video analysis is ready and will be reused for these inputs."
-            : "Includes automatic video analysis and rendering. Unused reserved analysis credits are returned."}
+            : "Includes automatic video analysis and rendering. Unused reserved analysis funds are returned."}
       </p>
       {submittedKey === renderKey && !running && (
         <Button

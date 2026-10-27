@@ -1,3 +1,4 @@
+import { formatUsd, stagingPrice, tokenPrice } from "@cinakey/shared";
 import {
   auditStagedDocument,
   buildAuditRepairMessage,
@@ -20,12 +21,11 @@ import { internalAction } from "../runtime/operation";
 import { saveJson } from "./storage";
 
 /**
- * Credits reserved for one plan: token estimate at the DeepSeek rate
- * (1 credit / 1k) with room for the check-driven repair turn, which re-sends
+ * Development USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
  * the conversation. Settled to actual usage afterwards.
  */
-export function stagingCredits(tokens: number): number {
-  return Math.max(2, Math.ceil((tokens * 2.2) / 1000));
+export function stagingUsdMicros(tokens: number): number {
+  return stagingPrice(tokens);
 }
 
 /** Short, distinct problem lines for storage / display. */
@@ -42,7 +42,7 @@ export type StagingResult =
       ok: true;
       plan: StagingPlan;
       planFileId: Id<"_storage">;
-      credits: number;
+      usdMicros: number;
       /** Automatic check before / after the repair pass (shots with problems). */
       issuesBefore: number;
       issuesAfter: number;
@@ -80,7 +80,7 @@ export const generatePlan = internalAction({
         projectId: args.projectId,
       },
     );
-    const estimate = stagingCredits(
+    const estimate = stagingUsdMicros(
       estimateStagingTokens(args.scriptText, args.shotCount),
     );
 
@@ -90,22 +90,23 @@ export const generatePlan = internalAction({
         projectId: args.projectId,
         workspaceId: project.workspaceId,
         userId: args.userId,
-        estimatedCostCredits: estimate,
+        estimatedCostUsdMicros: estimate,
         prompt: `Stage blockout: ${args.scriptText.slice(0, 200)}`,
       });
     } catch (err) {
       if (
         err instanceof ConvexError &&
-        (err.data as { code?: string })?.code === "INSUFFICIENT_CREDITS"
+        (err.data as { code?: string })?.code === "INSUFFICIENT_FUNDS"
       ) {
         return {
           ok: false,
-          reason: `Not enough credits for AI staging (needs ${estimate})`,
+          reason: `Not enough USD balance for AI staging (needs ${formatUsd(estimate)})`,
         };
       }
       throw err;
     }
 
+    let usageMissing = false;
     const settle = async (
       succeeded: boolean,
       tokens: number,
@@ -116,7 +117,9 @@ export const generatePlan = internalAction({
         workspaceId: project.workspaceId,
         userId: args.userId,
         projectId: args.projectId,
-        actualCostCredits: Math.max(1, Math.ceil(tokens / 1000)),
+        actualCostUsdMicros: tokenPrice(tokens),
+        actualTokens: tokens,
+        usageMissing: succeeded && usageMissing,
         succeeded,
         errorMessage,
       });
@@ -163,6 +166,7 @@ export const generatePlan = internalAction({
           json: true,
           maxTokens: 8000,
         });
+        usageMissing ||= res.usage?.total_tokens === undefined;
         tokens += res.usage?.total_tokens ?? 0;
         const parsed = parseStagingPlan(res.content);
         if (parsed.ok) {
@@ -197,6 +201,7 @@ export const generatePlan = internalAction({
             json: true,
             maxTokens: 8000,
           });
+          usageMissing ||= res.usage?.total_tokens === undefined;
           tokens += res.usage?.total_tokens ?? 0;
           const parsed = parseStagingPlan(res.content);
           if (parsed.ok) {
@@ -217,7 +222,7 @@ export const generatePlan = internalAction({
         ok: true,
         plan: best.plan,
         planFileId: storageId,
-        credits: Math.min(estimate, Math.max(1, Math.ceil(tokens / 1000))),
+        usdMicros: usageMissing ? 0 : Math.min(estimate, tokenPrice(tokens)),
         issuesBefore,
         issuesAfter: shotsWith(best.issues),
         issueSample: issueLines(best.issues).slice(0, 12),

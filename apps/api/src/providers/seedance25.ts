@@ -1,8 +1,8 @@
+import { videoPrice } from "@cinakey/shared";
 import type { GenerationAdapter } from "@cinakey/shared";
 import { validateVideoInput } from "@cinakey/shared";
-import { estimateVideoCost } from "./cost";
 import { sumeLifecycle } from "./sume";
-const COST = { unit: "per_second", creditsPerUnit: 2 } as const;
+const COST = { unit: "per_second", usdMicrosPerUnit: 340_000 } as const;
 export const seedance25Adapter: GenerationAdapter = {
   capabilities: {
     id: "seedance-2.5",
@@ -25,7 +25,12 @@ export const seedance25Adapter: GenerationAdapter = {
     features: ["extend"],
     costModel: COST,
   },
-  estimateCost: (input) => estimateVideoCost(input, COST),
+  estimateCost: (input) =>
+    videoPrice(
+      "seedance-2.5",
+      Number(input.durationSec ?? 5),
+      input.resolution,
+    ),
   async buildRequest(input) {
     validateVideoInput(input);
     return {

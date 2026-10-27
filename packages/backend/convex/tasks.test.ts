@@ -55,7 +55,7 @@ describe("API worker persistence", () => {
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Film",
     });
-    const { balance } = await asUser.query(api.credits.getBalance, {});
+    const { balance } = await asUser.query(api.billing.getBalance, {});
     const inputsFileId = await t.run((ctx) =>
       ctx.storage.store(new Blob(["{}"], { type: "application/json" })),
     );
@@ -67,27 +67,27 @@ describe("API worker persistence", () => {
       modelVersion: "test",
       kind: "text-to-image",
       prompt: "Film",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
     expect(
       await t.run((ctx) => ctx.db.query("apiTasks").collect()),
     ).toHaveLength(1);
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       balance - 10,
     );
     await t.mutation(internal.generation.markSucceeded, {
       jobId,
       outputAssetIds: [],
-      actualCostCredits: 6,
+      actualCostUsdMicros: 6,
     });
     await t.mutation(internal.generation.markSucceeded, {
       jobId,
       outputAssetIds: [],
-      actualCostCredits: 6,
+      actualCostUsdMicros: 6,
     });
     await t.mutation(internal.generation.markRefunded, { jobId });
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       balance - 6,
     );
     expect(
@@ -128,7 +128,7 @@ describe("API worker persistence", () => {
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Text",
     });
-    const before = (await asUser.query(api.credits.getBalance, {})).balance;
+    const before = (await asUser.query(api.billing.getBalance, {})).balance;
     const jobId = await t.mutation(internal.generation.createQueuedJob, {
       workspaceId,
       projectId,
@@ -136,7 +136,7 @@ describe("API worker persistence", () => {
       modelVersion: "test",
       kind: "chat",
       prompt: "Text",
-      estimatedCostCredits: 3,
+      estimatedCostUsdMicros: 3,
       createdBy: userId,
     });
     expect(
@@ -154,7 +154,7 @@ describe("API worker persistence", () => {
     expect(
       (await t.query(internal.generation.getJobInternal, { jobId }))?.status,
     ).toBe("refunded");
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       before,
     );
   });
@@ -175,7 +175,7 @@ describe("paid submission recovery", () => {
     const inputsFileId = await t.run((ctx) =>
       ctx.storage.store(new Blob(["{}"], { type: "application/json" })),
     );
-    const before = (await asUser.query(api.credits.getBalance, {})).balance;
+    const before = (await asUser.query(api.billing.getBalance, {})).balance;
     const jobId = await t.mutation(internal.generation.createQueuedJob, {
       workspaceId,
       projectId,
@@ -184,7 +184,7 @@ describe("paid submission recovery", () => {
       modelVersion: "test",
       kind: "text-to-image",
       prompt: "Test",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
     expect(
@@ -223,7 +223,7 @@ describe("paid submission recovery", () => {
     expect(
       await t.mutation(internal.tasks.claim, { owner: "worker", limit: 1 }),
     ).toHaveLength(0);
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       before - 10,
     );
   });
@@ -249,7 +249,7 @@ describe("paid submission recovery", () => {
       modelVersion: "test",
       kind: "text-to-image",
       prompt: "Test",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
     const providerResultFileId = await t.run((ctx) =>

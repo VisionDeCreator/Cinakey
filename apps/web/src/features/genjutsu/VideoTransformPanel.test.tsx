@@ -23,7 +23,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref) === "references:list"
       ? mocks.bindings
-      : { credits: 10 },
+      : { usdMicros: 1_000_000 },
   useMutation: () => mocks.bind,
 }));
 vi.mock("./sampleVideoFrames", () => ({ sampleVideoFrames: mocks.sample }));
@@ -43,7 +43,7 @@ const props = {
     { _id: "actor", name: "Replacement actor", type: "image" },
   ],
   running: false,
-  remaining: 100,
+  remaining: 10_000_000,
   onStarted: vi.fn(),
 };
 beforeEach(() => {
@@ -62,7 +62,7 @@ beforeEach(() => {
       dataUrl: "data:image/jpeg;base64,AA==",
     })),
   );
-  mocks.analyze.mockResolvedValue({ analysis, credits: 2, mock: false });
+  mocks.analyze.mockResolvedValue({ analysis, usdMicros: 20_000, mock: false });
   mocks.generate.mockResolvedValue({ jobId: "job" });
 });
 afterEach(() => {
@@ -88,7 +88,7 @@ it("automatically analyzes then generates from a prompt with one click using a r
   expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
   prompt();
   expect(
-    screen.getByRole("button", { name: "Generate · up to 26 cr" }),
+    screen.getByRole("button", { name: "Generate · up to $1.030432" }),
   ).toBeEnabled();
   await generate();
   expect(mocks.sample).toHaveBeenCalledOnce();
@@ -125,7 +125,7 @@ it("reuses analysis and the same submission ID after a lost render acknowledgeme
   await generate();
   expect(screen.getByRole("alert")).toHaveTextContent("Connection lost");
   expect(
-    screen.getByRole("button", { name: "Generate · 10 cr" }),
+    screen.getByRole("button", { name: "Generate · $1.00" }),
   ).toBeEnabled();
   await generate();
   expect(mocks.analyze).toHaveBeenCalledOnce();
@@ -148,7 +148,7 @@ it("stops before rendering when analysis fails and offers a single-button retry"
 it("shows analysis progress, blocks repeated clicks, and locks settings until submission finishes", async () => {
   let finish!: (value: {
     analysis: typeof analysis;
-    credits: number;
+    usdMicros: number;
     mock: boolean;
   }) => void;
   mocks.analyze.mockReturnValue(
@@ -167,7 +167,7 @@ it("shows analysis progress, blocks repeated clicks, and locks settings until su
   expect(mocks.analyze).toHaveBeenCalledOnce();
   expect(mocks.generate).not.toHaveBeenCalled();
   await act(async () => {
-    finish({ analysis, credits: 2, mock: false });
+    finish({ analysis, usdMicros: 20_000, mock: false });
   });
   expect(mocks.generate).toHaveBeenCalledOnce();
 });
@@ -190,7 +190,7 @@ it("reanalyzes changed prompts but reuses analysis for optional target changes",
 it("does not submit a render after the source panel is unmounted during analysis", async () => {
   let finish!: (value: {
     analysis: typeof analysis;
-    credits: number;
+    usdMicros: number;
     mock: boolean;
   }) => void;
   mocks.analyze.mockReturnValue(
@@ -203,7 +203,7 @@ it("does not submit a render after the source panel is unmounted during analysis
   await generate();
   unmount();
   await act(async () => {
-    finish({ analysis, credits: 2, mock: false });
+    finish({ analysis, usdMicros: 20_000, mock: false });
   });
   expect(mocks.generate).not.toHaveBeenCalled();
 });

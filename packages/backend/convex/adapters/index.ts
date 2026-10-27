@@ -1,10 +1,11 @@
+import { videoPrice } from "@cinakey/shared";
 import type { GenerationAdapter } from "@cinakey/shared";
-import { estimateVideoCost, estimateTokenCost } from "./cost";
+import { estimateTokenCost } from "./cost";
 const seedance25Adapter: Pick<
   GenerationAdapter,
   "capabilities" | "estimateCost"
 > = (() => {
-  const COST = { unit: "per_second", creditsPerUnit: 2 } as const;
+  const COST = { unit: "per_second", usdMicrosPerUnit: 340_000 } as const;
   return {
     capabilities: {
       id: "seedance-2.5",
@@ -28,7 +29,11 @@ const seedance25Adapter: Pick<
       costModel: COST,
     },
     estimateCost(input) {
-      return estimateVideoCost(input, COST);
+      return videoPrice(
+        "seedance-2.5",
+        Number(input.durationSec ?? 5),
+        input.resolution,
+      );
     },
   };
 })();
@@ -36,7 +41,7 @@ const deepseekAdapter: Pick<
   GenerationAdapter,
   "capabilities" | "estimateCost"
 > = (() => {
-  const COST = { unit: "per_1k_tokens", creditsPerUnit: 1 } as const;
+  const COST = { unit: "per_1k_tokens", usdMicrosPerUnit: 2_000 } as const;
   return {
     capabilities: {
       id: "deepseek",
@@ -55,6 +60,7 @@ const remixLiteAdapter: typeof seedance25Adapter = {
   capabilities: {
     ...seedance25Adapter.capabilities,
     id: "sume-remix-lite",
+    costModel: { unit: "per_second", usdMicrosPerUnit: 150_000 },
     operations: ["text-to-video"],
     inputs: ["text", "referenceImages", "referenceVideo"],
     durations: [5, 10, 15],
@@ -62,7 +68,12 @@ const remixLiteAdapter: typeof seedance25Adapter = {
     maxReferenceImages: 8,
     features: ["edit"],
   },
-  estimateCost: seedance25Adapter.estimateCost,
+  estimateCost: (input) =>
+    videoPrice(
+      "sume-remix-lite",
+      Number(input.durationSec ?? 5),
+      input.resolution,
+    ),
 };
 const adapters = [seedance25Adapter, remixLiteAdapter, deepseekAdapter];
 export function listAdapters() {

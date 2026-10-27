@@ -1,9 +1,13 @@
+import { formatUsd } from "@cinakey/shared";
+import { WorkspaceProvider } from "@/features/workspaces/WorkspaceContext";
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import {
   Bell,
   Clapperboard,
   Coins,
+  CreditCard,
   FolderKanban,
   Images,
   WandSparkles,
@@ -11,7 +15,7 @@ import {
   PanelLeftOpen,
   Settings,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useNavigate, useMatch } from "react-router-dom";
 import { api } from "@cinakey/backend";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,14 +37,34 @@ const navItems = [
   { to: "/projects", label: "Projects", icon: FolderKanban },
   { to: "/genjutsu", label: "Genjutsu", icon: WandSparkles },
   { to: "/assets", label: "Assets", icon: Images },
+  { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppShell() {
+  return (
+    <WorkspaceProvider>
+      <WorkspaceShell />
+    </WorkspaceProvider>
+  );
+}
+
+function WorkspaceShell() {
+  const {
+    workspaceId,
+    canManage,
+    workspaces,
+    switchWorkspace,
+    canWrite,
+    subscriptionMessage,
+    role,
+  } = useWorkspace();
   const user = useQuery(api.users.viewer);
-  const balance = useQuery(api.credits.getBalance);
+  const balance = useQuery(
+    api.billing.getBalance,
+    canManage ? { workspaceId } : "skip",
+  );
   const unread = useQuery(api.notifications.listUnread);
-  const ensureWorkspace = useMutation(api.users.ensurePersonalWorkspace);
   const markRead = useMutation(api.notifications.markRead);
   const markAllRead = useMutation(api.notifications.markAllRead);
   const { signOut } = useAuthActions();
@@ -49,16 +73,6 @@ export function AppShell() {
     "cinakey.sidebarCollapsed",
     false,
   );
-
-  useEffect(() => {
-    if (
-      user !== undefined &&
-      user !== null &&
-      user.personalWorkspaceId === undefined
-    ) {
-      void ensureWorkspace();
-    }
-  }, [user, ensureWorkspace]);
 
   const inProject = Boolean(useMatch("/projects/:projectId/*"));
   const [projectNavigationOpen, setProjectNavigationOpen] = useState(false);
@@ -146,13 +160,35 @@ export function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-zinc-800 bg-[var(--color-studio-panel)] px-4">
-          <div className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-sm text-zinc-200">
-            <Coins className="size-3.5 text-zinc-400" aria-hidden />
-            <span className="tabular-nums">
-              {balance === undefined ? "…" : balance.balance.toLocaleString()}
-            </span>
-            <span className="text-zinc-500">credits</span>
-          </div>
+          <select
+            aria-label="Active workspace"
+            className="mr-auto max-w-64 rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-sm"
+            value={workspaceId}
+            onChange={(e) =>
+              void switchWorkspace(
+                e.target.value as import("@cinakey/backend").Id<"workspaces">,
+              )
+            }
+          >
+            {workspaces.map((w) => (
+              <option key={w.workspace._id} value={w.workspace._id}>
+                {w.workspace.name}
+              </option>
+            ))}
+          </select>
+          {canManage && (
+            <Link
+              to="/billing"
+              aria-label="View workspace billing"
+              className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
+            >
+              <Coins className="size-3.5 text-zinc-400" aria-hidden />
+              <span className="tabular-nums">
+                {balance === undefined ? "…" : formatUsd(balance.balance)}
+              </span>
+              <span className="text-zinc-500">USD</span>
+            </Link>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -222,6 +258,9 @@ export function AppShell() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => navigate("/billing")}>
+                Billing
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => navigate("/settings")}>
                 Settings
               </DropdownMenuItem>
@@ -246,6 +285,22 @@ export function AppShell() {
           </DropdownMenu>
         </header>
 
+        {canWrite === false && (
+          <div
+            role="status"
+            className="border-b border-amber-800 bg-amber-950 px-4 py-3 text-sm text-amber-100"
+          >
+            {subscriptionMessage} Existing work is available to view and
+            download.{" "}
+            {role === "owner" ? (
+              <Link to="/billing" className="underline">
+                Manage billing
+              </Link>
+            ) : (
+              "Ask the workspace owner to manage billing."
+            )}
+          </div>
+        )}
         <main
           className={
             inProject

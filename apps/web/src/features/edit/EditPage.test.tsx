@@ -1,3 +1,4 @@
+vi.mock("./StoredExports", () => ({ StoredExports: () => null }));
 import { type TimelineDocument } from "@cinakey/shared";
 import {
   act,
@@ -20,6 +21,15 @@ const state = vi.hoisted(() => ({
   document: null as unknown,
   canvases: [] as HTMLCanvasElement[],
   previewFailures: 0,
+  canEdit: true,
+}));
+vi.mock("./useTimelineLease", () => ({
+  useTimelineLease: () => ({
+    canEdit: state.canEdit,
+    canEditNow: () => state.canEdit,
+    sessionId: "test-session",
+    fence: 1,
+  }),
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
@@ -120,6 +130,7 @@ beforeEach(() => {
   });
   state.canvases = [];
   state.previewFailures = 0;
+  state.canEdit = true;
   state.get.mockReset();
   state.save.mockReset();
   state.confirm.mockReset();
@@ -145,6 +156,20 @@ afterEach(() => {
 });
 
 describe("safe editor persistence", () => {
+  it("blocks timeline edits and autosaves while another session holds editing access", async () => {
+    state.canEdit = false;
+    mount();
+    await flush();
+    fireEvent.click(screen.getByRole("button", { name: "Move 0" }));
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(screen.getByRole("button", { name: "Move 0" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add title" })).toBeDisabled();
+    expect(state.save).not.toHaveBeenCalled();
+  });
   it("keeps edits made during a delayed save and serializes the next snapshot", async () => {
     let first!: (value: { versionId: string }) => void;
     state.save

@@ -8,7 +8,7 @@ import {
 } from "./_generated/server";
 import { requireStaff } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
-import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
+import { appendLedgerEntry, getWorkspaceBalance } from "./billing";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
@@ -61,8 +61,8 @@ export const lookupUser = query({
         model: j.model,
         kind: j.kind,
         status: j.status,
-        estimatedCostCredits: j.estimatedCostCredits,
-        actualCostCredits: j.actualCostCredits,
+        estimatedCostUsdMicros: j.estimatedCostUsdMicros,
+        actualCostUsdMicros: j.actualCostUsdMicros,
         createdAt: j.createdAt,
         completedAt: j.completedAt,
         errorMessage: j.errorMessage,
@@ -72,10 +72,11 @@ export const lookupUser = query({
   },
 });
 
-export const grantCredits = mutation({
+export const grantUsd = mutation({
   args: {
     email: v.string(),
     amount: v.number(),
+    requestId: v.optional(v.string()),
     reason: v.string(),
   },
   handler: async (ctx, args) => {
@@ -108,12 +109,13 @@ export const grantCredits = mutation({
       workspaceId,
       userId: target._id,
       delta: args.amount,
+      requestId: args.requestId,
       reason: "grant",
     });
 
     await appendAuditLog(ctx, {
       actorUserId: staff._id,
-      action: "credits.grant",
+      action: "usdMicros.grant",
       targetType: "users",
       targetId: target._id,
       reason,
@@ -128,10 +130,11 @@ export const grantCredits = mutation({
   },
 });
 
-export const refundCredits = mutation({
+export const adjustUsd = mutation({
   args: {
     email: v.string(),
     amount: v.number(),
+    requestId: v.optional(v.string()),
     reason: v.string(),
   },
   handler: async (ctx, args) => {
@@ -159,12 +162,13 @@ export const refundCredits = mutation({
       workspaceId,
       userId: target._id,
       delta: args.amount,
-      reason: "refund",
+      requestId: args.requestId,
+      reason: "adjustment",
     });
 
     await appendAuditLog(ctx, {
       actorUserId: staff._id,
-      action: "credits.refund",
+      action: "usdMicros.refund",
       targetType: "users",
       targetId: target._id,
       reason,

@@ -50,7 +50,7 @@ describe("access control", () => {
     ).rejects.toThrow(/Project access denied/);
   });
 
-  it("allows staff to read another user's project", async () => {
+  it("does not silently grant staff access to another workspace", async () => {
     const t = makeTest();
     const ownerId = await createTestUser(t, "owner@test.com");
     const staffId = await createTestUser(t, "staff@test.com", {
@@ -63,7 +63,6 @@ describe("access control", () => {
       title: "Owned",
     });
     const project = await asStaff.query(api.projects.get, { projectId });
-    expect(project).not.toBeNull();
-    expect(project!.title).toBe("Owned");
+    expect(project).toBeNull();
   });
 });

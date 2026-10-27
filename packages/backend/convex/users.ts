@@ -1,3 +1,4 @@
+import { paymentState } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -77,6 +78,37 @@ export const deleteAccount = mutation({
       );
     }
 
+    const owned = await ctx.db
+      .query("workspaces")
+      .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
+      .collect();
+    for (const workspace of owned) {
+      const billing = await paymentState(ctx, workspace._id);
+      if (
+        billing?.subscriptionId &&
+        !["canceled", "unpaid", "incomplete_expired"].includes(billing.status)
+      )
+        throw new Error(
+          "Cancel the workspace subscription and wait for it to end before deleting your account",
+        );
+      const member = await ctx.db
+        .query("workspaceMembers")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspace._id))
+        .first();
+      const pending = await ctx.db
+        .query("workspaceInvitations")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspace._id))
+        .collect();
+      if (
+        member ||
+        pending.some(
+          (i) => !i.acceptedBy && !i.revokedAt && i.expiresAt > Date.now(),
+        )
+      )
+        throw new Error(
+          "Remove workspace members and revoke pending invitations before deleting your account",
+        );
+    }
     await appendAuditLog(ctx, {
       actorUserId: user._id,
       action: "account.delete_requested",
@@ -98,9 +130,48 @@ export const purgeUserData = internalMutation({
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     if (user === null) return;
+    const verification = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .unique();
+    if (verification) await ctx.db.delete(verification._id);
 
-    const workspaceId = user.personalWorkspaceId;
-    if (workspaceId !== undefined) {
+    // Recheck in the purge transaction: membership may change after deletion was queued.
+    const ownedWorkspaces = await ctx.db
+      .query("workspaces")
+      .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
+      .collect();
+    for (const workspace of ownedWorkspaces) {
+      const billing = await paymentState(ctx, workspace._id);
+      if (
+        billing?.subscriptionId &&
+        !["canceled", "unpaid", "incomplete_expired"].includes(billing.status)
+      )
+        throw new Error("A workspace subscription is still active");
+      const member = await ctx.db
+        .query("workspaceMembers")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspace._id))
+        .first();
+      if (member)
+        throw new Error(
+          "Shared workspace cannot be purged while members remain",
+        );
+    }
+    const memberships = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    for (const member of memberships) {
+      const assignments = await ctx.db
+        .query("productionAssignments")
+        .withIndex("by_workspace_user", (q) =>
+          q.eq("workspaceId", member.workspaceId).eq("userId", user._id),
+        )
+        .collect();
+      for (const assignment of assignments) await ctx.db.delete(assignment._id);
+      await ctx.db.delete(member._id);
+    }
+    for (const { _id: workspaceId } of ownedWorkspaces) {
       const projects = await ctx.db
         .query("projects")
         .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
@@ -167,8 +238,19 @@ export const purgeUserData = internalMutation({
         await tryDeleteStorage(ctx, file.storageId);
       }
 
+      for (const table of [
+        "billingAccounts",
+        "spendTotals",
+        "usageQuotes",
+      ] as const) {
+        const rows = await ctx.db
+          .query(table)
+          .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+          .collect();
+        for (const row of rows) await ctx.db.delete(row._id);
+      }
       const ledger = await ctx.db
-        .query("creditLedger")
+        .query("usageLedger")
         .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
         .collect();
       for (const row of ledger) {
@@ -180,6 +262,11 @@ export const purgeUserData = internalMutation({
         .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
         .collect();
       for (const session of sessions) await ctx.db.delete(session._id);
+      const invitations = await ctx.db
+        .query("workspaceInvitations")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+        .collect();
+      for (const invitation of invitations) await ctx.db.delete(invitation._id);
       await ctx.db.delete(workspaceId);
     }
 
@@ -215,6 +302,33 @@ async function tryDeleteStorage(
 }
 
 async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
+  const shares = await ctx.db
+    .query("exportShareLinks")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  for (const link of shares) {
+    const sessions = await ctx.db
+      .query("exportViewerSessions")
+      .withIndex("by_link", (q) => q.eq("linkId", link._id))
+      .collect();
+    for (const session of sessions) await ctx.db.delete(session._id);
+    await ctx.db.delete(link._id);
+  }
+  const publications = await ctx.db
+    .query("publishedExports")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  for (const publication of publications) {
+    await ctx.db.delete(publication._id);
+    await tryDeleteStorage(ctx, publication.storageId);
+    await tryDeleteStorage(ctx, publication.stagedStorageId);
+  }
+  const leases = await ctx.db
+    .query("timelineLeases")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  for (const lease of leases) await ctx.db.delete(lease._id);
+
   const assets = await ctx.db
     .query("assets")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

@@ -1,12 +1,36 @@
 {
-  "genjutsu:removeInput": { "kind": "mutation", "public": true },
-  "genjutsu:inputState": { "kind": "query", "public": false },
-  "genjutsu:list": { "kind": "query", "public": true },
-  "genjutsu:get": { "kind": "query", "public": true },
-  "genjutsu:create": { "kind": "mutation", "public": true },
-  "genjutsu:update": { "kind": "mutation", "public": true },
-  "transforms:analyze": { "kind": "action", "public": true },
-  "transforms:generate": { "kind": "action", "public": true },
+  "genjutsu:removeInput": {
+    "kind": "mutation",
+    "public": true
+  },
+  "genjutsu:inputState": {
+    "kind": "query",
+    "public": false
+  },
+  "genjutsu:list": {
+    "kind": "query",
+    "public": true
+  },
+  "genjutsu:get": {
+    "kind": "query",
+    "public": true
+  },
+  "genjutsu:create": {
+    "kind": "mutation",
+    "public": true
+  },
+  "genjutsu:update": {
+    "kind": "mutation",
+    "public": true
+  },
+  "transforms:analyze": {
+    "kind": "action",
+    "public": true
+  },
+  "transforms:generate": {
+    "kind": "action",
+    "public": true
+  },
   "assets:list": {
     "kind": "query",
     "public": true
@@ -27,39 +51,39 @@
     "kind": "mutation",
     "public": true
   },
-  "credits:getBalance": {
+  "billing:getBalance": {
     "kind": "query",
     "public": true
   },
-  "credits:listLedger": {
+  "billing:listLedger": {
     "kind": "query",
     "public": true
   },
-  "credits:grantDev": {
+  "billing:grantDev": {
     "kind": "mutation",
     "public": true
   },
-  "credits:grantToEmail": {
+  "billing:grantToEmail": {
     "kind": "mutation",
     "public": true
   },
-  "credits:lookupByEmail": {
+  "billing:lookupByEmail": {
     "kind": "query",
     "public": true
   },
-  "credits:reserve": {
+  "billing:reserve": {
     "kind": "mutation",
     "public": false
   },
-  "credits:settle": {
+  "billing:settle": {
     "kind": "mutation",
     "public": false
   },
-  "credits:refund": {
+  "billing:refund": {
     "kind": "mutation",
     "public": false
   },
-  "credits:appendForTest": {
+  "billing:appendForTest": {
     "kind": "mutation",
     "public": false
   },
@@ -419,11 +443,11 @@
     "kind": "query",
     "public": true
   },
-  "staff:grantCredits": {
+  "staff:grantUsd": {
     "kind": "mutation",
     "public": true
   },
-  "staff:refundCredits": {
+  "staff:adjustUsd": {
     "kind": "mutation",
     "public": true
   },
@@ -738,5 +762,305 @@
   "references:undoReplacement": {
     "kind": "mutation",
     "public": true
+  },
+  "teams:list": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:members": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:invitations": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:pending": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:assignments": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:invite": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:accept": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:revoke": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:changeMember": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:assign": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:productions": {
+    "kind": "query",
+    "public": true
+  },
+  "series:forProject": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:routeWorkspace": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:rename": {
+    "kind": "mutation",
+    "public": true
+  },
+  "teams:transferOwnership": {
+    "kind": "mutation",
+    "public": true
+  },
+  "billing:budgets": {
+    "kind": "query",
+    "public": true
+  },
+  "billing:setBudget": {
+    "kind": "mutation",
+    "public": true
+  },
+  "generation:quote": {
+    "kind": "mutation",
+    "public": true
+  },
+  "generation:getQuoteInternal": {
+    "kind": "query",
+    "public": false
+  },
+  "billing:audit": {
+    "kind": "query",
+    "public": false
+  },
+  "billing:rebuildTotals": {
+    "kind": "mutation",
+    "public": false
+  },
+  "teamOnboarding:issueVerification": {
+    "kind": "mutation",
+    "public": false
+  },
+  "teamOnboarding:consumeVerification": {
+    "kind": "mutation",
+    "public": false
+  },
+  "teamOnboarding:invitationDelivery": {
+    "kind": "query",
+    "public": false
+  },
+  "teamOnboarding:recordDelivery": {
+    "kind": "mutation",
+    "public": false
+  },
+  "teamOnboarding:startVerification": {
+    "kind": "action",
+    "public": true
+  },
+  "teamOnboarding:verifyEmail": {
+    "kind": "action",
+    "public": true
+  },
+  "teamOnboarding:sendInvitation": {
+    "kind": "action",
+    "public": false
+  },
+  "teams:resendInvitation": {
+    "kind": "mutation",
+    "public": true
+  },
+  "timelineLeases:claim": {
+    "kind": "mutation",
+    "public": true
+  },
+  "timelineLeases:renew": {
+    "kind": "mutation",
+    "public": true
+  },
+  "timelineLeases:release": {
+    "kind": "mutation",
+    "public": true
+  },
+  "publishedExports:begin": {
+    "kind": "action",
+    "public": true
+  },
+  "publishedExports:beginValidated": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:claimUpload": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:finalize": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:failUpload": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:list": {
+    "kind": "query",
+    "public": true
+  },
+  "publishedExports:cleanup": {
+    "kind": "mutation",
+    "public": false
+  },
+  "exportSharing:create": {
+    "kind": "action",
+    "public": true
+  },
+  "exportSharing:createHashed": {
+    "kind": "mutation",
+    "public": false
+  },
+  "exportSharing:list": {
+    "kind": "query",
+    "public": true
+  },
+  "exportSharing:revoke": {
+    "kind": "mutation",
+    "public": true
+  },
+  "exportSharing:checkExchange": {
+    "kind": "mutation",
+    "public": false
+  },
+  "exportSharing:openSession": {
+    "kind": "mutation",
+    "public": false
+  },
+  "exportSharing:authorizeViewer": {
+    "kind": "query",
+    "public": false
+  },
+  "exportSharing:recordDelivery": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:getForDelivery": {
+    "kind": "query",
+    "public": false
+  },
+  "publishedExports:recordDownload": {
+    "kind": "mutation",
+    "public": false
+  },
+  "publishedExports:remove": {
+    "kind": "mutation",
+    "public": true
+  },
+  "publishedExports:stageUpload": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:summary": {
+    "kind": "query",
+    "public": true
+  },
+  "payments:configuration": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:checkout": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:resumeCheckout": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:portal": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:changeSeats": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:refresh": {
+    "kind": "action",
+    "public": true
+  },
+  "payments:ownerContext": {
+    "kind": "query",
+    "public": false
+  },
+  "payments:checkoutForOwner": {
+    "kind": "query",
+    "public": false
+  },
+  "payments:binding": {
+    "kind": "query",
+    "public": false
+  },
+  "payments:event": {
+    "kind": "query",
+    "public": false
+  },
+  "payments:prepareCheckout": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:finishCheckout": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:uncertainCheckout": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:receiveEvent": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:completeEvent": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:applySubscription": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:applyOrder": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:clearReview": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:expireAllowances": {
+    "kind": "mutation",
+    "public": false
+  },
+  "payments:processEvent": {
+    "kind": "action",
+    "public": false
+  },
+  "payments:deploymentEnvironment": {
+    "kind": "query",
+    "public": false
+  },
+  "payments:entitlements": {
+    "kind": "query",
+    "public": true
+  },
+  "payments:assertProjectWrite": {
+    "kind": "query",
+    "public": false
   }
 }

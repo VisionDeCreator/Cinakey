@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
@@ -6,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function SeriesIndexPage() {
-  const rows = useQuery(api.series.list, { includeArchived: true });
+  const { workspaceId, canManage } = useWorkspace();
+  const rows = useQuery(api.series.list, {
+    includeArchived: true,
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   const create = useMutation(api.series.create);
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -20,32 +25,37 @@ export function SeriesIndexPage() {
           Multiple episodes, one shared creative library.
         </p>
       </div>
-      <form
-        className="flex max-w-xl gap-2"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          setError("");
-          try {
-            const id = await create({ title: name });
-            void navigate(`/series/${id}`);
-          } catch (err) {
-            setError(err instanceof Error ? err.message : String(err));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <Input
-          aria-label="Series name"
-          placeholder="Series name"
-          value={name}
-          maxLength={200}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <Button disabled={busy || !name.trim()}>New series</Button>
-      </form>
+      {canManage && (
+        <form
+          className="flex max-w-xl gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError("");
+            try {
+              const id = await create({
+                title: name,
+                ...(workspaceId ? { workspaceId } : {}),
+              });
+              void navigate(`/series/${id}`);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : String(err));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Input
+            aria-label="Series name"
+            placeholder="Series name"
+            value={name}
+            maxLength={200}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <Button disabled={busy || !name.trim()}>New series</Button>
+        </form>
+      )}
       {error && (
         <p role="alert" className="text-sm text-red-400">
           {error}

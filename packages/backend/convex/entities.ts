@@ -1,3 +1,5 @@
+import { requireProjectWrite } from "./lib/access";
+import { requireProjectAccessForUser } from "./lib/access";
 import { normalizeEntityName } from "@cinakey/shared";
 import { v } from "convex/values";
 import {
@@ -86,7 +88,7 @@ export const listJobsForEntity = query({
 export const ensureStyle = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectWrite(ctx, args.projectId);
     const project = await ctx.db.get(args.projectId);
     if (
       project?.activeStyleEntityId &&
@@ -121,7 +123,7 @@ export const create = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectWrite(ctx, args.projectId);
     if (args.kind === "style") {
       throw new Error("Use ensureStyle to create the project style sheet");
     }
@@ -157,7 +159,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const entity = await ctx.db.get(args.entityId);
     if (entity === null) throw new Error("Entity not found");
-    await requireProjectAccess(ctx, entity.projectId);
+    await requireProjectWrite(ctx, entity.projectId);
     const patch: {
       kind?: "character" | "creature" | "location" | "prop";
       name?: string;
@@ -231,15 +233,11 @@ export const applySheetBlob = internalMutation({
 export const assertProjectAccess = internalQuery({
   args: { projectId: v.id("projects"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (user === null) throw new Error("User not found");
-    const project = await ctx.db.get(args.projectId);
-    if (project === null) throw new Error("Project not found");
-    if (user.isStaff === true) return { project };
-    const workspace = await ctx.db.get(project.workspaceId);
-    if (workspace === null || workspace.ownerUserId !== user._id) {
-      throw new Error("Project access denied");
-    }
+    const project = await requireProjectAccessForUser(
+      ctx,
+      args.projectId,
+      args.userId,
+    );
     return { project };
   },
 });
@@ -264,21 +262,21 @@ export const findStyleInternal = internalQuery({
 
 const AUTOFILL_ESTIMATED_TOKENS = 2000;
 
-/** Estimated DeepSeek credits to auto-fill a Look Dev entity sheet. */
+/** Estimated DeepSeek usdMicros to auto-fill a Look Dev entity sheet. */
 export const estimateAutofillCost = query({
   args: {},
   handler: async () => {
     const adapter = getAdapter("deepseek");
-    const credits = Math.max(
+    const usdMicros = Math.max(
       1,
       adapter?.estimateCost({ estimatedTokens: AUTOFILL_ESTIMATED_TOKENS }) ??
         2,
     );
     return {
-      credits,
+      usdMicros,
       costModel: adapter?.capabilities.costModel ?? {
         unit: "per_1k_tokens",
-        creditsPerUnit: 1,
+        usdMicrosPerUnit: 1,
       },
     };
   },

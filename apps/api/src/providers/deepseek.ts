@@ -10,7 +10,7 @@ import { requireProviderKey } from "../config/env";
 import { providerFetch } from "./transport";
 import { estimateTokenCost, isDefaultTransientError } from "./cost";
 
-const COST = { unit: "per_1k_tokens", creditsPerUnit: 1 } as const;
+const COST = { unit: "per_1k_tokens", usdMicrosPerUnit: 2_000 } as const;
 
 const inlineResults = new Map<
   string,

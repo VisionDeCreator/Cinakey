@@ -99,7 +99,7 @@ async function setup() {
   const projectId = await asUser.mutation(api.projects.create, {
     title: "Staging",
   });
-  await asUser.mutation(api.credits.grantDev, { amount: 500 });
+  await asUser.mutation(api.billing.grantDev, { amount: 50_000_000 });
   return {
     run: () =>
       t.action(internal.staging.generatePlan, {

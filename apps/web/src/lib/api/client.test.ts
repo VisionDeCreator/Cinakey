@@ -16,13 +16,13 @@ describe("API client", () => {
     expect(fetcher).toHaveBeenCalledOnce();
     expect(entry.data).toEqual([{ title: "Film" }]);
   });
-  it("preserves structured credit errors", async () => {
+  it("preserves structured USD funding errors", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
         new Response(
           JSON.stringify({
-            data: { code: "INSUFFICIENT_CREDITS", required: 5, balance: 1 },
+            data: { code: "INSUFFICIENT_FUNDS", required: 5, balance: 1 },
           }),
           { status: 422 },
         ),
@@ -32,7 +32,7 @@ describe("API client", () => {
     await expect(
       client.call("generation:startGeneration", {}),
     ).rejects.toMatchObject({
-      data: { code: "INSUFFICIENT_CREDITS" },
+      data: { code: "INSUFFICIENT_FUNDS" },
     });
   });
   it("refreshes a binding after a mutation even if a previous read is still in flight", async () => {
@@ -107,5 +107,112 @@ it("polls workspace generation jobs without waiting for a notification", async (
   await client.poll();
   expect(entry.data.jobs[0].status).toBe("succeeded");
   expect(send).toHaveBeenCalled();
+  client.close();
+});
+
+it("keeps a late previous-workspace response out of the selected workspace cache", async () => {
+  let finish!: (response: Response) => void;
+  const fetcher = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ value: [{ title: "Studio project" }] })),
+      ),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const client = new ApiClient("http://api.test", "token");
+  const previous = client.entry("projects:listMine", {
+    workspaceId: "personal",
+  });
+  const selected = client.entry("projects:listMine", { workspaceId: "studio" });
+  const oldRead = client.load(previous);
+  await client.load(selected);
+  finish(
+    new Response(JSON.stringify({ value: [{ title: "Personal project" }] })),
+  );
+  await oldRead;
+  expect(selected.data).toEqual([{ title: "Studio project" }]);
+  expect(previous.data).toEqual([{ title: "Personal project" }]);
+  client.close();
+});
+
+it("refreshes active workspace memberships so remote access changes become visible", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.resolve(new Response(JSON.stringify({ value: [] })))),
+  );
+  const client = new ApiClient("http://api.test", "token");
+  const entry = client.entry("teams:list", {});
+  entry.data = [{ workspace: { _id: "removed" }, role: "creator" }];
+  entry.loadedAt = Date.now() - 11_000;
+  entry.listeners.add(() => {});
+  await client.poll();
+  expect(entry.data).toEqual([]);
+  client.close();
+});
+
+it("refreshes spending when another workspace member creates a hold", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ value: { reservedUsdMicros: 10 } })),
+      ),
+    ),
+  );
+  const client = new ApiClient("http://api.test", "token");
+  const entry = client.entry("workspace:spend", { projectId: "episode" });
+  entry.data = { reservedUsdMicros: 0 };
+  entry.loadedAt = Date.now() - 11_000;
+  entry.listeners.add(() => {});
+  await client.poll();
+  expect(entry.data.reservedUsdMicros).toBe(10);
+  client.close();
+});
+
+it("preserves structured error codes while displaying a human-readable failure message", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Editing access expired.",
+          data: {
+            code: "TIMELINE_LEASE_LOST",
+            message: "Your local draft is preserved.",
+          },
+        }),
+        { status: 422 },
+      ),
+    ),
+  );
+  const client = new ApiClient("http://localhost", "token");
+  await expect(client.call("timelineVersions:save", {})).rejects.toMatchObject({
+    message: "Your local draft is preserved.",
+    data: { code: "TIMELINE_LEASE_LOST" },
+  });
+});
+
+it("keeps fenced lease releases alive across page navigation and client disposal", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ value: null })));
+  vi.stubGlobal("fetch", fetcher);
+  const client = new ApiClient("http://api", "token");
+  await client.call("timelineLeases:release", {
+    projectId: "project",
+    sessionId: "session",
+    fence: 1,
+  });
+  expect(fetcher).toHaveBeenCalledWith(
+    "http://api/v1/timelineLeases/release",
+    expect.objectContaining({ keepalive: true, signal: undefined }),
+  );
   client.close();
 });

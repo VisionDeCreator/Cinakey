@@ -32,7 +32,7 @@ preserving edit history.
 
 ## Spending and provider requests
 
-Credit reservation, cap checking, request replay detection, job creation and task
+USD reservation, cap checking, request replay detection, job creation and task
 dispatch occur in one Convex transaction. The former public spending bypass is
 removed. Reusing a generation request ID with different settings fails. The web
 client keeps request IDs across unknown network/server outcomes. Failed local
@@ -96,3 +96,6 @@ proxy conversion settings, existing-proxy precedence, resource limits, cancellat
 blob reuse and original-only export URL resolution. Media analysis tests use mocked
 browser codecs and local byte fixtures with rejected-by-default networking. This
 does not claim a complete live-account or cross-browser production acceptance test.
+
+The current USD quote, indexed aggregate, audit and development-pricing behavior is
+documented in [USD accounting](usd-accounting.md).

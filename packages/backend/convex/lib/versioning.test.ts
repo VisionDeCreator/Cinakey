@@ -11,6 +11,12 @@ describe("versioning", () => {
       title: "Edit",
     });
 
+    const lock = await asUser.mutation(api.timelineLeases.claim, {
+      projectId,
+      sessionId: "version-test",
+    });
+    if (!lock.held) throw new Error("Expected lease");
+    const credentials = { sessionId: "version-test", fence: lock.fence };
     const file1 = await t.run(async (ctx) => {
       return await ctx.storage.store(
         new Blob([JSON.stringify({ tracks: [] })], {
@@ -29,11 +35,13 @@ describe("versioning", () => {
     const v1 = await asUser.mutation(internal.timelineVersions.createVersion, {
       projectId,
       timelineFileId: file1,
+      ...credentials,
     });
     const v2 = await asUser.mutation(internal.timelineVersions.createVersion, {
       projectId,
       parentId: v1,
       timelineFileId: file2,
+      ...credentials,
     });
 
     const list = await asUser.query(api.timelineVersions.listForProject, {

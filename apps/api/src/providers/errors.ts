@@ -17,7 +17,7 @@ export class ProviderError extends Error {
 export class SubmissionUncertainError extends Error {
   constructor() {
     super(
-      "Provider submission outcome is uncertain. Review the provider job before resubmitting; credits remain reserved.",
+      "Provider submission outcome is uncertain. Review the provider job before resubmitting; funds remain reserved.",
     );
     this.name = "SubmissionUncertainError";
   }
@@ -26,9 +26,13 @@ export function safeErrorMessage(error: unknown): string {
   let message = error instanceof Error ? error.message : "Request failed";
   const names = [
     ...Object.values(providerKeyNames),
+    "POLAR_ACCESS_TOKEN",
+    "POLAR_WEBHOOK_SECRET",
     "CONVEX_DEPLOY_KEY",
     "GENERATION_WEBHOOK_SECRET",
     "RESEND_API_KEY",
+    "SMTP_PASSWORD",
+    "SMTP_USER",
   ];
   for (const name of names) {
     const secret = process.env[name];

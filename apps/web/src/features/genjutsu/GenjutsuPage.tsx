@@ -1,3 +1,5 @@
+import { formatUsd } from "@cinakey/shared";
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -19,8 +21,12 @@ import { VideoTransformPanel } from "./VideoTransformPanel";
 import "./genjutsu.css";
 
 export function GenjutsuPage() {
+  const { workspaceId, canCreate } = useWorkspace();
   const { sessionId } = useParams();
-  const sessions = useQuery(api.genjutsu.list, {});
+  const sessions = useQuery(
+    api.genjutsu.list,
+    workspaceId ? { workspaceId } : {},
+  );
   const create = useMutation(api.genjutsu.create);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -31,6 +37,7 @@ export function GenjutsuPage() {
     setError(null);
     try {
       const id = await create({
+        ...(workspaceId ? { workspaceId } : {}),
         title: `Transformation ${(sessions?.length ?? 0) + 1}`,
       });
       void navigate(`/genjutsu/${id}`);
@@ -52,7 +59,7 @@ export function GenjutsuPage() {
           <h1>Genjutsu</h1>
           <p>One performance. A different world.</p>
         </div>
-        <Button disabled={busy} onClick={() => void newSession()}>
+        <Button disabled={busy || !canCreate} onClick={() => void newSession()}>
           <Plus size={16} />
           {busy ? "Creating…" : "New transformation"}
         </Button>
@@ -79,7 +86,10 @@ export function GenjutsuPage() {
                 somewhere new. Upload your footage and references, describe the
                 change, and click Generate.
               </p>
-              <Button disabled={busy} onClick={() => void newSession()}>
+              <Button
+                disabled={busy || !canCreate}
+                onClick={() => void newSession()}
+              >
                 Create a transformation <ArrowUpRight size={16} />
               </Button>
             </div>
@@ -493,7 +503,7 @@ function TransformationWorkspace({
                 key={job.jobId}
               >
                 {job.model === "deepseek" ? "Analysis" : "Render"} ·{" "}
-                {job.status} · {job.estimatedCostCredits} cr
+                {job.status} · {formatUsd(job.estimatedCostUsdMicros)}
                 {job.errorMessage ? ` · ${job.errorMessage}` : ""}
               </p>
             ))}

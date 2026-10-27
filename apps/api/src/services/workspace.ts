@@ -129,6 +129,9 @@ async function persistStaging(
   args: StagingSave,
 ): Promise<{ id: Id<"workspaceStaging">; fileId: Id<"_storage"> }> {
   await access(ctx, args.projectId);
+  await ctx.runQuery(internal.payments.assertProjectWrite, {
+    projectId: args.projectId,
+  });
   await initializeProject(ctx, args.projectId);
   const project = await ctx.runQuery(api.projects.get, {
     projectId: args.projectId,
@@ -200,7 +203,7 @@ export const generateStaging = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ id: Id<"workspaceStaging">; credits: number }> => {
+  ): Promise<{ id: Id<"workspaceStaging">; usdMicros: number }> => {
     const userId = await access(ctx, args.projectId);
     await initializeProject(ctx, args.projectId);
     if (
@@ -224,7 +227,7 @@ export const generateStaging = action({
       throw new Error("Staging project mismatch");
     let plan: StagingPlan;
     let planFileId = existing?.planFileId;
-    let credits = 0;
+    let usdMicros = 0;
     if (args.reuse && planFileId) {
       const parsed = parseStagingPlan(
         JSON.stringify(await loadJson(ctx, planFileId)),
@@ -244,7 +247,7 @@ export const generateStaging = action({
       if (!result.ok) throw new Error(result.reason);
       plan = result.plan;
       planFileId = result.planFileId;
-      credits = result.credits;
+      usdMicros = result.usdMicros;
     }
     const timing = parseScriptPromptText("");
     timing.shots = [];
@@ -265,12 +268,14 @@ export const generateStaging = action({
       planFileId,
       scriptVersionId: script.id,
     });
-    return { id: saved.id, credits };
+    return { id: saved.id, usdMicros };
   },
 });
 export const generate = action({
   args: {
     projectId: v.id("projects"),
+    maxCostUsdMicros: v.optional(v.number()),
+    quoteId: v.optional(v.id("usageQuotes")),
     prompt: v.optional(v.string()),
     durationSec: v.number(),
     resolution: v.string(),
@@ -282,7 +287,10 @@ export const generate = action({
   handler: async (
     ctx,
     args,
-  ): Promise<{ jobId: Id<"generationJobs">; estimatedCostCredits: number }> => {
+  ): Promise<{
+    jobId: Id<"generationJobs">;
+    estimatedCostUsdMicros: number;
+  }> => {
     await access(ctx, args.projectId);
     await initializeProject(ctx, args.projectId);
     const project = await ctx.runQuery(api.projects.get, {
@@ -322,6 +330,8 @@ export const generate = action({
       referenceVideoAssetId = staging.previzAssetId;
     }
     return ctx.runAction(api.generation.startGeneration, {
+      maxCostUsdMicros: args.maxCostUsdMicros,
+      quoteId: args.quoteId,
       projectId: args.projectId,
       requestId: args.requestId,
       kind: args.kind ?? "text-to-video",
@@ -349,9 +359,10 @@ export const generate = action({
 });
 
 export const createTemplate = action({
-  args: {},
-  handler: async (ctx): Promise<{ projectId: Id<"projects"> }> => {
+  args: { workspaceId: v.optional(v.id("workspaces")) },
+  handler: async (ctx, args): Promise<{ projectId: Id<"projects"> }> => {
     const projectId = await ctx.runMutation(api.projects.create, {
+      workspaceId: args.workspaceId,
       title: "Starter: 30s Trailer",
       targetLengthSec: 30,
     });

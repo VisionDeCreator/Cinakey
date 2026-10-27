@@ -1,3 +1,4 @@
+import { assertPaymentProduction } from "./paymentAccess";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -30,51 +31,85 @@ export async function requireStaff(ctx: Ctx): Promise<Doc<"users">> {
   return user;
 }
 
-/**
- * Require that the caller owns the project's workspace (or is staff).
- * Returns the project document on success.
- */
+export type WorkspaceRole = "owner" | "admin" | "creator" | "reviewer";
+
+export async function workspaceRole(
+  ctx: Ctx,
+  workspaceId: Id<"workspaces">,
+  userId: Id<"users">,
+): Promise<WorkspaceRole | null> {
+  const workspace = await ctx.db.get(workspaceId);
+  if (!workspace) return null;
+  if (workspace.ownerUserId === userId) return "owner";
+  const member = await ctx.db
+    .query("workspaceMembers")
+    .withIndex("by_workspace_user", (q) =>
+      q.eq("workspaceId", workspaceId).eq("userId", userId),
+    )
+    .unique();
+  return member?.role ?? null;
+}
+
+export async function canAccessProject(
+  ctx: Ctx,
+  project: Doc<"projects">,
+  user: Doc<"users">,
+): Promise<boolean> {
+  const role = await workspaceRole(ctx, project.workspaceId, user._id);
+  if (role === "owner" || role === "admin") return true;
+  if (role !== "creator") return false;
+  const assignments = await ctx.db
+    .query("productionAssignments")
+    .withIndex("by_workspace_user", (q) =>
+      q.eq("workspaceId", project.workspaceId).eq("userId", user._id),
+    )
+    .collect();
+  return assignments.some(
+    (a) =>
+      a.projectId === project._id ||
+      (project.seriesId !== undefined && a.seriesId === project.seriesId),
+  );
+}
+
+export async function requireProjectAccessForUser(
+  ctx: Ctx,
+  projectId: Id<"projects">,
+  userId: Id<"users">,
+) {
+  const project = await ctx.db.get(projectId);
+  const user = await ctx.db.get(userId);
+  if (!project) throw new Error("Project not found");
+  if (!user || !(await canAccessProject(ctx, project, user)))
+    throw new Error("Project access denied");
+  return project;
+}
+
+/** Production access requires an active creator assignment or workspace administration. */
 export async function requireProjectAccess(
   ctx: Ctx,
   projectId: Id<"projects">,
 ): Promise<Doc<"projects">> {
   const user = await requireUser(ctx);
-  const project = await ctx.db.get(projectId);
-  if (project === null) {
-    throw new Error("Project not found");
-  }
-
-  if (user.isStaff === true) {
-    return project;
-  }
-
-  const workspace = await ctx.db.get(project.workspaceId);
-  if (workspace === null) {
-    throw new Error("Workspace not found");
-  }
-  if (workspace.ownerUserId !== user._id) {
-    throw new Error("Project access denied");
-  }
-  return project;
+  return requireProjectAccessForUser(ctx, projectId, user._id);
 }
 
-/**
- * True when the user owns the workspace (or is staff).
- */
+/** Kept for operations that deliberately require ownership, not membership. */
 export function isWorkspaceOwner(
   user: Doc<"users">,
   workspace: Doc<"workspaces">,
 ): boolean {
-  return user.isStaff === true || workspace.ownerUserId === user._id;
+  return workspace.ownerUserId === user._id;
 }
 
+/** Workspace-wide production operations are restricted to administrators. */
 export async function requireWorkspaceAccess(
   ctx: Ctx,
   workspaceId: Id<"workspaces">,
 ) {
   const user = await requireUser(ctx);
   const workspace = await ctx.db.get(workspaceId);
-  if (!workspace || !isWorkspaceOwner(user, workspace))
+  const role = await workspaceRole(ctx, workspaceId, user._id);
+  if (!workspace || (role !== "owner" && role !== "admin"))
     throw new Error("Workspace access denied");
   return workspace;
 }
@@ -82,6 +117,7 @@ export async function requireWorkspaceAccess(
 export async function requireSeriesAccess(ctx: Ctx, seriesId: Id<"series">) {
   const series = await ctx.db.get(seriesId);
   if (!series) throw new Error("Series not found");
+  // This helper is also used by series mutations; creators cannot administer series.
   await requireWorkspaceAccess(ctx, series.workspaceId);
   return series;
 }
@@ -89,10 +125,28 @@ export async function requireSeriesAccess(ctx: Ctx, seriesId: Id<"series">) {
 export async function requireAssetAccess(ctx: Ctx, assetId: Id<"assets">) {
   const asset = await ctx.db.get(assetId);
   if (!asset) throw new Error("Asset not found");
-  if (asset.workspaceId) await requireWorkspaceAccess(ctx, asset.workspaceId);
-  else if (asset.projectId) await requireProjectAccess(ctx, asset.projectId);
+  if (asset.projectId) await requireProjectAccess(ctx, asset.projectId);
+  else if (asset.workspaceId)
+    await requireWorkspaceAccess(ctx, asset.workspaceId);
   else throw new Error("Asset has no owner");
   return asset;
+}
+
+export async function accessibleWorkspaceIds(ctx: Ctx, user: Doc<"users">) {
+  const owned = await ctx.db
+    .query("workspaces")
+    .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
+    .collect();
+  const memberships = await ctx.db
+    .query("workspaceMembers")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .collect();
+  return [
+    ...new Set([
+      ...owned.map((w) => w._id),
+      ...memberships.map((m) => m.workspaceId),
+    ]),
+  ];
 }
 
 /** Membership is explicit: owning a workspace alone does not attach a file to a production. */
@@ -127,4 +181,27 @@ export async function projectAssets(ctx: Ctx, projectId: Id<"projects">) {
     if (asset) rows.set(asset._id, asset);
   }
   return [...rows.values()];
+}
+
+/** Membership alone permits workspace selection, never workspace-wide production access. */
+export async function requireWorkspaceMembership(
+  ctx: Ctx,
+  workspaceId: Id<"workspaces">,
+) {
+  const user = await requireUser(ctx);
+  const role = await workspaceRole(ctx, workspaceId, user._id);
+  if (!role) throw new Error("Workspace access denied");
+  return { user, role };
+}
+
+/** Read permission and subscription write permission are deliberately independent. */
+export async function requireProjectWrite(ctx: Ctx, projectId: Id<"projects">) {
+  const project = await requireProjectAccess(ctx, projectId);
+  await assertPaymentProduction(ctx, project.workspaceId);
+  return project;
+}
+export async function requireSeriesWrite(ctx: Ctx, seriesId: Id<"series">) {
+  const series = await requireSeriesAccess(ctx, seriesId);
+  await assertPaymentProduction(ctx, series.workspaceId);
+  return series;
 }

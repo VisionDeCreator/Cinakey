@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api, type Doc, type Id } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
@@ -44,7 +45,11 @@ export function ResourceLibrary({
     api.resources.listForProject,
     projectId ? { projectId } : "skip",
   );
-  const projects = useQuery(api.projects.listMine, projectId ? "skip" : {});
+  const { workspaceId } = useWorkspace();
+  const projects = useQuery(
+    api.projects.listMine,
+    projectId ? "skip" : workspaceId ? { workspaceId } : {},
+  );
   const [sourceProject, setSourceProject] = useState("");
   const assets = useQuery(
     api.assets.list,
@@ -57,6 +62,7 @@ export function ResourceLibrary({
   const publish = useMutation(api.resources.publish);
   const adopt = useMutation(api.resources.useInProject);
   const archive = useMutation(api.resources.setArchived);
+  const { canWrite } = useWorkspace();
   const uploadUrl = useMutation(api.resources.createUploadUrl);
   const completeUpload = useMutation(api.resources.completeUpload);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -148,7 +154,9 @@ export function ResourceLibrary({
               type="file"
               accept="image/*,video/*,audio/*"
               multiple
-              disabled={busy || (containsLikeness && !consent)}
+              disabled={
+                canWrite === false || busy || (containsLikeness && !consent)
+              }
               className="mt-2 block text-xs"
               onChange={(e) => {
                 void upload(e.target.files);

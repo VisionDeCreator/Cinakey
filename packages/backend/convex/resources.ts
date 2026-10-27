@@ -1,3 +1,4 @@
+import { requireSeriesWrite, requireProjectWrite } from "./lib/access";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
@@ -88,7 +89,7 @@ export const publish = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt) throw new Error("Restore this series first");
     const name = args.name.trim();
     if (
@@ -118,7 +119,7 @@ export const publish = mutation({
     if (args.sourceEntityId) {
       if (!sourceEntity || sourceEntity.kind !== args.kind)
         throw new Error("Source entity kind does not match");
-      const sourceProject = await requireProjectAccess(
+      const sourceProject = await requireProjectWrite(
         ctx,
         sourceEntity.projectId,
       );
@@ -190,12 +191,12 @@ export const publish = mutation({
 export const useInProject = mutation({
   args: { projectId: v.id("projects"), versionId: v.id("resourceVersions") },
   handler: async (ctx, args) => {
-    const project = await requireProjectAccess(ctx, args.projectId);
+    const project = await requireProjectWrite(ctx, args.projectId);
     const version = await ctx.db.get(args.versionId);
     const resource = version ? await ctx.db.get(version.resourceId) : null;
     if (!version || !resource || project.seriesId !== resource.seriesId)
       throw new Error("This resource is not in the project's series");
-    const series = await requireSeriesAccess(ctx, resource.seriesId);
+    const series = await requireSeriesWrite(ctx, resource.seriesId);
     if (series.workspaceId !== project.workspaceId)
       throw new Error("Workspace mismatch");
     const existing = await ctx.db
@@ -279,7 +280,7 @@ export const setArchived = mutation({
 export const createUploadUrl = mutation({
   args: { seriesId: v.id("series") },
   handler: async (ctx, args) => {
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt) throw new Error("Restore this series first");
     return generateUploadUrl(ctx);
   },
@@ -295,7 +296,7 @@ export const completeUpload = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    const series = await requireSeriesAccess(ctx, args.seriesId);
+    const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt) throw new Error("Restore this series first");
     if (!args.name.trim()) throw new Error("File name required");
     if (args.containsLikeness && !args.likenessConsent)

@@ -48,6 +48,16 @@ describe("server configuration and credential boundaries", () => {
     expect(() => validateProviderConfiguration()).not.toThrow();
     expect(() => requireProviderKey("openai")).toThrow("disabled");
   });
+  it("gates provisional prices for real provider requests", () => {
+    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+    vi.stubEnv("ENABLED_PROVIDERS", "deepseek");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
+    vi.stubEnv("ALLOW_DEVELOPMENT_PRICES", "false");
+    expect(() => validateProviderConfiguration()).not.toThrow();
+    expect(() => requireProviderKey("deepseek")).toThrow(
+      "Retail rates are pending",
+    );
+  });
   it("does not require the retired image provider for legacy environment settings", () => {
     vi.stubEnv("USE_MOCK_ADAPTERS", "false");
     vi.stubEnv("ENABLED_PROVIDERS", "deepseek,seedance,openai");
@@ -120,4 +130,11 @@ describe("server configuration and credential boundaries", () => {
       ),
     ).toEqual([]);
   });
+});
+it("prevents Polar sandbox balances from starting real provider requests", () => {
+  vi.stubEnv("POLAR_PAYMENTS_ENABLED", "true");
+  vi.stubEnv("POLAR_ENVIRONMENT", "sandbox");
+  expect(() => requireProviderKey("sume")).toThrow(
+    "sandbox balances cannot fund live",
+  );
 });

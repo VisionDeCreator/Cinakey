@@ -41,7 +41,13 @@ vi.mock("@/lib/api/hooks", () => ({
       case "storage:listProjectAssetUrls":
         return [{ assetId: "video", url: "https://fixture.test/video.mp4" }];
       case "workspace:spend":
-        return { remaining: 100 };
+        return {
+          remaining: 10_000_000,
+          spentUsdMicros: 0,
+          reservedUsdMicros: 0,
+        };
+      case "generation:estimateCost":
+        return { usdMicros: 1_700_000 };
       default:
         return [];
     }

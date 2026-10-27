@@ -1,3 +1,7 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
+import { useClient } from "@/lib/api/context";
+import { documentHash } from "./timelineHistory";
+import { uploadPublication } from "./publicationUpload";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { useMutation } from "@/lib/api/hooks";
+import { useAction, useMutation } from "@/lib/api/hooks";
 import { api, type Id } from "@cinakey/backend";
 import type { TimelineDocument } from "@cinakey/shared";
 import {
@@ -41,11 +45,24 @@ export function ExportDialog(props: Props) {
 function ExportSession({
   open,
   onOpenChange,
-  doc,
+  doc: initialDoc,
   urls,
   projectTitle,
   projectId,
 }: Props) {
+  const { canWrite } = useWorkspace();
+  const canStore = canWrite !== false;
+  const [doc] = useState(() => structuredClone(initialDoc));
+  const client = useClient();
+  const getContent = useAction(api.timelineVersions.getContent);
+  const beginPublication = useAction(api.publishedExports.begin);
+  const [storeVideo, setStoreVideo] = useState(canStore);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [hasPendingUpload, setHasPendingUpload] = useState(false);
+  const [stored, setStored] = useState(false);
+  const pendingUpload = useRef<{ publicationId: string; blob: Blob } | null>(
+    null,
+  );
   const recordExport = useMutation(api.exports.record);
   const [supported, setSupported] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
@@ -86,6 +103,24 @@ function ExportSession({
       doc.project.aspectRatio,
     );
     try {
+      let publicationId: string | undefined;
+      if (storeVideo && canStore) {
+        const saved = await getContent({ projectId });
+        if (
+          !saved.document ||
+          !saved.version ||
+          documentHash(saved.document) !== documentHash(doc)
+        )
+          throw new Error(
+            "Wait for this edit to save, then reopen Export to store this video.",
+          );
+        const intent = await beginPublication({
+          projectId,
+          versionId: saved.version._id,
+          requestId: crypto.randomUUID(),
+        });
+        publicationId = intent.publicationId;
+      }
       const blob = await exportTimelineMp4({
         doc,
         urls,
@@ -108,13 +143,29 @@ function ExportSession({
       } catch (recordErr) {
         console.warn("Failed to record export", recordErr);
       }
-      onOpenChange(false);
+      if (publicationId) {
+        pendingUpload.current = { publicationId, blob };
+        setHasPendingUpload(true);
+        setUploadPercent(0);
+        await uploadPublication(
+          client,
+          publicationId,
+          blob,
+          ac.signal,
+          setUploadPercent,
+        );
+        pendingUpload.current = null;
+        setHasPendingUpload(false);
+        setStored(true);
+        await client.invalidate();
+      } else onOpenChange(false);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError("Export canceled");
       } else {
         const message = err instanceof Error ? err.message : "Export failed";
         setError(message);
+        if (pendingUpload.current) return;
         try {
           await recordExport({
             projectId,
@@ -132,6 +183,34 @@ function ExportSession({
       setRunning(false);
       abortRef.current = null;
       setProgress(null);
+    }
+  };
+
+  const retryUpload = async () => {
+    const pending = pendingUpload.current;
+    if (!pending || !canStore) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setRunning(true);
+    setError(null);
+    setUploadPercent(0);
+    try {
+      await uploadPublication(
+        client,
+        pending.publicationId,
+        pending.blob,
+        controller.signal,
+        setUploadPercent,
+      );
+      pendingUpload.current = null;
+      setHasPendingUpload(false);
+      setStored(true);
+      await client.invalidate();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setRunning(false);
+      abortRef.current = null;
     }
   };
 
@@ -158,12 +237,42 @@ function ExportSession({
             Duration: {doc.durationSec.toFixed(1)}s · {doc.project.fps} fps ·{" "}
             {doc.project.aspectRatio}
           </p>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={storeVideo && canStore}
+              disabled={!canStore || running || stored}
+              onChange={(e) => setStoreVideo(e.target.checked)}
+            />
+            Store video for sharing (up to 200 MiB)
+          </label>
+          <p className="text-xs text-zinc-400">
+            A local MP4 is downloaded before upload. Stored video uses the saved
+            edit from when this dialog opened.
+          </p>
+          {stored && (
+            <p role="status">
+              Video stored. Open Stored videos in the editor to create a private
+              link.
+            </p>
+          )}
+          {running && uploadPercent !== null && (
+            <div role="status">
+              Uploading: {uploadPercent}%
+              {uploadPercent === 100 ? " · validating and storing…" : ""}
+              <Progress value={uploadPercent} />
+            </div>
+          )}
           {supported === false && (
             <p className="text-amber-400">
               WebCodecs H.264 + AAC encode is not available in this browser.
             </p>
           )}
-          {error && <p className="text-rose-400">{error}</p>}
+          {error && (
+            <p role="alert" className="text-rose-400">
+              {error}
+            </p>
+          )}
           {running && progress && (
             <div className="space-y-2">
               <p className="text-xs text-zinc-500">{progress.message}</p>
@@ -190,9 +299,19 @@ function ExportSession({
               >
                 Close
               </Button>
+              {hasPendingUpload && !stored && (
+                <Button disabled={!canStore} onClick={() => void retryUpload()}>
+                  Retry upload
+                </Button>
+              )}
               <Button
                 type="button"
-                disabled={supported !== true || Boolean(exportCapsOk(doc))}
+                disabled={
+                  hasPendingUpload ||
+                  stored ||
+                  supported !== true ||
+                  Boolean(exportCapsOk(doc))
+                }
                 onClick={() => void start()}
               >
                 Export

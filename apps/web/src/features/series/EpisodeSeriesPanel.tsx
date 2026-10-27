@@ -12,7 +12,7 @@ export function EpisodeSeriesPanel({
   projectId: Id<"projects">;
   seriesId: Id<"series">;
 }) {
-  const data = useQuery(api.series.get, { seriesId });
+  const data = useQuery(api.series.forProject, { projectId });
   const defaults = useMutation(api.series.applyDefaults);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);

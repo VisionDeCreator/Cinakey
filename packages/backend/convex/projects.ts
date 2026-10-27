@@ -1,7 +1,14 @@
+import { requireProjectWrite } from "./lib/access";
+import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import {
+  requireWorkspaceMembership,
+  accessibleWorkspaceIds,
+  canAccessProject,
+  requireWorkspaceAccess,
+  workspaceRole,
   projectAssets,
   projectCanUseAsset,
   requireProjectAccess,
@@ -90,20 +97,30 @@ async function resolveThumbnailUrl(
 
 export const listMine = query({
   args: {
+    workspaceId: v.optional(v.id("workspaces")),
     includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    if (user.personalWorkspaceId === undefined) {
-      return [];
-    }
     const includeArchived = args.includeArchived === true;
-    const projects = await ctx.db
-      .query("projects")
-      .withIndex("by_workspace", (q) =>
-        q.eq("workspaceId", user.personalWorkspaceId!),
+    if (args.workspaceId)
+      await requireWorkspaceMembership(ctx, args.workspaceId);
+    const workspaceIds = args.workspaceId
+      ? [args.workspaceId]
+      : await accessibleWorkspaceIds(ctx, user);
+    const allProjects = (
+      await Promise.all(
+        workspaceIds.map((workspaceId) =>
+          ctx.db
+            .query("projects")
+            .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+            .collect(),
+        ),
       )
-      .collect();
+    ).flat();
+    const projects = [];
+    for (const project of allProjects)
+      if (await canAccessProject(ctx, project, user)) projects.push(project);
 
     const visible = projects
       .filter(
@@ -137,6 +154,7 @@ export const get = query({
 
 export const create = mutation({
   args: {
+    workspaceId: v.optional(v.id("workspaces")),
     title: v.string(),
     brief: v.optional(briefValidator),
     aspectRatio: v.optional(aspectRatioValidator),
@@ -153,9 +171,14 @@ export const create = mutation({
       RATE_LIMITS.createProject.limit,
       RATE_LIMITS.createProject.windowMs,
     );
-    const workspaceId = await ensurePersonalWorkspaceForUser(ctx, user._id);
+    const workspaceId =
+      args.workspaceId ?? (await ensurePersonalWorkspaceForUser(ctx, user._id));
+    const role = await workspaceRole(ctx, workspaceId, user._id);
+    if (!role || role === "reviewer")
+      throw new Error("Workspace access denied");
+    await assertPaymentProduction(ctx, workspaceId);
     const now = Date.now();
-    return await ctx.db.insert("projects", {
+    const projectId = await ctx.db.insert("projects", {
       workspaceId,
       title: args.title.trim(),
       brief: args.brief,
@@ -167,6 +190,14 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    if (role === "creator")
+      await ctx.db.insert("productionAssignments", {
+        workspaceId,
+        userId: user._id,
+        projectId,
+        manageReviews: false,
+      });
+    return projectId;
   },
 });
 
@@ -182,10 +213,19 @@ export const update = mutation({
     rules: v.optional(v.array(v.string())),
     thumbnailAssetId: v.optional(v.id("assets")),
     styleReferenceAssetId: v.optional(v.union(v.id("assets"), v.null())),
-    spendCapCredits: v.optional(v.union(v.number(), v.null())),
+    spendCapUsdMicros: v.optional(v.union(v.number(), v.null())),
   },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    const project = await requireProjectWrite(ctx, args.projectId);
+    if (args.spendCapUsdMicros !== undefined) {
+      await requireWorkspaceAccess(ctx, project.workspaceId);
+      if (
+        args.spendCapUsdMicros !== null &&
+        (!Number.isSafeInteger(args.spendCapUsdMicros) ||
+          args.spendCapUsdMicros < 0)
+      )
+        throw new Error("Budget must be a non-negative integer");
+    }
     for (const assetId of [args.thumbnailAssetId, args.styleReferenceAssetId]) {
       if (assetId && !(await projectCanUseAsset(ctx, args.projectId, assetId)))
         throw new Error("Reference is not available in this project");
@@ -204,7 +244,7 @@ export const update = mutation({
       rules?: string[];
       thumbnailAssetId?: Id<"assets">;
       styleReferenceAssetId?: Id<"assets"> | undefined;
-      spendCapCredits?: number | undefined;
+      spendCapUsdMicros?: number | undefined;
       updatedAt: number;
     } = { updatedAt: Date.now() };
     if (args.title !== undefined) patch.title = args.title.trim();
@@ -225,9 +265,9 @@ export const update = mutation({
           ? undefined
           : args.styleReferenceAssetId;
     }
-    if (args.spendCapCredits !== undefined) {
-      patch.spendCapCredits =
-        args.spendCapCredits === null ? undefined : args.spendCapCredits;
+    if (args.spendCapUsdMicros !== undefined) {
+      patch.spendCapUsdMicros =
+        args.spendCapUsdMicros === null ? undefined : args.spendCapUsdMicros;
     }
     await ctx.db.patch(args.projectId, patch);
 
@@ -266,9 +306,9 @@ export const unarchive = mutation({
 export const duplicate = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const source = await requireProjectAccess(ctx, args.projectId);
+    const source = await requireProjectWrite(ctx, args.projectId);
     const now = Date.now();
-    return await ctx.db.insert("projects", {
+    const projectId = await ctx.db.insert("projects", {
       workspaceId: source.workspaceId,
       title: `${source.title} (copy)`,
       brief: source.brief,
@@ -280,5 +320,14 @@ export const duplicate = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    const user = await requireUser(ctx);
+    if ((await workspaceRole(ctx, source.workspaceId, user._id)) === "creator")
+      await ctx.db.insert("productionAssignments", {
+        workspaceId: source.workspaceId,
+        userId: user._id,
+        projectId,
+        manageReviews: false,
+      });
+    return projectId;
   },
 });

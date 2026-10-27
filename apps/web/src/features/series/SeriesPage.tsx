@@ -29,7 +29,9 @@ function SeriesContent({
   series: Doc<"series">;
   episodes: Doc<"projects">[];
 }) {
-  const projects = useQuery(api.projects.listMine, {});
+  const projects = useQuery(api.projects.listMine, {
+    workspaceId: series.workspaceId,
+  });
   const create = useMutation(api.series.createEpisode);
   const membership = useMutation(api.series.setMembership);
   const archive = useMutation(api.series.setArchived);

@@ -1,3 +1,4 @@
+import { cleanBillingReturnUrl } from "@/features/settings/billing-return";
 import { AppRouter } from "@/app/router";
 import { ConfirmProvider } from "@/components/ConfirmProvider";
 import { ApiProvider } from "@/lib/api/ApiProvider";
@@ -7,6 +8,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
+
+const cleanReturn = cleanBillingReturnUrl(window.location.href);
+if (cleanReturn)
+  window.history.replaceState(window.history.state, "", cleanReturn);
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL;
 

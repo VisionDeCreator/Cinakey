@@ -16,6 +16,7 @@ type Props = {
   projectId: string;
   tipId: string | null;
   onRestore: (versionId: string) => void;
+  canRestore?: boolean;
 };
 
 export function TimelineHistoryDialog({
@@ -24,6 +25,7 @@ export function TimelineHistoryDialog({
   projectId,
   tipId,
   onRestore,
+  canRestore = true,
 }: Props) {
   const versions = useQuery(
     api.timelineVersions.listForProject,
@@ -52,14 +54,14 @@ export function TimelineHistoryDialog({
                   {v._id === tipId ? " · tip" : ""}
                 </p>
                 <p className="text-[11px] text-zinc-500">
-                  {new Date(v.createdAt).toLocaleString()}
+                  {new Date(v.createdAt).toLocaleString()} · {v.createdByName}
                 </p>
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={v._id === tipId}
+                disabled={!canRestore || v._id === tipId}
                 onClick={() => {
                   onRestore(v._id);
                   onOpenChange(false);

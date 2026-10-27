@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import type { AspectRatio } from "@cinakey/shared";
 import { useMutation } from "@/lib/api/hooks";
@@ -28,6 +29,7 @@ export function NewProjectDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { workspaceId, canCreate } = useWorkspace();
   const create = useMutation(api.projects.create);
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -51,6 +53,7 @@ export function NewProjectDialog({
     setError(null);
     try {
       const id = await create({
+        ...(workspaceId ? { workspaceId } : {}),
         title: title.trim(),
         aspectRatio,
         fps: 24,
@@ -120,7 +123,7 @@ export function NewProjectDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || !canCreate}>
               {busy ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>

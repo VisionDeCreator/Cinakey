@@ -67,7 +67,7 @@ export { parseScriptPromptText } from "./parse";
 
 export { inferAssetTypeFromScriptRef } from "./scriptAssets";
 
-export { COST_CONFIRM_THRESHOLD_CREDITS } from "./constants";
+export { COST_CONFIRM_THRESHOLD_USD_MICROS } from "./constants";
 
 export {
   CHARACTER_EXAMPLE_ART_STYLE,

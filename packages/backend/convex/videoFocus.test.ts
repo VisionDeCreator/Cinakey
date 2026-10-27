@@ -29,9 +29,9 @@ async function fixture() {
 }
 
 describe("video-focused production", () => {
-  it("rejects removed generation operations before reserving credits or creating jobs", async () => {
+  it("rejects removed generation operations before reserving usdMicros or creating jobs", async () => {
     const { t, asUser, projectId } = await fixture();
-    const before = await asUser.query(api.credits.getBalance, {});
+    const before = await asUser.query(api.billing.getBalance, {});
     for (const [adapterId, kind] of [
       ["gpt-image-2", "text-to-image"],
       ["gpt-image-2", "image-edit"],
@@ -47,7 +47,7 @@ describe("video-focused production", () => {
         }),
       ).rejects.toThrow("Only video generation");
     }
-    expect(await asUser.query(api.credits.getBalance, {})).toEqual(before);
+    expect(await asUser.query(api.billing.getBalance, {})).toEqual(before);
     expect(
       await t.run((ctx) => ctx.db.query("generationJobs").collect()),
     ).toHaveLength(0);
@@ -156,7 +156,7 @@ describe("video-focused production", () => {
 
   it("refunds unsubmitted legacy image jobs once without calling a provider", async () => {
     const { t, asUser, projectId, workspaceId, userId } = await fixture();
-    const before = (await asUser.query(api.credits.getBalance, {})).balance;
+    const before = (await asUser.query(api.billing.getBalance, {})).balance;
     const jobId = await t.mutation(internal.generation.createQueuedJob, {
       projectId,
       workspaceId,
@@ -164,7 +164,7 @@ describe("video-focused production", () => {
       modelVersion: "legacy",
       kind: "text-to-image",
       prompt: "legacy",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
     // Simulate a pre-migration job with no input file and a missing dispatch.
@@ -184,12 +184,12 @@ describe("video-focused production", () => {
     expect((await asUser.query(api.generation.getJob, { jobId }))?.status).toBe(
       "refunded",
     );
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       before,
     );
   });
 
-  it("parks ambiguous legacy image jobs while preserving their reserved credits", async () => {
+  it("parks ambiguous legacy image jobs while preserving their reserved usdMicros", async () => {
     const { t, asUser, projectId, workspaceId, userId } = await fixture();
     const jobId = await t.mutation(internal.generation.createQueuedJob, {
       projectId,
@@ -198,10 +198,10 @@ describe("video-focused production", () => {
       modelVersion: "legacy",
       kind: "text-to-image",
       prompt: "legacy",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
-    const reserved = (await asUser.query(api.credits.getBalance, {})).balance;
+    const reserved = (await asUser.query(api.billing.getBalance, {})).balance;
     await t.run((ctx) =>
       ctx.db.patch(jobId, {
         status: "submitted",
@@ -215,7 +215,7 @@ describe("video-focused production", () => {
     expect(
       (await asUser.query(api.generation.getJob, { jobId }))?.submissionState,
     ).toBe("uncertain");
-    expect((await asUser.query(api.credits.getBalance, {})).balance).toBe(
+    expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
       reserved,
     );
   });
@@ -229,7 +229,7 @@ describe("video-focused production", () => {
       modelVersion: "legacy",
       kind: "text-to-image",
       prompt: "legacy",
-      estimatedCostCredits: 10,
+      estimatedCostUsdMicros: 10,
       createdBy: userId,
     });
     const providerResultFileId = await t.run((ctx) =>

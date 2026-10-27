@@ -31,8 +31,8 @@ export type ModelOperation =
 export type CostModel = {
   /** Human-readable unit, e.g. "per_second", "per_image", "per_1k_tokens". */
   unit: string;
-  /** Credits charged per unit. */
-  creditsPerUnit: number;
+  /** Integer micro-USD charged per unit. */
+  usdMicrosPerUnit: number;
 };
 
 export type ModelCapabilities = {

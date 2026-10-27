@@ -19,7 +19,7 @@ export function ProjectWorkspaceLayout() {
   );
   const footage = useQuery(
     api.workspace.videos,
-    projectId ? { projectId: projectId as never } : "skip",
+    project ? { projectId: project._id } : "skip",
   );
   const activeJobs = footage?.jobs.filter((job) =>
     ["queued", "submitted", "running"].includes(job.status),

@@ -46,7 +46,7 @@ export function providerConfig() {
     seedanceModel: "sume/seedance-2.5",
   };
 }
-export function requireProviderKey(provider: ProviderName): string {
+function configuredProviderKey(provider: ProviderName): string {
   const config = providerConfig();
   if (!config.enabled.includes(provider))
     throw new Error(`${provider} provider is disabled`);
@@ -58,11 +58,26 @@ export function requireProviderKey(provider: ProviderName): string {
     );
   return key;
 }
+export function requireProviderKey(provider: ProviderName): string {
+  if (
+    process.env.POLAR_PAYMENTS_ENABLED === "true" &&
+    (process.env.POLAR_ENVIRONMENT ?? "sandbox") === "sandbox"
+  )
+    throw new Error(
+      "Polar sandbox balances cannot fund live provider requests. Use mock adapters while testing payments.",
+    );
+  const key = configuredProviderKey(provider);
+  if (process.env.ALLOW_DEVELOPMENT_PRICES !== "true")
+    throw new Error(
+      "Retail rates are pending. Set ALLOW_DEVELOPMENT_PRICES=true only for authorized development provider tests.",
+    );
+  return key;
+}
 export function useMockProviders(): boolean {
   return providerConfig().mock;
 }
 export function validateProviderConfiguration() {
   const config = providerConfig();
   if (!config.mock)
-    for (const provider of config.enabled) requireProviderKey(provider);
+    for (const provider of config.enabled) configuredProviderKey(provider);
 }

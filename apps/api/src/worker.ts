@@ -49,6 +49,9 @@ export async function runWorker(signal: AbortSignal) {
             cursor = page.cursor;
           }
         }
+        await client.mutation(ref("publishedExports:cleanup"), {});
+        await client.mutation(ref("payments:expireAllowances"), {});
+        await client.mutation(ref("authOtp:cleanup"), {});
         lastReconciliation = Date.now();
         if (waitingForDeployment) {
           console.info("[worker] Convex worker functions are ready; resuming.");

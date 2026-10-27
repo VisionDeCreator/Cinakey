@@ -1,8 +1,12 @@
+import { validatePolarDeployment } from "@cinakey/api/payments-startup";
+import { polarConfiguration } from "@cinakey/api/payments-config";
 import { loadRootEnvironment } from "@cinakey/api/load-root-env";
 import { validateProviderConfiguration } from "@cinakey/api/config";
 import { runWorker } from "@cinakey/api/worker";
 loadRootEnvironment();
 validateProviderConfiguration();
+polarConfiguration();
+await validatePolarDeployment();
 const controller = new AbortController();
 process.on("SIGINT", () => controller.abort());
 process.on("SIGTERM", () => controller.abort());

@@ -55,7 +55,7 @@ identities and query caches are never shared across users.
 Keep auth keys, OAuth secrets and `SITE_URL` configured in Convex. Provider,
 webhook and email secrets now belong to the API/worker environment. Convex needs
 only the non-secret `USE_MOCK_ADAPTERS`, `STAGING_LLM_ENABLED` and
-`ALLOW_DEV_CREDITS` flags for matching estimates and existing development controls.
+`ALLOW_DEV_USD` flags for matching estimates and existing development controls.
 Set `STAGING_LLM_ENABLED=false` if the API has no DeepSeek key. Do not put the
 deployment key, provider keys or webhook secret in any `VITE_*` variable.
 

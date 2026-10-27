@@ -1,7 +1,8 @@
+import { videoPrice } from "@cinakey/shared";
 import { validateRemixInput } from "@cinakey/shared";
 import type { GenerationAdapter, ProviderRequest } from "@cinakey/shared";
 import { providerConfig, requireProviderKey } from "../config/env";
-import { estimateVideoCost, isDefaultTransientError } from "./cost";
+import { isDefaultTransientError } from "./cost";
 import { providerFetch } from "./transport";
 
 async function request(path: string, body?: ProviderRequest) {
@@ -79,7 +80,7 @@ export function sumeLifecycle(
     isTransientError: isDefaultTransientError,
   };
 }
-const COST = { unit: "per_second", creditsPerUnit: 2 } as const;
+const COST = { unit: "per_second", usdMicrosPerUnit: 150_000 } as const;
 export const remixLiteAdapter: GenerationAdapter = {
   capabilities: {
     id: "sume-remix-lite",
@@ -95,7 +96,12 @@ export const remixLiteAdapter: GenerationAdapter = {
     features: ["edit"],
     costModel: COST,
   },
-  estimateCost: (input) => estimateVideoCost(input, COST),
+  estimateCost: (input) =>
+    videoPrice(
+      "sume-remix-lite",
+      Number(input.durationSec ?? 5),
+      input.resolution,
+    ),
   async buildRequest(input) {
     validateRemixInput(input);
     const duration = input.durationSec;

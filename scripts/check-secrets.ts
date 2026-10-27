@@ -7,7 +7,7 @@ export function credentialFindings(path: string, text: string): string[] {
   if (text.includes("\0")) return findings;
   if (
     basename(path) === ".env.example" &&
-    /^(?:OPENAI_API_KEY|DEEPSEEK_API_KEY|SEEDANCE_API_KEY|SUME_API_KEY|CONVEX_DEPLOY_KEY|RESEND_API_KEY|GENERATION_WEBHOOK_SECRET)[ \t]*=[ \t]*[^\s#]+/m.test(
+    /^(?:OPENAI_API_KEY|DEEPSEEK_API_KEY|SEEDANCE_API_KEY|SUME_API_KEY|CONVEX_DEPLOY_KEY|RESEND_API_KEY|SMTP_PASSWORD|POLAR_ACCESS_TOKEN|POLAR_WEBHOOK_SECRET|GENERATION_WEBHOOK_SECRET)[ \t]*=[ \t]*[^\s#]+/m.test(
       text,
     )
   )
@@ -17,7 +17,7 @@ export function credentialFindings(path: string, text: string): string[] {
     ["private key", /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
     [
       "hardcoded provider credential",
-      /(?:OPENAI_API_KEY|DEEPSEEK_API_KEY|SEEDANCE_API_KEY|SUME_API_KEY)["']?[ \t]*[:=][ \t]*["'][^"'\s]{12,}["']/,
+      /(?:OPENAI_API_KEY|DEEPSEEK_API_KEY|SEEDANCE_API_KEY|SUME_API_KEY|POLAR_ACCESS_TOKEN|POLAR_WEBHOOK_SECRET)["']?[ \t]*[:=][ \t]*["'][^"'\s]{12,}["']/,
     ],
     [
       "hardcoded bearer credential",

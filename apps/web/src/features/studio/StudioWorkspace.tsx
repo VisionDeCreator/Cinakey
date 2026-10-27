@@ -1,3 +1,5 @@
+import { useWorkspace } from "@/features/workspaces/workspace-context";
+import { formatUsd } from "@cinakey/shared";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/use-confirm";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
@@ -7,7 +9,7 @@ import { beginMediaPointerDrag } from "@/features/edit/mediaDrag";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import {
-  COST_CONFIRM_THRESHOLD_CREDITS,
+  COST_CONFIRM_THRESHOLD_USD_MICROS,
   type TimelineClip,
 } from "@cinakey/shared";
 import { Film, Link2, Music, Plus, Star, Upload } from "lucide-react";
@@ -43,6 +45,7 @@ export function StudioWorkspace({
   inspector,
   selectedClip,
   hasTimelineClips = false,
+  readOnly = false,
   onInsert,
   onInsertMany,
   onPreview,
@@ -53,10 +56,12 @@ export function StudioWorkspace({
   inspector: ReactNode;
   selectedClip: TimelineClip | null;
   hasTimelineClips?: boolean;
-  onInsert: (media: StudioInsert) => void;
-  onInsertMany?: (media: StudioInsert[]) => void;
+  readOnly?: boolean;
+  onInsert: (media: StudioInsert) => boolean | void;
+  onInsertMany?: (media: StudioInsert[]) => boolean | void;
   onPreview: () => void;
 }) {
+  const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
@@ -96,6 +101,11 @@ export function StudioWorkspace({
     projectId: projectId as never,
   });
   const generate = useAction(api.workspace.generate);
+  const extensionEstimate = useQuery(api.generation.estimateCost, {
+    adapterId: "seedance-2.5",
+    kind: "extend",
+    input: { durationSec: 5, resolution: "720p" },
+  });
   const extend = useAction(api.generation.startGeneration);
   const rename = useMutation(api.assets.update);
   const star = useMutation(api.assets.setStarred);
@@ -321,8 +331,7 @@ export function StudioWorkspace({
     if (
       !(await confirm({
         title: "Generate a 5-second extension?",
-        description:
-          "Approximately 10 credits. The original video and current edit are preserved.",
+        description: `Approximately ${extensionEstimate ? formatUsd(extensionEstimate.usdMicros) : "the displayed estimate"}. The original video and current edit are preserved.`,
         confirmLabel: "Generate extension",
       }))
     )
@@ -331,6 +340,7 @@ export function StudioWorkspace({
     setError(null);
     try {
       await extend({
+        maxCostUsdMicros: extensionEstimate?.usdMicros ?? 0,
         projectId: projectId as never,
         adapterId: "seedance-2.5",
         kind: "extend",
@@ -345,18 +355,18 @@ export function StudioWorkspace({
       setBusy(false);
     }
   }
-  const credits = estimate?.credits ?? 0;
-  const overCap = spend?.remaining != null && credits > spend.remaining;
+  const usdMicros = estimate?.usdMicros ?? 0;
+  const overCap = spend?.remaining != null && usdMicros > spend.remaining;
   const validDuration =
     Number.isInteger(durationSec) && durationSec >= 4 && durationSec <= 30;
   async function startGeneration() {
     if (busy || running || !validDuration || overCap) return;
     if (scriptSave.current && !(await scriptSave.current())) return;
     if (
-      credits >= COST_CONFIRM_THRESHOLD_CREDITS &&
+      usdMicros >= COST_CONFIRM_THRESHOLD_USD_MICROS &&
       !(await confirm({
         title: "Generate video?",
-        description: `Approximately ${credits} credits. Previous footage and timeline edits are preserved.`,
+        description: `Approximately ${formatUsd(usdMicros)}. Previous footage and timeline edits are preserved.`,
         confirmLabel: "Generate",
       }))
     )
@@ -365,6 +375,7 @@ export function StudioWorkspace({
     setError(null);
     try {
       await generate({
+        maxCostUsdMicros: usdMicros,
         projectId: projectId as never,
         durationSec,
         resolution,
@@ -379,7 +390,7 @@ export function StudioWorkspace({
     }
   }
   async function insertSelected() {
-    if (!onInsertMany || busy) return;
+    if (!onInsertMany || busy || readOnly) return;
     setBusy(true);
     setError(null);
     try {
@@ -402,7 +413,10 @@ export function StudioWorkspace({
           outSec: duration,
         });
       }
-      onInsertMany(selected);
+      if (onInsertMany(selected) === false) {
+        setError("Timeline is read-only. Request editing access first.");
+        return;
+      }
       setNotice("Selected videos inserted in selection order.");
       setAssemblyIds([]);
       setView("edit");
@@ -417,6 +431,7 @@ export function StudioWorkspace({
     }
   }
   function insert() {
+    if (readOnly) return;
     if (
       !source ||
       !Number.isFinite(inSec) ||
@@ -428,13 +443,17 @@ export function StudioWorkspace({
       setError("Choose a source range within the clip duration.");
       return;
     }
-    onInsert({
+    const accepted = onInsert({
       assetId: source._id,
       type: source.type,
       durationSec: outSec - inSec,
       inSec,
       outSec,
     });
+    if (accepted === false) {
+      setError("Timeline is read-only. Request editing access first.");
+      return;
+    }
     setNotice(`${source.name} added to the timeline. The source is preserved.`);
     setView("edit");
   }
@@ -503,6 +522,10 @@ export function StudioWorkspace({
         }}
         onDrop={async (event) => {
           if (!event.dataTransfer.files.length) return;
+          if (canWrite === false) {
+            event.preventDefault();
+            return;
+          }
           event.preventDefault();
           try {
             await uploadFiles(Array.from(event.dataTransfer.files));
@@ -587,6 +610,7 @@ export function StudioWorkspace({
           Import media
           <input
             type="file"
+            disabled={canWrite === false}
             accept="image/*,video/*,audio/*"
             multiple
             onChange={async (e) => {
@@ -607,6 +631,7 @@ export function StudioWorkspace({
           Import music
           <input
             type="file"
+            disabled={canWrite === false}
             accept="audio/*"
             multiple
             onChange={async (e) => {
@@ -804,7 +829,11 @@ export function StudioWorkspace({
               </label>
               <Button
                 size="sm"
-                disabled={source.type !== "image" && !sourceDuration}
+                disabled={
+                  canWrite === false ||
+                  readOnly ||
+                  (source.type !== "image" && !sourceDuration)
+                }
                 onClick={insert}
               >
                 <Plus />
@@ -827,7 +856,10 @@ export function StudioWorkspace({
                   disabled={busy}
                   onClick={() => void extendSource()}
                 >
-                  Extend +5s · ~10 cr
+                  Extend +5s ·{" "}
+                  {extensionEstimate
+                    ? formatUsd(extensionEstimate.usdMicros)
+                    : "…"}
                 </Button>
               )}
             </div>
@@ -848,7 +880,7 @@ export function StudioWorkspace({
             <Button
               size="sm"
               variant="outline"
-              disabled={!assemblyIds.length || busy}
+              disabled={readOnly || !assemblyIds.length || busy}
               onClick={() => void insertSelected()}
             >
               Add selected videos ({assemblyIds.length})
@@ -961,16 +993,15 @@ export function StudioWorkspace({
                 }
               >
                 {job.submissionState === "uncertain"
-                  ? "Submission needs review. Credits remain reserved; do not resubmit."
-                  : `${job.status} · ${job.estimatedCostCredits} credits`}{" "}
+                  ? "Submission needs review. Funds remain reserved; do not resubmit."
+                  : `${job.status} · ${formatUsd(job.estimatedCostUsdMicros)}`}{" "}
                 · {new Date(job.createdAt).toLocaleString()}
                 {job.errorMessage && (
                   <span className="block">{job.errorMessage}</span>
                 )}
                 {job.status === "refunded" && (
                   <span className="block">
-                    Credits refunded. Your existing media and edit are
-                    preserved.
+                    Funds released. Your existing media and edit are preserved.
                   </span>
                 )}
               </p>
@@ -1082,10 +1113,11 @@ export function StudioWorkspace({
             <Button
               className="w-full"
               disabled={
+                canWrite === false ||
                 busy ||
                 running ||
                 !validDuration ||
-                !credits ||
+                !usdMicros ||
                 overCap ||
                 dirty ||
                 !referencesValid
@@ -1096,8 +1128,17 @@ export function StudioWorkspace({
                 ? "Starting…"
                 : running
                   ? "Generating…"
-                  : `Generate video · ${credits} cr`}
+                  : `Generate video · ${formatUsd(usdMicros)}`}
             </Button>
+            {spend && (
+              <p className="studio-muted">
+                Spent: {formatUsd(spend.spentUsdMicros ?? 0)} · Reserved:{" "}
+                {formatUsd(spend.reservedUsdMicros ?? 0)}
+                {spend.remaining != null
+                  ? ` · Project budget remaining: ${formatUsd(spend.remaining)}`
+                  : ""}
+              </p>
+            )}
             <p className="studio-muted">
               {dirty
                 ? "Save the script before generating."

@@ -1,3 +1,4 @@
+import { tokenPrice } from "./money";
 import { z } from "zod";
 import {
   resolveReferences,
@@ -117,9 +118,9 @@ export function compileVideoTransform(
 }
 
 /** Upper bound at 1024 image tokens each, plus bounded instructions and output. */
-export function transformAnalysisCredits(
+export function transformAnalysisUsdMicros(
   frameCount: number,
   referenceCount: number,
 ): number {
-  return Math.ceil(((frameCount + referenceCount) * 1024 + 6000) / 1000);
+  return tokenPrice((frameCount + referenceCount) * 1024 + 6000);
 }

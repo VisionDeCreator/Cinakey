@@ -57,6 +57,7 @@ export class ApiClient {
         this.generationRequests.set(key, crypto.randomUUID());
       args = { ...args, requestId: this.generationRequests.get(key) };
     }
+    const releasingLease = name === "timelineLeases:release";
     const response = await fetch(
       `${this.baseUrl}/v1/${name.replace(":", "/")}`,
       {
@@ -66,13 +67,24 @@ export class ApiClient {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ args: convexToJson(args as Value) }),
-        signal: this.controller.signal,
+        keepalive: releasingLease,
+        signal: releasingLease ? undefined : this.controller.signal,
       },
     );
     const fail = (payload: any): never => {
-      throw payload.data !== undefined
-        ? new ConvexError(jsonToConvex(payload.data))
-        : new Error(payload.message ?? "API request failed");
+      if (payload.data !== undefined) {
+        const error = new ConvexError(jsonToConvex(payload.data));
+        const detail =
+          typeof error.data === "object" &&
+          error.data !== null &&
+          "message" in error.data &&
+          typeof error.data.message === "string"
+            ? error.data.message
+            : undefined;
+        error.message = detail ?? payload.message ?? "API request failed";
+        throw error;
+      }
+      throw new Error(payload.message ?? "API request failed");
     };
     if ([502, 503, 504].includes(response.status))
       throw new ApiUnavailableError("Reconnecting to the workspace…");
@@ -128,6 +140,12 @@ export class ApiClient {
     const watched = [...this.queries.values()].filter((e) => {
       if (!e.listeners.size) return false;
       if (e.transientError) return true;
+      if (
+        /^(billing:(?:budgets|getBalance|listLedger)$|workspace:spend$|teams:|projects:(?:get|listMine)$|series:(?:list|forProject)$)/.test(
+          e.name,
+        )
+      )
+        return Date.now() - e.loadedAt >= 10_000;
       if (e.name === "workspace:videos")
         return (
           e.data?.jobs?.some((job: { status: string }) =>

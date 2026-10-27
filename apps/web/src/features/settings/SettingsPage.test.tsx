@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref) === "users:viewer" ? state.viewer : [],
+  useAction: () => vi.fn(),
   useMutation: () => vi.fn().mockResolvedValue(null),
 }));
 vi.mock("@convex-dev/auth/react", () => ({

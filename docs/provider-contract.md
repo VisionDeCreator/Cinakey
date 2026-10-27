@@ -2,6 +2,8 @@
 
 Cinakey uses Sume for video generation. Configure `SUME_API_KEY` in the ignored
 root `.env`, set `ENABLED_PROVIDERS=deepseek,sume` and `USE_MOCK_ADAPTERS=false`.
+While the USD rate card is provisional, real provider access also requires the explicit
+`ALLOW_DEVELOPMENT_PRICES=true` development opt-in.
 API and worker processes load that same file. Keys never enter browser bundles or
 Convex environment settings. The legacy enabled-provider name `seedance` maps to
 `sume`; Ark keys, model overrides and regional URLs no longer select a video provider.
@@ -33,7 +35,7 @@ payload in `data`.
 Both adapters poll `GET /v1/jobs/{id}/status` and collect
 `GET /v1/jobs/{id}/result`. Canonical `sume_status`/`job.status` take precedence;
 transport states such as `IN_PROGRESS` and `COMPLETED` are also recognized.
-Failed/canceled/expired jobs refund Cinakey credits. Unknown states or ambiguous
+Failed/canceled/expired jobs release reserved Cinakey USD. Unknown states or ambiguous
 submissions require review and retain reservations instead of resubmitting blindly.
 Only video artifacts are collected; poster images do not become duplicate outputs.
 Cinakey downloads outputs into its own storage and reads MP4 metadata independently
@@ -46,9 +48,11 @@ timeouts, cancellation, origin checks and secret redaction. Pre-migration Ark jo
 are held for review instead of sending their IDs or inputs to Sume. New output
 lineage records `sume/seedance-2.5` or `sume/remix-lite/object-swap/v1.0`.
 
-User pricing remains **two Cinakey credits per requested second**, with analysis
-settled separately to token usage. This is not Sume's dollar-denominated wholesale
-pricing. Automated tests inject transports and block paid network calls.
+Customer accounting now uses integer micro-USD and versioned development prices;
+analysis settles separately to reported usage, with missing usage retained for
+review. Final D1 retail rates remain pending. See [USD accounting](usd-accounting.md)
+for the provisional rates and pricing gate. Automated tests inject transports and
+block paid network calls.
 
 ## Verification
 
@@ -57,6 +61,10 @@ artifacts, duration/reference limits, duplicate request reservations, refunds an
 worker reconciliation. Existing historical Ark output assets remain accessible.
 
 ## Authorized live integration verification — October 26, 2026
+
+This historical verification predates the USD accounting replacement; the credit
+amounts below record that run and are not current prices or converted balances.
+No new paid verification was performed for the USD batch.
 
 Three 720p jobs completed against the configured Sume account using authenticated
 Cinakey service actions, the real Convex job/credit records, worker polling,

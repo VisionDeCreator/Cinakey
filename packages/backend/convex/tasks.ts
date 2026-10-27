@@ -2,7 +2,7 @@ import { getFunctionName, type FunctionReference } from "convex/server";
 import { v } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
 import { internalMutation } from "./_generated/server";
-import { appendLedgerEntry } from "./credits";
+import { appendLedgerEntry } from "./billing";
 
 export async function enqueueTask(
   ctx: MutationCtx,
@@ -150,7 +150,7 @@ export const reconcileGeneration = internalMutation({
               userId: job.createdBy,
               projectId: job.projectId,
               jobId: job._id,
-              delta: job.estimatedCostCredits,
+              delta: job.estimatedCostUsdMicros,
               reason: "refund",
             });
           await ctx.db.patch(job._id, {

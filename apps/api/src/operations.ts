@@ -5,6 +5,18 @@ import {
   type FunctionReference,
 } from "convex/server";
 type Operations = ApiFromModules<{
+  authOtp: typeof import("../../../packages/backend/convex/authOtp");
+  payments: typeof import("../../../packages/backend/convex/payments") &
+    typeof import("./services/payments");
+  storageIO: typeof import("../../../packages/backend/convex/storageIO");
+  publishedExports: typeof import("../../../packages/backend/convex/publishedExports") &
+    typeof import("./services/publishedExports");
+  exportSharing: typeof import("../../../packages/backend/convex/exportSharing") &
+    typeof import("./services/exportSharing");
+  timelineLeases: typeof import("../../../packages/backend/convex/timelineLeases");
+  teamOnboarding: typeof import("../../../packages/backend/convex/teamOnboarding") &
+    typeof import("./services/teamOnboarding");
+  teams: typeof import("../../../packages/backend/convex/teams");
   genjutsu: typeof import("../../../packages/backend/convex/genjutsu");
   transforms: typeof import("./services/transforms");
   workspace: typeof import("../../../packages/backend/convex/workspace") &
@@ -15,7 +27,7 @@ type Operations = ApiFromModules<{
   assets: typeof import("../../../packages/backend/convex/assets");
 
   textJobs: typeof import("../../../packages/backend/convex/textJobs");
-  credits: typeof import("../../../packages/backend/convex/credits");
+  billing: typeof import("../../../packages/backend/convex/billing");
   egress: typeof import("../../../packages/backend/convex/egress");
   email: typeof import("../../../packages/backend/convex/email") &
     typeof import("./services/email");

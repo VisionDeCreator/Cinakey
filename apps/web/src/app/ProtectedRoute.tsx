@@ -1,7 +1,8 @@
 import { useConvexAuth } from "@/lib/api/hooks";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 export function ProtectedRoute() {
+  const location = useLocation();
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (isLoading) {
@@ -13,7 +14,12 @@ export function ProtectedRoute() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/sign-in" replace />;
+    return (
+      <Navigate
+        to={`/sign-in?next=${encodeURIComponent(location.pathname + location.search)}`}
+        replace
+      />
+    );
   }
 
   return <Outlet />;

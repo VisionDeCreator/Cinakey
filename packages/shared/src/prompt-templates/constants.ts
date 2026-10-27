@@ -103,5 +103,5 @@ export type CameraMoveType =
   | "POV"
   | "handheld";
 
-/** Confirm generation requests above this credit cost. */
-export const COST_CONFIRM_THRESHOLD_CREDITS = 50;
+/** Confirm generation requests above this USD cost. */
+export const COST_CONFIRM_THRESHOLD_USD_MICROS = 5_000_000;

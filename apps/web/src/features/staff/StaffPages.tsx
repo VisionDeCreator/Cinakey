@@ -1,6 +1,7 @@
+import { formatUsd, parseUsdToMicros } from "@cinakey/shared";
 import { api } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +22,7 @@ export function StaffLayout() {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Staff</h1>
-        <p className="mt-1 text-sm text-zinc-400">
-          Internal tools.
-        </p>
+        <p className="mt-1 text-sm text-zinc-400">Internal tools.</p>
       </div>
       <nav className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
         {NAV.map((item) => {
@@ -54,7 +53,7 @@ export function StaffLayout() {
 export function StaffUsersPage() {
   const [email, setEmail] = useState("");
   const [lookupEmail, setLookupEmail] = useState("");
-  const [amount, setAmount] = useState(100);
+  const [amount, setAmount] = useState("10.00");
   const [reason, setReason] = useState("");
   const [mode, setMode] = useState<"grant" | "refund">("grant");
   const [busy, setBusy] = useState(false);
@@ -65,8 +64,9 @@ export function StaffUsersPage() {
     api.staff.lookupUser,
     lookupEmail.includes("@") ? { email: lookupEmail } : "skip",
   );
-  const grant = useMutation(api.staff.grantCredits);
-  const refund = useMutation(api.staff.refundCredits);
+  const fundingRequest = useRef<string | null>(null);
+  const grant = useMutation(api.staff.grantUsd);
+  const refund = useMutation(api.staff.adjustUsd);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,11 +77,13 @@ export function StaffUsersPage() {
       const fn = mode === "grant" ? grant : refund;
       const result = await fn({
         email: email.trim(),
-        amount,
+        amount: parseUsdToMicros(amount),
+        requestId: (fundingRequest.current ??= crypto.randomUUID()),
         reason: reason.trim(),
       });
+      fundingRequest.current = null;
       setMessage(
-        `${mode === "grant" ? "Granted" : "Refunded"} ${amount} credits to ${result.email}. Balance ${result.balanceAfter}.`,
+        `${mode === "grant" ? "Granted" : "Adjusted"} ${amount} USD to ${result.email}. Balance ${formatUsd(result.balanceAfter)}.`,
       );
       setLookupEmail(email.trim());
       setReason("");
@@ -123,17 +125,18 @@ export function StaffUsersPage() {
             size="sm"
             onClick={() => setMode("refund")}
           >
-            Refund
+            Adjustment
           </Button>
         </div>
         <div className="space-y-2">
           <Label htmlFor="staff-amount">Amount</Label>
           <Input
             id="staff-amount"
-            type="number"
+            type="text"
+            inputMode="decimal"
             min={1}
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => setAmount(e.target.value)}
           />
         </div>
         <div className="space-y-2">
@@ -148,7 +151,7 @@ export function StaffUsersPage() {
           />
         </div>
         <Button type="submit" disabled={busy || reason.trim().length < 3}>
-          {busy ? "Working…" : mode === "grant" ? "Grant credits" : "Refund credits"}
+          {busy ? "Working…" : mode === "grant" ? "Grant USD" : "Adjust USD"}
         </Button>
         {message ? <p className="text-sm text-emerald-400">{message}</p> : null}
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
@@ -167,12 +170,12 @@ export function StaffUsersPage() {
               {lookup.name ? ` · ${lookup.name}` : ""}
               {lookup.isStaff ? " · staff" : ""}
             </p>
-            <p>Balance: {lookup.balance} credits</p>
+            <p>Balance: {formatUsd(lookup.balance)}</p>
             <ul className="max-h-64 space-y-1 overflow-auto text-xs text-zinc-500">
               {lookup.recentJobs.map((j) => (
                 <li key={j._id}>
-                  {j.model} · {j.status} · {j.estimatedCostCredits}c ·{" "}
-                  {new Date(j.createdAt).toLocaleString()}
+                  {j.model} · {j.status} · {formatUsd(j.estimatedCostUsdMicros)}{" "}
+                  · {new Date(j.createdAt).toLocaleString()}
                 </li>
               ))}
             </ul>
@@ -189,10 +192,7 @@ export function StaffModerationPage() {
   const [reason, setReason] = useState("Reviewed");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function act(
-    flagId: string,
-    status: "resolved" | "dismissed",
-  ) {
+  async function act(flagId: string, status: "resolved" | "dismissed") {
     setBusyId(flagId);
     try {
       await resolve({
@@ -229,8 +229,8 @@ export function StaffModerationPage() {
               className="border border-zinc-800 p-3 text-sm text-zinc-300"
             >
               <p>
-                <span className="text-amber-400">{f.verdict}</span> · {f.stage} ·{" "}
-                {f.ruleId}
+                <span className="text-amber-400">{f.verdict}</span> · {f.stage}{" "}
+                · {f.ruleId}
               </p>
               {f.snippet ? (
                 <p className="mt-1 text-xs text-zinc-500">“{f.snippet}”</p>
@@ -279,7 +279,10 @@ export function StaffProvidersPage() {
         </thead>
         <tbody>
           {health.map((row) => (
-            <tr key={row.model} className="border-t border-zinc-800 text-zinc-300">
+            <tr
+              key={row.model}
+              className="border-t border-zinc-800 text-zinc-300"
+            >
               <td className="py-2 pr-4">{row.model}</td>
               <td className="py-2 pr-4">{row.sampleSize}</td>
               <td className="py-2 pr-4">

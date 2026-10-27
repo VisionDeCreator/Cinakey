@@ -1,46 +1,33 @@
+import {
+  chargeForUnits,
+  formatUsd,
+  PRICE_VERSION,
+  DEV_TOKEN_USD_MICROS_PER_1K,
+} from "@cinakey/shared";
+import { requireProjectAccessForUser } from "./lib/access";
 import { v, ConvexError } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { appendLedgerEntry, getWorkspaceBalance } from "./credits";
+import { appendLedgerEntry } from "./billing";
 
 export const createChatJob = internalMutation({
   args: {
     projectId: v.id("projects"),
     workspaceId: v.id("workspaces"),
     userId: v.id("users"),
-    estimatedCostCredits: v.number(),
+    estimatedCostUsdMicros: v.number(),
     prompt: v.string(),
     modelVersion: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireProjectAccessForUser(ctx, args.projectId, args.userId);
     const project = await ctx.db.get(args.projectId);
     if (!project || project.workspaceId !== args.workspaceId)
       throw new Error("Project/workspace mismatch");
     if (
-      !Number.isSafeInteger(args.estimatedCostCredits) ||
-      args.estimatedCostCredits <= 0
+      !Number.isSafeInteger(args.estimatedCostUsdMicros) ||
+      args.estimatedCostUsdMicros <= 0
     )
-      throw new Error("Invalid analysis credit reservation");
-    if (project.spendCapCredits !== undefined) {
-      const entries = await ctx.db
-        .query("creditLedger")
-        .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
-        .collect();
-      const spent = Math.max(
-        0,
-        -entries
-          .filter(
-            (entry) =>
-              entry.projectId === args.projectId &&
-              ["reserve", "settle", "refund"].includes(entry.reason),
-          )
-          .reduce((sum, entry) => sum + entry.delta, 0),
-      );
-      if (spent + args.estimatedCostCredits > project.spendCapCredits)
-        throw new ConvexError({
-          code: "SPEND_CAP",
-          message: "Project spend cap reached",
-        });
-    }
+      throw new Error("Invalid analysis USD reservation");
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
@@ -48,7 +35,9 @@ export const createChatJob = internalMutation({
       modelVersion: args.modelVersion ?? "deepseek-chat",
       kind: "chat",
       prompt: args.prompt.slice(0, 500),
-      estimatedCostCredits: args.estimatedCostCredits,
+      estimatedCostUsdMicros: args.estimatedCostUsdMicros,
+      priceVersion: PRICE_VERSION,
+      unitUsdMicros: DEV_TOKEN_USD_MICROS_PER_1K,
       status: "running",
       outputAssetIds: [],
       attempts: 1,
@@ -62,20 +51,19 @@ export const createChatJob = internalMutation({
         userId: args.userId,
         projectId: args.projectId,
         jobId,
-        delta: -args.estimatedCostCredits,
+        delta: -args.estimatedCostUsdMicros,
         reason: "reserve",
       });
     } catch (err) {
       await ctx.db.delete(jobId);
-      const balance = await getWorkspaceBalance(ctx, args.workspaceId);
       if (
         err instanceof Error &&
-        err.message.startsWith("Insufficient credits")
+        err.message.startsWith("Insufficient USD balance")
       ) {
         throw new ConvexError({
-          code: "INSUFFICIENT_CREDITS" as const,
-          balance,
-          required: args.estimatedCostCredits,
+          code: "INSUFFICIENT_FUNDS" as const,
+          required: args.estimatedCostUsdMicros,
+          message: `Insufficient USD balance. This analysis requires ${formatUsd(args.estimatedCostUsdMicros)}.`,
         });
       }
       throw err;
@@ -90,27 +78,69 @@ export const settleChatJob = internalMutation({
     workspaceId: v.id("workspaces"),
     userId: v.id("users"),
     projectId: v.id("projects"),
-    actualCostCredits: v.number(),
+    actualCostUsdMicros: v.number(),
+    actualTokens: v.optional(v.number()),
     succeeded: v.boolean(),
+    usageMissing: v.optional(v.boolean()),
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
-    if (job === null || job.status === "succeeded" || job.status === "refunded")
+    if (
+      job === null ||
+      (job.status === "succeeded" && !job.billingNeedsReview) ||
+      job.status === "refunded"
+    )
       return;
+    if (
+      !Number.isSafeInteger(args.actualCostUsdMicros) ||
+      args.actualCostUsdMicros < 0
+    )
+      throw new Error("Invalid actual cost");
+    const project = await ctx.db.get(job.projectId);
+    if (
+      !project ||
+      project.workspaceId !== args.workspaceId ||
+      job.projectId !== args.projectId ||
+      job.createdBy !== args.userId
+    )
+      throw new Error("Usage scope mismatch");
+    if (args.usageMissing && args.succeeded) {
+      if (job.projectId !== args.projectId || job.createdBy !== args.userId)
+        throw new Error("Usage scope mismatch");
+      await ctx.db.patch(job._id, {
+        status: "succeeded",
+        billingNeedsReview: true,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+    if (
+      args.actualTokens !== undefined &&
+      (!Number.isSafeInteger(args.actualTokens) || args.actualTokens < 0)
+    )
+      throw new Error("Invalid token usage");
     if (args.succeeded) {
-      const actual = Math.min(args.actualCostCredits, job.estimatedCostCredits);
+      if (args.actualTokens !== undefined && !job.unitUsdMicros)
+        throw new Error("Missing authorized token price");
+      const actual = Math.min(
+        args.actualTokens === undefined
+          ? args.actualCostUsdMicros
+          : chargeForUnits(args.actualTokens / 1000, job.unitUsdMicros!),
+        job.estimatedCostUsdMicros,
+      );
       await appendLedgerEntry(ctx, {
         workspaceId: args.workspaceId,
         userId: args.userId,
         projectId: args.projectId,
         jobId: args.jobId,
-        delta: job.estimatedCostCredits - actual,
+        delta: job.estimatedCostUsdMicros - actual,
         reason: "settle",
       });
       await ctx.db.patch(args.jobId, {
         status: "succeeded",
-        actualCostCredits: actual,
+        actualCostUsdMicros: actual,
+        billingNeedsReview: false,
         updatedAt: Date.now(),
       });
     } else {
@@ -119,7 +149,7 @@ export const settleChatJob = internalMutation({
         userId: args.userId,
         projectId: args.projectId,
         jobId: args.jobId,
-        delta: job.estimatedCostCredits,
+        delta: job.estimatedCostUsdMicros,
         reason: "refund",
       });
       await ctx.db.patch(args.jobId, {

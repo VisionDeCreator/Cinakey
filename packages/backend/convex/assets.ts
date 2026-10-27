@@ -7,6 +7,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import {
+  requireWorkspaceMembership,
+  canAccessProject,
   projectAssets,
   requireAssetAccess,
   requireProjectAccess,
@@ -43,6 +45,7 @@ async function workspaceProjectIds(
 
 export const list = query({
   args: {
+    workspaceId: v.optional(v.id("workspaces")),
     projectId: v.optional(v.id("projects")),
     type: v.optional(assetType),
     tag: v.optional(v.string()),
@@ -54,14 +57,24 @@ export const list = query({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
 
+    const workspaceId = args.workspaceId ?? user.personalWorkspaceId;
+    if (args.workspaceId)
+      await requireWorkspaceMembership(ctx, args.workspaceId);
     let projectIds: Id<"projects">[];
     if (args.projectId !== undefined) {
-      await requireProjectAccess(ctx, args.projectId);
+      const project = await requireProjectAccess(ctx, args.projectId);
+      if (args.workspaceId && project.workspaceId !== args.workspaceId)
+        throw new Error("Project/workspace mismatch");
       projectIds = [args.projectId];
-    } else if (user.personalWorkspaceId === undefined) {
+    } else if (workspaceId === undefined) {
       return [];
     } else {
-      projectIds = await workspaceProjectIds(ctx, user.personalWorkspaceId);
+      projectIds = [];
+      for (const id of await workspaceProjectIds(ctx, workspaceId)) {
+        const project = await ctx.db.get(id);
+        if (project && (await canAccessProject(ctx, project, user)))
+          projectIds.push(id);
+      }
     }
 
     if (projectIds.length === 0) {
@@ -117,18 +130,31 @@ export const list = query({
 });
 
 export const filterOptions = query({
-  args: { projectId: v.optional(v.id("projects")) },
+  args: {
+    workspaceId: v.optional(v.id("workspaces")),
+    projectId: v.optional(v.id("projects")),
+  },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
 
+    const workspaceId = args.workspaceId ?? user.personalWorkspaceId;
+    if (args.workspaceId)
+      await requireWorkspaceMembership(ctx, args.workspaceId);
     let projectIds: Id<"projects">[];
     if (args.projectId !== undefined) {
-      await requireProjectAccess(ctx, args.projectId);
+      const project = await requireProjectAccess(ctx, args.projectId);
+      if (args.workspaceId && project.workspaceId !== args.workspaceId)
+        throw new Error("Project/workspace mismatch");
       projectIds = [args.projectId];
-    } else if (user.personalWorkspaceId === undefined) {
+    } else if (workspaceId === undefined) {
       return { characters: [], tags: [] as string[] };
     } else {
-      projectIds = await workspaceProjectIds(ctx, user.personalWorkspaceId);
+      projectIds = [];
+      for (const id of await workspaceProjectIds(ctx, workspaceId)) {
+        const project = await ctx.db.get(id);
+        if (project && (await canAccessProject(ctx, project, user)))
+          projectIds.push(id);
+      }
     }
 
     const characters: {
