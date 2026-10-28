@@ -10,6 +10,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 import { GenjutsuPage } from "./GenjutsuPage";
 const mocks = vi.hoisted(() => ({
+  sessions: [] as { _id: string; title: string; updatedAt: number }[],
   create: vi.fn(),
   remove: vi.fn(),
   upload: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock("@/lib/api/hooks", () => ({
     const name = getFunctionName(ref);
     if (name === "assets:list") return mocks.assets;
     if (name === "storage:listProjectAssetUrls") return mocks.urls;
+    if (name === "genjutsu:list") return mocks.sessions;
     if (name === "genjutsu:get") return mocks.session;
     if (name === "workspace:videos") return { videos: [], jobs: [] };
     if (name === "generation:estimateCost") return { usdMicros: 10 };
@@ -40,6 +42,7 @@ afterEach(() => {
   cleanup();
   localStorage.clear?.();
   mocks.session = null;
+  mocks.sessions = [];
   mocks.assets = [];
   mocks.urls = [];
   vi.clearAllMocks();
@@ -48,8 +51,8 @@ function show(path: string) {
   const tree = () => (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/genjutsu" element={<GenjutsuPage />} />
-        <Route path="/genjutsu/:sessionId" element={<GenjutsuPage />} />
+        <Route path="/remix" element={<GenjutsuPage />} />
+        <Route path="/remix/:sessionId" element={<GenjutsuPage />} />
       </Routes>
     </MemoryRouter>
   );
@@ -57,13 +60,13 @@ function show(path: string) {
   return { ...view, refresh: () => view.rerender(tree()) };
 }
 it("offers an independent Genjutsu section without a project selector", () => {
-  show("/genjutsu");
-  expect(screen.getByRole("heading", { name: "Genjutsu" })).toBeInTheDocument();
+  show("/remix");
+  expect(screen.getByRole("heading", { name: "Remix" })).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "New transformation" }),
   ).toBeInTheDocument();
   expect(
-    screen.getByText("Your saved transformations will appear here."),
+    screen.getByText(/Your saved transformations will appear here/),
   ).toBeInTheDocument();
   expect(screen.queryByText("Select a project")).not.toBeInTheDocument();
 });
@@ -73,7 +76,7 @@ it("gives sessions their own uploads, preview, versions, and transformation cont
     storageScopeId: "scope",
     title: "Test transformation",
   };
-  show("/genjutsu/session");
+  show("/remix/session");
   expect(screen.getByLabelText("Upload source video")).toBeInTheDocument();
   expect(screen.getByLabelText("Upload reference images")).toBeInTheDocument();
   expect(
@@ -94,7 +97,7 @@ it("routes dropped source and reference files to their matching uploads and sele
     title: "Drop test",
   };
   mocks.upload.mockResolvedValue(["uploaded-source"]);
-  show("/genjutsu/session");
+  show("/remix/session");
   const video = new File(["clip"], "source.mp4", { type: "video/mp4" });
   const images = [
     new File(["a"], "a.png", { type: "image/png" }),
@@ -142,7 +145,7 @@ it("shows each uploaded image with its own thumbnail and inserts it into the pro
     { assetId: "a", url: "https://fixture.test/a.png" },
     { assetId: "b", url: "https://fixture.test/b.png" },
   ];
-  show("/genjutsu/session");
+  show("/remix/session");
   expect(
     screen.getByRole("img", { name: mocks.assets[0]!.name }),
   ).toHaveAttribute("src", mocks.urls[0]!.url);
@@ -182,7 +185,7 @@ it("shows one selected source with removal, then restores the upload area after 
       removedInputAssetIds: ["source"],
     };
   });
-  const view = show("/genjutsu/session");
+  const view = show("/remix/session");
   expect(
     screen.queryByLabelText("Upload source video"),
   ).not.toBeInTheDocument();
@@ -210,7 +213,7 @@ it("removes a reference image from the grid without removing other images", asyn
   mocks.remove.mockImplementation(async () => {
     mocks.session = { ...mocks.session!, removedInputAssetIds: ["a"] };
   });
-  const view = show("/genjutsu/session");
+  const view = show("/remix/session");
   await act(async () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Remove reference Actor.png" }),
@@ -227,4 +230,23 @@ it("removes a reference image from the grid without removing other images", asyn
   expect(
     screen.getByRole("button", { name: "Insert reference Style.png" }),
   ).toBeInTheDocument();
+});
+
+it("filters real sessions by header search and switches to list view", () => {
+  mocks.sessions = [
+    { _id: "a", title: "Desert passage", updatedAt: 1 },
+    { _id: "b", title: "City after dark", updatedAt: 2 },
+  ];
+  show("/remix?q=desert");
+  expect(
+    screen.getByRole("heading", { name: "Desert passage" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "City after dark" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "List view" }));
+  expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });

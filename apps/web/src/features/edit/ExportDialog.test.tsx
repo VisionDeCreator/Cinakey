@@ -134,3 +134,28 @@ it("allows a local download while subscription access prevents new stored upload
   expect(mocks.begin).not.toHaveBeenCalled();
   expect(mocks.upload).not.toHaveBeenCalled();
 });
+
+it("shows render percentage and keeps cancellation wired to the exporter", async () => {
+  let signal: AbortSignal | undefined;
+  mocks.render.mockImplementation(({ onProgress, signal: currentSignal }) => {
+    signal = currentSignal;
+    onProgress({
+      phase: "video",
+      frame: 64,
+      totalFrames: 100,
+      message: "Rendering frames…",
+    });
+    return new Promise(() => {});
+  });
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Export" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Export" }));
+  expect(await screen.findByText("64%")).toBeInTheDocument();
+  expect(
+    screen.getByRole("progressbar", { name: "Rendering progress" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel export" }));
+  expect(signal?.aborted).toBe(true);
+});

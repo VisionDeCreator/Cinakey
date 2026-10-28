@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmContext } from "@/components/use-confirm";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useContext, useEffect, useState } from "react";
@@ -8,8 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type MemberRole = "admin" | "creator";
-const selectClass =
-  "rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm";
 
 export function TeamSettings() {
   const {
@@ -108,25 +113,32 @@ export function TeamSettings() {
       ) : selected ? (
         <>
           <Label htmlFor="team-workspace">Workspace</Label>
-          <select
-            id="team-workspace"
-            className={selectClass}
+          <Select
             value={selected.workspace._id}
             disabled={busy}
-            onChange={(e) => {
-              if (activeWorkspaceId)
-                void switchWorkspace(e.target.value as Id<"workspaces">);
-              else setWorkspaceId(e.target.value as Id<"workspaces">);
+            onValueChange={(value) => {
               setError(null);
               setMessage(null);
+              if (activeWorkspaceId)
+                void run(() => switchWorkspace(value as Id<"workspaces">));
+              else setWorkspaceId(value as Id<"workspaces">);
             }}
           >
-            {workspaces.map((w) => (
-              <option key={w.workspace._id} value={w.workspace._id}>
-                {w.workspace.name} ({w.role})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="team-workspace"
+              aria-label="Workspace"
+              className="w-full max-w-sm rounded-xl bg-transparent"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-2xl bg-[var(--color-studio-panel)]">
+              {workspaces.map((w) => (
+                <SelectItem key={w.workspace._id} value={w.workspace._id}>
+                  {w.workspace.name} ({w.role})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {manage ? (
             <>
               <WorkspaceName
@@ -160,16 +172,22 @@ export function TeamSettings() {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                <select
-                  aria-label="Invitation role"
-                  className={selectClass}
+                <Select
                   disabled={busy}
                   value={role}
-                  onChange={(e) => setRole(e.target.value as MemberRole)}
+                  onValueChange={(value) => setRole(value as MemberRole)}
                 >
-                  <option value="creator">Creator</option>
-                  <option value="admin">Admin</option>
-                </select>
+                  <SelectTrigger
+                    aria-label="Invitation role"
+                    className="w-36 rounded-xl bg-transparent"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="creator">Creator</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button disabled={busy || !email.trim()} type="submit">
                   Invite
                 </Button>
@@ -235,52 +253,63 @@ function WorkspaceMembers({
   return (
     <div className="space-y-3">
       {owner && (
-        <div className="space-y-2 rounded border border-zinc-800 p-3">
+        <div className="space-y-2 rounded-2xl border border-zinc-800 p-4">
           <Label htmlFor="next-owner">Transfer ownership</Label>
           <p className="text-xs text-zinc-500">
             The new Owner controls this workspace. You will remain an Admin.
           </p>
-          <select
-            id="next-owner"
-            className={selectClass}
-            value={nextOwner}
-            disabled={busy}
-            onChange={(e) => setNextOwner(e.target.value as Id<"users">)}
-          >
-            <option value="">Choose a member</option>
-            {(members ?? [])
-              .filter((m) => m.role === "creator" || m.role === "admin")
-              .map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.name || m.email}
-                </option>
-              ))}
-          </select>
-          <Button
-            variant="outline"
-            disabled={busy || !nextOwner || !confirm}
-            onClick={async () => {
-              if (!nextOwner || !confirm) return;
-              const approved = await confirm({
-                title: "Transfer workspace ownership?",
-                description:
-                  "The selected member will become Owner and you will become an Admin. You will no longer be able to transfer ownership or control workspace billing.",
-                confirmLabel: "Transfer ownership",
-              });
-              if (approved)
-                void run(
-                  () => transfer({ workspaceId, newOwnerId: nextOwner }),
-                  "Ownership transferred. You are now an Admin.",
-                );
-            }}
-          >
-            Transfer ownership
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select
+              value={nextOwner || "none"}
+              disabled={busy}
+              onValueChange={(value) =>
+                setNextOwner(value === "none" ? "" : (value as Id<"users">))
+              }
+            >
+              <SelectTrigger
+                id="next-owner"
+                aria-label="Transfer ownership"
+                className="w-full max-w-xs rounded-xl bg-transparent"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Choose a member</SelectItem>
+                {(members ?? [])
+                  .filter((m) => m.role === "creator" || m.role === "admin")
+                  .map((m) => (
+                    <SelectItem key={m.userId} value={m.userId}>
+                      {m.name || m.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              disabled={busy || !nextOwner || !confirm}
+              onClick={async () => {
+                if (!nextOwner || !confirm) return;
+                const approved = await confirm({
+                  title: "Transfer workspace ownership?",
+                  description:
+                    "The selected member will become Owner and you will become an Admin. You will no longer be able to transfer ownership or control workspace billing.",
+                  confirmLabel: "Transfer ownership",
+                });
+                if (approved)
+                  void run(
+                    () => transfer({ workspaceId, newOwnerId: nextOwner }),
+                    "Ownership transferred. You are now an Admin.",
+                  );
+              }}
+            >
+              Transfer ownership
+            </Button>
+          </div>
         </div>
       )}
       {(members ?? []).map((m) => (
         <div
-          className="space-y-2 rounded border border-zinc-800 p-3"
+          className="space-y-2 rounded-2xl border border-zinc-800 p-4"
           key={m.userId}
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -292,29 +321,35 @@ function WorkspaceMembers({
               <span className="text-xs text-zinc-500">Owner</span>
             ) : (
               <div className="flex gap-2">
-                <select
-                  aria-label={`Role for ${m.email}`}
-                  className={selectClass}
+                <Select
                   value={m.role}
                   disabled={busy}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     void run(() =>
                       change({
                         workspaceId,
                         userId: m.userId,
-                        role: e.target.value as MemberRole,
+                        role: value as MemberRole,
                       }),
                     )
                   }
                 >
-                  <option value="admin">Admin</option>
-                  <option value="creator">Creator</option>
-                  {m.role === "reviewer" && (
-                    <option value="reviewer" disabled>
-                      Reviewer (reserved)
-                    </option>
-                  )}
-                </select>
+                  <SelectTrigger
+                    aria-label={`Role for ${m.email}`}
+                    className="w-36 rounded-xl bg-transparent"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="creator">Creator</SelectItem>
+                    {m.role === "reviewer" && (
+                      <SelectItem value="reviewer" disabled>
+                        Reviewer (reserved)
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="outline"
                   disabled={busy}

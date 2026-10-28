@@ -112,7 +112,7 @@ export class PartSceneRuntime {
   private pathGeo: THREE.BufferGeometry;
   private keyDots = new THREE.Group();
   private keyDotGeo = new THREE.SphereGeometry(0.09, 12, 8);
-  private keyDotMat = new THREE.MeshBasicMaterial({ color: 0xe6a23c });
+  private keyDotMat = new THREE.MeshBasicMaterial({ color: 0xff4d00 });
 
   private orbit = {
     target: new THREE.Vector3(0, 1, -3),
@@ -172,7 +172,7 @@ export class PartSceneRuntime {
     this.gizmo = new THREE.Group();
     const camBody = new THREE.Mesh(
       new THREE.BoxGeometry(0.32, 0.3, 0.48),
-      new THREE.MeshBasicMaterial({ color: 0xe6a23c }),
+      new THREE.MeshBasicMaterial({ color: 0xff4d00 }),
     );
     camBody.position.z = 0.26;
     camBody.userData.pick = "cam";
@@ -184,7 +184,7 @@ export class PartSceneRuntime {
     );
     this.frustum = new THREE.LineSegments(
       this.frustumGeo,
-      new THREE.LineBasicMaterial({ color: 0xe6a23c }),
+      new THREE.LineBasicMaterial({ color: 0xff4d00 }),
     );
     this.gizmo.add(this.frustum);
     this.scene.add(this.gizmo);
@@ -204,7 +204,7 @@ export class PartSceneRuntime {
     this.aimLine = new THREE.Line(
       this.aimGeo,
       new THREE.LineDashedMaterial({
-        color: 0xe6a23c,
+        color: 0xff4d00,
         dashSize: 0.2,
         gapSize: 0.15,
         transparent: true,
@@ -217,7 +217,7 @@ export class PartSceneRuntime {
     this.pathLine = new THREE.Line(
       this.pathGeo,
       new THREE.LineBasicMaterial({
-        color: 0xe6a23c,
+        color: 0xff4d00,
         transparent: true,
         opacity: 0.65,
       }),
@@ -256,6 +256,7 @@ export class PartSceneRuntime {
     this.dirRenderer = new THREE.WebGLRenderer({
       canvas: opts.dirCanvas,
       antialias: true,
+      preserveDrawingBuffer: true,
     });
     for (const r of [this.shotRenderer, this.dirRenderer]) {
       r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -550,7 +551,7 @@ export class PartSceneRuntime {
         g.lineTo(w, h * t);
       }
       g.stroke();
-      g.strokeStyle = "rgba(230,162,60,.55)";
+      g.strokeStyle = "rgba(255,77,0,.55)";
       g.setLineDash([6 * s, 5 * s]);
       g.strokeRect(w * 0.035, h * 0.035, w * 0.93, h * 0.93);
       g.strokeStyle = "rgba(255,255,255,.3)";

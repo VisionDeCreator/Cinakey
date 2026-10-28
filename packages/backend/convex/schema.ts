@@ -367,7 +367,7 @@ const schema = defineSchema(
       ),
       /** Optional per-project USD spend cap; blocks new jobs when reached. */
       spendCapUsdMicros: v.optional(v.number()),
-      /** Guided trailer template project. */
+      /** Legacy starter flag retained for existing project records. */
       isStarter: v.optional(v.boolean()),
       archivedAt: v.optional(v.number()),
       createdAt: v.number(),

@@ -1,3 +1,28 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Share2,
+  Film,
+  Download,
+  Link2,
+  LockKeyhole,
+  Copy,
+  Trash2,
+  Info,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import "./export-sharing.css";
 import { useEffect, useState } from "react";
 import { api, type Id } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
@@ -36,84 +61,126 @@ export function StoredExports({ projectId }: { projectId: string }) {
     }
   }
   return (
-    <section className="border-b border-zinc-800 p-2 text-sm">
+    <section className="text-sm">
       <Button variant="outline" onClick={() => setOpen((v) => !v)}>
-        Stored videos
+        <Share2 size={14} /> Share & videos
       </Button>
-      {open && (
-        <div className="space-y-2 pt-2">
-          <p className="text-xs text-zinc-400">
-            Stored exports are fixed snapshots. Editing the timeline never
-            changes an existing video or link. Export storage limit: 5 GiB per
-            workspace.
-          </p>
-          {rows?.length === 0 && (
-            <p>No stored exports yet. Use Export to publish a saved edit.</p>
-          )}
-          {rows?.map((row) => (
-            <div key={row._id} className="flex flex-wrap items-center gap-2">
-              <span>
-                {row.title} · {new Date(row.createdAt).toLocaleString()} ·{" "}
-                {row.state}
-                {row.sizeBytes
-                  ? ` · ${(row.sizeBytes / 1024 / 1024).toFixed(1)} MiB`
-                  : ""}
-              </span>
-              {row.state === "ready" && (
-                <>
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void download(row._id)}
-                  >
-                    Download
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelected(row._id)}
-                  >
-                    Share
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="outline"
-                disabled={busy || row.state === "uploading"}
-                onClick={() => {
-                  void confirm({
-                    title: "Delete stored video?",
-                    description:
-                      "This deletes the stored export and disables all of its sharing links. Your timeline is kept.",
-                    confirmLabel: "Delete video",
-                  }).then(async (ok) => {
-                    if (!ok) return;
-                    setBusy(true);
-                    setError("");
-                    try {
-                      await remove({ publicationId: row._id });
-                      if (selected === row._id) setSelected(null);
-                    } catch (error) {
-                      setError(
-                        error instanceof Error
-                          ? error.message
-                          : "Delete failed",
-                      );
-                    } finally {
-                      setBusy(false);
-                    }
-                  });
-                }}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="export-sharing-dialog flex max-h-[85vh] flex-col sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <Share2 size={24} />
+              Share & videos
+            </DialogTitle>
+            <DialogDescription>
+              Saved exports and their viewing links.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 overflow-y-auto pt-2">
+            {rows === undefined && (
+              <p role="status" className="text-sm text-zinc-400">
+                Loading stored videos…
+              </p>
+            )}
+            {rows?.length === 0 && (
+              <div className="export-empty">
+                <Film size={32} />
+                <h3>No stored videos yet</h3>
+                <p>
+                  Use Export MP4 and select Store video for sharing. Your saved
+                  videos and link controls will appear here.
+                </p>
+              </div>
+            )}
+            {rows?.map((row) => (
+              <div
+                key={row._id}
+                className={`stored-video-card ${selected === row._id ? "selected" : ""}`}
               >
-                Delete
-              </Button>
-            </div>
-          ))}
-          {selected && (
-            <ShareControls key={selected} publicationId={selected} />
-          )}
-          {error && <p role="alert">{error}</p>}
-        </div>
-      )}
+                <div className="stored-video-cover">
+                  <Film size={28} />
+                </div>
+                <div className="stored-video-info">
+                  <h3>{row.title}</h3>
+                  <p>
+                    {new Date(row.createdAt).toLocaleString()}
+                    {row.durationSec != null
+                      ? ` · ${row.durationSec.toFixed(1)}s`
+                      : ""}
+                    {row.sizeBytes
+                      ? ` · ${(row.sizeBytes / 1024 / 1024).toFixed(1)} MiB`
+                      : ""}
+                  </p>
+                  <span className="export-status">{row.state}</span>
+                </div>
+                {row.state === "ready" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void download(row._id)}
+                    >
+                      <Download size={15} />
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelected(row._id)}
+                    >
+                      <Link2 size={15} />
+                      Share
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="outline"
+                  disabled={busy || row.state === "uploading"}
+                  onClick={() => {
+                    void confirm({
+                      title: "Delete stored video?",
+                      description:
+                        "This deletes the stored export and disables all of its sharing links. Your timeline is kept.",
+                      confirmLabel: "Delete video",
+                    }).then(async (ok) => {
+                      if (!ok) return;
+                      setBusy(true);
+                      setError("");
+                      try {
+                        await remove({ publicationId: row._id });
+                        if (selected === row._id) setSelected(null);
+                      } catch (error) {
+                        setError(
+                          error instanceof Error
+                            ? error.message
+                            : "Delete failed",
+                        );
+                      } finally {
+                        setBusy(false);
+                      }
+                    });
+                  }}
+                >
+                  <Trash2 size={15} />
+                  Delete
+                </Button>
+              </div>
+            ))}
+            {selected && (
+              <ShareControls key={selected} publicationId={selected} />
+            )}
+            {error && (
+              <p role="alert" className="text-sm text-red-400">
+                {error}
+              </p>
+            )}
+            <p className="export-footnote">
+              <Info size={15} />
+              Stored videos are snapshots. Later edits won’t change their links.
+              Workspace storage limit: 5 GiB.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -138,12 +205,16 @@ function ShareControls({
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   return (
-    <div className="space-y-2 rounded border border-zinc-700 p-3">
-      <p>
-        Private sharing · anyone with the link and optional password can watch.
+    <div className="share-link-panel">
+      <h3 className="flex items-center gap-2 text-base font-semibold">
+        <Link2 size={18} />
+        Create a viewing link
+      </h3>
+      <p className="text-sm text-zinc-400">
+        Anyone with the link can watch. Add a password for extra protection.
       </p>
       <form
-        className="flex flex-wrap items-end gap-2"
+        className="share-link-form"
         onSubmit={(event) => {
           event.preventDefault();
           setBusy(true);
@@ -172,9 +243,11 @@ function ShareControls({
             .finally(() => setBusy(false));
         }}
       >
-        <label>
+        <label className="share-field">
           Optional password
           <Input
+            placeholder="At least 8 characters"
+            disabled={busy}
             type="password"
             autoComplete="new-password"
             value={password}
@@ -183,19 +256,20 @@ function ShareControls({
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
-        <label>
-          Expires
-          <select
-            className="ml-2 bg-zinc-900"
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-          >
-            <option value="7">7 days</option>
-            <option value="30">30 days</option>
-            <option value="never">Never</option>
-          </select>
-        </label>
-        <label>
+        <div className="share-field">
+          <label id={`expires-${publicationId}`}>Expires</label>
+          <Select value={days} onValueChange={setDays} disabled={busy}>
+            <SelectTrigger aria-labelledby={`expires-${publicationId}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">7 days</SelectItem>
+              <SelectItem value="30">30 days</SelectItem>
+              <SelectItem value="never">Never</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <label className="share-download-option">
           <input
             type="checkbox"
             checked={allowDownload}
@@ -203,31 +277,48 @@ function ShareControls({
           />{" "}
           Allow download
         </label>
-        <Button disabled={busy}>Create private link</Button>
+        <Button className="share-create-button" disabled={busy}>
+          <Link2 size={16} />
+          {busy ? "Creating…" : "Create private link"}
+        </Button>
       </form>
       {url && (
-        <div>
-          <Input aria-label="New private share link" readOnly value={url} />
-          <Button
-            variant="outline"
-            onClick={() => {
-              void navigator.clipboard
-                .writeText(url)
-                .then(() => setCopied(true))
-                .catch(() =>
-                  setError("Copy unavailable. Select and copy the link above."),
-                );
-            }}
-          >
-            {copied ? "Copied" : "Copy link"}
-          </Button>
+        <div className="share-created-link">
+          <h4 className="text-sm font-medium">New link</h4>
+          <div className="share-copy-row">
+            <Input aria-label="New private share link" readOnly value={url} />
+            <Button
+              variant="outline"
+              onClick={() => {
+                void navigator.clipboard
+                  .writeText(url)
+                  .then(() => setCopied(true))
+                  .catch(() =>
+                    setError(
+                      "Copy unavailable. Select and copy the link above.",
+                    ),
+                  );
+              }}
+            >
+              <Copy size={14} />
+              {copied ? "Copied" : "Copy link"}
+            </Button>
+          </div>
           <p className="text-xs text-zinc-400">
             Save this link now. Its secret is shown only when created.
           </p>
         </div>
       )}
+      <h4 className="text-sm font-medium">Existing links</h4>
+      {links === undefined && (
+        <p className="text-xs text-zinc-400">Loading links…</p>
+      )}
+      {links?.length === 0 && (
+        <p className="text-xs text-zinc-400">No viewing links yet.</p>
+      )}
       {links?.map((link) => (
-        <div key={link._id} className="flex items-center gap-2">
+        <div key={link._id} className="share-existing-link">
+          <LockKeyhole size={18} />
           <span>
             {new Date(link.createdAt).toLocaleString()} ·{" "}
             {link.passwordProtected ? "Password" : "Link access"} ·{" "}

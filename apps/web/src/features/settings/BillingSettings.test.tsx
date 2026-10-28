@@ -28,26 +28,31 @@ vi.mock("@/features/workspaces/workspace-context", () => ({
   }),
 }));
 vi.mock("@/lib/api/hooks", () => ({
-  useQuery: () => ({
-    billingMode: state.billingMode,
-    isOwner: state.isOwner,
-    occupiedSeats: 1,
-    usable: state.paid,
-    orders: state.orders,
-    includedAvailable: 5_000_000,
-    purchasedAvailable: 10_000_000,
-    state: state.paid
-      ? {
-          status: "active",
-          subscriptionId: "sub",
-          customerId: state.customerId,
-          seats: 2,
-          paidSeats: state.paidSeats,
-          periodStart: Date.UTC(2026, 9, 1),
-          periodEnd: Date.UTC(2026, 10, 1),
-        }
-      : null,
-  }),
+  useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
+    getFunctionName(ref) === "billing:getBalance"
+      ? { balance: 128500000 }
+      : getFunctionName(ref) === "billing:budgets"
+        ? { workspace: { reservedUsdMicros: 12000000 } }
+        : {
+            billingMode: state.billingMode,
+            isOwner: state.isOwner,
+            occupiedSeats: 1,
+            usable: state.paid,
+            orders: state.orders,
+            includedAvailable: 5_000_000,
+            purchasedAvailable: 10_000_000,
+            state: state.paid
+              ? {
+                  status: "active",
+                  subscriptionId: "sub",
+                  customerId: state.customerId,
+                  seats: 2,
+                  paidSeats: state.paidSeats,
+                  periodStart: Date.UTC(2026, 9, 1),
+                  periodEnd: Date.UTC(2026, 10, 1),
+                }
+              : null,
+          },
   useAction: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref) === "payments:configuration"
       ? state.config
@@ -227,7 +232,8 @@ it("shows company funding and hides all purchase controls for internal workspace
   expect(
     await screen.findByText("Company-funded workspace"),
   ).toBeInTheDocument();
-  expect(screen.getByText(/Amount payable: \$0/)).toBeInTheDocument();
+  expect(screen.getByText("Amount payable")).toBeInTheDocument();
+  expect(screen.getByText("$0.00")).toBeInTheDocument();
   expect(screen.queryByText("Subscribe with Polar")).not.toBeInTheDocument();
   expect(screen.queryByText("Add $10 usage")).not.toBeInTheDocument();
   expect(

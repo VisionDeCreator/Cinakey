@@ -216,3 +216,21 @@ it("keeps fenced lease releases alive across page navigation and client disposal
   );
   client.close();
 });
+
+it("refreshes only the requested active query names", async () => {
+  const fetcher = vi
+    .fn()
+    .mockImplementation(
+      async () => new Response(JSON.stringify({ value: [] })),
+    );
+  vi.stubGlobal("fetch", fetcher);
+  const client = new ApiClient("http://api", "token");
+  const billing = client.entry("billing:getBalance", {}),
+    projects = client.entry("projects:listMine", {});
+  billing.listeners.add(() => {});
+  projects.listeners.add(() => {});
+  await client.invalidate(["billing:getBalance"]);
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(billing.data).toEqual([]);
+  expect(projects.data).toBeUndefined();
+});

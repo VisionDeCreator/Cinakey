@@ -60,6 +60,10 @@ export function StudioScript({
     import("@cinakey/backend").Id<"workspaceScripts"> | undefined
   >(undefined);
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
+  const sharedResources = useQuery(api.resources.referenceCandidates, {
+    projectId: projectId as never,
+  });
+  const adoptResource = useMutation(api.resources.useInProject);
   const bindings = useQuery(api.references.list, {
     projectId: projectId as never,
   });
@@ -263,11 +267,17 @@ export function StudioScript({
       /* unload warning still protects draft */
     }
   };
-  const candidates = (assets ?? []).filter(
-    (a) => a.type === "image" || a.type === "video",
-  );
+  const candidates = [
+    ...(sharedResources ?? []),
+    ...(assets ?? []).filter(
+      (asset) =>
+        !(sharedResources ?? []).some((shared) => shared._id === asset._id),
+    ),
+  ].filter((a) => a.type === "image" || a.type === "video");
+  for (const resource of sharedResources ?? [])
+    if (resource.url) urls.set(resource._id, resource.url);
   const links = bindings ?? [];
-  const namedCandidates = candidates.map((a) => ({
+  const namedCandidates = (assets ?? []).map((a) => ({
     assetId: a._id as string,
     name: a.name,
     type: a.type as string,
@@ -395,6 +405,12 @@ export function StudioScript({
     setError(null);
     setStatus("Linking reference…");
     try {
+      const shared = sharedResources?.find((row) => row._id === assetId);
+      if (shared)
+        await adoptResource({
+          projectId: projectId as never,
+          versionId: shared.versionId,
+        });
       if (
         !inserting &&
         replacementReferenceAlias(alias, asset.type, []) !== alias

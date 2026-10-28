@@ -53,6 +53,18 @@ function AuthRedirect({ children }: { children: ReactNode }) {
   return children;
 }
 
+function LegacyRemixRedirect() {
+  const { sessionId } = useParams();
+  const [params] = useSearchParams();
+  const query = params.toString();
+  return (
+    <Navigate
+      replace
+      to={`${sessionId ? `/remix/${sessionId}` : "/remix"}${query ? `?${query}` : ""}`}
+    />
+  );
+}
+
 function RedirectToStudio() {
   const { projectId } = useParams();
   return <Navigate to={`/projects/${projectId}/studio`} replace />;
@@ -94,8 +106,13 @@ export function AppRouter() {
             <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="/series" element={<SeriesIndexPage />} />
             <Route path="/series/:seriesId" element={<SeriesPage />} />
-            <Route path="/genjutsu" element={<GenjutsuPage />} />
-            <Route path="/genjutsu/:sessionId" element={<GenjutsuPage />} />
+            <Route path="/remix" element={<GenjutsuPage />} />
+            <Route path="/genjutsu" element={<LegacyRemixRedirect />} />
+            <Route path="/remix/:sessionId" element={<GenjutsuPage />} />
+            <Route
+              path="/genjutsu/:sessionId"
+              element={<LegacyRemixRedirect />}
+            />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route
               path="/projects/:projectId"

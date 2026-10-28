@@ -11,6 +11,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { MediaPreview } from "./MediaPreview";
 import { StudioWorkspace } from "./StudioWorkspace";
 const state = vi.hoisted(() => ({
+  staging: [] as { _id: string; name: string; previzAssetId?: string }[],
   assets: [
     { _id: "video", name: "Camera", type: "video", durationSec: undefined },
   ],
@@ -35,7 +36,12 @@ vi.mock("@/lib/api/hooks", () => ({
       case "assets:list":
         return state.assets;
       case "workspace:list":
-        return { migrated: true, script: null, scripts: [], staging: [] };
+        return {
+          migrated: true,
+          script: null,
+          scripts: [],
+          staging: state.staging,
+        };
       case "workspace:videos":
         return state.footage;
       case "storage:listProjectAssetUrls":
@@ -59,7 +65,19 @@ vi.mock("@/components/use-confirm", () => ({ useConfirm: () => vi.fn() }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploads: [], uploadFiles: vi.fn() }),
 }));
-afterEach(cleanup);
+vi.mock("@/features/blockout/BlockoutPage", () => ({
+  BlockoutPage: ({
+    onUseForGeneration,
+  }: {
+    onUseForGeneration: (id: string) => void;
+  }) => (
+    <button onClick={() => onUseForGeneration("s1")}>Use test staging</button>
+  ),
+}));
+afterEach(() => {
+  cleanup();
+  state.staging = [];
+});
 it("shows unlinked footage without a script and inserts only the explicitly selected valid range", async () => {
   const insert = vi.fn();
   render(
@@ -86,6 +104,18 @@ it("shows unlinked footage without a script and inserts only the explicitly sele
   expect(
     screen.getByRole("button", { name: "Preview Camera" }),
   ).toBeInTheDocument();
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Search project media" }),
+    { target: { value: "missing footage" } },
+  );
+  expect(screen.getByText("No media matches your filters.")).toBeVisible();
+  fireEvent.change(
+    screen.getByRole("textbox", { name: "Search project media" }),
+    { target: { value: "" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Images" }));
+  expect(screen.getByText("No media matches your filters.")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "All" }));
   expect(insert).not.toHaveBeenCalled();
   expect(
     screen.getByRole("button", { name: "Add to timeline" }),
@@ -149,13 +179,31 @@ it("collapses each panel, supports keyboard resizing, and restores the saved lay
   const first = workspace();
   await act(async () => {});
   fireEvent.pointerDown(screen.getByLabelText("Project timeline"));
+  expect(screen.getByRole("button", { name: "Script" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // Both views share the same controls; switching never resets settings or the script.
+  const slider = screen.getByRole("slider", { name: "Generation duration" });
+  fireEvent.change(slider, { target: { value: "12" } });
+  fireEvent.click(screen.getByRole("button", { name: "Generation" }));
   expect(
-    screen.getByRole("button", { name: "Script & generation" }),
-  ).toHaveAttribute("aria-pressed", "true");
+    screen.getByRole("slider", { name: "Generation duration" }),
+  ).toHaveValue("12");
+  expect(
+    screen.queryByRole("textbox", { name: "Script" }),
+  ).not.toBeInTheDocument();
+  fireEvent.change(slider, { target: { value: "9" } });
+  fireEvent.click(screen.getByRole("button", { name: "Script" }));
+  expect(
+    screen.getByRole("slider", { name: "Generation duration" }),
+  ).toHaveValue("9");
+  expect(screen.getByRole("textbox", { name: "Script" })).toBeVisible();
 
   const divider = screen.getByRole("separator", { name: "Resize library" });
   fireEvent.keyDown(divider, { key: "ArrowRight" });
-  expect(divider).toHaveAttribute("aria-valuenow", "230");
+  expect(divider).toHaveAttribute("aria-valuenow", "350");
   for (const name of ["Library", "Inspector", "Generations", "Timeline"])
     fireEvent.click(screen.getByRole("button", { name }));
   expect(
@@ -174,9 +222,48 @@ it("collapses each panel, supports keyboard resizing, and restores the saved lay
   fireEvent.click(screen.getByRole("button", { name: "Library" }));
   expect(
     screen.getByRole("separator", { name: "Resize library" }),
-  ).toHaveAttribute("aria-valuenow", "230");
+  ).toHaveAttribute("aria-valuenow", "350");
   fireEvent.click(screen.getByRole("button", { name: "Reset layout" }));
   expect(
     screen.getByRole("separator", { name: "Resize library" }),
-  ).toHaveAttribute("aria-valuenow", "210");
+  ).toHaveAttribute("aria-valuenow", "330");
+});
+
+it("opens the generation inspector with the chosen staging reference enabled", async () => {
+  state.staging = [
+    { _id: "s1", name: "Desert crossing", previzAssetId: "preview" },
+  ];
+  render(
+    <MemoryRouter initialEntries={["/projects/p/studio"]}>
+      <Routes>
+        <Route
+          path="/projects/:projectId/studio"
+          element={
+            <StudioWorkspace
+              toolbar={<div />}
+              viewer={<canvas />}
+              timeline={<div />}
+              inspector={<div />}
+              selectedClip={null}
+              onInsert={vi.fn()}
+              onPreview={vi.fn()}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Staging" }));
+  fireEvent.click(screen.getByRole("button", { name: "Use test staging" }));
+  expect(screen.getByRole("button", { name: "Generation" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(
+    screen.getByRole("checkbox", { name: "Use staging as video reference" }),
+  ).toBeChecked();
+  expect(
+    screen.getByRole("combobox", { name: "Generation staging" }),
+  ).toHaveTextContent("Desert crossing");
 });

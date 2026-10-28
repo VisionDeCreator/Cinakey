@@ -1,5 +1,22 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { uploadProgress } from "./uploadProgress";
 import { uploadMedia } from "./uploadMedia";
+let status = 200;
+class TestUpload {
+  status = status;
+  upload: { onprogress?: (event: unknown) => void } = {};
+  onload?: () => void;
+  open = vi.fn();
+  setRequestHeader = vi.fn();
+  send() {
+    this.upload.onprogress?.({
+      lengthComputable: true,
+      loaded: 50,
+      total: 100,
+    });
+    this.onload?.();
+  }
+}
 const path = "/storage/uploads/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -12,32 +29,36 @@ it("uploads bytes directly to R2 and finalizes metadata through the API", async 
     .mockResolvedValueOnce(
       Response.json({ uploadUrl: "https://r2.example/signed" }),
     )
-    .mockResolvedValueOnce(new Response(null, { status: 200 }))
     .mockResolvedValueOnce(Response.json({ storageId: "file-id" }));
   vi.stubGlobal("fetch", fetcher);
+  status = 200;
+  vi.stubGlobal("XMLHttpRequest", TestUpload);
   const blob = new Blob(["png"], { type: "image/png" });
-  expect(await (await uploadMedia(path, blob)).json()).toEqual({
+  const progress = vi.fn();
+  expect(await (await uploadMedia(path, blob, progress)).json()).toEqual({
     storageId: "file-id",
   });
+  expect(progress.mock.calls.map((call) => call[0])).toEqual([0, 50, 100]);
   expect(fetcher.mock.calls[0]![0]).toBe(`https://api.example${path}`);
-  expect(fetcher.mock.calls[1]).toEqual([
-    "https://r2.example/signed",
-    { method: "PUT", headers: { "Content-Type": "image/png" }, body: blob },
-  ]);
-  expect(fetcher.mock.calls[2]![0]).toBe(`https://api.example${path}/complete`);
+  expect(fetcher.mock.calls[1]![0]).toBe(`https://api.example${path}/complete`);
+  expect(uploadProgress.snapshot().at(-1)).toMatchObject({
+    progress: 100,
+    status: "done",
+  });
 });
 it("does not register a failed direct upload", async () => {
+  status = 403;
+  vi.stubGlobal("XMLHttpRequest", TestUpload);
   const fetcher = vi
     .fn()
     .mockResolvedValueOnce(
       Response.json({ uploadUrl: "https://r2.example/signed" }),
-    )
-    .mockResolvedValueOnce(new Response(null, { status: 403 }));
+    );
   vi.stubGlobal("fetch", fetcher);
   await expect(
     uploadMedia(path, new Blob(["png"], { type: "image/png" })),
   ).rejects.toThrow("Media upload failed");
-  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 it("rejects unexpected upload endpoints before sending file data", async () => {
   const fetcher = vi.fn();

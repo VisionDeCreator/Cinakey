@@ -91,6 +91,9 @@ export class MediaCache {
 
     try {
       const res = await fetch(url, {
+        // Thumbnails may have primed an opaque, non-CORS response for this URL.
+        // Read fresh bytes for canvas rendering and audio decoding.
+        cache: "reload",
         signal: this.signal
           ? AbortSignal.any([this.controller.signal, this.signal])
           : this.controller.signal,
@@ -153,6 +156,9 @@ export class MediaCache {
       if (cachedBlob) buf = await cachedBlob.arrayBuffer();
       else {
         const res = await fetch(url, {
+          // Thumbnails may have primed an opaque, non-CORS response for this URL.
+          // Read fresh bytes for canvas rendering and audio decoding.
+          cache: "reload",
           signal: this.signal
             ? AbortSignal.any([this.controller.signal, this.signal])
             : this.controller.signal,

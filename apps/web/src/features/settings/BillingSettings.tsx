@@ -1,3 +1,4 @@
+import { Wallet, Clock3, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type Id } from "@cinakey/backend";
 import { formatUsd } from "@cinakey/shared";
@@ -74,27 +75,14 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
     seats <= 100;
   if (summary?.billingMode === "internal")
     return (
-      <section
-        className="space-y-3 rounded-xl border border-zinc-800 p-5"
-        aria-label="Workspace billing"
-      >
-        <h2 className="font-semibold">Company-funded workspace</h2>
-        <p className="text-sm text-zinc-400">
-          Full platform access with free seats. No subscription, seat charges,
-          or usage payment is required. Member permissions still apply.
-        </p>
-        <p className="text-sm">
-          {summary.occupiedSeats} creator seats in use · Amount payable: $0
-        </p>
-        <p className="text-sm text-zinc-400">
-          Provider costs, standard prices, and spending limits are tracked
-          below. Only platform administrators can enable company funding.
-        </p>
-      </section>
+      <InternalFunding
+        workspaceId={workspaceId}
+        seats={summary.occupiedSeats}
+      />
     );
   return (
     <section
-      className="space-y-5 rounded-xl border border-zinc-800 p-5"
+      className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5"
       aria-label="Workspace billing"
     >
       <h2 className="text-sm font-semibold text-zinc-200">Workspace billing</h2>
@@ -417,6 +405,88 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
       <p className="text-xs text-zinc-500">{label}</p>
       <p className="mt-2 text-xl font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function InternalFunding({
+  workspaceId,
+  seats,
+}: {
+  workspaceId: Id<"workspaces">;
+  seats: number;
+}) {
+  const balance = useQuery(api.billing.getBalance, { workspaceId });
+  const budgets = useQuery(api.billing.budgets, { workspaceId });
+  return (
+    <div className="space-y-5">
+      <section
+        aria-label="Workspace billing"
+        className="flex flex-wrap items-center justify-between gap-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6"
+      >
+        <div className="max-w-3xl">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-xl font-semibold">Company-funded workspace</h2>
+            <span className="rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-400">
+              Internal
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-zinc-400">
+            Your company covers generation usage and team seats. No subscription
+            payment is required. Member permissions and spending limits still
+            apply.
+          </p>
+        </div>
+        <div>
+          <p className="text-sm text-zinc-400">Amount payable</p>
+          <p className="mt-1 text-3xl font-semibold">$0.00</p>
+        </div>
+      </section>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          {
+            label: "Available company funding",
+            icon: Wallet,
+            value: balance ? formatUsd(balance.balance) : "…",
+            help: "Available for generation",
+          },
+          {
+            label: "Reserved usage",
+            icon: Clock3,
+            value: budgets?.workspace
+              ? formatUsd(budgets.workspace.reservedUsdMicros)
+              : "…",
+            help: "Held for running jobs",
+          },
+          {
+            label: "Team seats",
+            icon: Users,
+            value: `${seats} ${seats === 1 ? "seat" : "seats"}`,
+            help: "No seat charges",
+          },
+        ].map((item) => (
+          <section
+            key={item.label}
+            className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6"
+          >
+            <div className="flex items-center gap-4">
+              <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-studio-accent-soft)] text-[var(--color-studio-accent)]">
+                <item.icon className="size-7" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm text-zinc-300">{item.label}</h3>
+                <p className="mt-1 text-3xl font-semibold">{item.value}</p>
+                <p className="mt-2 text-xs text-zinc-400">{item.help}</p>
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+      <p className="text-xs text-zinc-400">
+        Use Members & seats to manage access, Spending & budgets to set limits,
+        and Balance activity to review funding and usage. Only platform
+        administrators can enable company funding.
+      </p>
     </div>
   );
 }

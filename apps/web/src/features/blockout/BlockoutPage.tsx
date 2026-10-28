@@ -1,17 +1,43 @@
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { formatUsd } from "@cinakey/shared";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Box,
+  Clapperboard,
+  Link2,
+  Plus,
+  Sparkles,
+  Play,
+  Download,
+  RotateCcw,
+  LoaderCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/use-confirm";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { MediaPreview } from "../studio/MediaPreview";
 import { ExportDialog } from "./export/ExportDialog";
 import { encodePrevizMp4 } from "./export/runExport";
 
-export function BlockoutPage() {
+export function BlockoutPage({
+  onUseForGeneration,
+}: { onUseForGeneration?: (id: string) => void } = {}) {
+  const navigate = useNavigate();
   const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -95,7 +121,14 @@ export function BlockoutPage() {
         durationSec: duration,
         reuse,
       });
-      setParams({ staging: result.id }, { replace: true });
+      setParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.set("staging", result.id);
+          return next;
+        },
+        { replace: true },
+      );
     } catch (error) {
       setError(error instanceof Error ? error.message : "Staging failed");
     } finally {
@@ -138,53 +171,187 @@ export function BlockoutPage() {
     }
   }
   return (
-    <section className="studio-staging">
-      <h2>Staging</h2>
+    <section className="studio-staging staging-workspace">
+      <h2 className="staging-title">
+        <Clapperboard size={20} />
+        Staging
+      </h2>
       <p className="studio-muted">
         Plan movement and camera timing from your script, or start in the 3D
         editor.
       </p>
-      {state?.staging.length ? (
-        <label>
-          Document
-          <select
-            aria-label="Staging document"
+      <ol className="staging-workflow" aria-label="Staging workflow">
+        <li className={!selected ? "active" : "complete"}>
+          <span>1</span>Plan your scene
+        </li>
+        <li
+          className={
+            selected && !selected.previzAssetId
+              ? "active"
+              : selected?.previzAssetId
+                ? "complete"
+                : ""
+          }
+        >
+          <span>2</span>Render a preview
+        </li>
+        <li className={selected?.previzAssetId ? "active" : ""}>
+          <span>3</span>Use as a reference
+        </li>
+      </ol>
+      <div className="staging-plan-settings">
+        <div>
+          <label id="staging-document-label">Staging document</label>
+          <Select
+            disabled={busy || !state?.staging.length}
             value={selected?._id ?? ""}
-            onChange={(e) =>
-              setParams({ staging: e.target.value }, { replace: true })
-            }
+            onValueChange={(id) => {
+              setHistory([]);
+              setParams(
+                (previous) => {
+                  const next = new URLSearchParams(previous);
+                  next.set("staging", id);
+                  return next;
+                },
+                { replace: true },
+              );
+            }}
           >
-            {state.staging.map((item) => (
-              <option key={item._id} value={item._id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : (
-        <p>
-          No staging yet. Generate from your script or open the 3D editor to
-          start manually.
-        </p>
-      )}
-      <label>
-        Duration (seconds)
-        <input
-          aria-label="Staging duration"
-          type="number"
-          min={1}
-          max={600}
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-        />
-      </label>
-      <div className="flex flex-wrap gap-2">
+            <SelectTrigger aria-labelledby="staging-document-label">
+              <SelectValue placeholder="No staging documents yet" />
+            </SelectTrigger>
+            <SelectContent>
+              {state?.staging.map((item) => (
+                <SelectItem key={item._id} value={item._id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="staging-duration">
+          <label htmlFor="staging-duration">
+            Duration
+            <output htmlFor="staging-duration">
+              {Number(duration.toFixed(1))} seconds
+            </output>
+          </label>
+          <input
+            id="staging-duration"
+            aria-label="Staging duration"
+            aria-valuetext={`${Number(duration.toFixed(1))} seconds`}
+            type="range"
+            min={1}
+            max={600}
+            step={1}
+            value={duration}
+            disabled={busy}
+            onChange={(event) => setDuration(Number(event.target.value))}
+          />
+          <div className="staging-duration-limits">
+            <span>1s</span>
+            <span>600s</span>
+          </div>
+        </div>
+      </div>
+      <div className="staging-main-actions">
         <Button
           disabled={canWrite === false || busy || !state?.migrated || !estimate}
           onClick={() => void run()}
         >
+          {busy ? (
+            <LoaderCircle size={15} className="animate-spin" />
+          ) : (
+            <Sparkles size={15} />
+          )}
           Generate staging
           {estimate?.usdMicros ? ` · ~${formatUsd(estimate.usdMicros)}` : ""}
+        </Button>
+        <Button variant="outline" asChild>
+          <Link
+            to={`/projects/${projectId}/blockout/edit${selected ? `?staging=${selected._id}` : ""}`}
+          >
+            <Box size={15} />
+            Open 3D editor
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to={`/projects/${projectId}/blockout/edit?new=1`}>
+            <Plus size={15} />
+            New document
+          </Link>
+        </Button>
+      </div>
+      <section
+        className="staging-preview-card"
+        aria-label="Staging previsualization"
+      >
+        <div className="staging-preview-header">
+          <h3>Previsualization</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={canWrite === false || !selected || busy}
+            onClick={() => void render()}
+          >
+            <Play size={14} />
+            Render preview
+          </Button>
+        </div>
+        {selected?.previzAssetId ? (
+          url === undefined ? (
+            <p role="status" className="staging-empty-preview">
+              Loading previsualization…
+            </p>
+          ) : (
+            <MediaPreview url={url} name={selected.name} />
+          )
+        ) : (
+          <div className="staging-empty-preview">
+            <Box size={36} />
+            <h3>
+              {selected
+                ? "Your scene is ready to preview"
+                : "Plan your first scene"}
+            </h3>
+            <p>
+              {selected
+                ? "Render a preview to review movement and camera timing."
+                : "Generate staging from your script, or open the 3D editor to start manually."}
+            </p>
+          </div>
+        )}
+      </section>
+      <div className="staging-use-reference">
+        <Link2 size={20} />
+        <div>
+          <h3>Use this preview as a video reference</h3>
+          <p>Your script and staging stay connected.</p>
+        </div>
+        <Button
+          disabled={
+            canWrite === false || busy || !selected?.previzAssetId || !url
+          }
+          onClick={() => {
+            if (!selected?.previzAssetId || !url) return;
+            if (onUseForGeneration) onUseForGeneration(selected._id);
+            else
+              navigate(
+                `/projects/${projectId}/studio?staging=${selected._id}&stagingReference=1`,
+              );
+          }}
+        >
+          Use for generation
+        </Button>
+      </div>
+      <div className="staging-utility-actions">
+        <Button
+          variant="outline"
+          disabled={canWrite === false || !selected || busy}
+          onClick={() => setExportOpen(true)}
+        >
+          <Download size={15} />
+          Export staging
         </Button>
         {selected?.planFileId && (
           <Button
@@ -192,42 +359,11 @@ export function BlockoutPage() {
             disabled={canWrite === false || busy}
             onClick={() => void run(true)}
           >
+            <RotateCcw size={15} />
             Recompile saved plan
           </Button>
         )}
-        <Button variant="outline" asChild>
-          <Link to={`/projects/${projectId}/blockout/edit?new=1`}>
-            New staging document
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link
-            to={`/projects/${projectId}/blockout/edit${selected ? `?staging=${selected._id}` : ""}`}
-          >
-            Open 3D editor
-          </Link>
-        </Button>
-        <Button
-          variant="outline"
-          disabled={canWrite === false || !selected || busy}
-          onClick={() => void render()}
-        >
-          Render previsualization
-        </Button>
-        <Button
-          variant="outline"
-          disabled={canWrite === false || !selected || busy}
-          onClick={() => setExportOpen(true)}
-        >
-          Export staging
-        </Button>
       </div>
-      {selected?.previzAssetId &&
-        (url === undefined ? (
-          <p role="status">Loading previsualization…</p>
-        ) : (
-          <MediaPreview url={url} name={selected.name} />
-        ))}
       {progress && <p role="status">{progress}</p>}
       {error && (
         <p role="alert" className="studio-error">
@@ -235,7 +371,7 @@ export function BlockoutPage() {
         </p>
       )}
       {selected && (
-        <details>
+        <details className="staging-history">
           <summary>Staging history</summary>
           <Button
             variant="outline"

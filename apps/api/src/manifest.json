@@ -719,10 +719,6 @@
     "kind": "query",
     "public": true
   },
-  "workspace:createTemplate": {
-    "kind": "action",
-    "public": true
-  },
   "workspace:stagingHistory": {
     "kind": "action",
     "public": true
@@ -738,10 +734,6 @@
   "workspace:scriptRecord": {
     "kind": "query",
     "public": true
-  },
-  "workspace:markTemplate": {
-    "kind": "mutation",
-    "public": false
   },
   "workspace:assertAccess": {
     "kind": "query",
@@ -1098,5 +1090,9 @@
   "r2Storage:removeAbandonedUpload": {
     "kind": "action",
     "public": false
+  },
+  "resources:referenceCandidates": {
+    "kind": "query",
+    "public": true
   }
 }

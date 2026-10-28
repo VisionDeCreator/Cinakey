@@ -1,3 +1,4 @@
+import { Clapperboard, Users, Folder, ShieldCheck, Activity, CloudUpload, ScrollText, ExternalLink, LogOut } from "lucide-react";
 import { Component, type ReactNode } from "react";
 import {
   Link,
@@ -73,11 +74,18 @@ const sections = [
 ] as const;
 function Layout() {
   const { signOut } = useAuthActions();
+  const me = useQuery(api.users.viewer, {});
+  const location = useLocation();
+  const title = sections.find(([path]) => location.pathname.startsWith(path))?.[1] || "Administration";
+  const icons = [Users, Folder, ShieldCheck, Activity, CloudUpload, ScrollText];
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[220px_1fr]">
-      <aside className="space-y-6 border-b border-zinc-800 p-5 md:border-b-0 md:border-r">
-        <Link to="/users" className="text-lg font-semibold">
-          Cinakey Admin
+    <div className="admin-shell">
+      <aside className="admin-sidebar">
+        <Link
+          to="/users"
+          className="admin-brand"
+        >
+          <Clapperboard size={30} /> <span>Cinakey</span><small>ADMIN</small>
         </Link>
         <p className="rounded border border-amber-900 px-2 py-1 text-xs text-amber-200">
           {import.meta.env.VITE_APP_ENV || "Environment not labeled"}
@@ -86,30 +94,29 @@ function Layout() {
           aria-label="Administration"
           className="flex flex-wrap gap-2 md:flex-col"
         >
-          {sections.map(([path, label]) => (
+          {sections.map(([path, label], index) => { const Icon = icons[index]!; return (
             <NavLink
               key={path}
               to={path}
               className={({ isActive }) =>
-                `rounded px-3 py-2 text-sm ${isActive ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:bg-zinc-900"}`
+                `rounded-xl border-l-2 px-3 py-2 text-sm ${isActive ? "border-[var(--color-studio-accent)] bg-zinc-800 text-zinc-100" : "border-transparent text-zinc-400 hover:bg-zinc-900"}`
               }
             >
-              {label}
+              <Icon size={20} />{label}
             </NavLink>
-          ))}
+          ); })}
         </nav>
         <a
-          className="block text-sm text-zinc-400 underline"
+          className="admin-web-link"
           href={import.meta.env.VITE_WEB_URL || "http://localhost:5173"}
         >
-          Open web app
+          <ExternalLink size={18} /> Open web app
         </a>
-        <Button variant="outline" onClick={() => void signOut()}>
-          Sign out
-        </Button>
+        <div className="admin-account"><span className="admin-avatar">{(me?.name || me?.email || "A").slice(0,2).toUpperCase()}</span><div><strong>{me?.name || me?.email || "Administrator"}</strong><small>Administrator</small></div><Button aria-label="Sign out" title="Sign out" variant="ghost" onClick={() => void signOut()}><LogOut size={18} /></Button></div>
       </aside>
-      <main className="min-w-0 p-5 md:p-8">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <main className="admin-main">
+        <header className="admin-topbar"><span>Administration <span className="mx-3">/</span> <strong>{title}</strong></span><small>{import.meta.env.VITE_APP_ENV || "Environment not labeled"}</small></header>
+        <div className="admin-content space-y-6">
           <Outlet />
         </div>
       </main>
@@ -160,7 +167,6 @@ export function App() {
             path="moderation"
             element={
               <>
-                <h1 className="text-2xl font-semibold">Moderation</h1>
                 <StaffModerationPage />
               </>
             }
@@ -169,7 +175,6 @@ export function App() {
             path="providers"
             element={
               <>
-                <h1 className="text-2xl font-semibold">Provider health</h1>
                 <StaffProvidersPage />
               </>
             }
@@ -178,7 +183,6 @@ export function App() {
             path="egress"
             element={
               <>
-                <h1 className="text-2xl font-semibold">Egress</h1>
                 <StaffEgressPage />
               </>
             }
@@ -187,7 +191,6 @@ export function App() {
             path="audit"
             element={
               <>
-                <h1 className="text-2xl font-semibold">Audit log</h1>
                 <StaffAuditPage />
               </>
             }

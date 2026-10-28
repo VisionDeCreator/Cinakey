@@ -1,3 +1,4 @@
+import "./editor.css";
 import { uploadMedia } from "../../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
@@ -87,10 +88,11 @@ function Segmented<T extends string>({
           key={o.value}
           type="button"
           title={o.label}
+          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
             "flex h-8 items-center gap-1.5 px-2.5 text-xs text-zinc-400 transition-colors hover:text-zinc-100 [&_svg]:size-3.5",
-            value === o.value && "bg-zinc-800 text-zinc-50",
+            value === o.value && "staging-editor-active",
           )}
         >
           {o.icon}
@@ -789,21 +791,22 @@ export function BlockoutEditorPage() {
     : doc.name;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-zinc-950 text-zinc-200">
+    <div className="staging-editor flex h-full min-h-0 flex-col bg-zinc-950 text-zinc-200">
       {/* Top bar */}
-      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-2 py-1.5">
+      <header className="staging-editor-header flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-2 py-1.5">
         <Button type="button" size="sm" variant="ghost" className="h-8" asChild>
           <Link
             to={`/projects/${projectId}/studio${stagingId ? `?staging=${stagingId}` : ""}`}
           >
             <ArrowLeft className="size-3.5" />
-            Workspace
+            Back to Studio
           </Link>
         </Button>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-zinc-100">
-            {shotTitle}
+            3D staging editor
           </p>
+          <p className="text-xs text-zinc-400">{shotTitle} · {dirty ? "Unsaved changes" : "Saved staging"}</p>
           {location ? (
             <p className="truncate text-[11px] text-zinc-500">{location}</p>
           ) : null}
@@ -886,7 +889,7 @@ export function BlockoutEditorPage() {
             onClick={() => void onSave()}
           >
             <Save className="size-3.5" />
-            Save
+            Save staging
             {dirty ? (
               <span className="ml-1 size-1.5 rounded-full bg-amber-400" />
             ) : null}
@@ -895,8 +898,11 @@ export function BlockoutEditorPage() {
       </header>
 
       {/* Main */}
-      <div className="flex min-h-0 flex-1">
+      <div className="staging-editor-body flex min-h-0 flex-1">
         <EditorLibrary
+          objects={doc.objects}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
           characters={characters.map((c) => ({
             id: c._id,
             name: c.name,

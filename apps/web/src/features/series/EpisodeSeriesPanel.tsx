@@ -3,6 +3,20 @@ import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { ResourceLibrary } from "./ResourceLibrary";
 
 export function EpisodeSeriesPanel({
@@ -28,18 +42,22 @@ export function EpisodeSeriesPanel({
         >
           {data.series.title}
         </Link>
-        <select
-          aria-label="Switch episode"
-          className="max-w-56 rounded border border-zinc-800 bg-zinc-950 p-1"
+        <Select
           value={projectId}
-          onChange={(e) => void navigate(`/projects/${e.target.value}/video`)}
+          onValueChange={(id) => void navigate(`/projects/${id}/video`)}
         >
-          {data.episodes.map((e) => (
-            <option key={e._id} value={e._id}>
-              Ep {e.episodeNumber}: {e.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Switch episode" className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {data.episodes.map((e) => (
+              <SelectItem key={e._id} value={e._id}>
+                Ep {e.episodeNumber}: {e.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Button size="sm" variant="outline" onClick={() => setOpen(!open)}>
           {open ? "Close series library" : "Series library"}
         </Button>
@@ -67,15 +85,23 @@ export function EpisodeSeriesPanel({
           </span>
         )}
       </div>
-      {open && (
-        <div className="mt-3 max-h-[55vh] overflow-auto pb-3">
-          <ResourceLibrary
-            seriesId={seriesId}
-            projectId={projectId}
-            archived={!!data.series.archivedAt}
-          />
-        </div>
-      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Series library · {data.series.title}</DialogTitle>
+            <DialogDescription>
+              Browse shared resources and choose a version for this episode.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 overflow-y-auto">
+            <ResourceLibrary
+              seriesId={seriesId}
+              projectId={projectId}
+              archived={!!data.series.archivedAt}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

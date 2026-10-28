@@ -41,6 +41,7 @@ export function ProjectCard({
   updatedAt,
   progress,
   archived,
+  layout = "grid",
 }: {
   projectId: string;
   title: string;
@@ -48,6 +49,7 @@ export function ProjectCard({
   updatedAt: number;
   progress: PipelineProgress;
   archived?: boolean;
+  layout?: "grid" | "list";
 }) {
   const navigate = useNavigate();
   const update = useMutation(api.projects.update);
@@ -75,8 +77,15 @@ export function ProjectCard({
 
   return (
     <>
-      <article className="group relative flex flex-col overflow-hidden border border-zinc-800 bg-zinc-900/40 transition-colors hover:border-zinc-600">
-        <Link to={`/projects/${projectId}`} className="block">
+      <article
+        className={`group relative flex overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600 ${layout === "list" ? "flex-row items-center" : "flex-col"}`}
+      >
+        <Link
+          to={`/projects/${projectId}`}
+          className={
+            layout === "list" ? "block w-28 shrink-0 sm:w-48" : "block"
+          }
+        >
           <div className="aspect-video bg-zinc-950">
             {thumbnailUrl ? (
               <img
@@ -91,7 +100,7 @@ export function ProjectCard({
             )}
           </div>
         </Link>
-        <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
           <div className="flex items-start justify-between gap-2">
             <Link to={`/projects/${projectId}`} className="min-w-0 flex-1">
               <h2 className="truncate font-medium text-zinc-100">{title}</h2>

@@ -1,3 +1,5 @@
+import { Children, isValidElement, type ReactElement, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { webCodecsSupported } from "@/features/blockout/export/videoExport";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,10 @@ type Props = {
   onExport: () => void;
   exporting: boolean;
 };
+
+function EditorSelect({ value, onChange, children, className }: { value: string | number; onChange: (e: { target: { value: string } }) => void; children: React.ReactNode; className?: string }) {
+  return <Select value={String(value)} onValueChange={value => onChange({ target: { value } })}><SelectTrigger className={className}><SelectValue /></SelectTrigger><SelectContent>{Children.toArray(children).filter(isValidElement).map(child => { const option = child as ReactElement<{ value: string | number; children: React.ReactNode }>; return <SelectItem key={String(option.props.value)} value={String(option.props.value)}>{option.props.children}</SelectItem>; })}</SelectContent></Select>;
+}
 
 function Collapsed({
   title,
@@ -114,6 +120,7 @@ export function EditorInspector({
   onExport,
   exporting,
 }: Props) {
+  const [tab, setTab] = useState("camera");
   const canEncode = webCodecsSupported();
   const durationSec = +(doc.frames / doc.fps).toFixed(2);
   const hfov = horizontalFovDeg(doc.camera.sensor, live.focal).toFixed(1);
@@ -129,53 +136,10 @@ export function EditorInspector({
   const activeKey = selCamKey ?? selObjKey;
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-l border-zinc-800 bg-zinc-950 p-2 text-xs">
-      <section className="space-y-2 border-b border-zinc-800 pb-3">
-        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-          Staging
-        </h3>
-        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
-          Duration
-          <input
-            type="number"
-            min={4}
-            max={30}
-            step={0.1}
-            value={durationSec}
-            onChange={(e) => onTimingChange({ durationSec: +e.target.value })}
-            className="h-7 w-16 border border-zinc-800 bg-zinc-950 px-1.5 text-zinc-200"
-          />
-          s
-        </label>
-        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
-          FPS
-          <select
-            value={doc.fps}
-            onChange={(e) => onTimingChange({ fps: +e.target.value })}
-            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
-          >
-            {[24, 25, 30].map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
-          Aspect
-          <select
-            value={doc.aspect}
-            onChange={(e) => onTimingChange({ aspect: e.target.value })}
-            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
-          >
-            {["16:9", "9:16", "21:9", "4:3", "1:1"].map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
+    <aside aria-label="Staging settings" className="staging-editor-inspector flex w-56 shrink-0 flex-col overflow-y-auto border-l border-zinc-800 bg-zinc-950 p-2 text-xs">
+      <div className="staging-inspector-tabs">{["camera", "object"].map(name => <button type="button" key={name} aria-pressed={tab === name} onClick={() => setTab(name)}>{name === "camera" ? "Camera" : "Object"}</button>)}</div>
+      <div hidden={tab !== "camera"}>
+
 
       <section className="space-y-2 border-b border-zinc-800 py-3">
         <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
@@ -190,7 +154,7 @@ export function EditorInspector({
               className={cn(
                 "border px-1.5 py-0.5 text-[10px]",
                 Math.round(live.focal) === mm
-                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  ? "staging-editor-active"
                   : "border-zinc-800 text-zinc-400 hover:border-zinc-600",
               )}
             >
@@ -232,6 +196,54 @@ export function EditorInspector({
         </div>
       </section>
 
+      <section className="space-y-2 border-b border-zinc-800 pb-3">
+        <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          Scene settings
+        </h3>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          Duration
+          <input
+            aria-label="Scene duration"
+            type="range"
+            min={4}
+            max={30}
+            step={0.1}
+            value={durationSec}
+            onChange={(e) => onTimingChange({ durationSec: +e.target.value })}
+            className="h-7 w-16 border border-zinc-800 bg-zinc-950 px-1.5 text-zinc-200"
+          />
+          <output>{durationSec}s</output>
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          FPS
+          <EditorSelect
+            value={doc.fps}
+            onChange={(e) => onTimingChange({ fps: +e.target.value })}
+            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+          >
+            {[24, 25, 30].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </EditorSelect>
+        </label>
+        <label className="flex items-center gap-2 text-[11px] text-zinc-400">
+          Aspect
+          <EditorSelect
+            value={doc.aspect}
+            onChange={(e) => onTimingChange({ aspect: e.target.value })}
+            className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
+          >
+            {["16:9", "9:16", "21:9", "4:3", "1:1"].map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </EditorSelect>
+        </label>
+      </section>
+
       <section className="space-y-2 border-b border-zinc-800 py-3">
         <h3 className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
           Export
@@ -253,7 +265,7 @@ export function EditorInspector({
               className={cn(
                 "flex-1 border px-2 py-1 text-[10px] capitalize",
                 exportMode === m
-                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  ? "staging-editor-active"
                   : "border-zinc-800 text-zinc-400",
               )}
             >
@@ -270,7 +282,7 @@ export function EditorInspector({
               className={cn(
                 "flex-1 border px-2 py-1 text-[10px]",
                 exportRange === r
-                  ? "border-zinc-300 bg-zinc-200 text-zinc-900"
+                  ? "staging-editor-active"
                   : "border-zinc-800 text-zinc-400",
               )}
             >
@@ -294,7 +306,7 @@ export function EditorInspector({
         ) : null}
       </section>
 
-      <Collapsed title="Camera">
+      <Collapsed title="Camera position & target" defaultOpen>
         <div className="grid grid-cols-3 gap-1">
           {(["x", "y", "z"] as const).map((axis, i) => (
             <Num
@@ -330,7 +342,7 @@ export function EditorInspector({
       </Collapsed>
 
       <Collapsed title="Sensor">
-        <select
+        <EditorSelect
           value={doc.camera.sensor}
           onChange={(e) => onSensorChange(+e.target.value)}
           className="h-7 w-full border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
@@ -340,7 +352,7 @@ export function EditorInspector({
               {s}mm
             </option>
           ))}
-        </select>
+        </EditorSelect>
       </Collapsed>
 
       <Collapsed title="Selected key" defaultOpen={Boolean(activeKey)}>
@@ -349,7 +361,7 @@ export function EditorInspector({
             <Num label="F" value={activeKey.f} step={1} onChange={onKeyFrame} />
             <label className="flex items-center gap-2 text-[11px] text-zinc-400">
               Ease
-              <select
+              <EditorSelect
                 value={activeKey.ease}
                 onChange={(e) => onKeyEase(e.target.value as BlockoutEase)}
                 className="h-7 border border-zinc-800 bg-zinc-950 px-1 text-zinc-200"
@@ -359,7 +371,7 @@ export function EditorInspector({
                     {e}
                   </option>
                 ))}
-              </select>
+              </EditorSelect>
             </label>
             {selCamKey ? (
               <Num
@@ -384,6 +396,8 @@ export function EditorInspector({
         )}
       </Collapsed>
 
+      </div>
+      <div hidden={tab !== "object"}>
       <Collapsed title="Selected object" defaultOpen={Boolean(selectedObject)}>
         {selectedObject ? (
           <div className="space-y-2">
@@ -403,6 +417,7 @@ export function EditorInspector({
           <p className="text-[10px] text-zinc-600">None selected</p>
         )}
       </Collapsed>
+      </div>
     </aside>
   );
 }

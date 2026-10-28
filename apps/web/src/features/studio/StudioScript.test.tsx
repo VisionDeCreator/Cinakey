@@ -17,6 +17,13 @@ const state = vi.hoisted(() => ({
   upload: vi.fn(),
   replace: vi.fn(),
   undoConversion: vi.fn(),
+  shared: [] as {
+    _id: string;
+    name: string;
+    type: string;
+    versionId: string;
+  }[],
+  adopt: vi.fn(),
 }));
 vi.mock("@/features/workspaces/workspace-context", () => ({
   useWorkspace: () => ({ canWrite: state.canWrite }),
@@ -27,6 +34,8 @@ vi.mock("@/lib/api/hooks", () => ({
     switch (getFunctionName(ref)) {
       case "workspace:list":
         return { migrated: true, script: { _id: "tip" }, scripts: [] };
+      case "resources:referenceCandidates":
+        return state.shared;
       case "assets:list":
         return [
           { _id: "asset-james", name: "James", type: "image" },
@@ -38,13 +47,15 @@ vi.mock("@/lib/api/hooks", () => ({
   },
   useAction: () => async () => ({ id: "tip", text: state.text }),
   useMutation: (ref: Parameters<typeof getFunctionName>[0]) =>
-    getFunctionName(ref) === "workspace:saveScript"
-      ? state.save
-      : getFunctionName(ref) === "references:replace"
-        ? state.replace
-        : getFunctionName(ref) === "references:undoReplacement"
-          ? state.undoConversion
-          : state.bind,
+    getFunctionName(ref) === "resources:useInProject"
+      ? state.adopt
+      : getFunctionName(ref) === "workspace:saveScript"
+        ? state.save
+        : getFunctionName(ref) === "references:replace"
+          ? state.replace
+          : getFunctionName(ref) === "references:undoReplacement"
+            ? state.undoConversion
+            : state.bind,
 }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploadFiles: state.upload, uploads: [] }),
@@ -64,6 +75,8 @@ function mount() {
 }
 beforeEach(() => {
   state.canWrite = true;
+  state.shared = [];
+  state.adopt.mockReset().mockResolvedValue("adopted");
   state.text = "@image_1 meets @image_1. @james walks.";
   state.save.mockReset().mockResolvedValue("saved");
   state.bind
@@ -367,4 +380,26 @@ it("pauses autosave and makes an expired script read-only without losing the dra
   expect(state.save).toHaveBeenCalledWith(
     expect.objectContaining({ text: "My unsaved draft" }),
   );
+});
+
+it("finds a series resource by its character name before adoption", async () => {
+  state.shared = [
+    { _id: "shared-jess", name: "Jess", type: "image", versionId: "jess-v1" },
+  ];
+  state.text = "@jess walks.";
+  mount();
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: /@jess.*Link asset/ }));
+  expect(screen.getByRole("option", { name: /Link Jess/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: /Link Jess/ }));
+  await act(async () => {});
+  expect(state.adopt).toHaveBeenCalledWith({
+    projectId: "project",
+    versionId: "jess-v1",
+  });
+  expect(state.bind).toHaveBeenCalledWith({
+    projectId: "project",
+    alias: "jess",
+    assetId: "shared-jess",
+  });
 });

@@ -56,8 +56,6 @@ it("reports unavailable email delivery without claiming success", async () => {
 it("does not offer verification to an already verified account", () => {
   state.verified = true;
   render(<EmailVerification />);
-  expect(
-    screen.getByText("Email verified: person@test.com"),
-  ).toBeInTheDocument();
+  expect(screen.getByText("Verified")).toBeInTheDocument();
   expect(screen.queryByRole("button")).toBeNull();
 });

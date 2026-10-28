@@ -1,6 +1,14 @@
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { formatUsd } from "@cinakey/shared";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useConfirm } from "@/components/use-confirm";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
@@ -12,7 +20,16 @@ import {
   COST_CONFIRM_THRESHOLD_USD_MICROS,
   type TimelineClip,
 } from "@cinakey/shared";
-import { Film, Link2, Music, Plus, Star, Upload } from "lucide-react";
+import {
+  Film,
+  Link2,
+  Music,
+  Plus,
+  Star,
+  Upload,
+  Search,
+  Maximize,
+} from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -41,6 +58,7 @@ export type StudioInsert = {
 export function StudioWorkspace({
   toolbar,
   viewer,
+  previewTransport,
   timeline,
   inspector,
   selectedClip,
@@ -52,6 +70,7 @@ export function StudioWorkspace({
 }: {
   toolbar: ReactNode;
   viewer: ReactNode;
+  previewTransport?: ReactNode;
   timeline: ReactNode;
   inspector: ReactNode;
   selectedClip: TimelineClip | null;
@@ -118,12 +137,18 @@ export function StudioWorkspace({
   const [view, setView] = useState<"source" | "edit" | "staging" | "compare">(
     "edit",
   );
+  const importInput = useRef<HTMLInputElement>(null);
+  const previewContainer = useRef<HTMLDivElement>(null);
+  const [mediaSearch, setMediaSearch] = useState("");
+  const [mediaType, setMediaType] = useState("all");
   const [library, setLibrary] = useState<"references" | "media">("media");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resolution, setResolution] = useState("1080p");
-  const [useStaging, setUseStaging] = useState(false);
+  const [useStaging, setUseStaging] = useState(
+    workspaceParams.get("stagingReference") === "1",
+  );
   const [dirty, setDirty] = useState(false);
   const [referencesValid, setReferencesValid] = useState(false);
   const [mediaDurations, setMediaDurations] = useState<Record<string, number>>(
@@ -131,13 +156,13 @@ export function StudioWorkspace({
   );
   const [inSec, setInSec] = useState(0);
   const [outSec, setOutSec] = useState(0);
-  const [inspectorView, setInspectorView] = useState<"script" | "clip">(
-    "script",
-  );
+  const [inspectorView, setInspectorView] = useState<
+    "script" | "generation" | "clip"
+  >("script");
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState(() => {
     const defaults = {
-      left: 210,
+      left: 330,
       right: 310,
       bottom: 280,
       library: true,
@@ -152,7 +177,7 @@ export function StudioWorkspace({
       if (!saved) return defaults;
       return {
         ...defaults,
-        left: Math.max(150, Math.min(420, Number(saved.left) || defaults.left)),
+        left: Math.max(280, Math.min(420, Number(saved.left) || defaults.left)),
         right: Math.max(
           240,
           Math.min(480, Number(saved.right) || defaults.right),
@@ -229,7 +254,7 @@ export function StudioWorkspace({
         onDoubleClick={() =>
           setLayout((old) => ({
             ...old,
-            [panel]: panel === "left" ? 210 : panel === "right" ? 310 : 280,
+            [panel]: panel === "left" ? 330 : panel === "right" ? 310 : 280,
           }))
         }
         onKeyDown={(event) => {
@@ -267,6 +292,11 @@ export function StudioWorkspace({
   });
   const videos = useMemo(() => footage?.videos ?? [], [footage]);
   const source = assets?.find((a) => a._id === sourceId);
+  const selectedAsset = assets?.find(
+    (asset) =>
+      selectedClip?.source.type === "asset" &&
+      asset._id === selectedClip.source.assetId,
+  );
   const sourceVideo = videos.find((a) => a.assetId === sourceId);
   const sourceDuration = sourceId
     ? (mediaDurations[sourceId] ?? source?.durationSec)
@@ -460,7 +490,7 @@ export function StudioWorkspace({
   const media = (assets ?? []).filter((a) =>
     ["video", "image", "audio", "music"].includes(a.type),
   );
-  const libraryAssets =
+  const scopedAssets =
     library === "references"
       ? media.filter(
           (a) =>
@@ -468,6 +498,16 @@ export function StudioWorkspace({
             (a.type === "video" && bindings?.some((b) => b.assetId === a._id)),
         )
       : media;
+  const libraryAssets = scopedAssets.filter(
+    (asset) =>
+      (mediaType === "all" ||
+        (mediaType === "audio"
+          ? ["audio", "music"].includes(asset.type)
+          : asset.type === mediaType)) &&
+      `${asset.name} ${bindings?.find((binding) => binding.assetId === asset._id)?.alias ?? ""}`
+        .toLowerCase()
+        .includes(mediaSearch.trim().toLowerCase()),
+  );
   return (
     <div
       ref={workspaceRef}
@@ -497,7 +537,7 @@ export function StudioWorkspace({
         <button
           onClick={() =>
             setLayout({
-              left: 210,
+              left: 330,
               right: 310,
               bottom: 280,
               library: true,
@@ -537,7 +577,18 @@ export function StudioWorkspace({
       >
         {divider("left")}
         <div className="studio-section-heading">
-          <h2>Project media</h2>
+          <h2>
+            Project media{" "}
+            <span className="studio-media-count">{media.length}</span>
+          </h2>
+          <Button
+            size="sm"
+            disabled={canWrite === false}
+            onClick={() => importInput.current?.click()}
+          >
+            <Plus size={14} />
+            Import
+          </Button>
         </div>
         {migrationError && !workspace?.migrated && (
           <p role="alert">
@@ -552,21 +603,59 @@ export function StudioWorkspace({
             </Button>
           </p>
         )}
+        <div className="studio-media-search">
+          <Search size={14} />
+          <Input
+            aria-label="Search project media"
+            placeholder="Search media…"
+            value={mediaSearch}
+            onChange={(event) => setMediaSearch(event.target.value)}
+          />
+        </div>
         <div className="studio-library-tabs">
-          <button
-            aria-pressed={library === "references"}
-            onClick={() => setLibrary("references")}
-          >
-            References
-          </button>
           <button
             aria-pressed={library === "media"}
             onClick={() => setLibrary("media")}
           >
             All media
           </button>
+          <button
+            aria-pressed={library === "references"}
+            onClick={() => setLibrary("references")}
+          >
+            References
+          </button>
+        </div>
+        <div
+          className="studio-media-filters"
+          role="group"
+          aria-label="Media types"
+        >
+          {[
+            { value: "all", label: "All" },
+            { value: "video", label: "Video" },
+            { value: "image", label: "Images" },
+            { value: "audio", label: "Audio" },
+          ].map((filter) => (
+            <button
+              key={filter.value}
+              aria-pressed={mediaType === filter.value}
+              onClick={() => setMediaType(filter.value)}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
         <div className="studio-assets">
+          {!libraryAssets.length && (
+            <p className="studio-library-empty">
+              {mediaSearch || mediaType !== "all"
+                ? "No media matches your filters."
+                : library === "references"
+                  ? "No reference media yet."
+                  : "Import media to start your story."}
+            </p>
+          )}
           {libraryAssets.map((asset) => (
             <ReferenceMedia
               key={asset._id}
@@ -593,8 +682,17 @@ export function StudioWorkspace({
                 ) : (
                   <Music size={18} />
                 )}
-                <span>
-                  <strong>{asset.name}</strong>
+                {asset.type === "video" && asset.durationSec != null && (
+                  <span className="studio-asset-duration">
+                    {Math.floor(asset.durationSec / 60)}:
+                    {String(Math.floor(asset.durationSec % 60)).padStart(
+                      2,
+                      "0",
+                    )}
+                  </span>
+                )}
+                <span className="studio-asset-caption">
+                  <strong title={asset.name}>{asset.name}</strong>
                   <small>
                     {bindings?.find((b) => b.assetId === asset._id)
                       ? `@${bindings.find((b) => b.assetId === asset._id)?.alias}`
@@ -607,8 +705,11 @@ export function StudioWorkspace({
         </div>
         <label className="studio-upload-label">
           <Upload size={15} />
-          Import media
+          <strong>Drop media here</strong>
+          <small>Images, video, or audio · choose files</small>
           <input
+            ref={importInput}
+            aria-label="Import media"
             type="file"
             disabled={canWrite === false}
             accept="image/*,video/*,audio/*"
@@ -666,7 +767,7 @@ export function StudioWorkspace({
                 {view === "source"
                   ? (source?.name ?? "Viewer")
                   : view === "staging"
-                    ? "Staging"
+                    ? "Preview"
                     : "Timeline preview"}
               </h2>
               <span className="studio-muted">
@@ -686,10 +787,11 @@ export function StudioWorkspace({
                 Source
               </button>
               <button
+                aria-label="Show timeline preview"
                 aria-pressed={view === "edit"}
                 onClick={() => setView("edit")}
               >
-                Edit
+                Timeline
               </button>
               <button
                 aria-pressed={view === "staging"}
@@ -737,6 +839,7 @@ export function StudioWorkspace({
             </div>
           )}
           <div
+            ref={previewContainer}
             className={`studio-preview-content ${view === "staging" ? "studio-preview-staging" : ""}`}
           >
             {view === "compare" && (
@@ -784,10 +887,70 @@ export function StudioWorkspace({
               ))}
             {view === "staging" && (
               <div className="studio-staging-panel">
-                <BlockoutPage />
+                <BlockoutPage
+                  onUseForGeneration={(id) => {
+                    setWorkspaceParams(
+                      (previous) => {
+                        const next = new URLSearchParams(previous);
+                        next.set("staging", id);
+                        next.set("stagingReference", "1");
+                        return next;
+                      },
+                      { replace: true },
+                    );
+                    setUseStaging(true);
+                    setInspectorView("generation");
+                    setLayout((previous) => ({ ...previous, inspector: true }));
+                  }}
+                />
               </div>
             )}
           </div>
+          {view === "edit" && previewTransport && (
+            <div className="studio-preview-transport">
+              {previewTransport}
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Fullscreen preview"
+                onClick={() => {
+                  void previewContainer.current
+                    ?.requestFullscreen()
+                    .catch(() =>
+                      setError("Fullscreen is not available in this browser."),
+                    );
+                }}
+              >
+                <Maximize size={15} />
+              </Button>
+            </div>
+          )}
+          {view === "edit" && selectedAsset && (
+            <div className="studio-source-summary">
+              <MediaThumbnail
+                asset={selectedAsset}
+                url={
+                  urls?.find((row) => row.assetId === selectedAsset._id)?.url
+                }
+              />
+              <div>
+                <strong title={selectedAsset.name}>{selectedAsset.name}</strong>
+                <small>
+                  {selectedAsset.width && selectedAsset.height
+                    ? `${selectedAsset.width} × ${selectedAsset.height} · `
+                    : ""}
+                  {selectedAsset.type}
+                </small>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => preview(selectedAsset._id)}
+              >
+                View source
+              </Button>
+            </div>
+          )}
           {view === "source" && source && (
             <div className="studio-source-toolbar">
               <label>
@@ -1030,7 +1193,13 @@ export function StudioWorkspace({
             onClick={() => setInspectorView("script")}
           >
             <Link2 size={14} />
-            Script & generation
+            Script
+          </button>
+          <button
+            aria-pressed={inspectorView === "generation"}
+            onClick={() => setInspectorView("generation")}
+          >
+            Generation
           </button>
           <button
             aria-pressed={inspectorView === "clip"}
@@ -1047,65 +1216,113 @@ export function StudioWorkspace({
             onValidityChange={setReferencesValid}
             saveRef={scriptSave}
           />
+        </div>
+        <div
+          hidden={inspectorView === "clip"}
+          className={
+            inspectorView === "script"
+              ? "studio-script-generation-footer"
+              : undefined
+          }
+        >
           <section className="studio-generation-settings">
             <h2>Generation</h2>
             <label>
               Model<span>Seedance 2.5</span>
             </label>
-            <label>
-              Resolution
-              <select
-                value={resolution}
-                onChange={(e) => setResolution(e.target.value)}
-              >
-                <option>720p</option>
-                <option>1080p</option>
-              </select>
-            </label>
-            <label>
-              Duration (seconds)
-              <input
-                aria-label="Generation duration"
-                type="number"
-                min={4}
-                max={30}
-                value={durationSec}
-                onChange={(event) => setDurationSec(Number(event.target.value))}
-              />
-            </label>
+            <div className="studio-generation-controls">
+              <div>
+                <label id="generation-resolution-label">Resolution</label>
+                <Select value={resolution} onValueChange={setResolution}>
+                  <SelectTrigger aria-labelledby="generation-resolution-label">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="720p">720p</SelectItem>
+                    <SelectItem value="1080p">1080p</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="studio-duration-control">
+                <label htmlFor="generation-duration">
+                  Duration{" "}
+                  <output htmlFor="generation-duration">
+                    {durationSec} seconds
+                  </output>
+                </label>
+                <input
+                  id="generation-duration"
+                  aria-label="Generation duration"
+                  aria-valuetext={`${durationSec} seconds`}
+                  type="range"
+                  min={4}
+                  max={30}
+                  step={1}
+                  value={durationSec}
+                  onChange={(event) =>
+                    setDurationSec(Number(event.target.value))
+                  }
+                  style={
+                    {
+                      "--duration-progress": `${((durationSec - 4) / 26) * 100}%`,
+                    } as CSSProperties
+                  }
+                />
+                <div className="studio-duration-limits">
+                  <span>4s</span>
+                  <span>30s</span>
+                </div>
+              </div>
+            </div>
             {workspace && workspace.staging.length > 0 && (
-              <label>
-                Staging
-                <select
-                  aria-label="Generation staging"
+              <div className="staging-generation-selector">
+                <span>Staging</span>
+                <Select
                   value={staging?._id ?? ""}
-                  onChange={(event) => {
-                    const id = event.target.value;
+                  onValueChange={(id) => {
                     setUseStaging(false);
                     setWorkspaceParams(
-                      (old) => {
-                        const next = new URLSearchParams(old);
+                      (previous) => {
+                        const next = new URLSearchParams(previous);
                         next.set("staging", id);
+                        next.delete("stagingReference");
                         return next;
                       },
                       { replace: true },
                     );
                   }}
                 >
-                  {workspace.staging.map((item) => (
-                    <option key={item._id} value={item._id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <SelectTrigger aria-label="Generation staging">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workspace.staging.map((item) => (
+                      <SelectItem key={item._id} value={item._id}>
+                        {item.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
             {staging?.previzAssetId && (
               <label className="studio-check">
                 <input
                   type="checkbox"
                   checked={useStaging}
-                  onChange={(event) => setUseStaging(event.target.checked)}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setUseStaging(checked);
+                    setWorkspaceParams(
+                      (previous) => {
+                        const next = new URLSearchParams(previous);
+                        if (checked) next.set("stagingReference", "1");
+                        else next.delete("stagingReference");
+                        return next;
+                      },
+                      { replace: true },
+                    );
+                  }}
                 />
                 Use staging as video reference
               </label>
@@ -1143,7 +1360,7 @@ export function StudioWorkspace({
               {dirty
                 ? "Save the script before generating."
                 : !referencesValid
-                  ? "Resolve the script reference issues shown above before generating."
+                  ? "Resolve the script reference issues in the Script tab before generating."
                   : overCap
                     ? "Project spend cap reached."
                     : !validDuration

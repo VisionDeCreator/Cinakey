@@ -124,10 +124,10 @@ export class ApiClient {
       });
     return entry.pending;
   }
-  async invalidate() {
+  async invalidate(names?: readonly string[]) {
     await Promise.all(
       [...this.queries.values()]
-        .filter((e) => e.listeners.size)
+        .filter((e) => e.listeners.size && (!names || names.includes(e.name)))
         .map(async (e) => {
           // A read started before a write may return the old snapshot. Wait for
           // it, then issue a new read after the mutation has committed.

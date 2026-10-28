@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { ConfirmContext } from "@/components/use-confirm";
 import {
   cleanup,
@@ -59,6 +60,10 @@ vi.mock("@/lib/api/hooks", () => ({
   },
 }));
 beforeEach(() => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
+  HTMLElement.prototype.setPointerCapture = vi.fn();
+  HTMLElement.prototype.releasePointerCapture = vi.fn();
   state.role = "owner";
   state.hasInvitation = false;
   state.invite.mockReset().mockResolvedValue("invite");
@@ -138,9 +143,12 @@ it("requires explicit confirmation before transferring workspace ownership", asy
       <TeamSettings />
     </ConfirmContext.Provider>,
   );
-  fireEvent.change(screen.getByLabelText("Transfer ownership"), {
-    target: { value: "creator" },
-  });
+  await userEvent.click(
+    screen.getByRole("combobox", { name: "Transfer ownership" }),
+  );
+  await userEvent.click(
+    screen.getByRole("option", { name: "creator@test.com" }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Transfer ownership" }));
   await waitFor(() =>
     expect(state.transfer).toHaveBeenCalledWith({
@@ -159,9 +167,12 @@ it("does not transfer ownership if the confirmation is canceled", async () => {
       <TeamSettings />
     </ConfirmContext.Provider>,
   );
-  fireEvent.change(screen.getByLabelText("Transfer ownership"), {
-    target: { value: "creator" },
-  });
+  await userEvent.click(
+    screen.getByRole("combobox", { name: "Transfer ownership" }),
+  );
+  await userEvent.click(
+    screen.getByRole("option", { name: "creator@test.com" }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Transfer ownership" }));
   await waitFor(() => expect(confirm).toHaveBeenCalled());
   expect(state.transfer).not.toHaveBeenCalled();

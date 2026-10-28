@@ -1,7 +1,12 @@
 import { formatUsd } from "@cinakey/shared";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -10,10 +15,25 @@ import {
   Upload,
   WandSparkles,
   Trash2,
+  LayoutGrid,
+  List,
+  ArrowRight,
+  Images,
+  UserRound,
+  Palette,
+  Mountain,
 } from "lucide-react";
 import { api, type Doc } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { MediaDropzone } from "./MediaDropzone";
 import type { ReferencePromptHandle } from "./ReferencePromptEditor";
@@ -29,10 +49,21 @@ export function GenjutsuPage() {
   );
   const create = useMutation(api.genjutsu.create);
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [sort, setSort] = useState("updated");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const search = (params.get("q") ?? "").trim().toLowerCase();
+  const visible = sessions
+    ?.filter((session) => session.title.toLowerCase().includes(search))
+    .sort((a, b) =>
+      sort === "title"
+        ? a.title.localeCompare(b.title)
+        : b.updatedAt - a.updatedAt,
+    );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function newSession() {
-    if (busy) return;
+    if (busy || !canCreate) return;
     setBusy(true);
     setError(null);
     try {
@@ -40,7 +71,7 @@ export function GenjutsuPage() {
         ...(workspaceId ? { workspaceId } : {}),
         title: `Transformation ${(sessions?.length ?? 0) + 1}`,
       });
-      void navigate(`/genjutsu/${id}`);
+      void navigate(`/remix/${id}`);
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Could not create a transformation",
@@ -50,20 +81,30 @@ export function GenjutsuPage() {
     }
   }
   return (
-    <div className="genjutsu-page">
-      <header className="genjutsu-heading">
-        <div>
-          <span className="genjutsu-eyebrow">
-            <WandSparkles size={15} /> VIDEO TRANSFORMATION
-          </span>
-          <h1>Genjutsu</h1>
-          <p>One performance. A different world.</p>
-        </div>
-        <Button disabled={busy || !canCreate} onClick={() => void newSession()}>
-          <Plus size={16} />
-          {busy ? "Creating…" : "New transformation"}
-        </Button>
-      </header>
+    <div
+      className={cn(
+        "genjutsu-page",
+        !sessionId ? "genjutsu-index" : "genjutsu-editor",
+      )}
+    >
+      {!sessionId && (
+        <header className="genjutsu-heading">
+          <div>
+            <span className="genjutsu-eyebrow">
+              <WandSparkles size={15} /> VIDEO TRANSFORMATION
+            </span>
+            <h1>Remix</h1>
+            <p>One performance. A different world.</p>
+          </div>
+          <Button
+            disabled={busy || !canCreate}
+            onClick={() => void newSession()}
+          >
+            <Plus size={16} />
+            {busy ? "Creating…" : "New transformation"}
+          </Button>
+        </header>
+      )}
       {error && (
         <p role="alert" className="transform-error">
           {error}
@@ -73,9 +114,11 @@ export function GenjutsuPage() {
         <GenjutsuSession key={sessionId} sessionId={sessionId} />
       ) : (
         <>
-          <section className="genjutsu-intro">
+          <section
+            className="genjutsu-intro genjutsu-index-intro"
+            aria-label="About video transformations"
+          >
             <div>
-              <span className="genjutsu-eyebrow">START WITH A VIDEO</span>
               <h2>
                 Keep the movement.
                 <br />
@@ -83,57 +126,138 @@ export function GenjutsuPage() {
               </h2>
               <p>
                 Recast a character, explore a visual style, or move the action
-                somewhere new. Upload your footage and references, describe the
-                change, and click Generate.
+                somewhere new.
               </p>
-              <Button
-                disabled={busy || !canCreate}
-                onClick={() => void newSession()}
-              >
-                Create a transformation <ArrowUpRight size={16} />
-              </Button>
+              <div className="genjutsu-process">
+                <Film size={18} />
+                <span>Source video</span>
+                <ArrowRight size={14} />
+                <Images size={18} />
+                <span>References</span>
+                <ArrowRight size={14} />
+                <WandSparkles size={18} />
+                <span>Transformation</span>
+              </div>
+              <div className="genjutsu-capabilities">
+                <span>
+                  <UserRound size={15} />
+                  Recast characters
+                </span>
+                <span>
+                  <Palette size={15} />
+                  Restyle footage
+                </span>
+                <span>
+                  <Mountain size={15} />
+                  Change environments
+                </span>
+              </div>
             </div>
-            <div className="genjutsu-modes">
-              <span>01 / Recast characters</span>
-              <span>02 / Restyle footage</span>
-              <span>03 / Change environments</span>
-            </div>
+            <figure className="genjutsu-example">
+              <img
+                src="/images/genjutsu-example.png"
+                alt="Illustrative comparison of a woman walking through a modern corridor and a transformed sandstone city"
+              />
+              <figcaption>
+                <span>Source concept</span>
+                <span>Illustrative transformation</span>
+              </figcaption>
+            </figure>
           </section>
           <section aria-label="Transformation sessions">
             <div className="genjutsu-section-title">
               <h2>Your transformations</h2>
-              <span>{sessions?.length ?? 0} sessions</span>
+              <div className="flex items-center gap-2">
+                <Select value={sort} onValueChange={setSort}>
+                  <SelectTrigger
+                    aria-label="Sort transformations"
+                    className="w-36 rounded-xl bg-transparent"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="updated">Last edited</SelectItem>
+                    <SelectItem value="title">Name</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex rounded-xl border border-zinc-800 p-0.5">
+                  {(["grid", "list"] as const).map((mode) => (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                      aria-pressed={view === mode}
+                      onClick={() => setView(mode)}
+                      className={cn(
+                        "size-8 rounded-lg",
+                        view === mode &&
+                          "bg-[var(--color-studio-accent-soft)] text-[var(--color-studio-accent)]",
+                      )}
+                    >
+                      {mode === "grid" ? <LayoutGrid /> : <List />}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
             {sessions === undefined ? (
               <p role="status">Loading transformations…</p>
-            ) : sessions.length ? (
-              <div className="genjutsu-session-grid">
-                {sessions.map((session) => (
-                  <Link
-                    key={session._id}
-                    to={`/genjutsu/${session._id}`}
-                    className="genjutsu-session-card"
-                  >
-                    <div className="genjutsu-card-art">
-                      <WandSparkles size={30} />
-                    </div>
-                    <h3>{session.title}</h3>
-                    <p>
-                      {new Date(session.updatedAt).toLocaleDateString()}{" "}
-                      <ArrowUpRight size={14} />
-                    </p>
-                  </Link>
+            ) : visible?.length ? (
+              <div
+                className={cn(
+                  "genjutsu-session-grid",
+                  view === "list" && "genjutsu-list-view",
+                )}
+              >
+                {visible.map((session) => (
+                  <TransformationCard key={session._id} session={session} />
                 ))}
               </div>
             ) : (
               <p className="genjutsu-empty">
-                Your saved transformations will appear here.
+                {search
+                  ? "No matching transformations."
+                  : "Your saved transformations will appear here. Start a new transformation to begin."}
               </p>
             )}
           </section>
         </>
       )}
     </div>
+  );
+}
+function TransformationCard({ session }: { session: Doc<"genjutsuSessions"> }) {
+  const urls = useQuery(
+    api.storage.listProjectAssetUrls,
+    session.sourceAssetId ? { projectId: session.storageScopeId } : "skip",
+  );
+  const sourceUrl = urls?.find(
+    (item) => item.assetId === session.sourceAssetId,
+  )?.url;
+  return (
+    <Link to={`/remix/${session._id}`} className="genjutsu-session-card">
+      <div className="genjutsu-card-art">
+        {sourceUrl ? (
+          <video
+            src={sourceUrl}
+            muted
+            playsInline
+            preload="metadata"
+            aria-label="Source footage preview"
+          />
+        ) : (
+          <WandSparkles size={30} />
+        )}
+      </div>
+      <div className="genjutsu-card-details">
+        <div>
+          <h3>{session.title}</h3>
+          <p>Edited {new Date(session.updatedAt).toLocaleDateString()}</p>
+        </div>
+        <ArrowUpRight size={18} aria-hidden />
+      </div>
+    </Link>
   );
 }
 function GenjutsuSession({ sessionId }: { sessionId: string }) {
@@ -144,7 +268,7 @@ function GenjutsuSession({ sessionId }: { sessionId: string }) {
     return (
       <div className="genjutsu-empty">
         <p>Transformation not found.</p>
-        <Link to="/genjutsu">Back to Genjutsu</Link>
+        <Link to="/remix">Back to Remix</Link>
       </div>
     );
   return <TransformationWorkspace session={session} />;
@@ -242,11 +366,12 @@ function TransformationWorkspace({
   return (
     <>
       <div className="genjutsu-session-bar">
-        <Link to="/genjutsu">
+        <Link to="/remix">
           <ArrowLeft size={15} />
           All transformations
         </Link>
         <input
+          className="genjutsu-session-title"
           aria-label="Transformation name"
           key={session.title}
           defaultValue={session.title}
@@ -259,10 +384,14 @@ function TransformationWorkspace({
               }).catch((error: Error) => setError(error.message));
           }}
         />
-        <span>Sume Remix Lite · DeepSeek Flash</span>
+        <p className="genjutsu-session-subtitle">
+          One performance. A different world.
+        </p>
+        <span className="genjutsu-engine">Video remix</span>
       </div>
       <div className="genjutsu-workspace">
         <aside className="genjutsu-inputs" aria-label="Transformation inputs">
+          <h2 className="genjutsu-panel-title">Inputs</h2>
           <div className="genjutsu-section-title">
             <h2>01 / Source footage</h2>
             <Film size={16} />
@@ -281,6 +410,14 @@ function TransformationWorkspace({
               <span title={source?.name}>
                 {source?.name ?? "Loading source video…"}
               </span>
+              {source?.durationSec && (
+                <p className="transform-muted">
+                  {source.durationSec} seconds
+                  {source.width && source.height
+                    ? ` · ${source.width} × ${source.height}`
+                    : ""}
+                </p>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -482,7 +619,19 @@ function TransformationWorkspace({
                     aria-pressed={result?._id === asset._id}
                     onClick={() => setResultId(asset._id)}
                   >
-                    <Film size={16} />
+                    {urls?.find((item) => item.assetId === asset._id)?.url ? (
+                      <video
+                        src={
+                          urls.find((item) => item.assetId === asset._id)!.url!
+                        }
+                        muted
+                        playsInline
+                        preload="metadata"
+                        aria-label={`Version ${results.length - index} preview`}
+                      />
+                    ) : (
+                      <Film size={16} />
+                    )}
                     <span>
                       Version {results.length - index}
                       <small>{asset.name}</small>

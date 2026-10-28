@@ -81,6 +81,9 @@ export class EditorMedia {
   }
   private async download(url: string): Promise<Blob> {
     const response = await fetch(url, {
+      // Thumbnails may have primed an opaque, non-CORS response for this URL.
+      // Read fresh bytes for canvas rendering and audio decoding.
+      cache: "reload",
       signal: AbortSignal.any([
         this.controller.signal,
         AbortSignal.timeout(30_000),

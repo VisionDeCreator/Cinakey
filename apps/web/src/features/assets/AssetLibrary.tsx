@@ -1,3 +1,9 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,9 +22,17 @@ import { useMutation, useQuery } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
 import { api, type Id } from "@cinakey/backend";
 import type { AssetType } from "@cinakey/shared";
-import { LayoutGrid, List, Star, Upload } from "lucide-react";
+import {
+  LayoutGrid,
+  List,
+  Star,
+  Upload,
+  MoreHorizontal,
+  Music,
+  Image as ImageIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 const TYPES: AssetType[] = ["video", "image", "audio", "music", "logo"];
 
@@ -49,12 +63,15 @@ export function AssetLibrary({
   const [tag, setTag] = useState<string>("all");
   const [characterId, setCharacterId] = useState<string>("all");
   const [starredOnly, setStarredOnly] = useState(false);
-  const [search, setSearch] = useState("");
+  const [localSearch, setSearch] = useState("");
+  const [params] = useSearchParams();
+  const search = requireProject ? (params.get("q") ?? "") : localSearch;
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState<Id<"assets"> | null>(
     null,
   );
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -95,44 +112,28 @@ export function AssetLibrary({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1600px] space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-          {description ? (
-            <p className="mt-1 text-sm text-zinc-400">{description}</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {requireProject ? "Your assets" : title}
+          </h1>
+          {description || requireProject ? (
+            <p className="mt-1 text-sm text-zinc-400">
+              {description ??
+                "Your footage, images and audio, together in one place."}
+            </p>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!projectId ? (
-            <Select
-              value={selectedProjectId ?? "all"}
-              onValueChange={(v) =>
-                setSelectedProjectId(v === "all" ? undefined : v)
-              }
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All projects</SelectItem>
-                {(projects ?? []).map(({ project }) => (
-                  <SelectItem key={project._id} value={project._id}>
-                    {project.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
           <Button
-            variant="secondary"
-            size="sm"
+            size="lg"
             disabled={!canUpload}
             onClick={() => fileRef.current?.click()}
             title={canUpload ? "Upload files" : "Select a project to upload"}
           >
             <Upload className="size-4" />
-            Upload
+            Upload assets
           </Button>
           <input
             ref={fileRef}
@@ -145,31 +146,55 @@ export function AssetLibrary({
               e.target.value = "";
             }}
           />
-          <div className="flex border border-zinc-800">
-            <Button
-              variant={view === "grid" ? "secondary" : "ghost"}
-              size="icon"
-              className="rounded-none"
-              onClick={() => setView("grid")}
-            >
-              <LayoutGrid className="size-4" />
-            </Button>
-            <Button
-              variant={view === "list" ? "secondary" : "ghost"}
-              size="icon"
-              className="rounded-none"
-              onClick={() => setView("list")}
-            >
-              <List className="size-4" />
-            </Button>
-          </div>
         </div>
       </div>
+      {!projectId && (
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="text-sm text-zinc-300">Project</span>{" "}
+          {!projectId ? (
+            <Select
+              value={selectedProjectId ?? "all"}
+              onValueChange={(v) => {
+                setSelectedProjectId(v === "all" ? undefined : v);
+                setTag("all");
+                setCharacterId("all");
+              }}
+            >
+              <SelectTrigger
+                aria-label="Project"
+                className="w-full max-w-sm rounded-full bg-transparent"
+              >
+                <SelectValue placeholder="All projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                {(projects ?? []).map(({ project }) => (
+                  <SelectItem key={project._id} value={project._id}>
+                    {project.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          <p className="text-xs text-zinc-400">
+            Uploads are added to the selected project.
+          </p>
+          {effectiveProjectId && (
+            <Link
+              to={`/projects/${effectiveProjectId}/assets`}
+              className="text-xs text-zinc-400 underline hover:text-zinc-100"
+            >
+              Open project assets ↗
+            </Link>
+          )}
+        </div>
+      )}
 
       <div
         className={cn(
-          "border border-dashed border-zinc-700 px-4 py-6 text-center transition-colors",
-          dragging && "border-zinc-400 bg-zinc-900/50",
+          "rounded-2xl border border-dashed border-zinc-700 px-4 py-5 text-center transition-colors",
+          dragging &&
+            "border-[var(--color-studio-accent)] bg-[var(--color-studio-accent-soft)]",
           !canUpload && "opacity-50",
         )}
         onDragOver={(e) => {
@@ -183,6 +208,7 @@ export function AssetLibrary({
           if (canUpload) void onFiles(e.dataTransfer.files);
         }}
       >
+        <Upload className="mx-auto mb-2 size-5 text-zinc-400" />
         <p className="text-sm text-zinc-400">
           {canUpload
             ? "Drag and drop video, images, or audio here"
@@ -190,6 +216,15 @@ export function AssetLibrary({
               ? "Select a project above to upload"
               : "Select a project to upload, or browse all assets below"}
         </p>
+        {canUpload && (
+          <button
+            type="button"
+            className="mt-1 text-xs text-[var(--color-studio-accent)]"
+            onClick={() => fileRef.current?.click()}
+          >
+            or browse files
+          </button>
+        )}
       </div>
 
       {uploads.length > 0 ? (
@@ -214,28 +249,81 @@ export function AssetLibrary({
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Search name or tags…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
-              </SelectItem>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800">
+        <div className="flex flex-wrap gap-5" aria-label="Asset categories">
+          {["all", ...TYPES].map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={type === value}
+              onClick={() => setType(value)}
+              className={cn(
+                "border-b-2 px-1 pb-3 text-sm capitalize",
+                type === value
+                  ? "border-[var(--color-studio-accent)] text-zinc-100"
+                  : "border-transparent text-zinc-400",
+              )}
+            >
+              {value === "all"
+                ? "All assets"
+                : value === "image"
+                  ? "Images"
+                  : value === "logo"
+                    ? "Logos"
+                    : value}
+            </button>
+          ))}
+        </div>
+        <div className="mb-2 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={starredOnly}
+            onClick={() => setStarredOnly((v) => !v)}
+            className={cn(
+              starredOnly &&
+                "border-[var(--color-studio-accent)] text-[var(--color-studio-accent)]",
+            )}
+          >
+            <Star className={starredOnly ? "fill-current" : undefined} />
+            Favourites
+          </Button>
+          <div className="flex rounded-xl border border-zinc-800 p-0.5">
+            {(["grid", "list"] as const).map((mode) => (
+              <Button
+                key={mode}
+                variant="ghost"
+                size="icon"
+                aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                aria-pressed={view === mode}
+                onClick={() => setView(mode)}
+                className={cn(
+                  "size-8 rounded-lg",
+                  view === mode &&
+                    "bg-[var(--color-studio-accent-soft)] text-[var(--color-studio-accent)]",
+                )}
+              >
+                {mode === "grid" ? <LayoutGrid /> : <List />}
+              </Button>
             ))}
-          </SelectContent>
-        </Select>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {!requireProject && (
+          <Input
+            aria-label="Search assets"
+            placeholder="Search name or tags…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="max-w-xs rounded-full bg-transparent"
+          />
+        )}
         <Select value={tag} onValueChange={setTag}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger
+            aria-label="Filter by tag"
+            className="w-48 rounded-full bg-transparent"
+          >
             <SelectValue placeholder="Tag" />
           </SelectTrigger>
           <SelectContent>
@@ -248,7 +336,10 @@ export function AssetLibrary({
           </SelectContent>
         </Select>
         <Select value={characterId} onValueChange={setCharacterId}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger
+            aria-label="Filter by character"
+            className="w-52 rounded-full bg-transparent"
+          >
             <SelectValue placeholder="Character" />
           </SelectTrigger>
           <SelectContent>
@@ -260,25 +351,26 @@ export function AssetLibrary({
             ))}
           </SelectContent>
         </Select>
-        <Button
-          variant={starredOnly ? "secondary" : "outline"}
-          size="sm"
-          onClick={() => setStarredOnly((v) => !v)}
-        >
-          <Star
-            className={
-              starredOnly ? "fill-amber-400 text-amber-400" : undefined
-            }
-          />
-          Starred
-        </Button>
       </div>
 
+      {error && (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
       {assets === undefined ? (
         <p className="text-sm text-zinc-500">Loading assets…</p>
       ) : assets.length === 0 ? (
-        <div className="border border-dashed border-zinc-700 px-6 py-12 text-center">
-          <p className="text-sm text-zinc-500">No assets yet.</p>
+        <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-12 text-center">
+          <p className="text-sm text-zinc-500">
+            {search ||
+            type !== "all" ||
+            tag !== "all" ||
+            characterId !== "all" ||
+            starredOnly
+              ? "No matching assets."
+              : "No assets yet."}
+          </p>
           {effectiveProjectId ? (
             <Button asChild variant="secondary" size="sm" className="mt-4">
               <Link to={`/projects/${effectiveProjectId}/assets`}>
@@ -288,7 +380,7 @@ export function AssetLibrary({
           ) : null}
         </div>
       ) : view === "grid" ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {assets.map((asset) => (
             <AssetGridItem
               key={asset._id}
@@ -296,6 +388,7 @@ export function AssetLibrary({
               name={asset.name}
               type={asset.type}
               starred={asset.starred}
+              tags={asset.tags}
               onOpen={() => {
                 setSelectedAssetId(asset._id);
                 setDrawerOpen(true);
@@ -304,7 +397,9 @@ export function AssetLibrary({
                 void setStarred({
                   assetId: asset._id,
                   starred: !asset.starred,
-                })
+                }).catch(() =>
+                  setError("Could not update favourites. Try again."),
+                )
               }
             />
           ))}
@@ -314,6 +409,15 @@ export function AssetLibrary({
           {assets.map((asset) => (
             <li
               key={asset._id}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedAssetId(asset._id);
+                  setDrawerOpen(true);
+                }
+              }}
               className="flex cursor-pointer items-center justify-between gap-3 py-3 hover:bg-zinc-900/40"
               onClick={() => {
                 setSelectedAssetId(asset._id);
@@ -330,7 +434,7 @@ export function AssetLibrary({
               </div>
               <div className="flex items-center gap-2">
                 {asset.starred ? (
-                  <Star className="size-4 fill-amber-400 text-amber-400" />
+                  <Star className="size-4 fill-[var(--color-studio-accent)] text-[var(--color-studio-accent)]" />
                 ) : null}
                 <Badge variant="outline">{asset.type}</Badge>
               </div>
@@ -339,6 +443,11 @@ export function AssetLibrary({
         </ul>
       )}
 
+      {assets && (
+        <p className="text-xs text-zinc-400">
+          {assets.length} {assets.length === 1 ? "asset" : "assets"}
+        </p>
+      )}
       <AssetDetailDrawer
         assetId={selectedAssetId}
         open={drawerOpen}
@@ -353,6 +462,7 @@ function AssetGridItem({
   name,
   type,
   starred,
+  tags,
   onOpen,
   onToggleStar,
 }: {
@@ -360,6 +470,7 @@ function AssetGridItem({
   name: string;
   type: string;
   starred: boolean;
+  tags?: string[];
   onOpen: () => void;
   onToggleStar: () => void;
 }) {
@@ -367,36 +478,86 @@ function AssetGridItem({
   const showThumb = type === "image" || type === "logo" || type === "video";
 
   return (
-    <div className="group relative overflow-hidden border border-zinc-800 bg-zinc-900/40 text-left transition-colors hover:border-zinc-600">
-      <button type="button" onClick={onOpen} className="block w-full text-left">
+    <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 text-left transition-colors hover:border-zinc-600">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Preview ${name}`}
+        className="block w-full text-left"
+      >
         <div className="aspect-video bg-zinc-950">
           {showThumb && url && type !== "video" ? (
             <img src={url} alt="" className="h-full w-full object-cover" />
           ) : showThumb && url && type === "video" ? (
-            <video src={url} className="h-full w-full object-cover" muted />
+            <video
+              src={url}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+              preload="metadata"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-xs uppercase tracking-wide text-zinc-600">
-              {type}
+              {type === "music" || type === "audio" ? (
+                <Music className="size-10 text-[var(--color-studio-accent)] opacity-70" />
+              ) : (
+                <ImageIcon className="size-10 text-zinc-500" />
+              )}
             </div>
           )}
         </div>
-        <div className="p-2 pr-10">
+        <div className="space-y-2 p-4 pr-20">
           <p className="truncate text-sm text-zinc-100">{name}</p>
-          <p className="text-xs text-zinc-500">{type}</p>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="outline" className="rounded-full capitalize">
+              {type}
+            </Badge>
+            {tags?.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="muted" className="rounded-full">
+                {tag}
+              </Badge>
+            ))}
+          </div>
         </div>
       </button>
       <button
         type="button"
-        className="absolute bottom-2 right-2 p-1 text-zinc-500 hover:text-amber-400"
+        aria-label={`${starred ? "Remove" : "Add"} ${name} ${starred ? "from" : "to"} favourites`}
+        aria-pressed={starred}
+        className="absolute bottom-4 right-12 p-1 text-zinc-400 hover:text-[var(--color-studio-accent)]"
         onClick={(e) => {
           e.stopPropagation();
           onToggleStar();
         }}
       >
         <Star
-          className={cn("size-4", starred && "fill-amber-400 text-amber-400")}
+          className={cn(
+            "size-4",
+            starred &&
+              "fill-[var(--color-studio-accent)] text-[var(--color-studio-accent)]",
+          )}
         />
       </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Actions for ${name}`}
+            className="absolute bottom-3 right-3 size-8"
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onOpen}>
+            View asset details
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onToggleStar}>
+            {starred ? "Remove from favourites" : "Add to favourites"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

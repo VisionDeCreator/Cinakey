@@ -1,4 +1,14 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { useClient } from "@/lib/api/context";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import {
+  Link,
+  useSearchParams,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { api } from "@cinakey/backend";
 import { formatUsd } from "@cinakey/shared";
 import { useQuery } from "@/lib/api/hooks";
@@ -10,21 +20,72 @@ import { TeamSettings } from "./TeamSettings";
 export function BillingPage() {
   const { workspaceId, canManage, workspaces } = useWorkspace();
   const [params] = useSearchParams();
+  const client = useClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
+  async function refreshBilling() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshMessage("");
+    try {
+      await client.invalidate([
+        "payments:summary",
+        "billing:getBalance",
+        "billing:budgets",
+        "billing:listLedger",
+        "teams:list",
+        "teams:members",
+        "teams:pending",
+        "teams:invitations",
+        "teams:productions",
+      ]);
+      setRefreshMessage("Billing data refreshed.");
+    } catch {
+      setRefreshMessage("Could not refresh billing data. Try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+  const location = useLocation();
+  const navigate = useNavigate();
+  const section = location.hash.slice(1);
+  const tab = ["subscription", "members", "spending", "activity"].includes(
+    section,
+  )
+    ? section
+    : "subscription";
   const workspace = workspaces.find((w) => w.workspace._id === workspaceId);
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
-      <header className="space-y-2">
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
-          Workspace
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
-        <p className="text-sm text-zinc-400">
-          {workspace?.workspace.name ?? "Your workspace"} · Manage your plan,
-          usage and team in one place.
-        </p>
+    <div className="mx-auto max-w-[1600px] space-y-7">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-widest text-zinc-500">
+            Workspace
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">Billing</h1>
+          <p className="text-sm text-zinc-400">
+            {workspace?.workspace.name ?? "Your workspace"} · Manage your plan,
+            usage and team in one place.
+          </p>
+        </div>
+        {canManage && (
+          <Button
+            variant="outline"
+            disabled={refreshing}
+            onClick={() => void refreshBilling()}
+          >
+            <RefreshCw className={refreshing ? "animate-spin" : ""} />
+            {refreshing ? "Refreshing…" : "Refresh billing"}
+          </Button>
+        )}
       </header>
+      {refreshMessage && (
+        <p role="status" className="text-sm text-zinc-400">
+          {refreshMessage}
+        </p>
+      )}
       {!canManage ? (
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
           <h2 className="font-medium">
             Billing is managed by your workspace owner
           </h2>
@@ -51,58 +112,83 @@ export function BillingPage() {
               billing if your subscription or balance has not updated.
             </p>
           )}
-          <nav
-            aria-label="Billing sections"
-            className="flex flex-wrap gap-4 border-b border-zinc-800 pb-4 text-sm text-zinc-400"
+          <Tabs
+            value={tab}
+            onValueChange={(value) =>
+              void navigate({
+                pathname: location.pathname,
+                search: location.search,
+                hash: `#${value}`,
+              })
+            }
+            className="space-y-6"
           >
-            <a href="#subscription" className="hover:text-zinc-100">
-              {workspace?.workspace.billingMode === "internal"
-                ? "Company funding"
-                : "Subscription & invoices"}
-            </a>
-            <a href="#members" className="hover:text-zinc-100">
-              Members & seats
-            </a>
-            <a href="#spending" className="hover:text-zinc-100">
-              Spending & budgets
-            </a>
-            <a href="#activity" className="hover:text-zinc-100">
-              Balance activity
-            </a>
-          </nav>
-          <div id="subscription" className="scroll-mt-6">
-            <BillingSettings />
-          </div>
-          <section
-            id="members"
-            className="scroll-mt-6 rounded-xl border border-zinc-800 p-5"
-          >
-            <h2 className="mb-2 text-lg font-medium">Members & seats</h2>
-            <p className="mb-5 text-sm text-zinc-400">
-              {workspace?.workspace.billingMode === "internal" ? (
-                "All team seats are free in this company-funded workspace. Invite members and assign their normal permissions below."
-              ) : (
-                <>
-                  The owner, Admins and Creators each use one paid seat. Buy
-                  capacity above before inviting or adding members. Removing a
-                  member revokes access; reduce the paid seat quantity
-                  separately to change your next invoice. Invitations do not
-                  reserve a seat.
-                </>
-              )}
-            </p>
-            <TeamSettings />
-          </section>
-          <section
-            id="spending"
-            className="scroll-mt-6 rounded-xl border border-zinc-800 p-5"
-          >
-            <BudgetSettings />
-          </section>
-          <BalanceActivity
-            workspaceId={workspaceId}
-            internal={workspace?.workspace.billingMode === "internal"}
-          />
+            <TabsList
+              aria-label="Billing sections"
+              className="flex h-auto w-full flex-wrap justify-start gap-5 rounded-none border-b border-zinc-800 bg-transparent p-0"
+            >
+              {[
+                [
+                  "subscription",
+                  workspace?.workspace.billingMode === "internal"
+                    ? "Company funding"
+                    : "Subscription & invoices",
+                ],
+                ["members", "Members & seats"],
+                ["spending", "Spending & budgets"],
+                ["activity", "Balance activity"],
+              ].map(([value, label]) => (
+                <TabsTrigger
+                  key={value}
+                  value={value!}
+                  className="rounded-none border-b-2 border-transparent px-1 pb-3 pt-0 text-sm shadow-none data-[state=active]:border-[var(--color-studio-accent)] data-[state=active]:bg-transparent"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="subscription">
+              <div id="subscription" className="scroll-mt-6">
+                <BillingSettings />
+              </div>
+            </TabsContent>
+            <TabsContent value="members">
+              <section
+                id="members"
+                className="scroll-mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5"
+              >
+                <h2 className="mb-2 text-lg font-medium">Members & seats</h2>
+                <p className="mb-5 text-sm text-zinc-400">
+                  {workspace?.workspace.billingMode === "internal" ? (
+                    "All team seats are free in this company-funded workspace. Invite members and assign their normal permissions below."
+                  ) : (
+                    <>
+                      The owner, Admins and Creators each use one paid seat. Buy
+                      capacity in Subscription & invoices before inviting or
+                      adding members. Removing a member revokes access; reduce
+                      the paid seat quantity separately to change your next
+                      invoice. Invitations do not reserve a seat.
+                    </>
+                  )}
+                </p>
+                <TeamSettings />
+              </section>
+            </TabsContent>
+            <TabsContent value="spending">
+              <section
+                id="spending"
+                className="scroll-mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5"
+              >
+                <BudgetSettings />
+              </section>
+            </TabsContent>
+            <TabsContent value="activity">
+              <BalanceActivity
+                workspaceId={workspaceId}
+                internal={workspace?.workspace.billingMode === "internal"}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       )}
     </div>
@@ -120,7 +206,7 @@ function BalanceActivity({
   return (
     <section
       id="activity"
-      className="scroll-mt-6 rounded-xl border border-zinc-800 p-5"
+      className="scroll-mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5"
     >
       <h2 className="text-lg font-medium">Balance activity</h2>
       <p className="mb-4 mt-1 text-sm text-zinc-400">

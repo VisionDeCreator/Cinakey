@@ -31,7 +31,7 @@ export function StageProgressBar({
             className={cn(
               "flex-1 rounded-sm",
               size === "sm" ? "h-1" : "h-1.5",
-              started ? "bg-zinc-100" : "bg-zinc-800",
+              started ? "bg-[var(--color-studio-accent)]" : "bg-zinc-800",
             )}
             title={`${stage.label}: ${started ? "started" : "empty"}`}
           />

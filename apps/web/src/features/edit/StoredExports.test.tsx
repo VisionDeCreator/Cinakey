@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import {
   cleanup,
   fireEvent,
@@ -49,6 +50,10 @@ vi.mock("@/lib/api/hooks", () => ({
 }));
 beforeEach(() => {
   vi.clearAllMocks();
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
+  HTMLElement.prototype.setPointerCapture = vi.fn();
+  HTMLElement.prototype.releasePointerCapture = vi.fn();
   mocks.create.mockResolvedValue({
     url: "https://cinakey.test/share/link#private-secret",
   });
@@ -57,7 +62,7 @@ beforeEach(() => {
 afterEach(cleanup);
 it("defaults to watch-only links with an expiry and reveals a new link for copying", async () => {
   render(<StoredExports projectId="project" />);
-  fireEvent.click(screen.getByRole("button", { name: "Stored videos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Share & videos" }));
   fireEvent.click(screen.getByRole("button", { name: "Share" }));
   expect(
     screen.getByRole("checkbox", { name: "Allow download" }),
@@ -79,10 +84,30 @@ it("defaults to watch-only links with an expiry and reveals a new link for copyi
 });
 it("revokes links through the authorized mutation", async () => {
   render(<StoredExports projectId="project" />);
-  fireEvent.click(screen.getByRole("button", { name: "Stored videos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Share & videos" }));
   fireEvent.click(screen.getByRole("button", { name: "Share" }));
   fireEvent.click(screen.getByRole("button", { name: "Revoke" }));
   await waitFor(() =>
     expect(mocks.revoke).toHaveBeenCalledWith({ linkId: "link" }),
+  );
+});
+
+it("keeps expiry, password, and download choices when creating a viewing link", async () => {
+  const user = userEvent.setup();
+  render(<StoredExports projectId="project" />);
+  await user.click(screen.getByRole("button", { name: "Share & videos" }));
+  await user.click(screen.getByRole("button", { name: "Share" }));
+  await user.click(screen.getByRole("combobox", { name: "Expires" }));
+  await user.click(screen.getByRole("option", { name: "Never" }));
+  await user.type(screen.getByLabelText("Optional password"), "test-password");
+  await user.click(screen.getByRole("checkbox", { name: "Allow download" }));
+  await user.click(screen.getByRole("button", { name: "Create private link" }));
+  await waitFor(() =>
+    expect(mocks.create).toHaveBeenCalledWith({
+      publicationId: "publication",
+      password: "test-password",
+      allowDownload: true,
+      expiresAt: undefined,
+    }),
   );
 });

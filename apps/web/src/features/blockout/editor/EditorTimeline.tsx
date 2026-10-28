@@ -19,7 +19,7 @@ type TlRow = { id: string; name: string; color: string };
 
 function tlRows(doc: BlockoutDocument): TlRow[] {
   return [
-    { id: "cam", name: "Camera", color: "#e6a23c" },
+    { id: "cam", name: "Camera", color: "#FF4D00" },
     ...doc.objects
       .filter(
         (o) =>
@@ -102,7 +102,7 @@ export function EditorTimeline({
         g.moveTo(Math.round(x0) + 0.5, 0);
         g.lineTo(Math.round(x0) + 0.5, h);
         g.stroke();
-        g.fillStyle = "#e6a23c";
+        g.fillStyle = "#FF4D00";
         g.font = '600 10px "IBM Plex Sans", sans-serif';
         g.textAlign = "left";
         g.fillText(`S${cut.n}`, x0 + 4, rulerH + 10);
@@ -284,10 +284,10 @@ function drawDiamond(
   if (hold) {
     g.fillStyle = "#0b0e12";
     g.fill();
-    g.strokeStyle = sel ? "#fafafa" : "#e6a23c";
+    g.strokeStyle = sel ? "#fafafa" : "#FF4D00";
     g.stroke();
   } else {
-    g.fillStyle = sel ? "#fafafa" : "#e6a23c";
+    g.fillStyle = sel ? "#fafafa" : "#FF4D00";
     g.fill();
   }
 }

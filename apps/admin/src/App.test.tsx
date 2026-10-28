@@ -73,7 +73,7 @@ it("requires login and does not request staff data before authorization", () => 
   state.authenticated = false;
   page("/workspaces");
   expect(
-    screen.getByRole("heading", { name: "Cinakey Admin" }),
+    screen.getByRole("heading", { name: "Admin sign in" }),
   ).toBeInTheDocument();
   expect(
     state.query.mock.calls.some(([name]) => name.startsWith("staff:")),

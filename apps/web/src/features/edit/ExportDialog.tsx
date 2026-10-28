@@ -1,3 +1,13 @@
+import {
+  Clapperboard,
+  Film,
+  FileVideo,
+  Monitor,
+  Info,
+  Check,
+  LoaderCircle,
+} from "lucide-react";
+import "./export-sharing.css";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useClient } from "@/lib/api/context";
 import { documentHash } from "./timelineHistory";
@@ -221,47 +231,80 @@ function ExportSession({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !running && onOpenChange(v)}>
-      <DialogContent>
+      <DialogContent className="export-sharing-dialog max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Export MP4</DialogTitle>
+          <DialogTitle className="flex items-center gap-3 text-2xl">
+            <Clapperboard size={25} />
+            Export MP4
+          </DialogTitle>
           <DialogDescription>
-            Renders the timeline in this browser at up to{" "}
-            {TIMELINE_EXPORT_MAX_LONG_EDGE}p for{" "}
-            {TIMELINE_EXPORT_MAX_DURATION_SEC / 60} minutes max. Uses original
-            media (not proxies). Closing the tab cancels the export.
+            Create a video from your saved edit.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 text-sm text-zinc-300">
-          <p>
-            Duration: {doc.durationSec.toFixed(1)}s · {doc.project.fps} fps ·{" "}
-            {doc.project.aspectRatio}
-          </p>
-          <label className="flex items-center gap-2">
+          <div className="export-project-summary">
+            <div className="stored-video-cover">
+              <Film size={36} />
+            </div>
+            <div>
+              <h3>{projectTitle}</h3>
+              <p>
+                {doc.durationSec.toFixed(1)}s · {doc.project.aspectRatio} ·{" "}
+                {doc.project.fps} fps
+              </p>
+            </div>
+          </div>
+          <div className="export-format-summary">
+            <span>
+              <FileVideo size={16} />
+              MP4
+            </span>
+            <span>H.264 + AAC</span>
+            <span>
+              <Monitor size={16} />
+              {
+                evenDims(TIMELINE_EXPORT_MAX_LONG_EDGE, doc.project.aspectRatio)
+                  .width
+              }{" "}
+              ×{" "}
+              {
+                evenDims(TIMELINE_EXPORT_MAX_LONG_EDGE, doc.project.aspectRatio)
+                  .height
+              }
+            </span>
+          </div>
+          <label className="export-store-option">
             <input
               type="checkbox"
               checked={storeVideo && canStore}
               disabled={!canStore || running || stored}
               onChange={(e) => setStoreVideo(e.target.checked)}
             />
-            Store video for sharing (up to 200 MiB)
+            <span>
+              Store video for sharing<small>Up to 200 MiB per video</small>
+            </span>
           </label>
-          <p className="text-xs text-zinc-400">
-            A local MP4 is downloaded before upload. Stored video uses the saved
-            edit from when this dialog opened.
+          <p className="export-footnote">
+            <Info size={15} />
+            Your MP4 downloads first, then uploads for sharing when selected.
+            Keep this tab open until complete.
           </p>
           {stored && (
             <p role="status">
-              Video stored. Open Stored videos in the editor to create a private
-              link.
+              Video stored. Open Share & videos in the project header to create
+              a viewing link.
             </p>
           )}
-          {running && uploadPercent !== null && (
-            <div role="status">
-              Uploading: {uploadPercent}%
-              {uploadPercent === 100 ? " · validating and storing…" : ""}
-              <Progress value={uploadPercent} />
-            </div>
+          {doc.durationSec <= 0 && (
+            <p role="status" className="text-xs text-zinc-400">
+              Add media to the timeline before exporting.
+            </p>
+          )}
+          {supported === null && (
+            <p role="status" className="text-xs text-zinc-400">
+              Checking browser export support…
+            </p>
           )}
           {supported === false && (
             <p className="text-amber-400">
@@ -273,23 +316,71 @@ function ExportSession({
               {error}
             </p>
           )}
-          {running && progress && (
-            <div className="space-y-2">
-              <p className="text-xs text-zinc-500">{progress.message}</p>
-              <Progress value={pct} />
+          {running && (
+            <div
+              className="export-progress-card"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3>
+                  {uploadPercent === null
+                    ? "Exporting video"
+                    : uploadPercent === 100
+                      ? "Verifying upload"
+                      : "Uploading video"}
+                </h3>
+                <strong>{uploadPercent ?? pct}%</strong>
+              </div>
+              <Progress
+                aria-label={
+                  uploadPercent === null
+                    ? "Rendering progress"
+                    : "Upload progress"
+                }
+                value={uploadPercent ?? pct}
+              />
+              {progress && (
+                <p className="text-xs text-zinc-400">
+                  {uploadPercent === null
+                    ? progress.message
+                    : uploadPercent === 100
+                      ? "Validating and storing…"
+                      : "Uploading your exported video…"}
+                </p>
+              )}
+              <div className="export-steps">
+                <span
+                  className={uploadPercent === null ? "active" : "complete"}
+                >
+                  <i>{uploadPercent === null ? "1" : <Check size={12} />}</i>
+                  Render video
+                </span>
+                {storeVideo && (
+                  <span className={uploadPercent !== null ? "active" : ""}>
+                    <i>2</i>Upload & store
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
 
         <DialogFooter>
           {running ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => abortRef.current?.abort()}
-            >
-              Cancel
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => abortRef.current?.abort()}
+              >
+                Cancel export
+              </Button>
+              <Button disabled>
+                <LoaderCircle size={15} className="animate-spin" />
+                {uploadPercent === null ? "Exporting…" : "Uploading…"}
+              </Button>
+            </>
           ) : (
             <>
               <Button
@@ -307,6 +398,7 @@ function ExportSession({
               <Button
                 type="button"
                 disabled={
+                  doc.durationSec <= 0 ||
                   hasPendingUpload ||
                   stored ||
                   supported !== true ||
@@ -319,6 +411,9 @@ function ExportSession({
             </>
           )}
         </DialogFooter>
+        <p className="export-footnote">
+          Original media · Up to {TIMELINE_EXPORT_MAX_DURATION_SEC / 60} minutes
+        </p>
       </DialogContent>
     </Dialog>
   );

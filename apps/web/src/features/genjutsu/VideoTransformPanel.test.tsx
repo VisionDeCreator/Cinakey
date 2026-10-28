@@ -236,7 +236,7 @@ it("requires a Remix reference before analysis and blocks overlong source footag
   prompt("Change the outfit without an image");
   expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
   expect(
-    screen.getByText("Add at least one image reference for Remix Lite."),
+    screen.getByText("Add at least one image reference for Remix."),
   ).toBeInTheDocument();
   prompt();
   rerender(

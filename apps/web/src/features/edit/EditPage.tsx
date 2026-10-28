@@ -1,4 +1,3 @@
-import { StoredExports } from "./StoredExports";
 import { useTimelineLease } from "./useTimelineLease";
 import {
   useWorkspace,
@@ -711,7 +710,6 @@ function ProjectEditor() {
 
   return (
     <div className="studio-editor flex min-h-0 flex-1 flex-col">
-      <StoredExports projectId={projectId} />
       {!lease.canEdit && (
         <div
           role="status"
@@ -984,6 +982,33 @@ function ProjectEditor() {
               </Button>
             </div>
           </div>
+        }
+        previewTransport={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={playing ? "Pause preview" : "Play preview"}
+              disabled={!doc || doc.durationSec <= 0}
+              onClick={() => engineRef.current?.toggle()}
+            >
+              {playing ? "Pause" : "Play"}
+            </Button>
+            <span className="font-mono text-xs text-zinc-400">
+              {formatTimecode(playheadSec, project.fps)} /{" "}
+              {formatTimecode(doc?.durationSec ?? 0, project.fps)}
+            </span>
+            <input
+              aria-label="Preview playhead"
+              type="range"
+              min={0}
+              max={doc?.durationSec || 0}
+              step={1 / project.fps}
+              value={playheadSec}
+              disabled={!doc?.durationSec}
+              onChange={(event) => seek(Number(event.target.value))}
+            />
+          </>
         }
         viewer={
           <>

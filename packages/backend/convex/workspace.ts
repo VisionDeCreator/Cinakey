@@ -244,12 +244,6 @@ export const scriptRecord = query({
     return script;
   },
 });
-export const markTemplate = internalMutation({
-  args: projectArgs,
-  handler: async (ctx, { projectId }) => {
-    await ctx.db.patch(projectId, { isStarter: true });
-  },
-});
 
 export const assertAccess = internalQuery({
   args: { projectId: v.id("projects"), userId: v.id("users") },

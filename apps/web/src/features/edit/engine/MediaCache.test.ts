@@ -27,6 +27,10 @@ describe("media read safety", () => {
     resolve(new Response(new Blob(["fixture"], { type: "audio/wav" })));
     expect(await first).toBe(await second);
     expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher).toHaveBeenCalledWith(
+      "https://fixture.test/audio.wav",
+      expect.objectContaining({ cache: "reload" }),
+    );
     cache.dispose();
   });
   it("rejects failed media downloads instead of treating an error page as playable media", async () => {

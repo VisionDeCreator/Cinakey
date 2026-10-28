@@ -132,7 +132,50 @@ export const publish = mutation({
           "Keep the source entity's pinned references when publishing its sheet",
         );
     }
-    let resource = args.resourceId ? await ctx.db.get(args.resourceId) : null;
+    // An uploaded file is initially a media resource. Promote that unused placeholder
+    // into the user's named definition rather than leaving a duplicate card behind.
+    let promoted:
+      import("./_generated/dataModel").Doc<"libraryResources"> | null = null;
+    if (
+      !args.resourceId &&
+      args.kind !== "media" &&
+      args.assetIds.length === 1
+    ) {
+      const asset = await ctx.db.get(args.assetIds[0]!);
+      const uses = await ctx.db
+        .query("resourceAssetUses")
+        .withIndex("by_asset", (q) => q.eq("assetId", args.assetIds[0]!))
+        .collect();
+      for (const use of uses) {
+        const version = await ctx.db.get(use.versionId);
+        const row = version ? await ctx.db.get(version.resourceId) : null;
+        if (
+          !version ||
+          !row ||
+          row.seriesId !== series._id ||
+          row.kind !== "media" ||
+          row.archivedAt ||
+          row.currentVersionId !== version?._id ||
+          version.version !== 1 ||
+          version.name !== asset?.name ||
+          version.description ||
+          version.assetIds.length !== 1 ||
+          version.createdBy !== user._id
+        )
+          continue;
+        const adopted = await ctx.db
+          .query("projectResources")
+          .filter((q) => q.eq(q.field("resourceId"), row._id))
+          .first();
+        if (!adopted) {
+          promoted = row;
+          break;
+        }
+      }
+    }
+    let resource = args.resourceId
+      ? await ctx.db.get(args.resourceId)
+      : promoted;
     if (
       args.resourceId &&
       (!resource ||
@@ -141,7 +184,11 @@ export const publish = mutation({
     )
       throw new Error("Resource scope or kind does not match");
     if (resource?.archivedAt) throw new Error("Restore this resource first");
-    if (resource && resource.currentVersionId !== args.expectedVersionId)
+    if (
+      args.resourceId &&
+      resource &&
+      resource.currentVersionId !== args.expectedVersionId
+    )
       throw new Error("This resource changed; reload before publishing");
     const now = Date.now();
     const resourceId =
@@ -181,6 +228,7 @@ export const publish = mutation({
       await ctx.db.insert("resourceAssetUses", { versionId, assetId });
     await ctx.db.patch(resourceId, {
       currentVersionId: versionId,
+      kind: args.kind,
       name,
       updatedAt: now,
     });
@@ -269,7 +317,7 @@ export const setArchived = mutation({
   handler: async (ctx, args) => {
     const resource = await ctx.db.get(args.resourceId);
     if (!resource) throw new Error("Resource not found");
-    await requireSeriesAccess(ctx, resource.seriesId);
+    await requireSeriesWrite(ctx, resource.seriesId);
     await ctx.db.patch(resource._id, {
       archivedAt: args.archived ? Date.now() : undefined,
       updatedAt: Date.now(),
@@ -386,6 +434,63 @@ export const assetUrls = query({
           ? { ...asset, url: await getFileUrl(ctx, asset.storageId) }
           : null;
       }),
+    );
+  },
+});
+
+/** Named series files offered by the script picker; adoption remains explicit on selection. */
+export const referenceCandidates = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const project = await requireProjectAccess(ctx, args.projectId);
+    if (!project.seriesId) return [];
+    await requireSeriesAccess(ctx, project.seriesId);
+    const resources = await ctx.db
+      .query("libraryResources")
+      .withIndex("by_series", (q) => q.eq("seriesId", project.seriesId!))
+      .collect();
+    const adopted = await ctx.db
+      .query("projectResources")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const rows = await Promise.all(
+      resources
+        .filter((row) => !row.archivedAt && row.currentVersionId)
+        .map(async (resource) => {
+          const pinned = adopted
+            .filter((row) => row.resourceId === resource._id)
+            .sort((a, b) => b.createdAt - a.createdAt)[0];
+          const version = await ctx.db.get(
+            pinned?.versionId ?? resource.currentVersionId!,
+          );
+          if (!version) return [];
+          return Promise.all(
+            version.assetIds.map(async (id) => {
+              const asset = await ctx.db.get(id);
+              if (!asset || !["image", "video"].includes(asset.type))
+                return null;
+              return {
+                ...asset,
+                name: version.name,
+                versionId: version._id,
+                resourceKind: resource.kind,
+                url: await getFileUrl(ctx, asset.storageId),
+              };
+            }),
+          );
+        }),
+    );
+    const files = rows
+      .flat()
+      .filter((row) => row !== null)
+      .sort(
+        (a, b) =>
+          Number(a.resourceKind === "media") -
+          Number(b.resourceKind === "media"),
+      );
+    return files.filter(
+      (file, index) =>
+        files.findIndex((other) => other._id === file._id) === index,
     );
   },
 });

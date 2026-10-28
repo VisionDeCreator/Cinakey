@@ -21,7 +21,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const billingMatch = useMatch("/billing/:billingWorkspaceId");
   const projectMatch = useMatch("/projects/:projectId/*");
   const seriesMatch = useMatch("/series/:seriesId");
-  const sessionMatch = useMatch("/genjutsu/:sessionId");
+  const sessionMatch = useMatch("/remix/:sessionId");
   const routeArgs = projectMatch
     ? { projectId: projectMatch.params.projectId as Id<"projects"> }
     : seriesMatch

@@ -358,25 +358,6 @@ export const generate = action({
   },
 });
 
-export const createTemplate = action({
-  args: { workspaceId: v.optional(v.id("workspaces")) },
-  handler: async (ctx, args): Promise<{ projectId: Id<"projects"> }> => {
-    const projectId = await ctx.runMutation(api.projects.create, {
-      workspaceId: args.workspaceId,
-      title: "Starter: 30s Trailer",
-      targetLengthSec: 30,
-    });
-    await initializeProject(ctx, projectId);
-    await ctx.runMutation(internal.workspace.markTemplate, { projectId });
-    const script = await ctx.runAction(api.workspace.script, { projectId });
-    await ctx.runMutation(api.workspace.saveScript, {
-      projectId,
-      expectedId: script.id,
-      text: "Warm morning light in a corner café. Maya waits by the window. Jordan arrives, breathless.\n\nMAYA: You're late again.\nJORDAN: Traffic. I know.\nMAYA: Walk with me.\n\nThey step onto the wet sidewalk. Rain beads on the awning.",
-    });
-    return { projectId };
-  },
-});
 export const stagingHistory = action({
   args: { id: v.id("workspaceStaging") },
   handler: async (

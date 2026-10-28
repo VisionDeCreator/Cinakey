@@ -106,7 +106,10 @@ function BudgetRow({
   );
 }
 
-export function BudgetSettings() {
+export function BudgetSettings({
+  projectId,
+  seriesId,
+}: { projectId?: string; seriesId?: string } = {}) {
   const { workspaceId, canManage } = useWorkspace();
   const report = useQuery(
     api.billing.budgets,
@@ -158,22 +161,30 @@ export function BudgetSettings() {
         usage={report.workspace}
         onSave={(cap) => update(cap)}
       />
-      {report.series.map((row) => (
-        <BudgetRow
-          key={row.id}
-          title={`Series · ${row.title}`}
-          usage={row}
-          onSave={(cap) => update(cap, { seriesId: row.id })}
-        />
-      ))}
-      {report.projects.map((row) => (
-        <BudgetRow
-          key={row.id}
-          title={`${row.seriesId ? "Episode" : "Project"} · ${row.title}`}
-          usage={row}
-          onSave={(cap) => update(cap, { projectId: row.id })}
-        />
-      ))}
+      {report.series
+        .filter((row) => (!projectId && !seriesId) || row.id === seriesId)
+        .map((row) => (
+          <BudgetRow
+            key={row.id}
+            title={`Series · ${row.title}`}
+            usage={row}
+            onSave={(cap) => update(cap, { seriesId: row.id })}
+          />
+        ))}
+      {report.projects
+        .filter((row) =>
+          projectId
+            ? row.id === projectId
+            : !seriesId || row.seriesId === seriesId,
+        )
+        .map((row) => (
+          <BudgetRow
+            key={row.id}
+            title={`${row.seriesId ? "Episode" : "Project"} · ${row.title}`}
+            usage={row}
+            onSave={(cap) => update(cap, { projectId: row.id })}
+          />
+        ))}
     </section>
   );
 }

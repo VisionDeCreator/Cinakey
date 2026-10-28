@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatUsd } from "@cinakey/shared";
 import { useDraftScope } from "@/features/workspaces/workspace-context";
 import { useEffect, useRef, useState, type Ref } from "react";
@@ -155,7 +162,7 @@ export function VideoTransformPanel({
       (alias) => `Choose which image @${alias} refers to.`,
     ),
     ...(references.length === 0
-      ? ["Add at least one image reference for Remix Lite."]
+      ? ["Add at least one image reference for Remix."]
       : []),
     ...(references.length > 8
       ? ["Use up to eight distinct image references."]
@@ -356,13 +363,19 @@ export function VideoTransformPanel({
         </label>
         <label>
           Resolution
-          <select
+          <Select
             value={resolution}
-            onChange={(e) => setResolution(e.target.value as "720p" | "1080p")}
+            onValueChange={(value) => setResolution(value as "720p" | "1080p")}
+            disabled={running || uploading}
           >
-            <option>720p</option>
-            <option>1080p</option>
-          </select>
+            <SelectTrigger aria-label="Resolution">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="720p">720p</SelectItem>
+              <SelectItem value="1080p">1080p</SelectItem>
+            </SelectContent>
+          </Select>
         </label>
       </fieldset>
       {currentReview && (
@@ -404,10 +417,10 @@ export function VideoTransformPanel({
         </details>
       )}
       <p className="transform-muted">
-        Sume Remix Lite receives the original video and selected images.
-        Preservation is a generation instruction, not a pixel lock. Output
-        requests {duration || "—"} seconds for billing, rounded up. Remix Lite
-        follows the source duration and aspect ratio.
+        Remix uses the original video and selected images. Preservation is a
+        generation instruction, not a pixel lock. Output requests{" "}
+        {duration || "—"} seconds for billing, rounded up. Remix follows the
+        source duration and aspect ratio.
       </p>
       <Button
         disabled={
@@ -436,7 +449,7 @@ export function VideoTransformPanel({
             ? "Preparing frames for automatic analysis."
             : phase === "analyzing"
               ? "Analyzing the video automatically. Generation will start next."
-              : "Submitting the transformation to Sume Remix Lite."
+              : "Submitting your remix."
           : currentReview
             ? "Video analysis is ready and will be reused for these inputs."
             : "Includes automatic video analysis and rendering. Unused reserved analysis funds are returned."}

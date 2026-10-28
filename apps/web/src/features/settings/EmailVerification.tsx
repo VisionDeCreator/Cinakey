@@ -1,3 +1,4 @@
+import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { api } from "@cinakey/backend";
 import { useAction, useQuery } from "@/lib/api/hooks";
@@ -15,7 +16,19 @@ export function EmailVerification() {
   const [error, setError] = useState("");
   if (!me?.email) return null;
   if (me.emailVerificationTime !== undefined)
-    return <p className="text-xs text-zinc-400">Email verified: {me.email}</p>;
+    return (
+      <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 sm:p-6">
+        <h2 className="text-xl font-semibold">Email verification</h2>
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-800 px-3 py-1.5 text-sm text-emerald-400">
+          <CheckCircle2 className="size-4" />
+          Verified
+        </span>
+        <p className="break-all text-sm">{me.email}</p>
+        <p className="text-sm text-zinc-400">
+          Your email is verified and ready to receive account updates.
+        </p>
+      </section>
+    );
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true);
     setError("");
@@ -30,7 +43,7 @@ export function EmailVerification() {
     }
   }
   return (
-    <section className="space-y-3 rounded border border-zinc-800 p-4">
+    <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 sm:p-6">
       <h2 className="text-sm font-semibold">Verify your email</h2>
       <p className="text-xs text-zinc-400">
         Verify {me.email} to accept team invitations. We’ll send a six-digit

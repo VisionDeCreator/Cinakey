@@ -1,3 +1,5 @@
+import { StoredExports } from "@/features/edit/StoredExports";
+import { ProjectSettings } from "./ProjectSettings";
 import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
 import { useQuery } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
@@ -55,15 +57,17 @@ export function ProjectWorkspaceLayout() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-xs">
-          <span className="text-zinc-400">
-            {activeJobs?.length
-              ? `${activeJobs.length} generating`
-              : "Script · References · Generations · Edit"}
-          </span>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <ProjectSettings key={project._id} project={project} />
+          <StoredExports key={`exports-${project._id}`} projectId={projectId} />
+          {!!activeJobs?.length && (
+            <span className="text-zinc-400">
+              {activeJobs.length} generating
+            </span>
+          )}
           {auxiliary ? (
             <NavLink
-              className="flex items-center gap-1 text-[#80cfff]"
+              className="flex items-center gap-1 text-[var(--color-studio-accent)]"
               to={`/projects/${projectId}/studio${location.search}`}
             >
               <ArrowLeft size={14} />
@@ -71,7 +75,7 @@ export function ProjectWorkspaceLayout() {
             </NavLink>
           ) : (
             <NavLink
-              className="text-zinc-300 hover:text-[#80cfff]"
+              className="text-zinc-300 hover:text-[var(--color-studio-accent)]"
               to={`/projects/${projectId}/assets${location.search}`}
             >
               Manage references

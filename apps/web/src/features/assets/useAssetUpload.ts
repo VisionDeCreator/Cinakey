@@ -159,7 +159,7 @@ export function useAssetUpload(projectId: string | undefined) {
 
         setUploads((prev) => [
           ...prev,
-          { id, name: file.name, progress: 10, status: "uploading" },
+          { id, name: file.name, progress: 0, status: "uploading" },
         ]);
 
         try {
@@ -167,17 +167,17 @@ export function useAssetUpload(projectId: string | undefined) {
           const uploadUrl = await createUploadUrl({
             projectId: projectId as never,
           });
-          setUploads((prev) =>
-            prev.map((u) => (u.id === id ? { ...u, progress: 40 } : u)),
+          const result = await uploadMedia(uploadUrl, file, (progress) =>
+            setUploads((prev) =>
+              prev.map((u) => (u.id === id ? { ...u, progress } : u)),
+            ),
           );
-
-          const result = await uploadMedia(uploadUrl, file);
           if (!result.ok) {
             throw new Error(`Upload failed: ${result.status}`);
           }
           const { storageId } = (await result.json()) as { storageId: string };
           setUploads((prev) =>
-            prev.map((u) => (u.id === id ? { ...u, progress: 80 } : u)),
+            prev.map((u) => (u.id === id ? { ...u, progress: 100 } : u)),
           );
 
           const assetId = await createAsset({

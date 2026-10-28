@@ -575,3 +575,37 @@ describe("Series production model", () => {
     ).rejects.toThrow(/another workspace/);
   });
 });
+
+it("promotes an unused upload into a named resource without a duplicate, and offers its name to script references", async () => {
+  const { owner, seriesId, projectId, upload } = await setup();
+  const file = await upload("original.png");
+  const id = await owner.mutation(api.resources.publish, {
+    seriesId,
+    kind: "character",
+    name: "Jess",
+    description: "Shared character",
+    assetIds: [file.assetId],
+  });
+  expect(id).toBe(file.resourceId);
+  const page = await owner.query(api.resources.list, { seriesId });
+  expect(page.items).toHaveLength(1);
+  expect(page.items[0]?.resource.kind).toBe("character");
+  const refs = await owner.query(api.resources.referenceCandidates, {
+    projectId,
+  });
+  expect(refs[0]?.name).toBe("Jess");
+  await owner.mutation(api.resources.useInProject, {
+    projectId,
+    versionId: refs[0]!.versionId,
+  });
+  await owner.mutation(api.resources.setArchived, {
+    resourceId: id,
+    archived: true,
+  });
+  expect(
+    await owner.query(api.resources.referenceCandidates, { projectId }),
+  ).toHaveLength(0);
+  expect(
+    await owner.query(api.resources.listForProject, { projectId }),
+  ).toHaveLength(1);
+});

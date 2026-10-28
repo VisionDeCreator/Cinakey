@@ -1,3 +1,4 @@
+import { Clapperboard, ShieldCheck, Mail, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "@cinakey/api-client";
@@ -32,12 +33,10 @@ export function SignIn() {
   if (!isLoading && isAuthenticated)
     return <Navigate to={adminDestination(params.get("next"))} replace />;
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-5 px-4">
-      <h1 className="text-2xl font-semibold">Cinakey Admin</h1>
-      <p className="text-sm text-zinc-400">
-        Sign in with your existing account. Platform administrator access is
-        required.
-      </p>
+    <main className="admin-auth-page">
+      <div className="admin-auth-brand"><Clapperboard size={34} /><div>Cinakey<small>ADMIN</small></div></div>
+      <section className="admin-auth-card">
+      <header><span className="admin-auth-symbol">{challenge ? <Mail size={30} /> : <ShieldCheck size={30} />}</span><h1>{challenge ? "Check your email" : "Admin sign in"}</h1><p>{challenge ? <>Enter the 6-digit code sent to <strong>{challenge.email}</strong></> : "Use your existing account to access Cinakey administration."}</p></header>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -84,6 +83,7 @@ export function SignIn() {
           <>
             <Label htmlFor="email">Email</Label>
             <Input
+              placeholder="name@example.com"
               id="email"
               type="email"
               autoComplete="email"
@@ -96,9 +96,10 @@ export function SignIn() {
           </>
         ) : (
           <>
-            <p className="text-sm">Code sent to {challenge.email}</p>
             <Label htmlFor="code">Verification code</Label>
             <Input
+              className="admin-auth-code"
+              placeholder="000000"
               id="code"
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -131,6 +132,7 @@ export function SignIn() {
               : wait
                 ? `Try again in ${wait}s`
                 : "Send sign-in code"}
+          {!pending && !challenge && !wait && <ArrowRight size={18} />}
         </Button>
         {challenge && (
           <Button
@@ -154,6 +156,9 @@ export function SignIn() {
           </p>
         )}
       </form>
+      <p className="admin-auth-access"><ShieldCheck size={17} />Platform administrator access required.</p>
+      </section>
+      <p className="admin-auth-footer">Cinakey administration</p>
     </main>
   );
 }

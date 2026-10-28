@@ -190,18 +190,6 @@ it("recompiles a saved staging plan from plain text with no production records o
     await user.action(api.workspace.stagingHistory, { id: saved.id }),
   ).toHaveLength(3);
 });
-it("creates the starter template using text and media rather than production records", async () => {
-  const { user } = await fixture();
-  const template = await user.action(api.workspace.createTemplate, {});
-  expect(
-    (await user.action(api.workspace.script, { projectId: template.projectId }))
-      .text,
-  ).toContain("MAYA:");
-  expect(
-    (await user.query(api.projects.get, { projectId: template.projectId }))
-      ?.isStarter,
-  ).toBe(true);
-});
 it("queues generation from text and reference assets with a frozen input snapshot and no production identifiers", async () => {
   vi.stubEnv("USE_MOCK_ADAPTERS", "true");
   const { t, user, projectId } = await fixture();
