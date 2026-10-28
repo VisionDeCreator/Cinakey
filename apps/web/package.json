@@ -42,7 +42,9 @@
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
     "tailwind-merge": "^3.7.0",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "@cinakey/ui": "*",
+    "@cinakey/api-client": "*"
   },
   "devDependencies": {
     "@cinakey/config": "*",

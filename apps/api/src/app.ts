@@ -82,7 +82,9 @@ async function parseBoundedJson({ request }: { request: Request }) {
 }
 
 export function createApp() {
-  const origins = (process.env.WEB_ORIGINS ?? "http://localhost:5173")
+  const origins = (
+    process.env.WEB_ORIGINS ?? "http://localhost:5173,http://localhost:5174"
+  )
     .split(",")
     .map((s) => s.trim());
   return new Elysia({ serve: { maxRequestBodySize: MAX_EXPORT_BYTES + 1024 } })

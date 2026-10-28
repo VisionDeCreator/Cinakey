@@ -43,6 +43,24 @@ describe("API boundary", () => {
       (await app.handle(request("/v1/tasks/claim", { args: {} }, "token")))
         .status,
     ).toBe(404);
+    for (const token of [undefined, "ordinary-session"]) {
+      expect(
+        (
+          await app.handle(
+            request(
+              "/v1/staff/promoteAdmin",
+              {
+                args: {
+                  email: "owner@test.com",
+                  reason: "Untrusted promotion",
+                },
+              },
+              token,
+            ),
+          )
+        ).status,
+      ).toBe(404);
+    }
   });
   it("rejects invalid sessions before executing a service", async () => {
     const spy = vi
@@ -268,4 +286,60 @@ it("protects the unauthenticated OTP endpoint against foreign origins, oversized
     (await app.handle(request("/v1/authOtp/issue", { args: {} }, "token")))
       .status,
   ).toBe(404);
+});
+
+it("routes admin directory operations through authenticated HTTP and preserves server authorization failures", async () => {
+  const app = createApp();
+  expect(
+    (
+      await app.handle(
+        request("/v1/staff/listUsers", { args: { cursor: null } }),
+      )
+    ).status,
+  ).toBe(401);
+  const query = vi
+    .spyOn(ConvexHttpClient.prototype, "query")
+    .mockImplementation(async (...[reference]) => {
+      if (getFunctionName(reference as any) === "apiIdentity:current")
+        return { identity: { subject: "user|session" } };
+      throw new Error("Staff access required");
+    });
+  const denied = await app.handle(
+    request("/v1/staff/listUsers", { args: { cursor: null } }, "member-token"),
+  );
+  expect(denied.status).toBe(403);
+  expect((await denied.json()).message).toBe("Staff access required");
+  query.mockImplementation(async (...[reference]) =>
+    getFunctionName(reference as any) === "apiIdentity:current"
+      ? { identity: { subject: "admin|session" } }
+      : { page: [], isDone: true, continueCursor: "" },
+  );
+  const allowed = await app.handle(
+    request(
+      "/v1/staff/listWorkspaces",
+      { args: { cursor: null } },
+      "admin-token",
+    ),
+  );
+  expect(allowed.status).toBe(200);
+  expect(await allowed.json()).toEqual({
+    value: { page: [], isDone: true, continueCursor: "" },
+  });
+});
+
+it("allows the configured admin origin for the same API boundary as the web app", async () => {
+  vi.stubEnv("WEB_ORIGINS", "http://localhost:5173,http://localhost:5174");
+  const response = await createApp().handle(
+    new Request("http://localhost/v1/staff/listUsers", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://localhost:5174",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type",
+      },
+    }),
+  );
+  expect(response.headers.get("access-control-allow-origin")).toBe(
+    "http://localhost:5174",
+  );
 });

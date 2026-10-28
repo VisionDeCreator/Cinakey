@@ -18,7 +18,9 @@
     "dev:web": "bun run --cwd apps/web dev",
     "dev:worker": "bun run --cwd apps/worker dev",
     "dev:convex": "bun run --cwd packages/backend dev",
-    "check:secrets": "bun --no-env-file scripts/check-secrets.ts"
+    "check:secrets": "bun --no-env-file scripts/check-secrets.ts",
+    "dev:admin": "bun run --cwd apps/admin dev",
+    "admin:promote": "bun --no-env-file scripts/promote-admin.ts"
   },
   "devDependencies": {
     "@cinakey/config": "*",

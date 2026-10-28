@@ -33,6 +33,14 @@
     "@cinakey/worker#build": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@cinakey/api-client#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@cinakey/ui#build": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }

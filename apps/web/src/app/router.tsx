@@ -23,14 +23,7 @@ import { SeriesPage } from "@/features/series/SeriesPage";
 import { GenjutsuPage } from "@/features/genjutsu/GenjutsuPage";
 import { BillingPage } from "@/features/settings/BillingPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
-import {
-  StaffAuditPage,
-  StaffEgressPage,
-  StaffLayout,
-  StaffModerationPage,
-  StaffProvidersPage,
-  StaffUsersPage,
-} from "@/features/staff/StaffPages";
+import { AdminRedirect } from "@/app/AdminRedirect";
 import { useConvexAuth } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
 import {
@@ -128,19 +121,13 @@ export function AppRouter() {
               element={<BillingPage />}
             />
             <Route
-              path="/staff"
+              path="/staff/*"
               element={
                 <StaffRoute>
-                  <StaffLayout />
+                  <AdminRedirect />
                 </StaffRoute>
               }
-            >
-              <Route index element={<StaffUsersPage />} />
-              <Route path="moderation" element={<StaffModerationPage />} />
-              <Route path="providers" element={<StaffProvidersPage />} />
-              <Route path="egress" element={<StaffEgressPage />} />
-              <Route path="audit" element={<StaffAuditPage />} />
-            </Route>
+            />
             <Route
               path="/dev"
               element={

@@ -22,7 +22,13 @@ export async function auditAccounting(
   const closed = new Set<string>();
   const totals = new Map<
     string,
-    { scopeKey: string; spentUsdMicros: number; reservedUsdMicros: number }
+    {
+      scopeKey: string;
+      spentUsdMicros: number;
+      reservedUsdMicros: number;
+      standardPriceUsdMicros?: number;
+      providerCostUsdMicros?: number;
+    }
   >();
   for (const entry of ledger) {
     if (
@@ -83,7 +89,12 @@ export async function auditAccounting(
         spentUsdMicros: 0,
         reservedUsdMicros: 0,
       };
-      row.spentUsdMicros += spent;
+      row.spentUsdMicros += entry.budgetSpentUsdMicros ?? spent;
+      if (entry.companyFunded) {
+        row.standardPriceUsdMicros = (row.standardPriceUsdMicros ?? 0) + spent;
+        row.providerCostUsdMicros =
+          (row.providerCostUsdMicros ?? 0) + (entry.providerCostUsdMicros ?? 0);
+      }
       row.reservedUsdMicros += held;
       totals.set(scopeKey, row);
     }
@@ -110,7 +121,10 @@ export async function auditAccounting(
     if (
       !expected ||
       expected.spentUsdMicros !== row.spentUsdMicros ||
-      expected.reservedUsdMicros !== row.reservedUsdMicros
+      expected.reservedUsdMicros !== row.reservedUsdMicros ||
+      (expected.standardPriceUsdMicros ?? 0) !==
+        (row.standardPriceUsdMicros ?? 0) ||
+      (expected.providerCostUsdMicros ?? 0) !== (row.providerCostUsdMicros ?? 0)
     )
       differences.push(row.scopeKey);
   }

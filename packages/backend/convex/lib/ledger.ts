@@ -37,12 +37,17 @@ export async function appendLedgerEntry(
     projectId?: Id<"projects">;
     jobId?: Id<"generationJobs">;
     requestId?: string;
+    companyFunded?: boolean;
+    providerCostUsdMicros?: number;
     delta: number;
     reason: LedgerReason;
   },
 ): Promise<{ balanceAfter: number; entryId: Id<"usageLedger"> }> {
   if (!Number.isSafeInteger(args.delta))
     throw new Error("Ledger amounts must be safe integers");
+  let companyFunded = args.companyFunded;
+  let budgetSpentUsdMicros: number | undefined;
+  let providerCostUsdMicros: number | undefined;
   let reserveEntry: Doc<"usageLedger"> | null = null;
   let scope: { seriesId?: Id<"series">; budgetMonth?: string } = {};
   if (args.reason === "grant" || args.reason === "adjustment") {
@@ -84,6 +89,8 @@ export async function appendLedgerEntry(
           throw new Error("Reservation mismatch");
         return { balanceAfter: reserve.balanceAfter, entryId: reserve._id };
       }
+      companyFunded =
+        (await ctx.db.get(args.workspaceId))?.billingMode === "internal";
       await assertPaymentProduction(ctx, args.workspaceId);
       await expireFunding(ctx, args.workspaceId, args.userId);
       scope = await checkBudgets(
@@ -92,6 +99,19 @@ export async function appendLedgerEntry(
         args.projectId,
         -args.delta,
       );
+      if (companyFunded) {
+        const shortfall =
+          -args.delta - (await getWorkspaceBalance(ctx, args.workspaceId));
+        if (shortfall > 0)
+          await appendLedgerEntry(ctx, {
+            workspaceId: args.workspaceId,
+            userId: args.userId,
+            delta: shortfall,
+            reason: "grant",
+            companyFunded: true,
+            requestId: `company-funding:${args.jobId}`,
+          });
+      }
     } else {
       if (
         !reserve ||
@@ -114,6 +134,19 @@ export async function appendLedgerEntry(
           throw new Error("Settlement mismatch");
         return { balanceAfter: terminal.balanceAfter, entryId: terminal._id };
       }
+      companyFunded = reserve.companyFunded;
+      providerCostUsdMicros =
+        args.providerCostUsdMicros ?? job.supplierActualCostUsdMicros;
+      if (
+        providerCostUsdMicros !== undefined &&
+        (!Number.isSafeInteger(providerCostUsdMicros) ||
+          providerCostUsdMicros < 0)
+      )
+        throw new Error("Invalid provider cost");
+      if (companyFunded)
+        budgetSpentUsdMicros =
+          providerCostUsdMicros ??
+          (args.reason === "refund" ? 0 : -reserve.delta - args.delta);
       scope = { seriesId: reserve.seriesId, budgetMonth: reserve.budgetMonth };
     }
   }
@@ -168,10 +201,16 @@ export async function appendLedgerEntry(
       scope.seriesId,
       scope.budgetMonth!,
       heldChange,
-      spentChange,
+      budgetSpentUsdMicros ?? spentChange,
+      companyFunded
+        ? {
+            standardPriceUsdMicros: spentChange,
+            providerCostUsdMicros: providerCostUsdMicros ?? 0,
+          }
+        : undefined,
     );
   const fundingAllocations =
-    args.reason === "reserve"
+    args.reason === "reserve" && !companyFunded
       ? await allocateFunding(ctx, args.workspaceId, -args.delta)
       : undefined;
   if (reserveEntry && (args.reason === "settle" || args.reason === "refund"))
@@ -201,6 +240,9 @@ export async function appendLedgerEntry(
     });
   const entryId = await ctx.db.insert("usageLedger", {
     ...scope,
+    companyFunded,
+    budgetSpentUsdMicros,
+    providerCostUsdMicros,
     fundingAllocations,
     sequence: next.sequence,
     requestId: args.requestId,

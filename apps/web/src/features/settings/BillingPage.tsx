@@ -56,7 +56,9 @@ export function BillingPage() {
             className="flex flex-wrap gap-4 border-b border-zinc-800 pb-4 text-sm text-zinc-400"
           >
             <a href="#subscription" className="hover:text-zinc-100">
-              Subscription & invoices
+              {workspace?.workspace.billingMode === "internal"
+                ? "Company funding"
+                : "Subscription & invoices"}
             </a>
             <a href="#members" className="hover:text-zinc-100">
               Members & seats
@@ -77,10 +79,17 @@ export function BillingPage() {
           >
             <h2 className="mb-2 text-lg font-medium">Members & seats</h2>
             <p className="mb-5 text-sm text-zinc-400">
-              The owner, Admins and Creators each use one paid seat. Buy
-              capacity above before inviting or adding members. Removing a
-              member revokes access; reduce the paid seat quantity separately to
-              change your next invoice. Invitations do not reserve a seat.
+              {workspace?.workspace.billingMode === "internal" ? (
+                "All team seats are free in this company-funded workspace. Invite members and assign their normal permissions below."
+              ) : (
+                <>
+                  The owner, Admins and Creators each use one paid seat. Buy
+                  capacity above before inviting or adding members. Removing a
+                  member revokes access; reduce the paid seat quantity
+                  separately to change your next invoice. Invitations do not
+                  reserve a seat.
+                </>
+              )}
             </p>
             <TeamSettings />
           </section>
@@ -90,7 +99,10 @@ export function BillingPage() {
           >
             <BudgetSettings />
           </section>
-          <BalanceActivity workspaceId={workspaceId} />
+          <BalanceActivity
+            workspaceId={workspaceId}
+            internal={workspace?.workspace.billingMode === "internal"}
+          />
         </div>
       )}
     </div>
@@ -99,8 +111,10 @@ export function BillingPage() {
 
 function BalanceActivity({
   workspaceId,
+  internal,
 }: {
   workspaceId: import("@cinakey/backend").Id<"workspaces">;
+  internal?: boolean;
 }) {
   const ledger = useQuery(api.billing.listLedger, { workspaceId, limit: 100 });
   return (
@@ -110,8 +124,9 @@ function BalanceActivity({
     >
       <h2 className="text-lg font-medium">Balance activity</h2>
       <p className="mb-4 mt-1 text-sm text-zinc-400">
-        Latest 100 usage balance entries, including reservations and releases.
-        Subscription invoices are separate and available in the Polar portal.
+        {internal
+          ? "Latest 100 company funding and usage entries. These are accounting entries, not payments or amounts owed."
+          : "Latest 100 usage balance entries, including reservations and releases. Subscription invoices are separate and available in the Polar portal."}
       </p>
       {ledger === undefined ? (
         <p role="status" className="text-sm text-zinc-500">
@@ -149,7 +164,9 @@ function BalanceActivity({
                     {new Date(row.createdAt).toLocaleString()}
                   </td>
                   <td className="p-2 capitalize">
-                    {row.reason.replaceAll("_", " ")}
+                    {row.companyFunded && row.reason === "grant"
+                      ? "Company funding"
+                      : row.reason.replaceAll("_", " ")}
                   </td>
                   <td className="whitespace-nowrap p-2 text-right tabular-nums">
                     {row.delta > 0 ? "+" : row.delta < 0 ? "−" : ""}

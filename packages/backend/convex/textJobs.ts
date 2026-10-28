@@ -202,6 +202,7 @@ export const settleChatJob = internalMutation({
         userId: args.userId,
         projectId: args.projectId,
         jobId: args.jobId,
+        providerCostUsdMicros: supplierActualCostUsdMicros,
         delta: job.estimatedCostUsdMicros - actual,
         reason: "settle",
       });

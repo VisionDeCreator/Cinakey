@@ -24,8 +24,10 @@ describe("migration boundaries", () => {
       });
   });
   it("keeps product hooks on HTTP and provider execution outside Convex", () => {
-    const web = fileURLToPath(new URL("../../web/src", import.meta.url));
-    for (const file of files(web).filter(
+    const frontends = ["../../web/src", "../../admin/src"].flatMap((path) =>
+      files(fileURLToPath(new URL(path, import.meta.url))),
+    );
+    for (const file of frontends.filter(
       (file) => /\.tsx?$/.test(file) && !file.endsWith(".test.tsx"),
     )) {
       const text = readFileSync(file, "utf8");

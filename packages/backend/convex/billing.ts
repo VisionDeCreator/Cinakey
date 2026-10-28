@@ -292,6 +292,7 @@ export const budgets = query({
     const month = budgetMonth();
     return {
       month,
+      billingMode: workspace.billingMode ?? "paid",
       account: {
         available: await getWorkspaceBalance(ctx, workspaceId),
         reserved: account?.reserved ?? 0,

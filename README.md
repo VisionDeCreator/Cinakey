@@ -59,12 +59,13 @@ Requires Bun 1.3.14+, a Convex account, and optionally Google OAuth/provider key
 bun install --frozen-lockfile
 cp .env.example .env
 cp apps/web/.env.example apps/web/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
 cp packages/backend/.env.example packages/backend/.env.local
 bun run dev:convex
 ```
 
 Preserve existing environment files if already configured. Set the printed
-Convex URL in root `.env` (`CONVEX_URL`) and the web environment
+Convex URL in root `.env` (`CONVEX_URL`) and both frontend environments
 (`VITE_CONVEX_URL`). Set a server-only `CONVEX_DEPLOY_KEY` in root `.env`.
 The web app also needs `VITE_API_URL=http://localhost:3001`.
 
@@ -99,18 +100,69 @@ From the root:
 bun run dev
 ```
 
-Or run `dev:api`, `dev:worker`, `dev:web` and `dev:convex` separately. The web app
+Or run `dev:api`, `dev:worker`, `dev:web`, `dev:admin` and `dev:convex` separately. The web app
 opens at localhost:5173 and the API at localhost:3001 (`GET /health`).
+
+## Admin app
+
+Copy `apps/admin/.env.example` to `apps/admin/.env.local` and set the same public
+`VITE_CONVEX_URL` and `VITE_API_URL` as the web app. Run `bun run dev:admin` to open
+localhost:5174. Set `VITE_WEB_URL` to the customer app URL and `VITE_APP_ENV` to an
+explicit environment label. Add the admin origin to the API's `WEB_ORIGINS` list
+alongside the web origin; preserve any other configured origins. The local
+fallback and root example include both ports. Do not put server keys in either
+frontend's environment.
+
+Sign in with the existing email-code flow. The server-controlled `users.isStaff`
+flag is required for every Staff API operation; workspace admin roles and internal
+company membership do not grant access. There is no self-service privilege grant
+in the admin app. To bootstrap the first administrator, sign in to the web app
+once with the intended email so that the verified account exists, then run from
+the repository root:
+
+```sh
+bun run admin:promote you@example.com --reason "Initial platform administrator"
+```
+
+The script reads the root `.env` using the same loader as the API and requires
+`CONVEX_URL` and `CONVEX_DEPLOY_KEY` for the intended deployment. It prints that
+deployment's URL and calls an internal mutation that is unavailable through the
+public API or ordinary user sessions. Run `bun run dev:convex` to deploy the new
+backend function to your development deployment before first use.
+Only the matching existing verified account's `isStaff` flag changes; missing,
+unverified, anonymous, or ambiguous accounts are rejected. Promotions record an
+audit event attributed to a deployment operator. Rerunning for an existing admin
+is a no-op; trusted operators can also use this command to grant later admins.
+Sign in to the admin app with that email, or reload if already signed in.
+
+The first stage includes paginated user/workspace directories, account and
+workspace details, internal company workspace creation/activation, usage funding,
+moderation, provider health, egress, and audit history. Funding adjustments are
+usage ledger credits, not Polar payment refunds. Customer membership and normal
+production permissions are unchanged by diagnostic access. Broader financial
+reconciliation, pricing publication, impersonation and granular admin roles are
+outside this stage.
+
+Staff tools now live in `apps/admin`; `/staff/*` in the web app links to their
+replacement. Configure `VITE_ADMIN_URL` in the web app for the deployed admin URL.
+Deploy `apps/admin/dist` as a separate static SPA with all client routes falling
+back to `index.html` (a Vercel rewrite is included). Deploy the updated backend
+queries and API manifest together before enabling the new frontend. Authentication
+uses the existing Convex deployment; data reads/writes use the same Bun API as the
+web app. Each frontend origin has its own browser session.
 
 ## Layout
 
 ```text
 apps/web/                 React + Vite creator app
+apps/admin/               React + Vite platform administration
 apps/api/                 Elysia API, domain services and model providers
 apps/worker/              Bun background process
 packages/backend/         Convex Auth, schema and transactional persistence
 packages/shared/          Domain types, schemas, prompts, 3D/timeline algorithms
 packages/config/          Shared TypeScript, ESLint and formatting configuration
+packages/ui/              Shared UI primitives, design tokens and base styles
+packages/api-client/      Shared authenticated HTTP client, React hooks and OTP helpers
 ```
 
 ## Checks

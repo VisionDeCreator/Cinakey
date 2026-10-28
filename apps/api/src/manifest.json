@@ -439,6 +439,10 @@
     "kind": "action",
     "public": true
   },
+  "staff:promoteAdmin": {
+    "kind": "mutation",
+    "public": false
+  },
   "staff:lookupUser": {
     "kind": "query",
     "public": true
@@ -1062,5 +1066,29 @@
   "payments:assertProjectWrite": {
     "kind": "query",
     "public": false
+  },
+  "staff:createInternalWorkspace": {
+    "kind": "mutation",
+    "public": true
+  },
+  "staff:enableInternalWorkspace": {
+    "kind": "mutation",
+    "public": true
+  },
+  "staff:listUsers": {
+    "kind": "query",
+    "public": true
+  },
+  "staff:userDetail": {
+    "kind": "query",
+    "public": true
+  },
+  "staff:listWorkspaces": {
+    "kind": "query",
+    "public": true
+  },
+  "staff:workspaceDetail": {
+    "kind": "query",
+    "public": true
   }
 }

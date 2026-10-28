@@ -1,6 +1,9 @@
-import { v } from "convex/values";
+import { budgetMonth, readTotals, withCap } from "./lib/budgets";
+import { paymentState } from "./lib/paymentAccess";
+import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
+  internalMutation,
   mutation,
   query,
   type MutationCtx,
@@ -12,6 +15,54 @@ import { appendLedgerEntry, getWorkspaceBalance } from "./billing";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
 import { RATE_LIMITS } from "./lib/limits";
 import { assertRateLimit } from "./lib/rateLimit";
+import { normalizeAuthEmail } from "./lib/authEmail";
+
+/** Deployment operators can bootstrap access without an existing staff session. */
+export const promoteAdmin = internalMutation({
+  args: { email: v.string(), reason: v.string() },
+  handler: async (ctx, args) => {
+    let email: string;
+    try {
+      email = normalizeAuthEmail(args.email);
+    } catch {
+      throw new ConvexError("Enter a valid email address");
+    }
+    const reason = args.reason.trim();
+    if (reason.length < 3 || reason.length > 500)
+      throw new ConvexError("A reason of 3 to 500 characters is required");
+
+    const matches = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .take(2);
+    const target = matches[0];
+    if (!target)
+      throw new ConvexError(
+        "No existing account has this email. Sign in to the web app first, then rerun the script.",
+      );
+    if (matches.length > 1)
+      throw new ConvexError(
+        "Multiple accounts have this email. Resolve the duplicate accounts before promoting an administrator.",
+      );
+    if (target.isAnonymous || target.emailVerificationTime === undefined)
+      throw new ConvexError(
+        "This account must verify its email by signing in before it can become an administrator.",
+      );
+    if (target.isStaff === true)
+      return { userId: target._id, email, isStaff: true, alreadyAdmin: true };
+
+    await ctx.db.patch(target._id, { isStaff: true });
+    await appendAuditLog(ctx, {
+      actorType: "operator",
+      action: "platform.admin.promote",
+      targetType: "users",
+      targetId: target._id,
+      reason,
+      meta: { email, source: "admin:promote", authorization: "deployment-key" },
+    });
+    return { userId: target._id, email, isStaff: true, alreadyAdmin: false };
+  },
+});
 
 async function findUserByEmail(
   ctx: MutationCtx | QueryCtx,
@@ -315,5 +366,238 @@ export const listAuditLog = query({
       .withIndex("by_time")
       .order("desc")
       .take(limit);
+  },
+});
+
+/** Platform administration uses the existing server-controlled isStaff permission. */
+export const enableInternalWorkspace = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    monthlyCapUsdMicros: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const actor = await requireStaff(ctx);
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+    await enableInternal(
+      ctx,
+      args.workspaceId,
+      actor._id,
+      args.monthlyCapUsdMicros,
+      args.reason,
+    );
+    return args.workspaceId;
+  },
+});
+
+export const createInternalWorkspace = mutation({
+  args: {
+    ownerEmail: v.string(),
+    name: v.string(),
+    monthlyCapUsdMicros: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const actor = await requireStaff(ctx);
+    const target = await findUserByEmail(
+      ctx,
+      args.ownerEmail.trim().toLowerCase(),
+    );
+    if (!target) throw new Error("Owner must have an existing account");
+    const name = args.name.trim();
+    if (!name || name.length > 120)
+      throw new Error("Workspace name must be 1–120 characters");
+    const now = Date.now();
+    const workspaceId = await ctx.db.insert("workspaces", {
+      name,
+      ownerUserId: target._id,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await enableInternal(
+      ctx,
+      workspaceId,
+      actor._id,
+      args.monthlyCapUsdMicros,
+      args.reason,
+    );
+    return workspaceId;
+  },
+});
+
+async function enableInternal(
+  ctx: MutationCtx,
+  workspaceId: Id<"workspaces">,
+  actorUserId: Id<"users">,
+  cap: number,
+  rawReason: string,
+) {
+  const reason = rawReason.trim();
+  if (reason.length < 3)
+    throw new Error("A reason of at least 3 characters is required");
+  if (!Number.isSafeInteger(cap) || cap < 0)
+    throw new Error("Monthly budget must be a non-negative integer");
+  // Never let a billing override hide a live subscription, purchased funds, or a pending checkout.
+  const payment = await ctx.db
+    .query("paymentWorkspaces")
+    .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+    .first();
+  const checkout = await ctx.db
+    .query("paymentCheckouts")
+    .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+    .first();
+  const usage = await ctx.db
+    .query("usageLedger")
+    .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+    .filter((q) => q.eq(q.field("reason"), "reserve"))
+    .first();
+  if (payment || checkout || usage)
+    throw new Error(
+      "Use a new workspace without payment or usage history for internal billing",
+    );
+  await ctx.db.patch(workspaceId, {
+    billingMode: "internal",
+    monthlySpendCapUsdMicros: cap,
+    updatedAt: Date.now(),
+  });
+  await appendAuditLog(ctx, {
+    actorUserId,
+    action: "workspace.internal.enable",
+    targetType: "workspaces",
+    targetId: workspaceId,
+    reason,
+    meta: { monthlyCapUsdMicros: cap },
+  });
+}
+
+/** Narrow, staff-only diagnostics; never return auth sessions or provider credentials. */
+export const listUsers = query({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (ctx, { cursor }) => {
+    await requireStaff(ctx);
+    const result = await ctx.db
+      .query("users")
+      .order("desc")
+      .paginate({ cursor, numItems: 25 });
+    return {
+      ...result,
+      page: result.page.map((u) => ({
+        _id: u._id,
+        email: u.email,
+        name: u.name,
+        isStaff: u.isStaff === true,
+      })),
+    };
+  },
+});
+
+export const userDetail = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await requireStaff(ctx);
+    const user = await ctx.db.get(userId);
+    if (!user) return null;
+    const owned = await ctx.db
+      .query("workspaces")
+      .withIndex("by_owner", (q) => q.eq("ownerUserId", userId))
+      .collect();
+    const memberships = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const workspaces = owned.map((w) => ({
+      _id: w._id,
+      name: w.name,
+      role: "owner",
+      billingMode: w.billingMode ?? "paid",
+    }));
+    for (const membership of memberships) {
+      if (workspaces.some((w) => w._id === membership.workspaceId)) continue;
+      const workspace = await ctx.db.get(membership.workspaceId);
+      if (workspace)
+        workspaces.push({
+          _id: workspace._id,
+          name: workspace.name,
+          role: membership.role,
+          billingMode: workspace.billingMode ?? "paid",
+        });
+    }
+    return {
+      _id: user._id,
+      email: user.email,
+      name: user.name,
+      isStaff: user.isStaff === true,
+      emailVerified: user.emailVerificationTime !== undefined,
+      createdAt: user._creationTime,
+      workspaces,
+    };
+  },
+});
+
+export const listWorkspaces = query({
+  args: { cursor: v.union(v.string(), v.null()) },
+  handler: async (ctx, { cursor }) => {
+    await requireStaff(ctx);
+    const result = await ctx.db
+      .query("workspaces")
+      .order("desc")
+      .paginate({ cursor, numItems: 25 });
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map(async (w) => ({
+          _id: w._id,
+          name: w.name,
+          billingMode: w.billingMode ?? "paid",
+          ownerEmail: (await ctx.db.get(w.ownerUserId))?.email,
+        })),
+      ),
+    };
+  },
+});
+
+export const workspaceDetail = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, { workspaceId }) => {
+    await requireStaff(ctx);
+    const workspace = await ctx.db.get(workspaceId);
+    if (!workspace) return null;
+    const owner = await ctx.db.get(workspace.ownerUserId);
+    const memberships = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const members = [
+      { userId: workspace.ownerUserId, role: "owner", email: owner?.email },
+    ];
+    for (const m of memberships)
+      members.push({
+        userId: m.userId,
+        role: m.role,
+        email: (await ctx.db.get(m.userId))?.email,
+      });
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+    const payment = await paymentState(ctx, workspaceId);
+    const month = budgetMonth();
+    return {
+      _id: workspace._id,
+      name: workspace.name,
+      billingMode: workspace.billingMode ?? "paid",
+      createdAt: workspace.createdAt,
+      members,
+      projectCount: projects.length,
+      subscriptionStatus: payment?.status ?? "Not subscribed",
+      paidSeats: payment?.paidSeats ?? 0,
+      budget: withCap(
+        await readTotals(ctx, `workspace:${workspaceId}:${month}`),
+        workspace.monthlySpendCapUsdMicros,
+      ),
+      month,
+      balance: await getWorkspaceBalance(ctx, workspaceId),
+    };
   },
 });

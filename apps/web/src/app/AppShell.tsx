@@ -59,6 +59,9 @@ function WorkspaceShell() {
     subscriptionMessage,
     role,
   } = useWorkspace();
+  const isInternal =
+    workspaces.find((w) => w.workspace._id === workspaceId)?.workspace
+      .billingMode === "internal";
   const user = useQuery(api.users.viewer);
   const balance = useQuery(
     api.billing.getBalance,
@@ -184,9 +187,13 @@ function WorkspaceShell() {
             >
               <Coins className="size-3.5 text-zinc-400" aria-hidden />
               <span className="tabular-nums">
-                {balance === undefined ? "…" : formatUsd(balance.balance)}
+                {isInternal
+                  ? "Company-funded"
+                  : balance === undefined
+                    ? "…"
+                    : formatUsd(balance.balance)}
               </span>
-              <span className="text-zinc-500">USD</span>
+              {!isInternal && <span className="text-zinc-500">USD</span>}
             </Link>
           )}
 
@@ -267,7 +274,7 @@ function WorkspaceShell() {
               {user?.isStaff === true ? (
                 <>
                   <DropdownMenuItem asChild>
-                    <Link to="/staff">Staff</Link>
+                    <Link to="/staff">Admin panel</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/dev">Dev tools</Link>
@@ -285,6 +292,12 @@ function WorkspaceShell() {
           </DropdownMenu>
         </header>
 
+        {isInternal && (
+          <div className="border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400">
+            Company-funded workspace · $0 payable. Displayed generation prices
+            track standard usage; company budgets still apply.
+          </div>
+        )}
         {canWrite === false && (
           <div
             role="status"

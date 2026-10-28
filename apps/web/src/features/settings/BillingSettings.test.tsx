@@ -9,6 +9,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 import { BillingSettings } from "./BillingSettings";
 const state = vi.hoisted(() => ({
+  billingMode: "paid",
   canManage: true,
   isOwner: true,
   enabled: false,
@@ -28,6 +29,7 @@ vi.mock("@/features/workspaces/workspace-context", () => ({
 }));
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: () => ({
+    billingMode: state.billingMode,
     isOwner: state.isOwner,
     occupiedSeats: 1,
     usable: state.paid,
@@ -52,6 +54,7 @@ vi.mock("@/lib/api/hooks", () => ({
       : state.action,
 }));
 beforeEach(() => {
+  state.billingMode = "paid";
   state.workspaceId = "workspace";
   state.orders = [];
   state.customerId = undefined;
@@ -215,4 +218,20 @@ it("explains pending extra seat capacity without claiming it is already availabl
   expect(
     screen.queryByText(/Waiting for payment confirmation for 1 extra seat/),
   ).not.toBeInTheDocument();
+});
+
+it("shows company funding and hides all purchase controls for internal workspaces", async () => {
+  state.billingMode = "internal";
+  state.enabled = true;
+  render(<BillingSettings />);
+  expect(
+    await screen.findByText("Company-funded workspace"),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/Amount payable: \$0/)).toBeInTheDocument();
+  expect(screen.queryByText("Subscribe with Polar")).not.toBeInTheDocument();
+  expect(screen.queryByText("Add $10 usage")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("Total paid seats, including owner"),
+  ).not.toBeInTheDocument();
+  expect(state.action).not.toHaveBeenCalled();
 });

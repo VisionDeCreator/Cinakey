@@ -10,7 +10,11 @@ type WorkspaceState = {
   canCreate: boolean;
   canManage: boolean;
   workspaces: Array<{
-    workspace: { _id: Id<"workspaces">; name: string };
+    workspace: {
+      _id: Id<"workspaces">;
+      name: string;
+      billingMode?: "internal";
+    };
     role: Role | null;
   }>;
   switchWorkspace: (id: Id<"workspaces">) => Promise<void>;

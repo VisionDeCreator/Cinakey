@@ -43,6 +43,8 @@ export async function productionEntitlement(
   ctx: QueryCtx | MutationCtx,
   workspaceId: Id<"workspaces">,
 ) {
+  if ((await ctx.db.get(workspaceId))?.billingMode === "internal")
+    return { canWrite: true, code: null, message: null, validUntil: null };
   const state = await paymentState(ctx, workspaceId);
   const denied = (code: string, message: string) => ({
     canWrite: false,
@@ -94,6 +96,7 @@ export async function assertSeatAvailable(
   ctx: MutationCtx,
   workspaceId: Id<"workspaces">,
 ) {
+  if ((await ctx.db.get(workspaceId))?.billingMode === "internal") return;
   const state = await paymentState(ctx, workspaceId);
   await assertPaymentProduction(ctx, workspaceId);
   if (!state) return;

@@ -1,54 +1,11 @@
 import { formatUsd, parseUsdToMicros } from "@cinakey/shared";
 import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "@/lib/api/hooks";
+import { useMutation, useQuery } from "@cinakey/api-client";
 import { useRef, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-
-const NAV = [
-  { to: "/staff", label: "Users", end: true },
-  { to: "/staff/moderation", label: "Moderation" },
-  { to: "/staff/providers", label: "Providers" },
-  { to: "/staff/egress", label: "Egress" },
-  { to: "/staff/audit", label: "Audit" },
-];
-
-export function StaffLayout() {
-  const location = useLocation();
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Staff</h1>
-        <p className="mt-1 text-sm text-zinc-400">Internal tools.</p>
-      </div>
-      <nav className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
-        {NAV.map((item) => {
-          const active = item.end
-            ? location.pathname === item.to
-            : location.pathname.startsWith(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "px-3 py-1.5 text-sm",
-                active
-                  ? "bg-zinc-800 text-zinc-100"
-                  : "text-zinc-400 hover:text-zinc-200",
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <Outlet />
-    </div>
-  );
-}
+import { Link } from "react-router-dom";
+import { Button } from "@cinakey/ui/button";
+import { Input } from "@cinakey/ui/input";
+import { Label } from "@cinakey/ui/label";
 
 export function StaffUsersPage() {
   const [email, setEmail] = useState("");
@@ -170,6 +127,9 @@ export function StaffUsersPage() {
               {lookup.name ? ` · ${lookup.name}` : ""}
               {lookup.isStaff ? " · staff" : ""}
             </p>
+            <Link className="underline" to={`/users/${lookup.userId}`}>
+              Open account details
+            </Link>
             <p>Balance: {formatUsd(lookup.balance)}</p>
             <ul className="max-h-64 space-y-1 overflow-auto text-xs text-zinc-500">
               {lookup.recentJobs.map((j) => (
@@ -359,10 +319,99 @@ export function StaffAuditPage() {
           <span className="text-zinc-200">{r.action}</span>
           {r.reason ? ` — ${r.reason}` : ""}
           <div className="text-zinc-600">
-            {new Date(r.createdAt).toLocaleString()} · actor {r.actorUserId}
+            {new Date(r.createdAt).toLocaleString()} · actor{" "}
+            {r.actorType === "operator" ? "deployment operator" : r.actorUserId}
           </div>
         </li>
       ))}
     </ul>
+  );
+}
+
+export function InternalWorkspaceForm() {
+  const create = useMutation(api.staff.createInternalWorkspace);
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [name, setName] = useState("Cinakey Internal");
+  const [cap, setCap] = useState("100");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  return (
+    <form
+      className="space-y-3 rounded-xl border border-zinc-800 p-5 lg:col-span-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        setBusy(true);
+        setMessage("");
+        void (async () => {
+          try {
+            await create({
+              ownerEmail,
+              name,
+              monthlyCapUsdMicros: parseUsdToMicros(cap),
+              reason,
+            });
+            setMessage(
+              "Company-funded workspace created. The owner can select it from the workspace menu and invite the team.",
+            );
+          } catch (error) {
+            setMessage(
+              error instanceof Error
+                ? error.message
+                : "Could not create workspace",
+            );
+          } finally {
+            setBusy(false);
+          }
+        })();
+      }}
+    >
+      <h2 className="font-medium">Create internal company workspace</h2>
+      <p className="text-sm text-zinc-400">
+        Platform administrators only. Free seats and full access with normal
+        permissions. Provider costs and standard prices remain metered; the
+        monthly budget limits company spending.
+      </p>
+      <Label htmlFor="internal-owner">Owner email (existing account)</Label>
+      <Input
+        id="internal-owner"
+        type="email"
+        value={ownerEmail}
+        onChange={(e) => setOwnerEmail(e.target.value)}
+        required
+      />
+      <Label htmlFor="internal-name">Workspace name</Label>
+      <Input
+        id="internal-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        maxLength={120}
+        required
+      />
+      <Label htmlFor="internal-cap">Monthly company budget (USD)</Label>
+      <Input
+        id="internal-cap"
+        value={cap}
+        onChange={(e) => setCap(e.target.value)}
+        inputMode="decimal"
+        required
+      />
+      <Label htmlFor="internal-reason">Reason for company funding</Label>
+      <Input
+        id="internal-reason"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        minLength={3}
+        required
+      />
+      <Button disabled={busy}>
+        {busy ? "Creating…" : "Create company workspace"}
+      </Button>
+      {message && (
+        <p role="status" className="text-sm">
+          {message}
+        </p>
+      )}
+    </form>
   );
 }

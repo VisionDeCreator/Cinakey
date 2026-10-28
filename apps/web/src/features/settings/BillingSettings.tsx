@@ -72,6 +72,26 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
     Number.isSafeInteger(seats) &&
     seats >= (summary?.occupiedSeats ?? 1) &&
     seats <= 100;
+  if (summary?.billingMode === "internal")
+    return (
+      <section
+        className="space-y-3 rounded-xl border border-zinc-800 p-5"
+        aria-label="Workspace billing"
+      >
+        <h2 className="font-semibold">Company-funded workspace</h2>
+        <p className="text-sm text-zinc-400">
+          Full platform access with free seats. No subscription, seat charges,
+          or usage payment is required. Member permissions still apply.
+        </p>
+        <p className="text-sm">
+          {summary.occupiedSeats} creator seats in use · Amount payable: $0
+        </p>
+        <p className="text-sm text-zinc-400">
+          Provider costs, standard prices, and spending limits are tracked
+          below. Only platform administrators can enable company funding.
+        </p>
+      </section>
+    );
   return (
     <section
       className="space-y-5 rounded-xl border border-zinc-800 p-5"

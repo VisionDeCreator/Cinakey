@@ -11,12 +11,23 @@ export async function readTotals(ctx: Ctx, scopeKey: string) {
     .withIndex("by_scope", (q) => q.eq("scopeKey", scopeKey))
     .unique();
   return {
+    ...(row?.standardPriceUsdMicros !== undefined
+      ? {
+          standardPriceUsdMicros: row.standardPriceUsdMicros,
+          providerCostUsdMicros: row.providerCostUsdMicros ?? 0,
+        }
+      : {}),
     spentUsdMicros: row?.spentUsdMicros ?? 0,
     reservedUsdMicros: row?.reservedUsdMicros ?? 0,
   };
 }
 export function withCap(
-  usage: { spentUsdMicros: number; reservedUsdMicros: number },
+  usage: {
+    spentUsdMicros: number;
+    reservedUsdMicros: number;
+    standardPriceUsdMicros?: number;
+    providerCostUsdMicros?: number;
+  },
   cap?: number,
 ) {
   const committedUsdMicros = usage.spentUsdMicros + usage.reservedUsdMicros;
@@ -43,6 +54,10 @@ export async function updateTotals(
   month: string,
   heldChange: number,
   spentChange: number,
+  internalUsage?: {
+    standardPriceUsdMicros: number;
+    providerCostUsdMicros: number;
+  },
 ) {
   const keys = [
     `workspace:${workspaceId}:${month}`,
@@ -55,6 +70,16 @@ export async function updateTotals(
       .withIndex("by_scope", (q) => q.eq("scopeKey", scopeKey))
       .unique();
     const next = {
+      ...(internalUsage
+        ? {
+            standardPriceUsdMicros:
+              (row?.standardPriceUsdMicros ?? 0) +
+              internalUsage.standardPriceUsdMicros,
+            providerCostUsdMicros:
+              (row?.providerCostUsdMicros ?? 0) +
+              internalUsage.providerCostUsdMicros,
+          }
+        : {}),
       spentUsdMicros: (row?.spentUsdMicros ?? 0) + spentChange,
       reservedUsdMicros: (row?.reservedUsdMicros ?? 0) + heldChange,
     };

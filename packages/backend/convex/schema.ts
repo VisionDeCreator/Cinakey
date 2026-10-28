@@ -138,6 +138,7 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_user", ["userId"]),
     workspaces: defineTable({
+      billingMode: v.optional(v.literal("internal")),
       name: v.string(),
       ownerUserId: v.id("users"),
       /** Set when the one-time development USD fixture grant has been applied. */
@@ -679,6 +680,8 @@ const schema = defineSchema(
       sequence: v.number(),
     }).index("by_workspace", ["workspaceId"]),
     spendTotals: defineTable({
+      standardPriceUsdMicros: v.optional(v.number()),
+      providerCostUsdMicros: v.optional(v.number()),
       workspaceId: v.id("workspaces"),
       scopeKey: v.string(),
       spentUsdMicros: v.number(),
@@ -687,6 +690,9 @@ const schema = defineSchema(
       .index("by_scope", ["scopeKey"])
       .index("by_workspace", ["workspaceId"]),
     usageLedger: defineTable({
+      companyFunded: v.optional(v.boolean()),
+      budgetSpentUsdMicros: v.optional(v.number()),
+      providerCostUsdMicros: v.optional(v.number()),
       fundingAllocations: v.optional(
         v.array(v.object({ poolId: v.id("fundingPools"), amount: v.number() })),
       ),
@@ -737,9 +743,10 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_user_unread", ["userId", "read"]),
 
-    /** Append-only staff action log. */
+    /** Append-only staff and deployment operator action log. */
     auditLog: defineTable({
-      actorUserId: v.id("users"),
+      actorUserId: v.optional(v.id("users")),
+      actorType: v.optional(v.union(v.literal("user"), v.literal("operator"))),
       action: v.string(),
       targetType: v.optional(v.string()),
       targetId: v.optional(v.string()),

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Usage = {
+  standardPriceUsdMicros?: number;
+  providerCostUsdMicros?: number;
   spentUsdMicros: number;
   reservedUsdMicros: number;
   spendCapUsdMicros: number | null;
@@ -68,6 +70,13 @@ function BudgetRow({
         {formatUsd(usage.reservedUsdMicros)} · Remaining:{" "}
         {usage.remaining === null ? "No cap" : formatUsd(usage.remaining)}
       </p>
+      {usage.standardPriceUsdMicros !== undefined && (
+        <p className="text-xs text-zinc-400">
+          Recorded provider cost: {formatUsd(usage.providerCostUsdMicros ?? 0)}{" "}
+          · Standard price: {formatUsd(usage.standardPriceUsdMicros)} · Payable:
+          $0
+        </p>
+      )}
       <div className="flex gap-2">
         <Input
           aria-label={`${title} USD cap`}
@@ -122,7 +131,22 @@ export function BudgetSettings() {
         means no cap; zero blocks new spending. Lowering a cap leaves running
         jobs in place.
       </p>
-      {report.account && (
+      {report.billingMode === "internal" && (
+        <div className="space-y-1 text-sm text-zinc-400">
+          <p>Company-funded · Amount payable: $0</p>
+          <p>
+            This month’s recorded provider cost:{" "}
+            {formatUsd(report.workspace.providerCostUsdMicros ?? 0)} · Standard
+            price: {formatUsd(report.workspace.standardPriceUsdMicros ?? 0)}
+          </p>
+          <p>
+            Budgets count provider costs after settlement and reserve the
+            standard maximum while jobs run. Usage without a provider receipt
+            keeps its standard price as a conservative budget estimate.
+          </p>
+        </div>
+      )}
+      {report.account && report.billingMode !== "internal" && (
         <p className="text-xs text-zinc-400">
           Available: {formatUsd(report.account.available)} · All-time reserved:{" "}
           {formatUsd(report.account.reserved)} · All-time spent:{" "}

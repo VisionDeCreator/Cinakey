@@ -31,6 +31,8 @@ async function owner(
   const workspace = await ctx.db.get(workspaceId);
   if (!workspace || workspace.ownerUserId !== user._id)
     throw new Error("Only the workspace owner can manage payments");
+  if (workspace.billingMode === "internal")
+    throw new Error("Company-funded workspaces do not accept payments");
   return { user, workspace };
 }
 export const summary = query({
@@ -51,6 +53,7 @@ export const summary = query({
       .order("desc")
       .take(20);
     return {
+      billingMode: (await ctx.db.get(workspaceId))?.billingMode ?? "paid",
       isOwner: role === "owner",
       state,
       occupiedSeats: await occupiedSeats(ctx, workspaceId),
