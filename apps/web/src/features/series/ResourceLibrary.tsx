@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api, type Doc, type Id } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -112,14 +113,10 @@ export function ResourceLibrary({
         )
           throw new Error(`File too large: ${file.name}`);
         const url = await uploadUrl({ seriesId });
-        const result = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
-        });
+        const result = await uploadMedia(url, file);
         if (!result.ok) throw new Error(`Upload failed: ${file.name}`);
         const { storageId } = (await result.json()) as {
-          storageId: Id<"_storage">;
+          storageId: Id<"_storage" | "r2Files">;
         };
         await completeUpload({
           seriesId,

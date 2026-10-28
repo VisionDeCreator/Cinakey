@@ -1,3 +1,4 @@
+import * as r2 from "./r2";
 import { expect, it, vi } from "vitest";
 import { byteRange, serveSharedMedia } from "./exportSharing";
 import { readBoundedUpload } from "./publishedExports";
@@ -46,7 +47,7 @@ it("rejects oversized streaming uploads without trusting Content-Length", async 
     ),
   ).rejects.toThrow("size limit");
 });
-it("never redirects to a storage URL and refuses an upstream that ignores ranges", async () => {
+it("refuses a legacy Convex upstream that ignores ranges", async () => {
   const cancel = vi.fn();
   const body = new ReadableStream({ cancel });
   vi.stubGlobal(
@@ -54,7 +55,10 @@ it("never redirects to a storage URL and refuses an upstream that ignores ranges
     vi.fn().mockResolvedValue(new Response(body, { status: 200 })),
   );
   const ctx = {
-    runQuery: vi.fn().mockResolvedValue({ storageId: "file", sizeBytes: 100 }),
+    runQuery: vi
+      .fn()
+      .mockResolvedValueOnce({ storageId: "file", sizeBytes: 100 })
+      .mockResolvedValueOnce(null),
     storage: {
       getUrl: vi.fn().mockResolvedValue("https://storage.example/file"),
     },
@@ -74,4 +78,56 @@ it("never redirects to a storage URL and refuses an upstream that ignores ranges
   ).rejects.toThrow("range delivery unavailable");
   expect(ctx.runMutation).not.toHaveBeenCalled();
   expect(cancel).toHaveBeenCalled();
+});
+
+it("authorizes R2 shares before redirecting to a short-lived signed URL", async () => {
+  const sign = vi
+    .spyOn(r2, "signDownload")
+    .mockResolvedValue("https://r2.example/signed");
+  const ctx = {
+    runQuery: vi
+      .fn()
+      .mockResolvedValueOnce({ storageId: "file", sizeBytes: 100 })
+      .mockResolvedValueOnce({ key: "media/test", bucket: "test-media" }),
+    runMutation: vi.fn(),
+  };
+  try {
+    const response = await serveSharedMedia(
+      ctx as never,
+      new Request("https://app.example/media", {
+        headers: {
+          Cookie: `cinakey_share=${"a".repeat(64)}`,
+          Range: "bytes=0-9",
+        },
+      }),
+      "link" as never,
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("Location")).toBe("https://r2.example/signed");
+    expect(sign).toHaveBeenCalledWith("media/test", "test-media", false, 300);
+    expect(ctx.runMutation).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+  } finally {
+    sign.mockRestore();
+  }
+});
+it("does not sign a URL when a share has been revoked", async () => {
+  const sign = vi.spyOn(r2, "signDownload");
+  const ctx = {
+    runQuery: vi.fn().mockRejectedValue(new Error("Share unavailable")),
+  };
+  try {
+    await expect(
+      serveSharedMedia(
+        ctx as never,
+        new Request("https://app.example/media", {
+          headers: { Cookie: `cinakey_share=${"a".repeat(64)}` },
+        }),
+        "link" as never,
+      ),
+    ).rejects.toThrow("Share unavailable");
+    expect(sign).not.toHaveBeenCalled();
+  } finally {
+    sign.mockRestore();
+  }
 });

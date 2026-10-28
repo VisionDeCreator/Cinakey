@@ -35,7 +35,7 @@ export async function saveJson(
   return { storageId, sizeBytes };
 }
 
-/** Server-side JSON save (actions only — uses ctx.storage.store). */
+/** Server-side JSON save (actions only — uses mediaStorage(ctx).store). */
 export const storeJson = action({
   args: { projectId: v.id("projects"), value: v.any() },
   handler: async (ctx, args) => {

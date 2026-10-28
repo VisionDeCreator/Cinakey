@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
@@ -599,11 +600,7 @@ export function BlockoutEditorPage() {
         const uploadUrl = await createUploadUrl({
           projectId: projectId as never,
         });
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": "video/mp4" },
-          body: blob,
-        });
+        const res = await uploadMedia(uploadUrl, blob);
         if (!res.ok) throw new Error("Upload failed");
         const { storageId } = (await res.json()) as { storageId: string };
         const assetId = await createAsset({

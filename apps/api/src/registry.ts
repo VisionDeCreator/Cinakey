@@ -15,3 +15,14 @@ for (const [module, exports] of Object.entries(services)) {
     }
   }
 }
+
+// Preserve the existing public upload contracts while authorizing sessions in Convex.
+import { createProjectUpload, createSeriesUpload } from "./services/r2Storage";
+registry.set(
+  "storage:createUploadUrl",
+  createProjectUpload as unknown as ServiceOperation,
+);
+registry.set(
+  "resources:createUploadUrl",
+  createSeriesUpload as unknown as ServiceOperation,
+);

@@ -1,3 +1,4 @@
+import { deleteObject, removeAbandonedUpload } from "./r2Storage";
 import * as payments from "./payments";
 import * as publishedExports from "./publishedExports";
 import * as exportSharing from "./exportSharing";
@@ -13,6 +14,7 @@ import * as staging from "./staging";
 import * as storage from "./storage";
 import * as timelineVersions from "./timelineVersions";
 export const services = {
+  r2Storage: { deleteObject, removeAbandonedUpload },
   payments,
   publishedExports,
   exportSharing,

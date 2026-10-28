@@ -1,3 +1,7 @@
+import { mediaStorage } from "./runtime/operation";
+import { prepareUpload, completeUpload } from "./services/r2Storage";
+import { resolveMediaUrls, signDownload } from "./services/r2";
+import { adminClient } from "./runtime/context";
 import { authClientAddress, requestEmailOtp } from "./services/authOtp";
 import type { Id } from "../../../packages/backend/convex/_generated/dataModel";
 import { polarWebhook } from "./services/payments";
@@ -95,6 +99,40 @@ export function createApp() {
         methods: ["POST", "GET", "HEAD", "OPTIONS"],
         credentials: true,
       }),
+    )
+    .post(
+      "/storage/uploads/:token",
+      async ({ request, params }) => {
+        try {
+          const body = JSON.parse(
+            new TextDecoder().decode(await boundedBody(request, 1024)),
+          );
+          if (
+            typeof body.contentType !== "string" ||
+            typeof body.size !== "number"
+          )
+            return new Response("Invalid upload metadata", { status: 400 });
+          return Response.json(
+            await prepareUpload(createContext(registry), params.token, body),
+          );
+        } catch {
+          return new Response("Upload unavailable", { status: 422 });
+        }
+      },
+      { parse: "none" },
+    )
+    .post(
+      "/storage/uploads/:token/complete",
+      async ({ params }) => {
+        try {
+          return Response.json(
+            await completeUpload(createContext(registry), params.token),
+          );
+        } catch {
+          return new Response("Upload verification failed", { status: 422 });
+        }
+      },
+      { parse: "none" },
     )
     .post(
       "/auth/email/request",
@@ -199,7 +237,20 @@ export function createApp() {
           internal.publishedExports.getForDelivery,
           { publicationId },
         );
-        const url = await ctx.storage.getUrl(row.storageId!);
+        const r2File = await ctx.runQuery(internal.storageIO.lookupR2File, {
+          id: row.storageId!,
+        });
+        if (r2File && !r2File.deletedAt) {
+          const url = await signDownload(r2File.key, r2File.bucket, true, 300);
+          await ctx.runMutation(internal.publishedExports.recordDownload, {
+            publicationId,
+          });
+          return new Response(null, {
+            status: 302,
+            headers: { Location: url, "Cache-Control": "private, no-store" },
+          });
+        }
+        const url = await mediaStorage(ctx).getUrl(row.storageId!);
         if (!url) throw new Error("Stored export not found");
         const source = await fetch(url, { signal: request.signal });
         if (!source.ok) throw new Error("Stored export unavailable");
@@ -373,14 +424,30 @@ export function createApp() {
               contract.kind === "query"
                 ? await client.query(ref(name), args as any)
                 : await client.mutation(ref(name), args as any);
-            return { value: convexToJson(value ?? null) };
+            return {
+              value: convexToJson(
+                await resolveMediaUrls(value ?? null, (id) =>
+                  adminClient(identity).query(
+                    ref("storageIO:authorizeR2File"),
+                    { id },
+                  ),
+                ),
+              ),
+            };
           }
           validateArgs(service.args, args);
           return {
             value: convexToJson(
-              (await withProviderSignal(request.signal, () =>
-                service.handler(createContext(registry, identity), args),
-              )) ?? null,
+              await resolveMediaUrls(
+                (await withProviderSignal(request.signal, () =>
+                  service.handler(createContext(registry, identity), args),
+                )) ?? null,
+                (id) =>
+                  adminClient(identity).query(
+                    ref("storageIO:authorizeR2File"),
+                    { id },
+                  ),
+              ),
             ),
           };
         } catch (error) {

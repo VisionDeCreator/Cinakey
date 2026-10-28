@@ -480,7 +480,7 @@
     "public": true
   },
   "storage:createUploadUrl": {
-    "kind": "mutation",
+    "kind": "action",
     "public": true
   },
   "storage:createAssetFromUpload": {
@@ -644,7 +644,7 @@
     "public": true
   },
   "resources:createUploadUrl": {
-    "kind": "mutation",
+    "kind": "action",
     "public": true
   },
   "resources:completeUpload": {
@@ -1090,5 +1090,13 @@
   "staff:workspaceDetail": {
     "kind": "query",
     "public": true
+  },
+  "r2Storage:deleteObject": {
+    "kind": "action",
+    "public": false
+  },
+  "r2Storage:removeAbandonedUpload": {
+    "kind": "action",
+    "public": false
   }
 }

@@ -1,3 +1,4 @@
+import { deleteStoredFile, getStorageMeta } from "./storage";
 import { requireProjectWrite } from "./lib/access";
 import { v, ConvexError } from "convex/values";
 import {
@@ -97,7 +98,7 @@ export const claimUpload = internalMutation({
     if (publication.leaseUntil && publication.leaseUntil > Date.now())
       throw new Error("An upload is already in progress");
     if (publication.stagedStorageId)
-      await ctx.storage.delete(publication.stagedStorageId);
+      await deleteStoredFile(ctx, publication.stagedStorageId);
     await ctx.db.patch(publication._id, {
       stagedStorageId: undefined,
       state: "uploading",
@@ -111,7 +112,7 @@ export const finalize = internalMutation({
   args: {
     publicationId: v.id("publishedExports"),
     attempt: v.string(),
-    storageId: v.id("_storage"),
+    storageId: v.union(v.id("_storage"), v.id("r2Files")),
     sizeBytes: v.number(),
     sha256: v.string(),
     durationSec: v.number(),
@@ -148,7 +149,7 @@ export const finalize = internalMutation({
       args.height !== row.expectedHeight
     )
       throw new ConvexError("Export does not match its saved timeline");
-    const metadata = await ctx.db.system.get(args.storageId);
+    const metadata = await getStorageMeta(ctx, args.storageId);
     if (
       !metadata ||
       metadata.size !== args.sizeBytes ||
@@ -197,7 +198,7 @@ export const failUpload = internalMutation({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.publicationId);
     if (row?.state === "uploading" && row.attempt === args.attempt) {
-      if (row.stagedStorageId) await ctx.storage.delete(row.stagedStorageId);
+      if (row.stagedStorageId) await deleteStoredFile(ctx, row.stagedStorageId);
       await ctx.db.patch(row._id, {
         state: "failed",
         stagedStorageId: undefined,
@@ -236,7 +237,8 @@ export const cleanup = internalMutation({
         )
         .take(100);
       for (const row of rows) {
-        if (row.stagedStorageId) await ctx.storage.delete(row.stagedStorageId);
+        if (row.stagedStorageId)
+          await deleteStoredFile(ctx, row.stagedStorageId);
         await ctx.db.delete(row._id);
       }
     }
@@ -299,14 +301,14 @@ export const remove = mutation({
       await ctx.db.delete(link._id);
     }
     await ctx.db.delete(row._id);
-    if (row.stagedStorageId) await ctx.storage.delete(row.stagedStorageId);
+    if (row.stagedStorageId) await deleteStoredFile(ctx, row.stagedStorageId);
     if (row.storageId) {
       const file = await ctx.db
         .query("mediaFiles")
         .withIndex("by_storage", (q) => q.eq("storageId", row.storageId!))
         .first();
       if (file) await ctx.db.delete(file._id);
-      await ctx.storage.delete(row.storageId);
+      await deleteStoredFile(ctx, row.storageId);
     }
     await appendAuditLog(ctx, {
       actorUserId: user._id,
@@ -321,7 +323,7 @@ export const stageUpload = internalMutation({
   args: {
     publicationId: v.id("publishedExports"),
     attempt: v.string(),
-    storageId: v.id("_storage"),
+    storageId: v.union(v.id("_storage"), v.id("r2Files")),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -338,7 +340,7 @@ export const stageUpload = internalMutation({
       throw new ConvexError("Upload attempt expired");
     if (row.stagedStorageId && row.stagedStorageId !== args.storageId)
       throw new ConvexError("Upload already staged");
-    const metadata = await ctx.db.system.get(args.storageId);
+    const metadata = await getStorageMeta(ctx, args.storageId);
     if (
       !metadata ||
       metadata.size > MAX_EXPORT_BYTES ||

@@ -1,3 +1,5 @@
+import { makeFunctionReference } from "convex/server";
+import { enqueueTask } from "./tasks";
 import { requireProjectWrite } from "./lib/access";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -78,32 +80,43 @@ export function validateAssetUpload(
   }
 }
 
-export async function generateUploadUrl(ctx: StorageCtx): Promise<string> {
-  return await ctx.storage.generateUploadUrl();
-}
-
 export async function saveFile(
   ctx: ActionCtx,
   blob: Blob,
-): Promise<Id<"_storage">> {
+): Promise<Id<"_storage" | "r2Files">> {
   return await ctx.storage.store(blob);
 }
 
 export async function getFileUrl(
   ctx: ReadCtx,
-  storageId: Id<"_storage">,
+  storageId: Id<"_storage" | "r2Files">,
 ): Promise<string | null> {
-  return await ctx.storage.getUrl(storageId);
+  if ("db" in ctx) {
+    const id = ctx.db.normalizeId("r2Files", storageId);
+    if (id) {
+      const file = await ctx.db.get(id);
+      return file && !file.deletedAt ? `r2://${id}` : null;
+    }
+  }
+  return await ctx.storage.getUrl(storageId as Id<"_storage">);
 }
 
 export async function registerMediaFile(
   ctx: MutationCtx,
   workspaceId: Id<"workspaces">,
-  storageId: Id<"_storage">,
+  storageId: Id<"_storage" | "r2Files">,
   createdBy: Id<"users">,
   format: string,
   sizeBytes: number,
 ) {
+  const r2Id = ctx.db.normalizeId("r2Files", storageId);
+  if (r2Id) {
+    const file = await ctx.db.get(r2Id);
+    if (!file || file.deletedAt) throw new Error("File not found");
+    if (file.workspaceId && file.workspaceId !== workspaceId)
+      throw new Error("File belongs to another workspace");
+    if (!file.workspaceId) await ctx.db.patch(r2Id, { workspaceId, createdBy });
+  }
   const existing = await ctx.db
     .query("mediaFiles")
     .withIndex("by_storage", (q) => q.eq("storageId", storageId))
@@ -138,7 +151,7 @@ export async function registerMediaFile(
 
 export async function deleteFile(
   ctx: StorageCtx,
-  storageId: Id<"_storage">,
+  storageId: Id<"_storage" | "r2Files">,
 ): Promise<void> {
   if ("db" in ctx) {
     if (
@@ -158,7 +171,9 @@ export async function deleteFile(
     if (
       await ctx.db
         .query("resourceVersions")
-        .withIndex("by_sheet_file", (q) => q.eq("sheetFileId", storageId))
+        .withIndex("by_sheet_file", (q) =>
+          q.eq("sheetFileId", storageId as Id<"_storage">),
+        )
         .first()
     )
       return;
@@ -184,14 +199,46 @@ export async function deleteFile(
       .collect();
     for (const file of files) await ctx.db.delete(file._id);
   }
-  await ctx.storage.delete(storageId);
+  await deleteStoredFile(ctx, storageId);
+}
+
+/** Raw deletion for trusted retention paths that already own the reference lifecycle. */
+export async function deleteStoredFile(
+  ctx: StorageCtx,
+  storageId: Id<"_storage" | "r2Files">,
+): Promise<void> {
+  if ("db" in ctx) {
+    const id = ctx.db.normalizeId("r2Files", storageId);
+    if (id) {
+      const file = await ctx.db.get(id);
+      if (file && !file.deletedAt) {
+        await ctx.db.patch(id, { deletedAt: Date.now() });
+        await enqueueTask(ctx, 0, "r2Storage:deleteObject", {
+          id,
+          key: file.key,
+          bucket: file.bucket,
+        });
+      }
+      return;
+    }
+    await ctx.storage.delete(storageId as Id<"_storage">);
+  } else {
+    await ctx.runMutation(
+      makeFunctionReference<"mutation">("storageIO:remove"),
+      { id: storageId },
+    );
+  }
 }
 
 export async function getStorageMeta(
   ctx: MutationCtx | QueryCtx,
-  storageId: Id<"_storage">,
+  storageId: Id<"_storage" | "r2Files">,
 ): Promise<{ size: number; contentType?: string } | null> {
-  const meta = await ctx.db.system.get(storageId);
+  const r2Id = ctx.db.normalizeId("r2Files", storageId);
+  const meta = r2Id
+    ? await ctx.db.get(r2Id)
+    : await ctx.db.system.get(storageId as Id<"_storage">);
+  if (meta && "deletedAt" in meta && meta.deletedAt) return null;
   if (meta === null) {
     return null;
   }
@@ -234,7 +281,7 @@ export async function loadJson<T = unknown>(
   ctx: ActionCtx,
   storageId: Id<"_storage">,
 ): Promise<T> {
-  const blob = await ctx.storage.get(storageId);
+  const blob = await ctx.storage.get(storageId as Id<"_storage">);
   if (blob === null) {
     throw new Error("JSON file not found");
   }
@@ -278,14 +325,15 @@ export const createUploadUrl = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, { projectId }) => {
     await requireProjectWrite(ctx, projectId);
-    return await generateUploadUrl(ctx);
+    const project = await ctx.db.get(projectId);
+    return project!.workspaceId;
   },
 });
 
 export const createAssetFromUpload = mutation({
   args: {
     projectId: v.id("projects"),
-    storageId: v.id("_storage"),
+    storageId: v.union(v.id("_storage"), v.id("r2Files")),
     type: assetType,
     name: v.string(),
     format: v.optional(v.string()),
@@ -411,7 +459,7 @@ const lineageValidator = v.object({
 export const createAssetFromGeneration = internalMutation({
   args: {
     projectId: v.id("projects"),
-    storageId: v.id("_storage"),
+    storageId: v.union(v.id("_storage"), v.id("r2Files")),
     type: assetType,
     format: v.string(),
     sizeBytes: v.number(),

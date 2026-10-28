@@ -14,6 +14,31 @@ const lineage = v.object({
 const schema = defineSchema(
   {
     ...authTables,
+    r2Files: defineTable({
+      key: v.string(),
+      bucket: v.string(),
+      size: v.number(),
+      contentType: v.string(),
+      workspaceId: v.optional(v.id("workspaces")),
+      createdBy: v.optional(v.id("users")),
+      createdAt: v.number(),
+      deletedAt: v.optional(v.number()),
+    })
+      .index("by_key", ["key"])
+      .index("by_workspace_created", ["workspaceId", "createdAt"]),
+    r2Uploads: defineTable({
+      token: v.string(),
+      key: v.string(),
+      workspaceId: v.id("workspaces"),
+      createdBy: v.id("users"),
+      expiresAt: v.number(),
+      contentType: v.optional(v.string()),
+      size: v.optional(v.number()),
+      fileId: v.optional(v.id("r2Files")),
+      completing: v.optional(v.boolean()),
+    })
+      .index("by_token", ["token"])
+      .index("by_expiry", ["expiresAt"]),
     publishedExports: defineTable({
       workspaceId: v.id("workspaces"),
       projectId: v.id("projects"),
@@ -33,8 +58,8 @@ const schema = defineSchema(
       expectedHeight: v.number(),
       attempt: v.optional(v.string()),
       leaseUntil: v.optional(v.number()),
-      stagedStorageId: v.optional(v.id("_storage")),
-      storageId: v.optional(v.id("_storage")),
+      stagedStorageId: v.optional(v.union(v.id("_storage"), v.id("r2Files"))),
+      storageId: v.optional(v.union(v.id("_storage"), v.id("r2Files"))),
       sizeBytes: v.optional(v.number()),
       sha256: v.optional(v.string()),
       durationSec: v.optional(v.number()),
@@ -211,7 +236,7 @@ const schema = defineSchema(
     }).index("by_workspace", ["workspaceId"]),
     mediaFiles: defineTable({
       workspaceId: v.id("workspaces"),
-      storageId: v.id("_storage"),
+      storageId: v.union(v.id("_storage"), v.id("r2Files")),
       sizeBytes: v.number(),
       format: v.string(),
       createdBy: v.id("users"),
@@ -431,7 +456,7 @@ const schema = defineSchema(
       name: v.string(),
       /** Denormalized name + tags for search index. */
       searchText: v.string(),
-      storageId: v.id("_storage"),
+      storageId: v.union(v.id("_storage"), v.id("r2Files")),
       outputIndex: v.optional(v.number()),
       format: v.string(),
       sizeBytes: v.number(),

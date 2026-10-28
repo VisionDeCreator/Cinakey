@@ -48,8 +48,8 @@ versions explicitly without duplicating the stored files. See [Series structure]
 
 TypeScript monorepo using Bun workspaces and Turborepo. The React/Vite creator
 app talks to a Bun/Elysia API. A separate Bun worker handles generation and
-background work. Convex provides authentication, database transactions and file
-storage. Rendering and MP4 encoding remain in the browser.
+background work. Convex provides authentication, database transactions, media metadata and JSON
+file storage. Cloudflare R2 stores images, videos and audio. See [R2 setup](docs/r2-storage.md). Rendering and MP4 encoding remain in the browser.
 
 ## Setup
 

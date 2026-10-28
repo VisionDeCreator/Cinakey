@@ -117,7 +117,8 @@ describe("stored exports and sharing", () => {
     await f.owner.mutation(internal.storageIO.remove, { id: row.storageId! });
     expect(
       await f.t.run(
-        async (ctx) => (await ctx.storage.get(row.storageId!)) !== null,
+        async (ctx) =>
+          (await ctx.storage.get(row.storageId! as Id<"_storage">)) !== null,
       ),
     ).toBe(true);
     await expect(

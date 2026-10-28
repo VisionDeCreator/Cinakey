@@ -291,7 +291,7 @@ export const purgeUserData = internalMutation({
 
 async function tryDeleteStorage(
   ctx: MutationCtx,
-  storageId: Id<"_storage"> | undefined,
+  storageId: Id<"_storage" | "r2Files"> | undefined,
 ) {
   if (storageId === undefined) return;
   try {

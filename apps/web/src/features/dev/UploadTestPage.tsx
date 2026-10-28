@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -50,11 +51,7 @@ export function UploadTestPage() {
     try {
       const pid = await ensureProject();
       const uploadUrl = await createUploadUrl({ projectId: pid as never });
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
+      const result = await uploadMedia(uploadUrl, file);
       if (!result.ok) {
         throw new Error(`Upload failed: ${result.status}`);
       }

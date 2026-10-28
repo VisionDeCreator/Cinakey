@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useMutation } from "@/lib/api/hooks";
 import { api } from "@cinakey/backend";
@@ -170,13 +171,7 @@ export function useAssetUpload(projectId: string | undefined) {
             prev.map((u) => (u.id === id ? { ...u, progress: 40 } : u)),
           );
 
-          const result = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": file.type || "application/octet-stream",
-            },
-            body: file,
-          });
+          const result = await uploadMedia(uploadUrl, file);
           if (!result.ok) {
             throw new Error(`Upload failed: ${result.status}`);
           }

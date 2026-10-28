@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { formatUsd } from "@cinakey/shared";
 import { Button } from "@/components/ui/button";
@@ -116,11 +117,7 @@ export function BlockoutPage() {
         onProgress: (p) => setProgress(p.label),
       });
       const upload = await createUpload({ projectId: projectId as never });
-      const response = await fetch(upload, {
-        method: "POST",
-        headers: { "Content-Type": "video/mp4" },
-        body: blob,
-      });
+      const response = await uploadMedia(upload, blob);
       if (!response.ok) throw new Error("Upload failed");
       const { storageId } = await response.json();
       const assetId = await createAsset({

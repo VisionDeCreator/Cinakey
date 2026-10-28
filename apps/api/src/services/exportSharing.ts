@@ -1,3 +1,5 @@
+import { signDownload } from "./r2";
+import { mediaStorage } from "../runtime/operation";
 import {
   randomBytes,
   createHash,
@@ -159,7 +161,27 @@ export async function serveSharedMedia(
     );
   if (request.method === "HEAD")
     return new Response(null, { status: range.partial ? 206 : 200, headers });
-  const url = await ctx.storage.getUrl(publication.storageId);
+  const r2File = await ctx.runQuery(internal.storageIO.lookupR2File, {
+    id: publication.storageId,
+  });
+  if (r2File && !r2File.deletedAt) {
+    const url = await signDownload(r2File.key, r2File.bucket, download, 300);
+    await ctx.runMutation(internal.exportSharing.recordDelivery, {
+      linkId,
+      tokenHash,
+      download,
+      bytes: length,
+    });
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: url,
+        "Cache-Control": "private, no-store",
+        "Referrer-Policy": "no-referrer",
+      },
+    });
+  }
+  const url = await mediaStorage(ctx).getUrl(publication.storageId);
   if (!url) throw new Error("Share unavailable");
   const source = await fetch(url, {
     headers: { Range: `bytes=${range.start}-${range.end}` },

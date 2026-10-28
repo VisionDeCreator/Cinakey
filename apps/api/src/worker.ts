@@ -52,6 +52,7 @@ export async function runWorker(signal: AbortSignal) {
         await client.mutation(ref("publishedExports:cleanup"), {});
         await client.mutation(ref("payments:expireAllowances"), {});
         await client.mutation(ref("authOtp:cleanup"), {});
+        await client.mutation(ref("storageIO:cleanupR2Uploads"), {});
         lastReconciliation = Date.now();
         if (waitingForDeployment) {
           console.info("[worker] Convex worker functions are ready; resuming.");

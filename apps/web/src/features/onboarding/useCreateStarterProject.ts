@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAction, useMutation } from "@/lib/api/hooks";
 import { api, type Id } from "@cinakey/backend";
@@ -34,16 +35,12 @@ export function useCreateStarterProject() {
         }
         const blob = await res.blob();
         const uploadUrl = await createUploadUrl({ projectId: shell.projectId });
-        const uploadRes = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": blob.type || "video/mp4" },
-          body: blob,
-        });
+        const uploadRes = await uploadMedia(uploadUrl, blob);
         if (!uploadRes.ok) {
           throw new Error("Failed to upload sample clip");
         }
         const { storageId } = (await uploadRes.json()) as {
-          storageId: Id<"_storage">;
+          storageId: Id<"_storage" | "r2Files">;
         };
         await createAsset({
           projectId: shell.projectId,

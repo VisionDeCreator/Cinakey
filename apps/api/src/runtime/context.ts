@@ -1,3 +1,9 @@
+import {
+  objectKey,
+  putObject,
+  resolveMediaUrls,
+  r2Config,
+} from "../services/r2";
 import { ConvexHttpClient } from "convex/browser";
 import {
   getFunctionName,
@@ -85,10 +91,30 @@ export function createContext(
     storage: {
       generateUploadUrl: () =>
         client.mutation(reference("storageIO:uploadUrl"), {}),
-      getUrl: (id: any) => client.query(reference("storageIO:url"), { id }),
+      getUrl: async (id: any) =>
+        resolveMediaUrls(
+          await client.query(reference("storageIO:url"), { id }),
+          (id) => client.query(reference("storageIO:lookupR2File"), { id }),
+        ),
       delete: (id: any) =>
         client.mutation(reference("storageIO:remove"), { id }),
       store: async (blob: Blob) => {
+        if (/^(image|video|audio)\//.test(blob.type)) {
+          const key = objectKey();
+          const { bucket } = r2Config();
+          // Record the intent first: uncertain writes must remain recoverable, not lose bytes.
+          const id = await client.mutation(
+            reference("storageIO:registerR2File"),
+            {
+              key,
+              bucket,
+              size: blob.size,
+              contentType: blob.type,
+            },
+          );
+          await putObject(key, blob);
+          return id;
+        }
         const url = await client.mutation(reference("storageIO:uploadUrl"), {});
         const res = await fetch(url, {
           method: "POST",
@@ -103,9 +129,7 @@ export function createContext(
           fileCache.set(
             id,
             (async () => {
-              const url = await client.query(reference("storageIO:url"), {
-                id,
-              });
+              const url = await ctx.storage.getUrl(id);
               if (!url) return null;
               const response = await fetch(url);
               if (!response.ok)

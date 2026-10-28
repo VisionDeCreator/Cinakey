@@ -1,3 +1,4 @@
+import { mediaStorage } from "../runtime/operation";
 import { v, ConvexError } from "convex/values";
 import { createHash } from "node:crypto";
 import {
@@ -102,7 +103,7 @@ async function performUpload(
     { publicationId, attempt },
   );
   if (publication.state === "ready") return { publicationId };
-  let storageId: Id<"_storage"> | undefined;
+  let storageId: Id<"_storage" | "r2Files"> | undefined;
   let committing = false;
   try {
     const blob = await readBoundedUpload(request);
@@ -123,7 +124,7 @@ async function performUpload(
     const sha256 = createHash("sha256")
       .update(new Uint8Array(await blob.arrayBuffer()))
       .digest("hex");
-    storageId = await ctx.storage.store(blob);
+    storageId = await mediaStorage(ctx).store(blob);
     committing = true;
     await ctx.runMutation(internal.publishedExports.stageUpload, {
       publicationId,
@@ -146,7 +147,7 @@ async function performUpload(
         publicationId,
         attempt,
       });
-      if (storageId) await ctx.storage.delete(storageId);
+      if (storageId) await mediaStorage(ctx).delete(storageId);
     }
     throw error;
   }

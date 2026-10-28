@@ -10,7 +10,6 @@ import {
 } from "./lib/access";
 import { buildSearchText } from "./lib/assetSearch";
 import {
-  generateUploadUrl,
   getFileUrl,
   getStorageMeta,
   validateAssetUpload,
@@ -282,13 +281,13 @@ export const createUploadUrl = mutation({
   handler: async (ctx, args) => {
     const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt) throw new Error("Restore this series first");
-    return generateUploadUrl(ctx);
+    return series.workspaceId;
   },
 });
 export const completeUpload = mutation({
   args: {
     seriesId: v.id("series"),
-    storageId: v.id("_storage"),
+    storageId: v.union(v.id("_storage"), v.id("r2Files")),
     name: v.string(),
     type,
     containsLikeness: v.optional(v.boolean()),

@@ -483,10 +483,7 @@ export const submitAndTrack = internalAction({
         const poll = await adapter.poll(result.providerJobId);
         providerActualUnits = poll.actualUnits;
         const collected = await adapter.collect(result.providerJobId);
-        providerResultFileId = await saveFile(
-          ctx,
-          new Blob([JSON.stringify(collected)], { type: "application/json" }),
-        );
+        providerResultFileId = (await saveJson(ctx, collected)).storageId;
       }
       await ctx.runMutation(internal.generation.markSubmitted, {
         jobId: job._id,

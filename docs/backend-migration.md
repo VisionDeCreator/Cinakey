@@ -5,7 +5,8 @@ new image generation have been retired; historical references below describe
 the original migration. Seedance and DeepSeek remain active providers.
 
 Cinakey runs a Bun/Elysia API and a separate Bun worker. Convex retains Auth,
-indexed persistence, transactions and file storage. The browser retains 3D
+indexed persistence, transactions, media metadata and JSON file storage. Cloudflare
+R2 stores media bytes; see [R2 setup](r2-storage.md). The browser retains 3D
 rendering, media editing and MP4 encoding. Product behavior and provider models
 are unchanged by this migration.
 
@@ -98,8 +99,9 @@ The reconciliation pass marks request-bound text jobs older than 30 minutes as
 interrupted, refunds the reservation once and clears any streaming message flag.
 It does not automatically replay a conversation or its tool side effects.
 
-Retention scheduling runs once per UTC day across workers. Files continue to
-use Convex storage; the migration does not remove video storage/download charges.
+Retention scheduling runs once per UTC day across workers. Media bytes use R2;
+JSON checkpoints remain in Convex storage. R2 upload cleanup also runs during the
+five-minute worker reconciliation pass.
 
 ## Deployment and cutover
 
