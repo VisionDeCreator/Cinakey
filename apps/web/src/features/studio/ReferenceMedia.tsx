@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import { Film, Image as ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MediaPreview } from "./MediaPreview";
@@ -15,6 +16,7 @@ export function MediaThumbnail({
   asset: ReferenceMediaAsset;
   url?: string | null;
 }) {
+  useLocale();
   const [failed, setFailed] = useState<string | null>(null);
   const root = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(
@@ -69,6 +71,7 @@ export function ReferenceMedia({
   url?: string | null;
   children: ReactNode;
 }) {
+  useLocale();
   const [position, setPosition] = useState<{
     top: number;
     left: number;
@@ -119,7 +122,7 @@ export function ReferenceMedia({
             className="reference-hover-preview"
             style={position}
             role="group"
-            aria-label={`Preview ${asset.name}`}
+            aria-label={t("Preview {0}", { 0: asset.name })}
             onMouseEnter={() => {
               if (timer.current) clearTimeout(timer.current);
             }}
@@ -134,7 +137,7 @@ export function ReferenceMedia({
             />
             <strong>{asset.name}</strong>
             <small>
-              {asset.type}
+              {t(asset.type ?? "")}
               {asset.durationSec ? ` · ${asset.durationSec.toFixed(1)}s` : ""}
             </small>
           </div>,

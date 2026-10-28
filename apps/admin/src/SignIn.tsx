@@ -1,3 +1,4 @@
+import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import { Clapperboard, ShieldCheck, Mail, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -15,6 +16,7 @@ import { Input } from "@cinakey/ui/input";
 import { Label } from "@cinakey/ui/label";
 import { adminDestination } from "./routing";
 export function SignIn() {
+  useLocale();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signIn } = useAuthActions();
   const [params] = useSearchParams();
@@ -34,131 +36,168 @@ export function SignIn() {
     return <Navigate to={adminDestination(params.get("next"))} replace />;
   return (
     <main className="admin-auth-page">
-      <div className="admin-auth-brand"><Clapperboard size={34} /><div>Cinakey<small>ADMIN</small></div></div>
+      <div className="admin-auth-brand">
+        <Clapperboard size={34} />
+        <div>
+          Cinakey
+          <small>
+            <I18nText text="ADMIN" />
+          </small>
+        </div>
+      </div>
       <section className="admin-auth-card">
-      <header><span className="admin-auth-symbol">{challenge ? <Mail size={30} /> : <ShieldCheck size={30} />}</span><h1>{challenge ? "Check your email" : "Admin sign in"}</h1><p>{challenge ? <>Enter the 6-digit code sent to <strong>{challenge.email}</strong></> : "Use your existing account to access Cinakey administration."}</p></header>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setPending(true);
-          setError("");
-          void (async () => {
-            try {
-              if (!challenge) {
-                const result = await requestEmailCode(
-                  email.trim().toLowerCase(),
-                  new AbortController().signal,
-                );
-                setChallenge(result);
-                persistChallenge(result);
-                setRetryAt(result.resendAt);
-                setNow(Date.now());
-              } else {
-                const result = await signIn("email-otp", {
-                  email: challenge.email,
-                  challenge: challenge.challenge,
-                  code,
-                });
-                if (!result.signingIn) throw new Error("Sign-in incomplete");
-                persistChallenge(null);
-              }
-            } catch (error) {
-              setError(
-                error instanceof OtpRequestError
-                  ? error.message
-                  : authErrorMessage(error),
-              );
-              if (error instanceof OtpRequestError) {
-                setRetryAt(Date.now() + error.retryAfterSeconds * 1000);
-                setNow(Date.now());
-              }
-            } finally {
-              setPending(false);
-            }
-          })();
-        }}
-      >
-        {!challenge ? (
-          <>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              placeholder="name@example.com"
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              maxLength={254}
-              required
-              disabled={pending}
-            />
-          </>
-        ) : (
-          <>
-            <Label htmlFor="code">Verification code</Label>
-            <Input
-              className="admin-auth-code"
-              placeholder="000000"
-              id="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              value={code}
-              onChange={(e) =>
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-              required
-              disabled={pending || challenge.expiresAt <= now}
-            />
-            {challenge.expiresAt <= now && (
-              <p role="alert">Code expired. Request a new code.</p>
+        <header>
+          <span className="admin-auth-symbol">
+            {challenge ? <Mail size={30} /> : <ShieldCheck size={30} />}
+          </span>
+          <h1>{challenge ? t("Check your email") : t("Admin sign in")}</h1>
+          <p>
+            {challenge ? (
+              <>
+                <I18nText text="Enter the 6-digit code sent to" />{" "}
+                <strong>{challenge.email}</strong>
+              </>
+            ) : (
+              t("Use your existing account to access Cinakey administration.")
             )}
-          </>
-        )}
-        <Button
-          disabled={
-            pending ||
-            isLoading ||
-            (!challenge && wait > 0) ||
-            (!!challenge && (code.length !== 6 || challenge.expiresAt <= now))
-          }
-        >
-          {pending
-            ? "Working…"
-            : challenge
-              ? "Verify and sign in"
-              : wait
-                ? `Try again in ${wait}s`
-                : "Send sign-in code"}
-          {!pending && !challenge && !wait && <ArrowRight size={18} />}
-        </Button>
-        {challenge && (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending || wait > 0}
-            onClick={() => {
-              persistChallenge(null);
-              setChallenge(null);
-              setCode("");
-            }}
-          >
-            {wait
-              ? `Request new code in ${wait}s`
-              : "Change email / request new code"}
-          </Button>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-red-400">
-            {error}
           </p>
-        )}
-      </form>
-      <p className="admin-auth-access"><ShieldCheck size={17} />Platform administrator access required.</p>
+        </header>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setPending(true);
+            setError("");
+            void (async () => {
+              try {
+                if (!challenge) {
+                  const result = await requestEmailCode(
+                    email.trim().toLowerCase(),
+                    new AbortController().signal,
+                  );
+                  setChallenge(result);
+                  persistChallenge(result);
+                  setRetryAt(result.resendAt);
+                  setNow(Date.now());
+                } else {
+                  const result = await signIn("email-otp", {
+                    email: challenge.email,
+                    challenge: challenge.challenge,
+                    code,
+                  });
+                  if (!result.signingIn) throw new Error("Sign-in incomplete");
+                  persistChallenge(null);
+                }
+              } catch (error) {
+                setError(
+                  error instanceof OtpRequestError
+                    ? error.message
+                    : authErrorMessage(error),
+                );
+                if (error instanceof OtpRequestError) {
+                  setRetryAt(Date.now() + error.retryAfterSeconds * 1000);
+                  setNow(Date.now());
+                }
+              } finally {
+                setPending(false);
+              }
+            })();
+          }}
+        >
+          {!challenge ? (
+            <>
+              <Label htmlFor="email">
+                <I18nText text="Email" />
+              </Label>
+              <Input
+                placeholder="name@example.com"
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={254}
+                required
+                disabled={pending}
+              />
+            </>
+          ) : (
+            <>
+              <Label htmlFor="code">
+                <I18nText text="Verification code" />
+              </Label>
+              <Input
+                className="admin-auth-code"
+                placeholder="000000"
+                id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                required
+                disabled={pending || challenge.expiresAt <= now}
+              />
+              {challenge.expiresAt <= now && (
+                <p role="alert">
+                  <I18nText text="Code expired. Request a new code." />
+                </p>
+              )}
+            </>
+          )}
+          <Button
+            disabled={
+              pending ||
+              isLoading ||
+              (!challenge && wait > 0) ||
+              (!!challenge && (code.length !== 6 || challenge.expiresAt <= now))
+            }
+          >
+            {pending
+              ? t("Working…")
+              : challenge
+                ? t("Verify and sign in")
+                : wait
+                  ? t("Try again in {0}s", { 0: wait })
+                  : t("Send sign-in code")}
+            {!pending && !challenge && !wait && <ArrowRight size={18} />}
+          </Button>
+          {challenge && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending || wait > 0}
+              onClick={() => {
+                persistChallenge(null);
+                setChallenge(null);
+                setCode("");
+              }}
+            >
+              {wait
+                ? t("Request new code in {0}s", { 0: wait })
+                : t("Change email / request new code")}
+            </Button>
+          )}
+          {error && (
+            <p role="alert" className="text-sm text-red-400">
+              {t(error ?? "")}
+            </p>
+          )}
+        </form>
+        <p className="admin-auth-access">
+          <ShieldCheck size={17} />
+          <I18nText text="Platform administrator access required." />
+        </p>
       </section>
-      <p className="admin-auth-footer">Cinakey administration</p>
+      <footer className="admin-auth-footer flex flex-col items-center gap-3">
+        <span>
+          <I18nText text="Cinakey administration" />
+        </span>
+        <LanguageSelector className="h-9 border-transparent bg-transparent text-zinc-400 hover:border-zinc-700 hover:text-zinc-100" />
+      </footer>
     </main>
   );
 }

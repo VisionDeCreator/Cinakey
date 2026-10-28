@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   useWorkspace,
   useDraftScope,
@@ -46,6 +48,7 @@ export function StudioScript({
   onValidityChange?: (valid: boolean) => void;
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
+  useLocale();
   const { canWrite } = useWorkspace();
   const writeAllowed = canWrite !== false;
   const writeAllowedRef = useRef(writeAllowed);
@@ -438,7 +441,11 @@ export function StudioScript({
           versionId: result.id,
         });
         setNotice(
-          `Replaced @${alias} with @${result.alias} everywhere, linked to ${asset.name}.`,
+          t("Replaced @{0} with @{1} everywhere, linked to {2}.", {
+            0: alias,
+            1: result.alias,
+            2: asset.name,
+          }),
         );
         setPicker(null);
         setPosition(null);
@@ -471,7 +478,10 @@ export function StudioScript({
           : null,
       );
       setNotice(
-        `@${alias} linked to ${asset.name}. All occurrences use this asset.`,
+        t("@{0} linked to {1}. All occurrences use this asset.", {
+          0: alias,
+          1: asset.name,
+        }),
       );
       setPicker(null);
       setPosition(null);
@@ -506,7 +516,10 @@ export function StudioScript({
       onDirty(false);
       setStatus("All changes saved");
       setNotice(
-        `Renamed @${picker} to @${referenceAlias(renameText)} everywhere.`,
+        t("Renamed @{0} to @{1} everywhere.", {
+          0: picker,
+          1: referenceAlias(renameText),
+        }),
       );
       setPicker(null);
       setUndoBinding(null);
@@ -558,16 +571,18 @@ export function StudioScript({
     return () => window.removeEventListener(MEDIA_POINTER_EVENT, handler);
   }, []);
   return (
-    <section className="studio-script" aria-label="Script and references">
+    <section className="studio-script" aria-label={t("Script and references")}>
       <div className="studio-section-heading">
-        <h2>Script & references</h2>
+        <h2>
+          <I18nText text="Script & references" />
+        </h2>
         <span className="studio-save">
           <Check size={13} />
-          {status}
+          {t(status ?? "")}
         </span>
       </div>
       <label className="sr-only" htmlFor={`script-${projectId}`}>
-        Script
+        <I18nText text="Script" />
       </label>
       <PlainScriptEditor
         expanded={picker !== null && insertMention}
@@ -638,9 +653,12 @@ export function StudioScript({
         }}
       />
       <details>
-        <summary>Script history ({workspace?.scripts.length ?? 0})</summary>
+        <summary>
+          <I18nText text="Script history (" />
+          {workspace?.scripts.length ?? 0})
+        </summary>
         <select
-          aria-label="Script history"
+          aria-label={t("Script history")}
           defaultValue=""
           onChange={async (event) => {
             if (!event.target.value) return;
@@ -659,10 +677,13 @@ export function StudioScript({
             }
           }}
         >
-          <option value="">Preview a saved version</option>
+          <option value="">
+            <I18nText text="Preview a saved version" />
+          </option>
           {workspace?.scripts.map((version) => (
             <option key={version._id} value={version._id}>
-              {version.label} · {new Date(version.createdAt).toLocaleString()}
+              {version.label} ·{" "}
+              {new Date(version.createdAt).toLocaleString(getLocale())}
             </option>
           ))}
         </select>
@@ -670,7 +691,7 @@ export function StudioScript({
           <>
             <textarea
               readOnly
-              aria-label="Script history preview"
+              aria-label={t("Script history preview")}
               value={historyText}
             />
             <Button
@@ -681,7 +702,7 @@ export function StudioScript({
                 setHistoryText(null);
               }}
             >
-              Use this version as draft
+              <I18nText text="Use this version as draft" />
             </Button>
           </>
         )}
@@ -695,7 +716,7 @@ export function StudioScript({
               key={alias}
               asset={
                 asset ?? {
-                  name: `@${alias} · missing reference`,
+                  name: t("@{0} · missing reference", { 0: alias }),
                   type: "image",
                 }
               }
@@ -726,7 +747,7 @@ export function StudioScript({
                     scriptMentionRanges(text).filter((m) => m.alias === alias)
                       .length
                   }{" "}
-                  mentions
+                  <I18nText text="mentions" />
                 </span>
               </button>
             </ReferenceMedia>
@@ -748,7 +769,7 @@ export function StudioScript({
         }}
       >
         <Link2 />
-        Add reference
+        <I18nText text="Add reference" />
       </Button>
       {undoConversion && (
         <Button
@@ -796,12 +817,12 @@ export function StudioScript({
             }
           }}
         >
-          Undo reference conversion
+          <I18nText text="Undo reference conversion" />
         </Button>
       )}
       {notice && (
         <p role="status" className="studio-muted">
-          {notice}{" "}
+          {t(notice ?? "")}{" "}
           {undoBinding && (
             <Button
               size="sm"
@@ -825,42 +846,40 @@ export function StudioScript({
                 }
               }}
             >
-              Undo replacement
+              <I18nText text="Undo replacement" />
             </Button>
           )}
         </p>
       )}
       <details className="generation-reference-summary">
         <summary>
-          Generation references · {generationImageIds.length} images ·{" "}
-          {generationVideoIds.length} videos
+          <I18nText text="Generation references ·" />{" "}
+          {generationImageIds.length} <I18nText text="images ·" />{" "}
+          {generationVideoIds.length} <I18nText text="videos" />
         </summary>
         <p className="studio-muted">
-          Repeated mentions use the same asset. Previously generated videos and
-          timeline clips stay unchanged.
+          <I18nText text="Repeated mentions use the same asset. Previously generated videos and timeline clips stay unchanged." />
         </p>
         {resolved.unresolved.length > 0 && (
           <p role="status">
-            Link missing references:{" "}
+            <I18nText text="Link missing references:" />{" "}
             {resolved.unresolved.map((a) => `@${a}`).join(", ")}
           </p>
         )}
         {resolved.ambiguous.length > 0 && (
           <p role="status">
-            Choose an asset for duplicate names:{" "}
+            <I18nText text="Choose an asset for duplicate names:" />{" "}
             {resolved.ambiguous.map((a) => `@${a}`).join(", ")}
           </p>
         )}
         {stagingReferenceId && resolved.videoIds.length > 0 && (
           <p role="alert">
-            Choose either the script video reference or staging as the
-            generation video reference.
+            <I18nText text="Choose either the script video reference or staging as the generation video reference." />
           </p>
         )}
         {resolved.videoIds.length > 1 && (
           <p role="alert">
-            This generation model supports one distinct reference video. Use one
-            video reference before generating.
+            <I18nText text="This generation model supports one distinct reference video. Use one video reference before generating." />
           </p>
         )}
         {[...new Set([...generationImageIds, ...generationVideoIds])].map(
@@ -884,7 +903,7 @@ export function StudioScript({
           ref={pickerElement}
           className={`studio-reference-picker ${position ? "at-caret" : ""}`}
           style={position ? { ...position, position: "fixed" } : undefined}
-          aria-label="Reference picker"
+          aria-label={t("Reference picker")}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               setPicker(null);
@@ -895,13 +914,13 @@ export function StudioScript({
           <div className="studio-section-heading">
             <strong>
               {!insertMention
-                ? `Replace @${picker} everywhere`
-                : "Choose image or video"}
+                ? t("Replace @{0} everywhere", { 0: picker })
+                : t("Choose image or video")}
             </strong>
             <Button
               size="icon"
               variant="ghost"
-              aria-label="Close reference picker"
+              aria-label={t("Close reference picker")}
               onClick={() => setPicker(null)}
             >
               <X />
@@ -909,11 +928,12 @@ export function StudioScript({
           </div>
           {!insertMention && (
             <p className="studio-muted">
-              Every @{picker} will point to the selected asset.
+              <I18nText text="Every @" />
+              {picker} <I18nText text="will point to the selected asset." />
             </p>
           )}
           <input
-            aria-label="Search references"
+            aria-label={t("Search references")}
             aria-controls="script-reference-suggestions"
             aria-activedescendant={
               results[activeIndex]
@@ -941,7 +961,7 @@ export function StudioScript({
               }
             }}
             value={search}
-            placeholder="Search names or @aliases…"
+            placeholder={t("Search names or @aliases…")}
             onChange={(e) => {
               setSearch(e.target.value.replace(/^@/, ""));
               setActiveIndex(0);
@@ -951,7 +971,7 @@ export function StudioScript({
             className="studio-picker-results"
             id="script-reference-suggestions"
             role="listbox"
-            aria-label="Project image and video references"
+            aria-label={t("Project image and video references")}
           >
             {results.map((asset, index) => (
               <ReferenceMedia
@@ -963,7 +983,10 @@ export function StudioScript({
                   id={`reference-option-${index}`}
                   role="option"
                   aria-selected={index === activeIndex}
-                  aria-label={`Link ${asset.name} (${asset.type})`}
+                  aria-label={t("Link {0} ({1})", {
+                    0: asset.name,
+                    1: asset.type,
+                  })}
                   disabled={!writeAllowed || bindingBusy}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
@@ -974,7 +997,7 @@ export function StudioScript({
                   <span>
                     {asset.name}
                     <small>
-                      {asset.type}
+                      {t(asset.type ?? "")}
                       {asset.durationSec
                         ? ` · ${asset.durationSec.toFixed(1)}s`
                         : ""}{" "}
@@ -988,7 +1011,7 @@ export function StudioScript({
                         replacementReferenceAlias(picker, asset.type, []) !==
                           picker && (
                           <small>
-                            Updates all mentions to @
+                            <I18nText text="Updates all mentions to @" />
                             {replacementReferenceAlias(picker, asset.type, [
                               ...mentions,
                               ...links.map((l) => l.alias),
@@ -996,8 +1019,8 @@ export function StudioScript({
                           </small>
                         )}
                       {asset.createdAt
-                        ? new Date(asset.createdAt).toLocaleString()
-                        : "Project media"}
+                        ? new Date(asset.createdAt).toLocaleString(getLocale())
+                        : t("Project media")}
                     </small>
                     {links.some(
                       (l) =>
@@ -1005,8 +1028,9 @@ export function StudioScript({
                         l.assetId !== asset._id,
                     ) && (
                       <small>
-                        Selecting replaces @{referenceAlias(asset.name)}{" "}
-                        everywhere
+                        <I18nText text="Selecting replaces @" />
+                        {referenceAlias(asset.name)}{" "}
+                        <I18nText text="everywhere" />
                       </small>
                     )}
                   </span>
@@ -1014,7 +1038,9 @@ export function StudioScript({
               </ReferenceMedia>
             ))}
             {!results.length && (
-              <p>No matching media. Upload an image or video below.</p>
+              <p>
+                <I18nText text="No matching media. Upload an image or video below." />
+              </p>
             )}
           </div>
           {!insertMention && (
@@ -1024,12 +1050,12 @@ export function StudioScript({
                 variant="outline"
                 onClick={() => findMention(picker)}
               >
-                Find next mention
+                <I18nText text="Find next mention" />
               </Button>
               <label>
-                Reference name
+                <I18nText text="Reference name" />
                 <input
-                  aria-label="Reference name"
+                  aria-label={t("Reference name")}
                   value={renameText}
                   onChange={(e) => setRenameText(e.target.value)}
                 />
@@ -1043,12 +1069,13 @@ export function StudioScript({
                 }
                 onClick={() => void renameAlias()}
               >
-                Rename everywhere
+                <I18nText text="Rename everywhere" />
               </Button>
             </div>
           )}
           <label className="studio-upload-label">
-            <Upload size={14} /> {uploading ? "Uploading…" : "Upload & link"}
+            <Upload size={14} />{" "}
+            {uploading ? t("Uploading…") : t("Upload & link")}
             <input
               type="file"
               accept={
@@ -1093,7 +1120,7 @@ export function StudioScript({
       )}
       {error && (
         <div role="alert" className="studio-error">
-          {error}
+          {t(error ?? "")}
           <Button
             variant="outline"
             size="sm"
@@ -1102,7 +1129,7 @@ export function StudioScript({
               else void saveLatest();
             }}
           >
-            Retry save
+            <I18nText text="Retry save" />
           </Button>
         </div>
       )}

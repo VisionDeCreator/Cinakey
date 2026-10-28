@@ -1,3 +1,4 @@
+import { I18nText, t, tn, useLocale } from "@cinakey/ui/i18n";
 import type { BlockoutDocument } from "@cinakey/shared";
 import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ function Choice({
   onClick: () => void;
   children: ReactNode;
 }) {
+  useLocale();
   return (
     <button
       type="button"
@@ -68,6 +70,7 @@ export function ExportDialog({
   multiShot,
   loadDocument,
 }: Props) {
+  useLocale();
   const canEncode = webCodecsSupported();
   const [format, setFormat] = useState<Format>("json");
   const [burnIn, setBurnIn] = useState(true);
@@ -81,7 +84,12 @@ export function ExportDialog({
     const controller = new AbortController();
     abortRef.current = controller;
     setMessage(null);
-    setProgress({ label: "Collecting blockouts", fraction: 0 });
+    setProgress({
+      get label() {
+        return t("Collecting blockouts");
+      },
+      fraction: 0,
+    });
     try {
       const { document, skippedCount } = await loadDocument();
       await runExport({
@@ -99,7 +107,11 @@ export function ExportDialog({
       });
       setMessage(
         skippedCount
-          ? `Exported. ${skippedCount} shot${skippedCount === 1 ? " has" : "s have"} no 3D blockout and ${skippedCount === 1 ? "was" : "were"} skipped.`
+          ? tn(
+              "Exported. {count} shot has no 3D blockout and was skipped.",
+              "Exported. {count} shots have no 3D blockout and were skipped.",
+              skippedCount,
+            )
           : "Export complete.",
       );
     } catch (err) {
@@ -124,7 +136,9 @@ export function ExportDialog({
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Export blockout</DialogTitle>
+          <DialogTitle>
+            <I18nText text="Export blockout" />
+          </DialogTitle>
           <DialogDescription>{scopeLabel}</DialogDescription>
         </DialogHeader>
 
@@ -149,12 +163,12 @@ export function ExportDialog({
               disabled={running || !canEncode}
               onClick={() => setFormat("both")}
             >
-              Both (zip)
+              <I18nText text="Both (zip)" />
             </Choice>
           </div>
           {!canEncode ? (
             <p className="text-xs text-amber-400">
-              MP4 export needs WebCodecs (current Chrome, Edge or Safari).
+              <I18nText text="MP4 export needs WebCodecs (current Chrome, Edge or Safari)." />
             </p>
           ) : null}
 
@@ -168,7 +182,7 @@ export function ExportDialog({
                   onChange={(e) => setBurnIn(e.target.checked)}
                   className="size-4 accent-zinc-100"
                 />
-                Burn in shot number and timecode
+                <I18nText text="Burn in shot number and timecode" />
               </label>
               {multiShot ? (
                 <div className="flex gap-2">
@@ -177,14 +191,14 @@ export function ExportDialog({
                     disabled={running}
                     onClick={() => setPassMode("clay")}
                   >
-                    Clay
+                    <I18nText text="Clay" />
                   </Choice>
                   <Choice
                     active={passMode === "depth"}
                     disabled={running}
                     onClick={() => setPassMode("depth")}
                   >
-                    Depth
+                    <I18nText text="Depth" />
                   </Choice>
                 </div>
               ) : null}
@@ -194,10 +208,12 @@ export function ExportDialog({
           {progress ? (
             <div className="grid gap-1.5">
               <Progress value={Math.round(progress.fraction * 100)} />
-              <p className="text-xs text-zinc-400">{progress.label}</p>
+              <p className="text-xs text-zinc-400">{t(progress.label)}</p>
             </div>
           ) : null}
-          {message ? <p className="text-xs text-zinc-300">{message}</p> : null}
+          {message ? (
+            <p className="text-xs text-zinc-300">{t(message ?? "")}</p>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -207,11 +223,11 @@ export function ExportDialog({
               variant="outline"
               onClick={() => abortRef.current?.abort()}
             >
-              Cancel
+              <I18nText text="Cancel" />
             </Button>
           ) : (
             <Button type="button" onClick={() => void start()}>
-              Export
+              <I18nText text="Export" />
             </Button>
           )}
         </DialogFooter>

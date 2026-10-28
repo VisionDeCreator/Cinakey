@@ -19,7 +19,7 @@
 .admin-account small { display:block; color:#999; font-size:11px; }
 .admin-account button { padding:6px; }
 .admin-main { min-width:0; }
-.admin-topbar { min-height:62px; border-bottom:1px solid #343434; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#aaa; }
+.admin-topbar { gap:16px; flex-wrap:wrap; min-height:62px; border-bottom:1px solid #343434; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#aaa; }
 .admin-topbar strong { color:#eee; font-weight:500; }
 .admin-topbar small { background:#222; padding:5px 10px; border:1px solid #343434; border-radius:6px; }
 .admin-content { padding:26px 28px; max-width:1600px; margin:auto; }

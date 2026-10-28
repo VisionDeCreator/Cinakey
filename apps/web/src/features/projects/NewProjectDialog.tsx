@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import type { AspectRatio } from "@cinakey/shared";
@@ -29,6 +30,7 @@ export function NewProjectDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  useLocale();
   const { workspaceId, canCreate } = useWorkspace();
   const create = useMutation(api.projects.create);
   const navigate = useNavigate();
@@ -81,22 +83,28 @@ export function NewProjectDialog({
       <DialogContent>
         <form onSubmit={(e) => void onSubmit(e)}>
           <DialogHeader>
-            <DialogTitle>New project</DialogTitle>
+            <DialogTitle>
+              <I18nText text="New project" />
+            </DialogTitle>
           </DialogHeader>
 
           <div className="mt-4 grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Name</Label>
+              <Label htmlFor="title">
+                <I18nText text="Name" />
+              </Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Project name"
+                placeholder={t("Project name")}
                 required
               />
             </div>
             <div className="grid gap-2">
-              <Label>Aspect ratio</Label>
+              <Label>
+                <I18nText text="Aspect ratio" />
+              </Label>
               <Select
                 value={aspectRatio}
                 onValueChange={(v) => setAspectRatio(v as AspectRatio)}
@@ -111,7 +119,9 @@ export function NewProjectDialog({
                 </SelectContent>
               </Select>
             </div>
-            {error ? <p className="text-sm text-red-400">{error}</p> : null}
+            {error ? (
+              <p className="text-sm text-red-400">{t(error ?? "")}</p>
+            ) : null}
           </div>
 
           <DialogFooter className="mt-6">
@@ -121,10 +131,10 @@ export function NewProjectDialog({
               disabled={busy}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              <I18nText text="Cancel" />
             </Button>
             <Button type="submit" disabled={busy || !canCreate}>
-              {busy ? "Creating…" : "Create"}
+              {busy ? t("Creating…") : t("Create")}
             </Button>
           </DialogFooter>
         </form>

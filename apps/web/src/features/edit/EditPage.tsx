@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useTimelineLease } from "./useTimelineLease";
 import {
   useWorkspace,
@@ -51,11 +52,13 @@ const AUTOSAVE_MS = 2000;
 const SNAP_SEC = 0.15;
 
 export function EditPage() {
+  useLocale();
   const { projectId } = useParams();
   return <ProjectEditor key={projectId} />;
 }
 
 function ProjectEditor() {
+  useLocale();
   const { projectId } = useParams();
   const { canWrite, subscriptionMessage } = useWorkspace();
   const lease = useTimelineLease(projectId, canWrite !== false);
@@ -247,10 +250,15 @@ function ProjectEditor() {
               documentHash(candidate) !== documentHash(next)
             ) {
               const restore = await confirm({
-                title: "Recover unsaved edits?",
-                description:
-                  "This browser has a local draft from an interrupted session.",
-                confirmLabel: "Recover",
+                get title() {
+                  return t("Recover unsaved edits?");
+                },
+                get description() {
+                  return t(
+                    "This browser has a local draft from an interrupted session.",
+                  );
+                },
+                confirmLabel: t("Recover"),
               });
               if (restore) {
                 next = candidate;
@@ -391,7 +399,9 @@ function ProjectEditor() {
         sessionId: lease.sessionId,
         fence: lease.fence!,
         requestId: attempt.requestId,
-        label: "Autosave",
+        get label() {
+          return t("Autosave");
+        },
       })
         .then(({ versionId }) => {
           tipIdRef.current = versionId;
@@ -547,8 +557,10 @@ function ProjectEditor() {
   if (history === null && loadError)
     return (
       <div>
-        <p role="alert">{loadError}</p>
-        <Button onClick={() => void load()}>Retry loading</Button>
+        <p role="alert">{t(loadError ?? "")}</p>
+        <Button onClick={() => void load()}>
+          <I18nText text="Retry loading" />
+        </Button>
       </div>
     );
   function insert(media: StudioInsert) {
@@ -677,7 +689,7 @@ function ProjectEditor() {
   if (project === undefined || history === null) {
     return loadError ? (
       <div role="alert">
-        {loadError}
+        {t(loadError ?? "")}
         <Button
           onClick={() => {
             setLoadError(null);
@@ -693,17 +705,19 @@ function ProjectEditor() {
                 );
           }}
         >
-          Retry loading project
+          <I18nText text="Retry loading project" />
         </Button>
       </div>
     ) : (
-      <p className="text-sm text-zinc-500">Loading editor…</p>
+      <p className="text-sm text-zinc-500">
+        <I18nText text="Loading editor…" />
+      </p>
     );
   }
   if (project === null) {
     return (
       <p className="text-sm text-zinc-500">
-        Project not found or access denied.
+        <I18nText text="Project not found or access denied." />
       </p>
     );
   }
@@ -719,27 +733,35 @@ function ProjectEditor() {
             {(canWrite === false ? subscriptionMessage : null) ??
               lease.error ??
               (lease.editor
-                ? `${lease.editor} is editing this timeline. This session is read-only.`
+                ? t(
+                    "{0} is editing this timeline. This session is read-only.",
+                    { 0: lease.editor },
+                  )
                 : "Read-only while editing access is acquired.")}{" "}
-            Local drafts are preserved.
+            <I18nText text="Local drafts are preserved." />
           </span>
           <Button disabled={canWrite === false} onClick={() => lease.request()}>
-            Request editing access
+            <I18nText text="Request editing access" />
           </Button>
           {canWrite !== false && lease.canTakeover && (
             <Button
               onClick={() => {
                 void confirm({
-                  title: "Take over timeline editing?",
-                  description:
-                    "The other editor will become read-only. Their local draft will be preserved.",
-                  confirmLabel: "Take over",
+                  get title() {
+                    return t("Take over timeline editing?");
+                  },
+                  get description() {
+                    return t(
+                      "The other editor will become read-only. Their local draft will be preserved.",
+                    );
+                  },
+                  confirmLabel: t("Take over"),
                 }).then((ok) => {
                   if (ok) lease.request(true);
                 });
               }}
             >
-              Take over editing
+              <I18nText text="Take over editing" />
             </Button>
           )}
         </div>
@@ -749,21 +771,26 @@ function ProjectEditor() {
           role="alert"
           className="flex items-center gap-2 bg-amber-950 p-2 text-sm"
         >
-          <span>{loadError}</span>
+          <span>{t(loadError ?? "")}</span>
           <Button
             disabled={!lease.canEdit}
             onClick={() => setSavePaused(false)}
           >
-            Retry save
+            <I18nText text="Retry save" />
           </Button>
           <Button
             disabled={!lease.canEdit}
             onClick={() => {
               void confirm({
-                title: "Save local draft as a new version?",
-                description:
-                  "Keeps the other saved version in history and appends your local edit.",
-                confirmLabel: "Save local draft",
+                get title() {
+                  return t("Save local draft as a new version?");
+                },
+                get description() {
+                  return t(
+                    "Keeps the other saved version in history and appends your local edit.",
+                  );
+                },
+                confirmLabel: t("Save local draft"),
               }).then((ok) => {
                 if (ok && canEditNow()) {
                   tipIdRef.current = tip?._id ?? null;
@@ -773,23 +800,23 @@ function ProjectEditor() {
               });
             }}
           >
-            Keep local as new version
+            <I18nText text="Keep local as new version" />
           </Button>
         </div>
       )}
       {loadError && !savePaused && (
         <p role="alert" className="studio-error">
-          {loadError}
+          {t(loadError ?? "")}
         </p>
       )}
       {editError && (
         <p role="alert" className="studio-error">
-          {editError}
+          {t(editError ?? "")}
         </p>
       )}
       {dropBusy && (
         <p role="status" className="studio-notice">
-          Preparing dropped media… You can continue editing.
+          <I18nText text="Preparing dropped media… You can continue editing." />
         </p>
       )}
       {uploads
@@ -840,7 +867,9 @@ function ProjectEditor() {
         toolbar={
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-4 py-2">
             <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold text-zinc-100">Edit</h2>
+              <h2 className="text-sm font-semibold text-zinc-100">
+                <I18nText text="Edit" />
+              </h2>
               <span className="font-mono text-xs text-zinc-400">
                 {formatTimecode(playheadSec, project.fps)}
                 {doc
@@ -848,10 +877,14 @@ function ProjectEditor() {
                   : ""}
               </span>
               {saving && (
-                <span className="text-[11px] text-zinc-500">Saving…</span>
+                <span className="text-[11px] text-zinc-500">
+                  <I18nText text="Saving…" />
+                </span>
               )}
               {history.dirty && !saving && (
-                <span className="text-[11px] text-amber-500/80">Unsaved</span>
+                <span className="text-[11px] text-amber-500/80">
+                  <I18nText text="Unsaved" />
+                </span>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -873,7 +906,7 @@ function ProjectEditor() {
                   if (canEditNow()) setHistory((h) => (h ? undo(h) : h));
                 }}
               >
-                Undo
+                <I18nText text="Undo" />
               </Button>
               <Button
                 type="button"
@@ -884,7 +917,7 @@ function ProjectEditor() {
                   if (canEditNow()) setHistory((h) => (h ? redo(h) : h));
                 }}
               >
-                Redo
+                <I18nText text="Redo" />
               </Button>
               <Button
                 type="button"
@@ -896,7 +929,7 @@ function ProjectEditor() {
                     apply((d) => splitClip(d, selectedClipId, playheadSec));
                 }}
               >
-                Split
+                <I18nText text="Split" />
               </Button>
               <Button
                 type="button"
@@ -935,7 +968,7 @@ function ProjectEditor() {
                   });
                 }}
               >
-                Detach audio
+                <I18nText text="Detach audio" />
               </Button>
               <Button
                 type="button"
@@ -963,7 +996,7 @@ function ProjectEditor() {
                     );
                 }}
               >
-                Add title
+                <I18nText text="Add title" />
               </Button>
               <Button
                 type="button"
@@ -971,14 +1004,14 @@ function ProjectEditor() {
                 variant="outline"
                 onClick={() => setHistoryOpen(true)}
               >
-                History
+                <I18nText text="History" />
               </Button>
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setExportOpen(true)}
               >
-                Export MP4
+                <I18nText text="Export MP4" />
               </Button>
             </div>
           </div>
@@ -999,7 +1032,7 @@ function ProjectEditor() {
               {formatTimecode(doc?.durationSec ?? 0, project.fps)}
             </span>
             <input
-              aria-label="Preview playhead"
+              aria-label={t("Preview playhead")}
               type="range"
               min={0}
               max={doc?.durationSec || 0}
@@ -1012,7 +1045,7 @@ function ProjectEditor() {
         }
         viewer={
           <>
-            <canvas ref={bindCanvas} aria-label="Timeline video preview" />
+            <canvas ref={bindCanvas} aria-label={t("Timeline video preview")} />
             {(() => {
               const hasClips = doc?.tracks.some((track) => track.clips.length);
               const visible = doc?.tracks.some(
@@ -1026,7 +1059,7 @@ function ProjectEditor() {
                   ),
               );
               const message = previewError
-                ? `Preview unavailable: ${previewError}`
+                ? t("Preview unavailable: {0}", { 0: previewError })
                 : previewLoading
                   ? "Loading preview…"
                   : !hasClips
@@ -1043,7 +1076,7 @@ function ProjectEditor() {
                     data-state={message === "End of edit" ? "end" : "message"}
                     role={previewError ? "alert" : "status"}
                   >
-                    <p>{message}</p>
+                    <p>{t(message ?? "")}</p>
                     {previewError && (
                       <Button
                         variant="outline"
@@ -1057,7 +1090,7 @@ function ProjectEditor() {
                           }
                         }}
                       >
-                        Retry preview
+                        <I18nText text="Retry preview" />
                       </Button>
                     )}
                   </div>

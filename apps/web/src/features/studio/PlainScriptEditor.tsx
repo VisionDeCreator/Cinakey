@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import { scriptMentionRanges } from "@cinakey/shared";
 import { forwardRef, useRef, type KeyboardEvent, type Ref } from "react";
 import { ReferenceMedia, type ReferenceMediaAsset } from "./ReferenceMedia";
@@ -48,6 +49,7 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
   },
   forwardedRef: Ref<HTMLTextAreaElement>,
 ) {
+  useLocale();
   const mirror = useRef<HTMLDivElement>(null);
   const chunks: { text: string; alias?: string }[] = [];
   let cursor = 0;
@@ -112,12 +114,12 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
       <textarea
         ref={forwardedRef}
         id={`script-${projectId}`}
-        aria-label={label}
+        aria-label={t(label)}
         value={value}
         disabled={disabled}
         readOnly={readOnly}
         spellCheck={false}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
         onSelect={(e) => onCaret(e.currentTarget)}

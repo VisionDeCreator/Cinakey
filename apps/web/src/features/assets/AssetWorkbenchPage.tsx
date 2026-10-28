@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Input } from "@/components/ui/input";
 import { PromptWorkbench } from "@/features/prompt-workbench/PromptWorkbench";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -14,6 +15,7 @@ function entityKindToSheetType(kind: string): AssetSheetType {
 }
 
 export function AssetWorkbenchPage() {
+  useLocale();
   const { projectId, assetId } = useParams();
   const entity = useQuery(
     api.entities.get,
@@ -29,10 +31,18 @@ export function AssetWorkbenchPage() {
   const assetType = entityKindToSheetType(entity?.kind ?? "character");
   if (!projectId || !assetId) return null;
   if (entity === undefined) {
-    return <p className="text-sm text-zinc-500">Loading…</p>;
+    return (
+      <p className="text-sm text-zinc-500">
+        <I18nText text="Loading…" />
+      </p>
+    );
   }
   if (entity === null) {
-    return <p className="text-sm text-zinc-500">Asset not found.</p>;
+    return (
+      <p className="text-sm text-zinc-500">
+        <I18nText text="Asset not found." />
+      </p>
+    );
   }
 
   return (
@@ -42,7 +52,7 @@ export function AssetWorkbenchPage() {
           to={`/projects/${projectId}/assets`}
           className="text-xs text-zinc-500 hover:text-zinc-300"
         >
-          ← References
+          <I18nText text="← References" />
         </Link>
         <Input
           value={name}
@@ -61,7 +71,7 @@ export function AssetWorkbenchPage() {
           className="h-8 max-w-xs text-sm font-medium"
         />
         <select
-          aria-label="Reference type"
+          aria-label={t("Reference type")}
           value={entity.kind}
           className="h-8 border border-zinc-700 bg-zinc-900 px-2 text-sm"
           onChange={(e) => {
@@ -70,10 +80,18 @@ export function AssetWorkbenchPage() {
             void rename({ entityId: assetId as never, kind });
           }}
         >
-          <option value="character">Character</option>
-          <option value="creature">Creature</option>
-          <option value="location">Location</option>
-          <option value="prop">Prop / product</option>
+          <option value="character">
+            <I18nText text="Character" />
+          </option>
+          <option value="creature">
+            <I18nText text="Creature" />
+          </option>
+          <option value="location">
+            <I18nText text="Location" />
+          </option>
+          <option value="prop">
+            <I18nText text="Prop / product" />
+          </option>
         </select>
       </div>
       <PromptWorkbench

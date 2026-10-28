@@ -1,4 +1,6 @@
-import { formatUsd } from "@cinakey/shared";
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { formatUsd } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useRef, useState } from "react";
 import {
@@ -41,6 +43,7 @@ import { VideoTransformPanel } from "./VideoTransformPanel";
 import "./genjutsu.css";
 
 export function GenjutsuPage() {
+  useLocale();
   const { workspaceId, canCreate } = useWorkspace();
   const { sessionId } = useParams();
   const sessions = useQuery(
@@ -91,23 +94,28 @@ export function GenjutsuPage() {
         <header className="genjutsu-heading">
           <div>
             <span className="genjutsu-eyebrow">
-              <WandSparkles size={15} /> VIDEO TRANSFORMATION
+              <WandSparkles size={15} />{" "}
+              <I18nText text="VIDEO TRANSFORMATION" />
             </span>
-            <h1>Remix</h1>
-            <p>One performance. A different world.</p>
+            <h1>
+              <I18nText text="Remix" />
+            </h1>
+            <p>
+              <I18nText text="One performance. A different world." />
+            </p>
           </div>
           <Button
             disabled={busy || !canCreate}
             onClick={() => void newSession()}
           >
             <Plus size={16} />
-            {busy ? "Creating…" : "New transformation"}
+            {busy ? t("Creating…") : t("New transformation")}
           </Button>
         </header>
       )}
       {error && (
         <p role="alert" className="transform-error">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {sessionId ? (
@@ -116,68 +124,85 @@ export function GenjutsuPage() {
         <>
           <section
             className="genjutsu-intro genjutsu-index-intro"
-            aria-label="About video transformations"
+            aria-label={t("About video transformations")}
           >
             <div>
               <h2>
-                Keep the movement.
+                <I18nText text="Keep the movement." />
                 <br />
-                Reimagine the scene.
+                <I18nText text="Reimagine the scene." />
               </h2>
               <p>
-                Recast a character, explore a visual style, or move the action
-                somewhere new.
+                <I18nText text="Recast a character, explore a visual style, or move the action somewhere new." />
               </p>
               <div className="genjutsu-process">
                 <Film size={18} />
-                <span>Source video</span>
+                <span>
+                  <I18nText text="Source video" />
+                </span>
                 <ArrowRight size={14} />
                 <Images size={18} />
-                <span>References</span>
+                <span>
+                  <I18nText text="References" />
+                </span>
                 <ArrowRight size={14} />
                 <WandSparkles size={18} />
-                <span>Transformation</span>
+                <span>
+                  <I18nText text="Transformation" />
+                </span>
               </div>
               <div className="genjutsu-capabilities">
                 <span>
                   <UserRound size={15} />
-                  Recast characters
+                  <I18nText text="Recast characters" />
                 </span>
                 <span>
                   <Palette size={15} />
-                  Restyle footage
+                  <I18nText text="Restyle footage" />
                 </span>
                 <span>
                   <Mountain size={15} />
-                  Change environments
+                  <I18nText text="Change environments" />
                 </span>
               </div>
             </div>
             <figure className="genjutsu-example">
               <img
                 src="/images/genjutsu-example.png"
-                alt="Illustrative comparison of a woman walking through a modern corridor and a transformed sandstone city"
+                alt={t(
+                  "Illustrative comparison of a woman walking through a modern corridor and a transformed sandstone city",
+                )}
               />
               <figcaption>
-                <span>Source concept</span>
-                <span>Illustrative transformation</span>
+                <span>
+                  <I18nText text="Source concept" />
+                </span>
+                <span>
+                  <I18nText text="Illustrative transformation" />
+                </span>
               </figcaption>
             </figure>
           </section>
-          <section aria-label="Transformation sessions">
+          <section aria-label={t("Transformation sessions")}>
             <div className="genjutsu-section-title">
-              <h2>Your transformations</h2>
+              <h2>
+                <I18nText text="Your transformations" />
+              </h2>
               <div className="flex items-center gap-2">
                 <Select value={sort} onValueChange={setSort}>
                   <SelectTrigger
-                    aria-label="Sort transformations"
+                    aria-label={t("Sort transformations")}
                     className="w-36 rounded-xl bg-transparent"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="updated">Last edited</SelectItem>
-                    <SelectItem value="title">Name</SelectItem>
+                    <SelectItem value="updated">
+                      <I18nText text="Last edited" />
+                    </SelectItem>
+                    <SelectItem value="title">
+                      <I18nText text="Name" />
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="flex rounded-xl border border-zinc-800 p-0.5">
@@ -186,7 +211,9 @@ export function GenjutsuPage() {
                       key={mode}
                       variant="ghost"
                       size="icon"
-                      aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                      aria-label={
+                        mode === "grid" ? t("Grid view") : t("List view")
+                      }
                       aria-pressed={view === mode}
                       onClick={() => setView(mode)}
                       className={cn(
@@ -202,7 +229,9 @@ export function GenjutsuPage() {
               </div>
             </div>
             {sessions === undefined ? (
-              <p role="status">Loading transformations…</p>
+              <p role="status">
+                <I18nText text="Loading transformations…" />
+              </p>
             ) : visible?.length ? (
               <div
                 className={cn(
@@ -217,8 +246,10 @@ export function GenjutsuPage() {
             ) : (
               <p className="genjutsu-empty">
                 {search
-                  ? "No matching transformations."
-                  : "Your saved transformations will appear here. Start a new transformation to begin."}
+                  ? t("No matching transformations.")
+                  : t(
+                      "Your saved transformations will appear here. Start a new transformation to begin.",
+                    )}
               </p>
             )}
           </section>
@@ -228,6 +259,7 @@ export function GenjutsuPage() {
   );
 }
 function TransformationCard({ session }: { session: Doc<"genjutsuSessions"> }) {
+  useLocale();
   const urls = useQuery(
     api.storage.listProjectAssetUrls,
     session.sourceAssetId ? { projectId: session.storageScopeId } : "skip",
@@ -244,7 +276,7 @@ function TransformationCard({ session }: { session: Doc<"genjutsuSessions"> }) {
             muted
             playsInline
             preload="metadata"
-            aria-label="Source footage preview"
+            aria-label={t("Source footage preview")}
           />
         ) : (
           <WandSparkles size={30} />
@@ -253,7 +285,10 @@ function TransformationCard({ session }: { session: Doc<"genjutsuSessions"> }) {
       <div className="genjutsu-card-details">
         <div>
           <h3>{session.title}</h3>
-          <p>Edited {new Date(session.updatedAt).toLocaleDateString()}</p>
+          <p>
+            <I18nText text="Edited" />{" "}
+            {new Date(session.updatedAt).toLocaleDateString(getLocale())}
+          </p>
         </div>
         <ArrowUpRight size={18} aria-hidden />
       </div>
@@ -261,14 +296,23 @@ function TransformationCard({ session }: { session: Doc<"genjutsuSessions"> }) {
   );
 }
 function GenjutsuSession({ sessionId }: { sessionId: string }) {
+  useLocale();
   const session = useQuery(api.genjutsu.get, { sessionId: sessionId as never });
   if (session === undefined)
-    return <p role="status">Loading transformation…</p>;
+    return (
+      <p role="status">
+        <I18nText text="Loading transformation…" />
+      </p>
+    );
   if (!session)
     return (
       <div className="genjutsu-empty">
-        <p>Transformation not found.</p>
-        <Link to="/remix">Back to Remix</Link>
+        <p>
+          <I18nText text="Transformation not found." />
+        </p>
+        <Link to="/remix">
+          <I18nText text="Back to Remix" />
+        </Link>
       </div>
     );
   return <TransformationWorkspace session={session} />;
@@ -278,6 +322,7 @@ function TransformationWorkspace({
 }: {
   session: Doc<"genjutsuSessions">;
 }) {
+  useLocale();
   const scopeId = session.storageScopeId;
   const assets = useQuery(api.assets.list, { projectId: scopeId });
   const urls = useQuery(api.storage.listProjectAssetUrls, {
@@ -368,11 +413,11 @@ function TransformationWorkspace({
       <div className="genjutsu-session-bar">
         <Link to="/remix">
           <ArrowLeft size={15} />
-          All transformations
+          <I18nText text="All transformations" />
         </Link>
         <input
           className="genjutsu-session-title"
-          aria-label="Transformation name"
+          aria-label={t("Transformation name")}
           key={session.title}
           defaultValue={session.title}
           maxLength={120}
@@ -385,15 +430,24 @@ function TransformationWorkspace({
           }}
         />
         <p className="genjutsu-session-subtitle">
-          One performance. A different world.
+          <I18nText text="One performance. A different world." />
         </p>
-        <span className="genjutsu-engine">Video remix</span>
+        <span className="genjutsu-engine">
+          <I18nText text="Video remix" />
+        </span>
       </div>
       <div className="genjutsu-workspace">
-        <aside className="genjutsu-inputs" aria-label="Transformation inputs">
-          <h2 className="genjutsu-panel-title">Inputs</h2>
+        <aside
+          className="genjutsu-inputs"
+          aria-label={t("Transformation inputs")}
+        >
+          <h2 className="genjutsu-panel-title">
+            <I18nText text="Inputs" />
+          </h2>
           <div className="genjutsu-section-title">
-            <h2>01 / Source footage</h2>
+            <h2>
+              <I18nText text="01 / Source footage" />
+            </h2>
             <Film size={16} />
           </div>
           {session.sourceAssetId ? (
@@ -404,15 +458,15 @@ function TransformationWorkspace({
                   muted
                   playsInline
                   preload="metadata"
-                  aria-label="Selected source video"
+                  aria-label={t("Selected source video")}
                 />
               )}
               <span title={source?.name}>
-                {source?.name ?? "Loading source video…"}
+                {source?.name ?? t("Loading source video…")}
               </span>
               {source?.durationSec && (
                 <p className="transform-muted">
-                  {source.durationSec} seconds
+                  {source.durationSec} <I18nText text="seconds" />
                   {source.width && source.height
                     ? ` · ${source.width} × ${source.height}`
                     : ""}
@@ -423,13 +477,13 @@ function TransformationWorkspace({
                 size="sm"
                 variant="outline"
                 disabled={uploading || preparing || removing !== null}
-                aria-label="Remove source video"
+                aria-label={t("Remove source video")}
                 onClick={() => void removeMedia(session.sourceAssetId!)}
               >
                 <Trash2 size={14} />
                 {removing === session.sourceAssetId
-                  ? "Removing…"
-                  : "Remove video"}
+                  ? t("Removing…")
+                  : t("Remove video")}
               </Button>
             </div>
           ) : (
@@ -439,12 +493,18 @@ function TransformationWorkspace({
               onFiles={(files) => upload(files, "video")}
             >
               <Upload size={22} />
-              <strong>Upload a source video</strong>
-              <span>4–15 seconds · up to 200 MiB</span>
+              <strong>
+                <I18nText text="Upload a source video" />
+              </strong>
+              <span>
+                <I18nText text="4–15 seconds · up to 200 MiB" />
+              </span>
             </MediaDropzone>
           )}
           <div className="genjutsu-section-title">
-            <h2>02 / Reference images</h2>
+            <h2>
+              <I18nText text="02 / Reference images" />
+            </h2>
           </div>
           <MediaDropzone
             type="image"
@@ -452,8 +512,12 @@ function TransformationWorkspace({
             onFiles={(files) => upload(files, "image")}
           >
             <Plus size={20} />
-            <strong>Add image references</strong>
-            <span>Characters, style, wardrobe, or settings</span>
+            <strong>
+              <I18nText text="Add image references" />
+            </strong>
+            <span>
+              <I18nText text="Characters, style, wardrobe, or settings" />
+            </span>
           </MediaDropzone>
           <div className="genjutsu-reference-grid">
             {inputAssets
@@ -467,8 +531,8 @@ function TransformationWorkspace({
                     <button
                       type="button"
                       disabled={uploading || preparing || removing !== null}
-                      title={`Insert reference: ${asset.name}`}
-                      aria-label={`Insert reference ${asset.name}`}
+                      title={t("Insert reference: {0}", { 0: asset.name })}
+                      aria-label={t("Insert reference {0}", { 0: asset.name })}
                       onClick={() =>
                         promptEditor.current?.insertAsset(asset._id)
                       }
@@ -485,25 +549,25 @@ function TransformationWorkspace({
                         <img src={url} alt={asset.name} />
                       ) : (
                         <span className="genjutsu-image-placeholder">
-                          Image preview unavailable
+                          <I18nText text="Image preview unavailable" />
                         </span>
                       )}
                       <figcaption title={asset.name}>{asset.name}</figcaption>
                       <span className="genjutsu-insert-hint">
-                        Click to reference
+                        <I18nText text="Click to reference" />
                       </span>
                     </button>
                     <button
                       className="genjutsu-remove-reference"
                       type="button"
-                      aria-label={`Remove reference ${asset.name}`}
-                      title="Remove image reference"
+                      aria-label={t("Remove reference {0}", { 0: asset.name })}
+                      title={t("Remove image reference")}
                       disabled={uploading || preparing || removing !== null}
                       onClick={() => void removeMedia(asset._id)}
                     >
                       <Trash2 size={13} />
                       <span>
-                        {removing === asset._id ? "Removing…" : "Remove"}
+                        {removing === asset._id ? t("Removing…") : t("Remove")}
                       </span>
                     </button>
                   </figure>
@@ -528,16 +592,18 @@ function TransformationWorkspace({
         </aside>
         <section
           className="genjutsu-preview"
-          aria-label="Transformation preview"
+          aria-label={t("Transformation preview")}
         >
           <div className="genjutsu-section-title">
-            <h2>Preview</h2>
+            <h2>
+              <I18nText text="Preview" />
+            </h2>
             <div className="genjutsu-preview-tabs">
               <button aria-pressed={compare} onClick={() => setCompare(true)}>
-                Compare
+                <I18nText text="Compare" />
               </button>
               <button aria-pressed={!compare} onClick={() => setCompare(false)}>
-                Result
+                <I18nText text="Result" />
               </button>
             </div>
           </div>
@@ -546,7 +612,9 @@ function TransformationWorkspace({
           >
             {compare && (
               <div>
-                <span className="genjutsu-viewer-label">SOURCE</span>
+                <span className="genjutsu-viewer-label">
+                  <I18nText text="SOURCE" />
+                </span>
                 {sourceUrl ? (
                   <video
                     key={sourceUrl}
@@ -555,19 +623,25 @@ function TransformationWorkspace({
                     controls
                     playsInline
                     preload="metadata"
-                    aria-label="Source video preview"
+                    aria-label={t("Source video preview")}
                   />
                 ) : (
                   <div className="genjutsu-preview-empty">
                     <Film size={34} />
-                    <h3>Your source goes here</h3>
-                    <p>Upload a video to begin.</p>
+                    <h3>
+                      <I18nText text="Your source goes here" />
+                    </h3>
+                    <p>
+                      <I18nText text="Upload a video to begin." />
+                    </p>
                   </div>
                 )}
               </div>
             )}
             <div>
-              <span className="genjutsu-viewer-label">RESULT</span>
+              <span className="genjutsu-viewer-label">
+                <I18nText text="RESULT" />
+              </span>
               {resultUrl ? (
                 <video
                   key={resultUrl}
@@ -576,16 +650,20 @@ function TransformationWorkspace({
                   controls
                   playsInline
                   preload="metadata"
-                  aria-label="Transformed video preview"
+                  aria-label={t("Transformed video preview")}
                 />
               ) : (
                 <div className="genjutsu-preview-empty">
                   <WandSparkles size={34} />
-                  <h3>A new version awaits</h3>
+                  <h3>
+                    <I18nText text="A new version awaits" />
+                  </h3>
                   <p>
                     {running
-                      ? "Your transformation is processing."
-                      : "Write a prompt and click Generate. Video analysis happens automatically."}
+                      ? t("Your transformation is processing.")
+                      : t(
+                          "Write a prompt and click Generate. Video analysis happens automatically.",
+                        )}
                   </p>
                 </div>
               )}
@@ -594,22 +672,27 @@ function TransformationWorkspace({
           <div className="genjutsu-preview-actions">
             {sourceUrl && resultUrl && compare && (
               <Button variant="outline" onClick={() => void playComparison()}>
-                Play both from start
+                <I18nText text="Play both from start" />
               </Button>
             )}
             {resultUrl && (
               <a href={resultUrl} target="_blank" rel="noreferrer">
-                Open / download result <ArrowUpRight size={14} />
+                <I18nText text="Open / download result" />{" "}
+                <ArrowUpRight size={14} />
               </a>
             )}
           </div>
           <section
             className="genjutsu-results"
-            aria-label="Transformation results"
+            aria-label={t("Transformation results")}
           >
             <div className="genjutsu-section-title">
-              <h2>Versions</h2>
-              <span>{results.length} results</span>
+              <h2>
+                <I18nText text="Versions" />
+              </h2>
+              <span>
+                {results.length} <I18nText text="results" />
+              </span>
             </div>
             {results.length ? (
               <div className="genjutsu-result-list">
@@ -627,13 +710,15 @@ function TransformationWorkspace({
                         muted
                         playsInline
                         preload="metadata"
-                        aria-label={`Version ${results.length - index} preview`}
+                        aria-label={t("Version {0} preview", {
+                          0: results.length - index,
+                        })}
                       />
                     ) : (
                       <Film size={16} />
                     )}
                     <span>
-                      Version {results.length - index}
+                      <I18nText text="Version" /> {results.length - index}
                       <small>{asset.name}</small>
                     </span>
                   </button>
@@ -641,7 +726,7 @@ function TransformationWorkspace({
               </div>
             ) : (
               <p className="transform-muted">
-                Generated versions stay in this session.
+                <I18nText text="Generated versions stay in this session." />
               </p>
             )}
             {footage?.jobs.map((job) => (
@@ -651,8 +736,8 @@ function TransformationWorkspace({
                 }
                 key={job.jobId}
               >
-                {job.model === "deepseek" ? "Analysis" : "Render"} ·{" "}
-                {job.status} · {formatUsd(job.estimatedCostUsdMicros)}
+                {job.model === "deepseek" ? t("Analysis") : t("Render")} ·{" "}
+                {t(job.status ?? "")} · {formatUsd(job.estimatedCostUsdMicros)}
                 {job.errorMessage ? ` · ${job.errorMessage}` : ""}
               </p>
             ))}
@@ -660,7 +745,7 @@ function TransformationWorkspace({
         </section>
         <aside
           className="genjutsu-controls"
-          aria-label="Transformation controls"
+          aria-label={t("Transformation controls")}
         >
           <VideoTransformPanel
             key={source?._id ?? "empty"}
@@ -679,12 +764,12 @@ function TransformationWorkspace({
       </div>
       {notice && (
         <p role="status" className="genjutsu-notice">
-          {notice}
+          {t(notice ?? "")}
         </p>
       )}
       {error && (
         <p role="alert" className="transform-error">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
     </>

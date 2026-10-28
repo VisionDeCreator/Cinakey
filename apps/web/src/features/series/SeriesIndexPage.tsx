@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -38,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function SeriesIndexPage() {
+  useLocale();
   const { workspaceId, canManage, canWrite } = useWorkspace();
   const rows = useQuery(api.series.list, {
     includeArchived: true,
@@ -82,10 +84,10 @@ export function SeriesIndexPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Your series
+            <I18nText text="Your series" />
           </h1>
           <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-            Multiple episodes, one shared creative library.
+            <I18nText text="Multiple episodes, one shared creative library." />
           </p>
         </div>
         {canManage && (
@@ -99,13 +101,13 @@ export function SeriesIndexPage() {
             }}
           >
             <Plus />
-            New series
+            <I18nText text="New series" />
           </Button>
         )}
       </div>
-      <section aria-label="Series library" className="space-y-5">
+      <section aria-label={t("Series library")} className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800">
-          <div className="flex gap-6" aria-label="Series category">
+          <div className="flex gap-6" aria-label={t("Series category")}>
             {(["all", "archived"] as const).map((value) => (
               <button
                 type="button"
@@ -119,21 +121,25 @@ export function SeriesIndexPage() {
                     : "border-transparent text-zinc-400 hover:text-zinc-100",
                 )}
               >
-                {value === "all" ? "All series" : "Archived"}
+                {value === "all" ? t("All series") : t("Archived")}
               </button>
             ))}
           </div>
           <div className="mb-2 flex items-center gap-2">
             <Select value={sort} onValueChange={setSort}>
               <SelectTrigger
-                aria-label="Sort series"
+                aria-label={t("Sort series")}
                 className="w-36 rounded-xl border-zinc-800 bg-transparent"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="updated">Last edited</SelectItem>
-                <SelectItem value="title">Name</SelectItem>
+                <SelectItem value="updated">
+                  <I18nText text="Last edited" />
+                </SelectItem>
+                <SelectItem value="title">
+                  <I18nText text="Name" />
+                </SelectItem>
               </SelectContent>
             </Select>
             <div className="flex rounded-xl border border-zinc-800 p-0.5">
@@ -142,7 +148,7 @@ export function SeriesIndexPage() {
                   key={mode}
                   size="icon"
                   variant="ghost"
-                  aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                  aria-label={mode === "grid" ? t("Grid view") : t("List view")}
                   aria-pressed={view === mode}
                   onClick={() => setView(mode)}
                   className={cn(
@@ -159,22 +165,24 @@ export function SeriesIndexPage() {
         </div>
         {error && (
           <p role="alert" className="text-sm text-red-400">
-            {error}
+            {t(error ?? "")}
           </p>
         )}
         {rows === undefined ? (
           <p role="status" className="py-12 text-sm text-zinc-400">
-            Loading series…
+            <I18nText text="Loading series…" />
           </p>
         ) : visible?.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-16 text-center">
             <Layers className="mx-auto mb-4 size-8 text-zinc-500" />
             <p className="text-sm text-zinc-400">
               {search
-                ? "No matching series."
+                ? t("No matching series.")
                 : tab === "archived"
-                  ? "No archived series."
-                  : "No series yet. Create a series to start building your episodic story."}
+                  ? t("No archived series.")
+                  : t(
+                      "No series yet. Create a series to start building your episodic story.",
+                    )}
             </p>
           </div>
         ) : (
@@ -194,7 +202,7 @@ export function SeriesIndexPage() {
               >
                 <Link
                   to={`/series/${row._id}`}
-                  aria-label={`Open ${row.title}`}
+                  aria-label={t("Open {0}", { 0: row.title })}
                   className={cn(
                     "relative block",
                     view === "list" && "w-28 shrink-0 sm:w-56",
@@ -211,7 +219,7 @@ export function SeriesIndexPage() {
                       <div className="flex h-full flex-col items-center justify-center gap-3 bg-[var(--color-studio-accent-soft)] text-[var(--color-studio-accent)]">
                         <Layers className="size-10 opacity-60" />
                         <span className="px-3 text-center text-xs text-zinc-400">
-                          Series artwork appears from your episodes
+                          <I18nText text="Series artwork appears from your episodes" />
                         </span>
                       </div>
                     )}
@@ -227,20 +235,20 @@ export function SeriesIndexPage() {
                     </h2>
                     <p className="mt-1 line-clamp-1 text-sm text-zinc-400">
                       {row.description ||
-                        "One series. A shared world of stories."}
+                        t("One series. A shared world of stories.")}
                     </p>
                   </Link>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-zinc-400">
-                      {row.aspectRatio} · {row.fps} fps
-                      {row.archivedAt ? " · Archived" : ""}
+                      {row.aspectRatio} · {row.fps} <I18nText text="fps" />
+                      {row.archivedAt ? " " + t("· Archived") : ""}
                     </p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Actions for ${row.title}`}
+                          aria-label={t("Actions for {0}", { 0: row.title })}
                           disabled={pending === row._id}
                           className="size-7"
                         >
@@ -249,7 +257,9 @@ export function SeriesIndexPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link to={`/series/${row._id}`}>Open series</Link>
+                          <Link to={`/series/${row._id}`}>
+                            <I18nText text="Open series" />
+                          </Link>
                         </DropdownMenuItem>
                         {canManage && (
                           <DropdownMenuItem
@@ -272,8 +282,8 @@ export function SeriesIndexPage() {
                           >
                             <Archive className="mr-2 size-4" />
                             {row.archivedAt
-                              ? "Restore series"
-                              : "Archive series"}
+                              ? t("Restore series")
+                              : t("Archive series")}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -293,10 +303,11 @@ export function SeriesIndexPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New series</DialogTitle>
+            <DialogTitle>
+              <I18nText text="New series" />
+            </DialogTitle>
             <DialogDescription>
-              Create a shared world for your episodes, assets, and creative
-              direction.
+              <I18nText text="Create a shared world for your episodes, assets, and creative direction." />
             </DialogDescription>
           </DialogHeader>
           <form
@@ -325,20 +336,22 @@ export function SeriesIndexPage() {
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="series-name">Series name</Label>
+              <Label htmlFor="series-name">
+                <I18nText text="Series name" />
+              </Label>
               <Input
                 id="series-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={200}
-                placeholder="Name your series"
+                placeholder={t("Name your series")}
                 required
                 disabled={busy}
               />
             </div>
             {createError && (
               <p role="alert" className="text-sm text-red-400">
-                {createError}
+                {t(createError ?? "")}
               </p>
             )}
             <DialogFooter>
@@ -348,7 +361,7 @@ export function SeriesIndexPage() {
                 disabled={busy}
                 onClick={() => setOpen(false)}
               >
-                Cancel
+                <I18nText text="Cancel" />
               </Button>
               <Button
                 type="submit"
@@ -356,7 +369,7 @@ export function SeriesIndexPage() {
                   busy || !name.trim() || !canManage || canWrite === false
                 }
               >
-                {busy ? "Creating…" : "Create series"}
+                {busy ? t("Creating…") : t("Create series")}
               </Button>
             </DialogFooter>
           </form>

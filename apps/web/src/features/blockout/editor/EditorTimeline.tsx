@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import type { BlockoutDocument } from "@cinakey/shared";
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -43,6 +44,7 @@ export function EditorTimeline({
   onTogglePlay,
   onSelectKey,
 }: Props) {
+  useLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const rows = tlRows(doc);
@@ -197,7 +199,7 @@ export function EditorTimeline({
           variant="ghost"
           className="h-7 w-7 p-0"
           onClick={() => onFrame(0)}
-          title="Home"
+          title={t("Home")}
         >
           <SkipBack className="size-3.5" />
         </Button>
@@ -207,14 +209,14 @@ export function EditorTimeline({
           variant={playing ? "default" : "outline"}
           className="h-7 min-w-[4.25rem] gap-1 px-2"
           onClick={onTogglePlay}
-          title="Play / pause (Space)"
+          title={t("Play / pause (Space)")}
         >
           {playing ? (
             <Pause className="size-3.5" />
           ) : (
             <Play className="size-3.5" />
           )}
-          {playing ? "Pause" : "Play"}
+          {playing ? t("Pause") : t("Play")}
         </Button>
         <Button
           type="button"
@@ -222,7 +224,7 @@ export function EditorTimeline({
           variant="ghost"
           className="h-7 w-7 p-0"
           onClick={() => onFrame(doc.frames)}
-          title="End"
+          title={t("End")}
         >
           <SkipForward className="size-3.5" />
         </Button>
@@ -236,7 +238,7 @@ export function EditorTimeline({
       <div className="flex min-h-0">
         <div className="w-28 shrink-0 border-r border-zinc-800 text-[10px] text-zinc-400">
           <div className="flex h-[22px] items-center px-2 text-zinc-600">
-            tracks
+            <I18nText text="tracks" />
           </div>
           {rows.map((r) => (
             <div

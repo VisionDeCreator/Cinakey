@@ -1,3 +1,4 @@
+import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Clapperboard,
   Users,
@@ -38,6 +39,7 @@ import {
 } from "./features/staff/StaffPages";
 
 export function AdminGate({ children }: { children: ReactNode }) {
+  useLocale();
   const auth = useConvexAuth();
   const viewerArgs = auth.isAuthenticated ? {} : "skip";
   const me = useQuery(api.users.viewer, viewerArgs);
@@ -47,7 +49,7 @@ export function AdminGate({ children }: { children: ReactNode }) {
   if (auth.isLoading)
     return (
       <p role="status" className="p-8">
-        Checking session…
+        <I18nText text="Checking session…" />
       </p>
     );
   if (!auth.isAuthenticated)
@@ -60,31 +62,35 @@ export function AdminGate({ children }: { children: ReactNode }) {
   if (viewerStatus.isReconnecting)
     return (
       <main className="mx-auto max-w-lg space-y-4 p-10">
-        <h1 className="text-xl">Cannot connect to the API</h1>
+        <h1 className="text-xl">
+          <I18nText text="Cannot connect to the API" />
+        </h1>
         <p role="status">
-          Administrator access cannot be checked while the API is unavailable.
-          Reconnecting automatically…
+          <I18nText text="Administrator access cannot be checked while the API is unavailable. Reconnecting automatically…" />
         </p>
         <Button onClick={() => void viewerStatus.retry()}>
-          Retry connection
+          <I18nText text="Retry connection" />
         </Button>
       </main>
     );
   if (me === undefined)
     return (
       <p role="status" className="p-8">
-        Checking administrator access…
+        <I18nText text="Checking administrator access…" />
       </p>
     );
   if (!me?.isStaff)
     return (
       <main className="mx-auto max-w-lg space-y-4 p-10">
-        <h1 className="text-xl">Administrator access required</h1>
+        <h1 className="text-xl">
+          <I18nText text="Administrator access required" />
+        </h1>
         <p>
-          Your account does not have platform administrator access. Internal
-          workspace membership does not grant access here.
+          <I18nText text="Your account does not have platform administrator access. Internal workspace membership does not grant access here." />
         </p>
-        <Button onClick={() => void signOut()}>Sign out</Button>
+        <Button onClick={() => void signOut()}>
+          <I18nText text="Sign out" />
+        </Button>
       </main>
     );
   return children;
@@ -98,6 +104,7 @@ const sections = [
   ["/audit", "Audit log"],
 ] as const;
 function Layout() {
+  useLocale();
   const { signOut } = useAuthActions();
   const me = useQuery(api.users.viewer, {});
   const location = useLocation();
@@ -110,13 +117,15 @@ function Layout() {
       <aside className="admin-sidebar">
         <Link to="/users" className="admin-brand">
           <Clapperboard size={30} /> <span>Cinakey</span>
-          <small>ADMIN</small>
+          <small>
+            <I18nText text="ADMIN" />
+          </small>
         </Link>
         <p className="rounded border border-amber-900 px-2 py-1 text-xs text-amber-200">
-          {import.meta.env.VITE_APP_ENV || "Environment not labeled"}
+          {import.meta.env.VITE_APP_ENV || t("Environment not labeled")}
         </p>
         <nav
-          aria-label="Administration"
+          aria-label={t("Administration")}
           className="flex flex-wrap gap-2 md:flex-col"
         >
           {sections.map(([path, label], index) => {
@@ -130,7 +139,7 @@ function Layout() {
                 }
               >
                 <Icon size={20} />
-                {label}
+                {t(label)}
               </NavLink>
             );
           })}
@@ -139,19 +148,21 @@ function Layout() {
           className="admin-web-link"
           href={import.meta.env.VITE_WEB_URL || "http://localhost:5173"}
         >
-          <ExternalLink size={18} /> Open web app
+          <ExternalLink size={18} /> <I18nText text="Open web app" />
         </a>
         <div className="admin-account">
           <span className="admin-avatar">
             {(me?.name || me?.email || "A").slice(0, 2).toUpperCase()}
           </span>
           <div>
-            <strong>{me?.name || me?.email || "Administrator"}</strong>
-            <small>Administrator</small>
+            <strong>{me?.name || me?.email || t("Administrator")}</strong>
+            <small>
+              <I18nText text="Administrator" />
+            </small>
           </div>
           <Button
-            aria-label="Sign out"
-            title="Sign out"
+            aria-label={t("Sign out")}
+            title={t("Sign out")}
             variant="ghost"
             onClick={() => void signOut()}
           >
@@ -162,12 +173,15 @@ function Layout() {
       <main className="admin-main">
         <header className="admin-topbar">
           <span>
-            Administration <span className="mx-3">/</span>{" "}
-            <strong>{title}</strong>
+            <I18nText text="Administration" /> <span className="mx-3">/</span>{" "}
+            <strong>{t(title)}</strong>
           </span>
-          <small>
-            {import.meta.env.VITE_APP_ENV || "Environment not labeled"}
-          </small>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <small>
+              {import.meta.env.VITE_APP_ENV || t("Environment not labeled")}
+            </small>
+            <LanguageSelector className="h-9 w-40 bg-transparent" />
+          </div>
         </header>
         <div className="admin-content space-y-6">
           <Outlet />
@@ -187,11 +201,15 @@ class Boundary extends Component<
   render() {
     return this.state.error ? (
       <main className="space-y-4 p-8">
-        <h1 className="text-xl">Could not load administration</h1>
+        <h1 className="text-xl">
+          <I18nText text="Could not load administration" />
+        </h1>
         <p role="alert">{this.state.error.message}</p>
-        <Button onClick={() => window.location.reload()}>Reload</Button>
+        <Button onClick={() => window.location.reload()}>
+          <I18nText text="Reload" />
+        </Button>
         <a className="ml-4 underline" href="/users">
-          Return to users
+          <I18nText text="Return to users" />
         </a>
       </main>
     ) : (
@@ -200,6 +218,7 @@ class Boundary extends Component<
   }
 }
 export function App() {
+  useLocale();
   return (
     <Boundary>
       <Routes>
@@ -252,8 +271,12 @@ export function App() {
             path="*"
             element={
               <>
-                <h1>Page not found</h1>
-                <Link to="/users">Return to users</Link>
+                <h1>
+                  <I18nText text="Page not found" />
+                </h1>
+                <Link to="/users">
+                  <I18nText text="Return to users" />
+                </Link>
               </>
             }
           />

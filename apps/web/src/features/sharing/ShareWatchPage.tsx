@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ const base = (import.meta.env.VITE_API_URL ?? "http://localhost:3001").replace(
   "",
 );
 export function ShareWatchPage() {
+  useLocale();
   const { linkId } = useParams();
   const [secret] = useState(() => window.location.hash.slice(1));
   const [password, setPassword] = useState("");
@@ -27,7 +29,7 @@ export function ShareWatchPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-4xl flex-col justify-center gap-4 p-6 text-zinc-100">
       <h1 className="text-xl font-semibold">
-        {info?.title ?? "Cinakey private video"}
+        {info?.title ?? t("Cinakey private video")}
       </h1>
       {!info ? (
         <form
@@ -68,9 +70,11 @@ export function ShareWatchPage() {
               .finally(() => setBusy(false));
           }}
         >
-          <p>No account required. Enter the password if one was provided.</p>
+          <p>
+            <I18nText text="No account required. Enter the password if one was provided." />
+          </p>
           <label>
-            Password (if required)
+            <I18nText text="Password (if required)" />
             <Input
               type="password"
               autoComplete="current-password"
@@ -80,10 +84,12 @@ export function ShareWatchPage() {
             />
           </label>
           <Button disabled={busy || !secret}>
-            {busy ? "Opening…" : "Open video"}
+            {busy ? t("Opening…") : t("Open video")}
           </Button>
           {!secret && (
-            <p>Open the complete private link, including the part after #.</p>
+            <p>
+              <I18nText text="Open the complete private link, including the part after #." />
+            </p>
           )}
         </form>
       ) : (
@@ -108,16 +114,15 @@ export function ShareWatchPage() {
               referrerPolicy="no-referrer"
               href={`${endpoint}/media?download=1`}
             >
-              Download MP4
+              <I18nText text="Download MP4" />
             </a>
           )}
           <p className="text-xs text-zinc-400">
-            Private viewing access lasts up to one hour. The owner can revoke
-            this link.
+            <I18nText text="Private viewing access lasts up to one hour. The owner can revoke this link." />
           </p>
         </>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error ?? "")}</p>}
     </main>
   );
 }

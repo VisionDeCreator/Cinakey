@@ -6,7 +6,8 @@
   "exports": {
     "./styles.css": "./src/styles.css",
     "./utils": "./src/utils.ts",
-    "./*": "./src/*.tsx"
+    "./*": "./src/*.tsx",
+    "./i18n": "./src/i18n.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useState } from "react";
 import { api, type Doc } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -15,9 +16,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Settings, Wallet, Users } from "lucide-react";
-import { formatUsd } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
 
 export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
+  useLocale();
   const { canManage, canWrite, role } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("settings");
@@ -39,31 +41,52 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
         }}
       >
         <Settings size={14} />
-        Settings & budgets
+        <I18nText text="Settings & budgets" />
       </Button>
       <span className="text-xs text-zinc-400">
-        {project.seriesId ? "Episode" : "Video"} budget:{" "}
+        {project.seriesId ? t("Episode") : t("Video")}{" "}
+        <I18nText text="budget:" />{" "}
         {spend === undefined
-          ? "Loading…"
+          ? t("Loading…")
           : spend?.remaining == null
-            ? "No cap"
-            : `${formatUsd(spend.remaining)} remaining`}
+            ? t("No cap")
+            : t("{0} remaining", { 0: formatUsd(spend.remaining) })}
       </span>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {project.seriesId ? "Episode" : "Project"} settings
+              {project.seriesId ? t("Episode") : t("Project")}{" "}
+              <I18nText text="settings" />
             </DialogTitle>
             <DialogDescription>
-              {project.title} · Your workspace role: {role ?? "member"}
+              {project.title} <I18nText text="· Your workspace role:" />{" "}
+              {role ?? t("member")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2 border-b border-zinc-800 pb-3">
             {[
-              { id: "settings", label: "Settings", Icon: Settings },
-              { id: "budgets", label: "Budgets & usage", Icon: Wallet },
-              { id: "roles", label: "Roles & access", Icon: Users },
+              {
+                id: "settings",
+                get label() {
+                  return t("Settings");
+                },
+                Icon: Settings,
+              },
+              {
+                id: "budgets",
+                get label() {
+                  return t("Budgets & usage");
+                },
+                Icon: Wallet,
+              },
+              {
+                id: "roles",
+                get label() {
+                  return t("Roles & access");
+                },
+                Icon: Users,
+              },
             ].map(({ id, label, Icon }) => (
               <Button
                 key={id}
@@ -102,7 +125,7 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
                 }}
               >
                 <label className="block space-y-2 text-sm">
-                  Name
+                  <I18nText text="Name" />
                   <Input
                     value={title}
                     maxLength={200}
@@ -111,7 +134,7 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
                   />
                 </label>
                 <label className="block space-y-2 text-sm">
-                  Style notes
+                  <I18nText text="Style notes" />
                   <Textarea
                     value={notes}
                     onChange={(event) => setNotes(event.target.value)}
@@ -119,15 +142,16 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
                   />
                 </label>
                 <p className="text-xs text-zinc-400">
-                  Output: {project.aspectRatio} · {project.fps} fps. Changing
-                  settings keeps existing timeline edits and exports.
+                  <I18nText text="Output:" /> {project.aspectRatio} ·{" "}
+                  {project.fps}{" "}
+                  <I18nText text="fps. Changing settings keeps existing timeline edits and exports." />
                 </p>
                 <Button disabled={busy || canWrite === false || !title.trim()}>
-                  Save settings
+                  <I18nText text="Save settings" />
                 </Button>
                 {message && (
                   <p role="status" className="text-sm">
-                    {message}
+                    {t(message ?? "")}
                   </p>
                 )}
               </form>
@@ -135,7 +159,9 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
             {tab === "budgets" && (
               <>
                 <div className="rounded-2xl border border-zinc-800 p-4 text-sm">
-                  Spent: {formatUsd(spend?.spentUsdMicros ?? 0)} · Reserved:{" "}
+                  <I18nText text="Spent:" />{" "}
+                  {formatUsd(spend?.spentUsdMicros ?? 0)}{" "}
+                  <I18nText text="· Reserved:" />{" "}
                   {formatUsd(spend?.reservedUsdMicros ?? 0)}
                 </div>
                 {canManage ? (
@@ -145,8 +171,7 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
                   />
                 ) : (
                   <p className="text-sm text-zinc-400">
-                    Ask a workspace owner or admin to manage series and episode
-                    budgets.
+                    <I18nText text="Ask a workspace owner or admin to manage series and episode budgets." />
                   </p>
                 )}
               </>
@@ -154,16 +179,14 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
             {tab === "roles" && (
               <>
                 <p className="text-sm text-zinc-400">
-                  Owners and admins manage the production. Creators need an
-                  assignment to this episode or its series. Manage those
-                  assignments in each member’s access controls below.
+                  <I18nText text="Owners and admins manage the production. Creators need an assignment to this episode or its series. Manage those assignments in each member’s access controls below." />
                 </p>
                 {canManage ? (
                   <TeamSettings />
                 ) : (
                   <p className="text-sm">
-                    Your role: {role}. Ask an owner or admin to change
-                    production access.
+                    <I18nText text="Your role:" /> {t(role ?? "")}
+                    <I18nText text=". Ask an owner or admin to change production access." />
                   </p>
                 )}
               </>

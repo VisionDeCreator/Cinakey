@@ -1,5 +1,7 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { formatUsd } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,6 +82,7 @@ export function StudioWorkspace({
   onInsertMany?: (media: StudioInsert[]) => boolean | void;
   onPreview: () => void;
 }) {
+  useLocale();
   const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
   const workspace = useQuery(api.workspace.list, {
@@ -245,7 +248,14 @@ export function StudioWorkspace({
         className={`studio-divider studio-divider-${panel}`}
         role="separator"
         tabIndex={0}
-        aria-label={`Resize ${panel === "left" ? "library" : panel === "right" ? "inspector" : "timeline"}`}
+        aria-label={t("Resize {0}", {
+          0:
+            panel === "left"
+              ? "library"
+              : panel === "right"
+                ? "inspector"
+                : "timeline",
+        })}
         aria-orientation={panel === "bottom" ? "horizontal" : "vertical"}
         aria-valuemin={panel === "left" ? 150 : panel === "right" ? 240 : 160}
         aria-valuemax={1200}
@@ -360,9 +370,18 @@ export function StudioWorkspace({
     if (!sourceVideo || busy) return;
     if (
       !(await confirm({
-        title: "Generate a 5-second extension?",
-        description: `Approximately ${extensionEstimate ? formatUsd(extensionEstimate.usdMicros) : "the displayed estimate"}. The original video and current edit are preserved.`,
-        confirmLabel: "Generate extension",
+        get title() {
+          return t("Generate a 5-second extension?");
+        },
+        description: t(
+          "Approximately {0}. The original video and current edit are preserved.",
+          {
+            0: extensionEstimate
+              ? formatUsd(extensionEstimate.usdMicros)
+              : t("the displayed estimate"),
+          },
+        ),
+        confirmLabel: t("Generate extension"),
       }))
     )
       return;
@@ -395,9 +414,14 @@ export function StudioWorkspace({
     if (
       usdMicros >= COST_CONFIRM_THRESHOLD_USD_MICROS &&
       !(await confirm({
-        title: "Generate video?",
-        description: `Approximately ${formatUsd(usdMicros)}. Previous footage and timeline edits are preserved.`,
-        confirmLabel: "Generate",
+        get title() {
+          return t("Generate video?");
+        },
+        description: t(
+          "Approximately {0}. Previous footage and timeline edits are preserved.",
+          { 0: formatUsd(usdMicros) },
+        ),
+        confirmLabel: t("Generate"),
       }))
     )
       return;
@@ -484,7 +508,11 @@ export function StudioWorkspace({
       setError("Timeline is read-only. Request editing access first.");
       return;
     }
-    setNotice(`${source.name} added to the timeline. The source is preserved.`);
+    setNotice(
+      t("{0} added to the timeline. The source is preserved.", {
+        0: source.name,
+      }),
+    );
     setView("edit");
   }
   const media = (assets ?? []).filter((a) =>
@@ -520,7 +548,10 @@ export function StudioWorkspace({
         } as CSSProperties
       }
     >
-      <nav className="studio-layout-controls" aria-label="Workspace panels">
+      <nav
+        className="studio-layout-controls"
+        aria-label={t("Workspace panels")}
+      >
         {(["library", "inspector", "generations", "timeline"] as const).map(
           (panel) => (
             <button
@@ -530,7 +561,7 @@ export function StudioWorkspace({
                 setLayout((old) => ({ ...old, [panel]: !old[panel] }))
               }
             >
-              {panel.charAt(0).toUpperCase() + panel.slice(1)}
+              {t(panel.charAt(0).toUpperCase() + panel.slice(1))}
             </button>
           ),
         )}
@@ -547,13 +578,13 @@ export function StudioWorkspace({
             })
           }
         >
-          Reset layout
+          <I18nText text="Reset layout" />
         </button>
       </nav>
       <aside
         hidden={!layout.library}
         className="studio-library"
-        aria-label="Project library"
+        aria-label={t("Project library")}
         onDragOver={(event) => {
           if (event.dataTransfer.types.includes("Files")) {
             event.preventDefault();
@@ -578,7 +609,7 @@ export function StudioWorkspace({
         {divider("left")}
         <div className="studio-section-heading">
           <h2>
-            Project media{" "}
+            <I18nText text="Project media" />{" "}
             <span className="studio-media-count">{media.length}</span>
           </h2>
           <Button
@@ -587,27 +618,27 @@ export function StudioWorkspace({
             onClick={() => importInput.current?.click()}
           >
             <Plus size={14} />
-            Import
+            <I18nText text="Import" />
           </Button>
         </div>
         {migrationError && !workspace?.migrated && (
           <p role="alert">
-            {migrationError}
+            {t(migrationError ?? "")}
             <Button
               onClick={() => {
                 setMigrationError(null);
                 setMigrationAttempt((value) => value + 1);
               }}
             >
-              Retry workspace setup
+              <I18nText text="Retry workspace setup" />
             </Button>
           </p>
         )}
         <div className="studio-media-search">
           <Search size={14} />
           <Input
-            aria-label="Search project media"
-            placeholder="Search media…"
+            aria-label={t("Search project media")}
+            placeholder={t("Search media…")}
             value={mediaSearch}
             onChange={(event) => setMediaSearch(event.target.value)}
           />
@@ -617,25 +648,45 @@ export function StudioWorkspace({
             aria-pressed={library === "media"}
             onClick={() => setLibrary("media")}
           >
-            All media
+            <I18nText text="All media" />
           </button>
           <button
             aria-pressed={library === "references"}
             onClick={() => setLibrary("references")}
           >
-            References
+            <I18nText text="References" />
           </button>
         </div>
         <div
           className="studio-media-filters"
           role="group"
-          aria-label="Media types"
+          aria-label={t("Media types")}
         >
           {[
-            { value: "all", label: "All" },
-            { value: "video", label: "Video" },
-            { value: "image", label: "Images" },
-            { value: "audio", label: "Audio" },
+            {
+              value: "all",
+              get label() {
+                return t("All");
+              },
+            },
+            {
+              value: "video",
+              get label() {
+                return t("Video");
+              },
+            },
+            {
+              value: "image",
+              get label() {
+                return t("Images");
+              },
+            },
+            {
+              value: "audio",
+              get label() {
+                return t("Audio");
+              },
+            },
           ].map((filter) => (
             <button
               key={filter.value}
@@ -650,10 +701,10 @@ export function StudioWorkspace({
           {!libraryAssets.length && (
             <p className="studio-library-empty">
               {mediaSearch || mediaType !== "all"
-                ? "No media matches your filters."
+                ? t("No media matches your filters.")
                 : library === "references"
-                  ? "No reference media yet."
-                  : "Import media to start your story."}
+                  ? t("No reference media yet.")
+                  : t("Import media to start your story.")}
             </p>
           )}
           {libraryAssets.map((asset) => (
@@ -671,7 +722,7 @@ export function StudioWorkspace({
                 onPointerDown={(event) =>
                   beginMediaPointerDrag(event, asset._id)
                 }
-                title="Drag to the timeline or script, or click to preview"
+                title={t("Drag to the timeline or script, or click to preview")}
                 onClick={() => preview(asset._id)}
               >
                 {asset.type === "image" || asset.type === "video" ? (
@@ -705,11 +756,15 @@ export function StudioWorkspace({
         </div>
         <label className="studio-upload-label">
           <Upload size={15} />
-          <strong>Drop media here</strong>
-          <small>Images, video, or audio · choose files</small>
+          <strong>
+            <I18nText text="Drop media here" />
+          </strong>
+          <small>
+            <I18nText text="Images, video, or audio · choose files" />
+          </small>
           <input
             ref={importInput}
-            aria-label="Import media"
+            aria-label={t("Import media")}
             type="file"
             disabled={canWrite === false}
             accept="image/*,video/*,audio/*"
@@ -729,7 +784,7 @@ export function StudioWorkspace({
         </label>
         <label className="studio-upload-label">
           <Music size={15} />
-          Import music
+          <I18nText text="Import music" />
           <input
             type="file"
             disabled={canWrite === false}
@@ -760,20 +815,20 @@ export function StudioWorkspace({
           ))}
       </aside>
       <div className="studio-center">
-        <section className="studio-viewer" aria-label="Media viewer">
+        <section className="studio-viewer" aria-label={t("Media viewer")}>
           <div className="studio-section-heading">
             <div>
               <h2>
                 {view === "source"
                   ? (source?.name ?? "Viewer")
                   : view === "staging"
-                    ? "Preview"
-                    : "Timeline preview"}
+                    ? t("Preview")
+                    : t("Timeline preview")}
               </h2>
               <span className="studio-muted">
                 {view === "source"
-                  ? "Source preview · your edit is unchanged"
-                  : "Connected project workspace"}
+                  ? t("Source preview · your edit is unchanged")
+                  : t("Connected project workspace")}
               </span>
             </div>
             <div className="studio-view-switch">
@@ -784,14 +839,14 @@ export function StudioWorkspace({
                   onPreview();
                 }}
               >
-                Source
+                <I18nText text="Source" />
               </button>
               <button
-                aria-label="Show timeline preview"
+                aria-label={t("Show timeline preview")}
                 aria-pressed={view === "edit"}
                 onClick={() => setView("edit")}
               >
-                Timeline
+                <I18nText text="Timeline" />
               </button>
               <button
                 aria-pressed={view === "staging"}
@@ -800,7 +855,7 @@ export function StudioWorkspace({
                   onPreview();
                 }}
               >
-                Staging
+                <I18nText text="Staging" />
               </button>
             </div>
           </div>
@@ -824,7 +879,7 @@ export function StudioWorkspace({
                   }
                 }}
               >
-                Play both from start
+                <I18nText text="Play both from start" />
               </Button>
               <Button
                 variant="ghost"
@@ -834,7 +889,7 @@ export function StudioWorkspace({
                   setView("source");
                 }}
               >
-                Close comparison
+                <I18nText text="Close comparison" />
               </Button>
             </div>
           )}
@@ -878,10 +933,11 @@ export function StudioWorkspace({
               ) : (
                 <div className="studio-empty-view">
                   <Film size={32} />
-                  <h2>Your story starts here</h2>
+                  <h2>
+                    <I18nText text="Your story starts here" />
+                  </h2>
                   <p>
-                    Preview any generation or imported asset, then add the range
-                    you want to your edit.
+                    <I18nText text="Preview any generation or imported asset, then add the range you want to your edit." />
                   </p>
                 </div>
               ))}
@@ -912,7 +968,7 @@ export function StudioWorkspace({
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label="Fullscreen preview"
+                aria-label={t("Fullscreen preview")}
                 onClick={() => {
                   void previewContainer.current
                     ?.requestFullscreen()
@@ -939,7 +995,7 @@ export function StudioWorkspace({
                   {selectedAsset.width && selectedAsset.height
                     ? `${selectedAsset.width} × ${selectedAsset.height} · `
                     : ""}
-                  {selectedAsset.type}
+                  {t(selectedAsset.type ?? "")}
                 </small>
               </div>
               <Button
@@ -947,14 +1003,14 @@ export function StudioWorkspace({
                 size="sm"
                 onClick={() => preview(selectedAsset._id)}
               >
-                View source
+                <I18nText text="View source" />
               </Button>
             </div>
           )}
           {view === "source" && source && (
             <div className="studio-source-toolbar">
               <label>
-                Name
+                <I18nText text="Name" />
                 <input
                   key={source._id + source.name}
                   defaultValue={source.name}
@@ -968,9 +1024,9 @@ export function StudioWorkspace({
                 />
               </label>
               <label>
-                In (s)
+                <I18nText text="In (s)" />
                 <input
-                  aria-label="Source in"
+                  aria-label={t("Source in")}
                   type="number"
                   min={0}
                   step={0.1}
@@ -979,9 +1035,9 @@ export function StudioWorkspace({
                 />
               </label>
               <label>
-                Out (s)
+                <I18nText text="Out (s)" />
                 <input
-                  aria-label="Source out"
+                  aria-label={t("Source out")}
                   type="number"
                   min={0}
                   max={sourceDuration ?? undefined}
@@ -1000,7 +1056,7 @@ export function StudioWorkspace({
                 onClick={insert}
               >
                 <Plus />
-                Add to timeline
+                <I18nText text="Add to timeline" />
               </Button>
               {sourceUrl && (
                 <a
@@ -1009,7 +1065,7 @@ export function StudioWorkspace({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open source ↗
+                  <I18nText text="Open source ↗" />
                 </a>
               )}
               {sourceVideo && (
@@ -1019,7 +1075,7 @@ export function StudioWorkspace({
                   disabled={busy}
                   onClick={() => void extendSource()}
                 >
-                  Extend +5s ·{" "}
+                  <I18nText text="Extend +5s ·" />{" "}
                   {extensionEstimate
                     ? formatUsd(extensionEstimate.usdMicros)
                     : "…"}
@@ -1031,11 +1087,11 @@ export function StudioWorkspace({
         <section
           hidden={!layout.generations}
           className="studio-generations"
-          aria-label="Generation history"
+          aria-label={t("Generation history")}
         >
           <div className="studio-section-heading">
             <h2>
-              Generations{" "}
+              <I18nText text="Generations" />{" "}
               <span className="studio-muted">{scopedVideos.length}</span>
             </h2>
           </div>
@@ -1046,7 +1102,8 @@ export function StudioWorkspace({
               disabled={readOnly || !assemblyIds.length || busy}
               onClick={() => void insertSelected()}
             >
-              Add selected videos ({assemblyIds.length})
+              <I18nText text="Add selected videos (" />
+              {assemblyIds.length})
             </Button>
           )}
           <div className="studio-generation-strip">
@@ -1069,7 +1126,7 @@ export function StudioWorkspace({
                 <button
                   className="studio-generation-preview"
                   onClick={() => preview(video.assetId)}
-                  aria-label={`Preview ${video.name}`}
+                  aria-label={t("Preview {0}", { 0: video.name })}
                 >
                   {video.url ? (
                     <video
@@ -1084,19 +1141,26 @@ export function StudioWorkspace({
                   )}
                   <strong>
                     {video.generated
-                      ? `Video ${String(scopedVideos.length - index).padStart(2, "0")}`
+                      ? t("Video {0}", {
+                          0: String(scopedVideos.length - index).padStart(
+                            2,
+                            "0",
+                          ),
+                        })
                       : video.name}
                   </strong>
                   <small>
                     {video.durationSec ?? mediaDurations[video.assetId] ?? "?"}s
-                    · {video.generated ? "Generated" : "Imported"}
+                    · {video.generated ? t("Generated") : t("Imported")}
                   </small>
                 </button>
                 {onInsertMany && (
                   <label className="studio-check">
                     <input
                       type="checkbox"
-                      aria-label={`Select ${video.name} for editing`}
+                      aria-label={t("Select {0} for editing", {
+                        0: video.name,
+                      })}
                       checked={assemblyIds.includes(video.assetId)}
                       onChange={(event) =>
                         setAssemblyIds((ids) =>
@@ -1106,7 +1170,7 @@ export function StudioWorkspace({
                         )
                       }
                     />
-                    Add to edit
+                    <I18nText text="Add to edit" />
                     {assemblyIds.includes(video.assetId)
                       ? ` · ${assemblyIds.indexOf(video.assetId) + 1}`
                       : ""}
@@ -1117,7 +1181,7 @@ export function StudioWorkspace({
                   aria-pressed={compareIds.includes(video.assetId)}
                   onClick={() => toggleCompare(video.assetId)}
                 >
-                  Compare
+                  <I18nText text="Compare" />
                 </button>
                 <button
                   className="studio-favourite"
@@ -1139,7 +1203,7 @@ export function StudioWorkspace({
             ))}
             {footage && scopedVideos.length === 0 && (
               <p className="studio-muted">
-                No footage yet. Generate a video or import a video.
+                <I18nText text="No footage yet. Generate a video or import a video." />
               </p>
             )}
           </div>
@@ -1156,15 +1220,17 @@ export function StudioWorkspace({
                 }
               >
                 {job.submissionState === "uncertain"
-                  ? "Submission needs review. Funds remain reserved; do not resubmit."
+                  ? t(
+                      "Submission needs review. Funds remain reserved; do not resubmit.",
+                    )
                   : `${job.status} · ${formatUsd(job.estimatedCostUsdMicros)}`}{" "}
-                · {new Date(job.createdAt).toLocaleString()}
+                · {new Date(job.createdAt).toLocaleString(getLocale())}
                 {job.errorMessage && (
                   <span className="block">{job.errorMessage}</span>
                 )}
                 {job.status === "refunded" && (
                   <span className="block">
-                    Funds released. Your existing media and edit are preserved.
+                    <I18nText text="Funds released. Your existing media and edit are preserved." />
                   </span>
                 )}
               </p>
@@ -1172,19 +1238,19 @@ export function StudioWorkspace({
         </section>
         {notice && (
           <p className="studio-notice" role="status">
-            {notice}
+            {t(notice ?? "")}
           </p>
         )}
         {error && (
           <p className="studio-error" role="alert">
-            {error}
+            {t(error ?? "")}
           </p>
         )}
       </div>
       <aside
         hidden={!layout.inspector}
         className="studio-inspector"
-        aria-label="Script and clip inspector"
+        aria-label={t("Script and clip inspector")}
       >
         {divider("right")}
         <div className="studio-inspector-tabs">
@@ -1193,19 +1259,19 @@ export function StudioWorkspace({
             onClick={() => setInspectorView("script")}
           >
             <Link2 size={14} />
-            Script
+            <I18nText text="Script" />
           </button>
           <button
             aria-pressed={inspectorView === "generation"}
             onClick={() => setInspectorView("generation")}
           >
-            Generation
+            <I18nText text="Generation" />
           </button>
           <button
             aria-pressed={inspectorView === "clip"}
             onClick={() => setInspectorView("clip")}
           >
-            Clip settings
+            <I18nText text="Clip settings" />
           </button>
         </div>
         <div hidden={inspectorView !== "script"}>
@@ -1226,13 +1292,18 @@ export function StudioWorkspace({
           }
         >
           <section className="studio-generation-settings">
-            <h2>Generation</h2>
+            <h2>
+              <I18nText text="Generation" />
+            </h2>
             <label>
-              Model<span>Seedance 2.5</span>
+              <I18nText text="Model" />
+              <span>Seedance 2.5</span>
             </label>
             <div className="studio-generation-controls">
               <div>
-                <label id="generation-resolution-label">Resolution</label>
+                <label id="generation-resolution-label">
+                  <I18nText text="Resolution" />
+                </label>
                 <Select value={resolution} onValueChange={setResolution}>
                   <SelectTrigger aria-labelledby="generation-resolution-label">
                     <SelectValue />
@@ -1245,15 +1316,15 @@ export function StudioWorkspace({
               </div>
               <div className="studio-duration-control">
                 <label htmlFor="generation-duration">
-                  Duration{" "}
+                  <I18nText text="Duration" />{" "}
                   <output htmlFor="generation-duration">
-                    {durationSec} seconds
+                    {durationSec} <I18nText text="seconds" />
                   </output>
                 </label>
                 <input
                   id="generation-duration"
-                  aria-label="Generation duration"
-                  aria-valuetext={`${durationSec} seconds`}
+                  aria-label={t("Generation duration")}
+                  aria-valuetext={t("{0} seconds", { 0: durationSec })}
                   type="range"
                   min={4}
                   max={30}
@@ -1276,7 +1347,9 @@ export function StudioWorkspace({
             </div>
             {workspace && workspace.staging.length > 0 && (
               <div className="staging-generation-selector">
-                <span>Staging</span>
+                <span>
+                  <I18nText text="Staging" />
+                </span>
                 <Select
                   value={staging?._id ?? ""}
                   onValueChange={(id) => {
@@ -1292,7 +1365,7 @@ export function StudioWorkspace({
                     );
                   }}
                 >
-                  <SelectTrigger aria-label="Generation staging">
+                  <SelectTrigger aria-label={t("Generation staging")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1324,7 +1397,7 @@ export function StudioWorkspace({
                     );
                   }}
                 />
-                Use staging as video reference
+                <I18nText text="Use staging as video reference" />
               </label>
             )}
             <Button
@@ -1342,30 +1415,38 @@ export function StudioWorkspace({
               onClick={() => void startGeneration()}
             >
               {busy
-                ? "Starting…"
+                ? t("Starting…")
                 : running
-                  ? "Generating…"
-                  : `Generate video · ${formatUsd(usdMicros)}`}
+                  ? t("Generating…")
+                  : t("Generate video · {0}", { 0: formatUsd(usdMicros) })}
             </Button>
             {spend && (
               <p className="studio-muted">
-                Spent: {formatUsd(spend.spentUsdMicros ?? 0)} · Reserved:{" "}
+                <I18nText text="Spent:" />{" "}
+                {formatUsd(spend.spentUsdMicros ?? 0)}{" "}
+                <I18nText text="· Reserved:" />{" "}
                 {formatUsd(spend.reservedUsdMicros ?? 0)}
                 {spend.remaining != null
-                  ? ` · Project budget remaining: ${formatUsd(spend.remaining)}`
+                  ? t(" · Project budget remaining: {0}", {
+                      0: formatUsd(spend.remaining),
+                    })
                   : ""}
               </p>
             )}
             <p className="studio-muted">
               {dirty
-                ? "Save the script before generating."
+                ? t("Save the script before generating.")
                 : !referencesValid
-                  ? "Resolve the script reference issues in the Script tab before generating."
+                  ? t(
+                      "Resolve the script reference issues in the Script tab before generating.",
+                    )
                   : overCap
-                    ? "Project spend cap reached."
+                    ? t("Project spend cap reached.")
                     : !validDuration
-                      ? "Use a whole-number duration of 4–30 seconds per video."
-                      : "Previous videos and timeline edits are preserved."}
+                      ? t(
+                          "Use a whole-number duration of 4–30 seconds per video.",
+                        )
+                      : t("Previous videos and timeline edits are preserved.")}
             </p>
           </section>
         </div>
@@ -1374,7 +1455,7 @@ export function StudioWorkspace({
       <section
         hidden={!layout.timeline}
         className="studio-timeline"
-        aria-label="Project timeline"
+        aria-label={t("Project timeline")}
         onDropCapture={() => setView("edit")}
         onPointerDownCapture={() => setView("edit")}
         onClickCapture={(e) => {

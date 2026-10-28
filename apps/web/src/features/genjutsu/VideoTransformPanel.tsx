@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -5,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatUsd } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
 import { useDraftScope } from "@/features/workspaces/workspace-context";
 import { useEffect, useRef, useState, type Ref } from "react";
 import { api } from "@cinakey/backend";
@@ -54,6 +55,7 @@ export function VideoTransformPanel({
   assetUrls?: { assetId: string; url: string | null }[];
   referenceEditorRef?: Ref<ReferencePromptHandle>;
 }) {
+  useLocale();
   const analyze = useAction(api.transforms.analyze);
   const generate = useAction(api.transforms.generate);
   const [targets, setTargets] = useState<TransformTarget[]>([]);
@@ -154,11 +156,11 @@ export function VideoTransformPanel({
   ]);
   const currentReview = review?.key === analysisKey ? review : null;
   const referenceIssues = [
-    ...resolvedReferences.unresolved.map(
-      (alias) => `Link missing image @${alias}.`,
+    ...resolvedReferences.unresolved.map((alias) =>
+      t("Link missing image @{0}.", { 0: alias }),
     ),
-    ...resolvedReferences.ambiguous.map(
-      (alias) => `Choose which image @${alias} refers to.`,
+    ...resolvedReferences.ambiguous.map((alias) =>
+      t("Choose which image @{0} refers to.", { 0: alias }),
     ),
     ...(references.length === 0
       ? ["Add at least one image reference for Remix."]
@@ -280,19 +282,21 @@ export function VideoTransformPanel({
   return (
     <section
       className="transform-generation-settings"
-      aria-label="Transform video"
+      aria-label={t("Transform video")}
     >
-      <h2>Transform video</h2>
+      <h2>
+        <I18nText text="Transform video" />
+      </h2>
       <p className="transform-muted">
-        Upload or select a source video on the left. Transform uses the whole
-        video.
+        <I18nText text="Upload or select a source video on the left. Transform uses the whole video." />
       </p>
       <label>
-        Source<span>{source?.name ?? "Select a video"}</span>
+        <I18nText text="Source" />
+        <span>{source?.name ?? t("Select a video")}</span>
       </label>
       {!duration && (
         <p className="transform-muted">
-          Source needs saved duration metadata and must be 4–15 seconds.
+          <I18nText text="Source needs saved duration metadata and must be 4–15 seconds." />
         </p>
       )}
       <fieldset disabled={busy || uploading} className="transform-fields">
@@ -315,15 +319,17 @@ export function VideoTransformPanel({
         ))}
         <div
           role="group"
-          aria-label="What to change (optional)"
+          aria-label={t("What to change (optional)")}
           className="transform-targets"
         >
           <p>
-            What to change <span>(optional)</span>
+            <I18nText text="What to change" />{" "}
+            <span>
+              <I18nText text="(optional)" />
+            </span>
           </p>
           <p className="transform-muted">
-            Your prompt determines what changes. Select any combination below
-            for extra guidance, or leave all unchecked.
+            <I18nText text="Your prompt determines what changes. Select any combination below for extra guidance, or leave all unchecked." />
           </p>
           <div className="transform-target-options">
             {TRANSFORM_TARGETS.map((target) => (
@@ -339,7 +345,7 @@ export function VideoTransformPanel({
                     )
                   }
                 />
-                <span>{target.label}</span>
+                <span>{t(target.label)}</span>
               </label>
             ))}
           </div>
@@ -350,7 +356,7 @@ export function VideoTransformPanel({
             checked={preserveCamera}
             onChange={(e) => setPreserveCamera(e.target.checked)}
           />
-          Follow source camera
+          <I18nText text="Follow source camera" />
         </label>
         <label className="transform-check">
           <input
@@ -358,16 +364,16 @@ export function VideoTransformPanel({
             checked={preserveMotion}
             onChange={(e) => setPreserveMotion(e.target.checked)}
           />
-          Follow source motion and timing
+          <I18nText text="Follow source motion and timing" />
         </label>
         <label>
-          Resolution
+          <I18nText text="Resolution" />
           <Select
             value={resolution}
             onValueChange={(value) => setResolution(value as "720p" | "1080p")}
             disabled={running || uploading}
           >
-            <SelectTrigger aria-label="Resolution">
+            <SelectTrigger aria-label={t("Resolution")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -379,17 +385,19 @@ export function VideoTransformPanel({
       </fieldset>
       {currentReview && (
         <details className="transform-review">
-          <summary>Video analysis and generation details</summary>
+          <summary>
+            <I18nText text="Video analysis and generation details" />
+          </summary>
           <h3>
-            Source analysis ·{" "}
+            <I18nText text="Source analysis ·" />{" "}
             {currentReview.settlementPending
-              ? "Usage pending review; funds remain reserved"
+              ? t("Usage pending review; funds remain reserved")
               : formatUsd(currentReview.usdMicros)}
           </h3>
           {(["subjects", "action", "camera", "setting"] as const).map(
             (field) => (
               <p key={field}>
-                <strong>{field}: </strong>
+                <strong>{t(field)}: </strong>
                 {currentReview.analysis[field]}
               </p>
             ),
@@ -400,7 +408,9 @@ export function VideoTransformPanel({
             </p>
           ))}
           <details>
-            <summary>Review generation instructions</summary>
+            <summary>
+              <I18nText text="Review generation instructions" />
+            </summary>
             <pre>
               {ready &&
                 plan &&
@@ -416,10 +426,9 @@ export function VideoTransformPanel({
         </details>
       )}
       <p className="transform-muted">
-        Remix uses the original video and selected images. Preservation is a
-        generation instruction, not a pixel lock. Output requests{" "}
-        {duration || "—"} seconds for billing, rounded up. Remix follows the
-        source duration and aspect ratio.
+        <I18nText text="Remix uses the original video and selected images. Preservation is a generation instruction, not a pixel lock. Output requests" />{" "}
+        {duration || "—"}{" "}
+        <I18nText text="seconds for billing, rounded up. Remix follows the source duration and aspect ratio." />
       </p>
       <Button
         disabled={
@@ -433,25 +442,33 @@ export function VideoTransformPanel({
         onClick={() => void renderTransform()}
       >
         {phase === "sampling"
-          ? "Preparing video…"
+          ? t("Preparing video…")
           : phase === "analyzing"
-            ? "Analyzing video…"
+            ? t("Analyzing video…")
             : phase === "submitting"
-              ? "Starting generation…"
+              ? t("Starting generation…")
               : submittedKey === renderKey
-                ? "Transformation queued"
-                : `Generate · ${duration ? `${currentReview ? "" : "up to "}${formatUsd(totalCost)}` : "—"}`}
+                ? t("Transformation queued")
+                : t("Generate · {0}", {
+                    0: duration
+                      ? `${currentReview ? "" : "up to "}${formatUsd(totalCost)}`
+                      : "—",
+                  })}
       </Button>
       <p className="transform-muted" role={busy ? "status" : undefined}>
         {busy
           ? phase === "sampling"
-            ? "Preparing frames for automatic analysis."
+            ? t("Preparing frames for automatic analysis.")
             : phase === "analyzing"
-              ? "Analyzing the video automatically. Generation will start next."
-              : "Submitting your remix."
+              ? t(
+                  "Analyzing the video automatically. Generation will start next.",
+                )
+              : t("Submitting your remix.")
           : currentReview
-            ? "Video analysis is ready and will be reused for these inputs."
-            : "Includes automatic video analysis and rendering. Unused reserved analysis funds are returned."}
+            ? t("Video analysis is ready and will be reused for these inputs.")
+            : t(
+                "Includes automatic video analysis and rendering. Unused reserved analysis funds are returned.",
+              )}
       </p>
       {submittedKey === renderKey && !running && (
         <Button
@@ -461,15 +478,17 @@ export function VideoTransformPanel({
             setSubmittedKey(null);
           }}
         >
-          Prepare another version
+          <I18nText text="Prepare another version" />
         </Button>
       )}
       {remaining != null && totalCost > remaining && (
-        <p className="transform-muted">Session spend cap reached.</p>
+        <p className="transform-muted">
+          <I18nText text="Session spend cap reached." />
+        </p>
       )}
       {error && (
         <p role="alert" className="transform-error">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
     </section>

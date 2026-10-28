@@ -1,6 +1,7 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { UploadProgress } from "@/components/UploadProgress";
 import { WorkspaceSelector } from "@/features/workspaces/WorkspaceSelector";
-import { formatUsd } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
 import { WorkspaceProvider } from "@/features/workspaces/WorkspaceContext";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -45,15 +46,52 @@ import { useLocalStorageBool } from "@/lib/useLocalStorageBool";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/series", label: "Series", icon: Layers },
-  { to: "/remix", label: "Remix", icon: WandSparkles },
-  { to: "/assets", label: "Assets", icon: Images },
-  { to: "/billing", label: "Billing", icon: CreditCard },
-  { to: "/settings", label: "Settings", icon: Settings },
+  {
+    to: "/projects",
+    get label() {
+      return t("Projects");
+    },
+    icon: FolderKanban,
+  },
+  {
+    to: "/series",
+    get label() {
+      return t("Series");
+    },
+    icon: Layers,
+  },
+  {
+    to: "/remix",
+    get label() {
+      return t("Remix");
+    },
+    icon: WandSparkles,
+  },
+  {
+    to: "/assets",
+    get label() {
+      return t("Assets");
+    },
+    icon: Images,
+  },
+  {
+    to: "/billing",
+    get label() {
+      return t("Billing");
+    },
+    icon: CreditCard,
+  },
+  {
+    to: "/settings",
+    get label() {
+      return t("Settings");
+    },
+    icon: Settings,
+  },
 ] as const;
 
 export function AppShell() {
+  useLocale();
   return (
     <WorkspaceProvider>
       <WorkspaceShell />
@@ -63,6 +101,7 @@ export function AppShell() {
 }
 
 function WorkspaceShell() {
+  useLocale();
   const {
     workspaceId,
     canManage,
@@ -124,15 +163,17 @@ function WorkspaceShell() {
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => navigate("/settings")}>
-        Profile & settings
+        <I18nText text="Profile & settings" />
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => navigate("/billing")}>
-        Billing
+        <I18nText text="Billing" />
       </DropdownMenuItem>
       {user?.isStaff && (
         <>
           <DropdownMenuItem asChild>
-            <Link to="/staff">Admin panel</Link>
+            <Link to="/staff">
+              <I18nText text="Admin panel" />
+            </Link>
           </DropdownMenuItem>
         </>
       )}
@@ -142,7 +183,7 @@ function WorkspaceShell() {
           void signOut().then(() => navigate("/sign-in"));
         }}
       >
-        Sign out
+        <I18nText text="Sign out" />
       </DropdownMenuItem>
     </>
   );
@@ -178,8 +219,8 @@ function WorkspaceShell() {
             variant="ghost"
             size="icon"
             className="size-9 shrink-0 text-zinc-300 hover:text-zinc-50"
-            title={compact ? "Expand sidebar" : "Collapse sidebar"}
-            aria-label={compact ? "Expand sidebar" : "Collapse sidebar"}
+            title={compact ? t("Expand sidebar") : t("Collapse sidebar")}
+            aria-label={compact ? t("Expand sidebar") : t("Collapse sidebar")}
             aria-expanded={!compact}
             onClick={() => {
               if (inProject) setProjectNavigationOpen((open) => !open);
@@ -200,7 +241,7 @@ function WorkspaceShell() {
           </div>
         )}
         <nav
-          aria-label="Main navigation"
+          aria-label={t("Main navigation")}
           className="flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-2 sm:px-3"
         >
           {compact ? (
@@ -248,7 +289,7 @@ function WorkspaceShell() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                aria-label="Sidebar account menu"
+                aria-label={t("Sidebar account menu")}
                 className={cn(
                   "flex w-full items-center justify-center gap-3 rounded-xl p-1 text-left hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-studio-accent)]",
                   !compact && "sm:justify-start sm:p-1.5",
@@ -290,21 +331,21 @@ function WorkspaceShell() {
               <Input
                 aria-label={
                   onAssets
-                    ? "Search assets"
+                    ? t("Search assets")
                     : onGenjutsu
-                      ? "Search transformations"
+                      ? t("Search transformations")
                       : onSeries
-                        ? "Search series"
-                        : "Search projects"
+                        ? t("Search series")
+                        : t("Search projects")
                 }
                 placeholder={
                   onAssets
-                    ? "Search assets by name or tag…"
+                    ? t("Search assets by name or tag…")
                     : onGenjutsu
-                      ? "Search transformations…"
+                      ? t("Search transformations…")
                       : onSeries
-                        ? "Search series…"
-                        : "Search projects…"
+                        ? t("Search series…")
+                        : t("Search projects…")
                 }
                 className="h-10 rounded-full border-zinc-800 bg-transparent pl-11"
                 value={searchParams.get("q") ?? ""}
@@ -323,18 +364,20 @@ function WorkspaceShell() {
           {canManage && (
             <Link
               to="/billing"
-              aria-label="View workspace billing"
+              aria-label={t("View workspace billing")}
               title={
                 isInternal
-                  ? "Company-funded workspace · $0 payable. Generation prices track standard usage; company budgets still apply."
-                  : "View workspace billing"
+                  ? t(
+                      "Company-funded workspace · $0 payable. Generation prices track standard usage; company budgets still apply.",
+                    )
+                  : t("View workspace billing")
               }
               className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-zinc-800 bg-transparent px-2.5 py-1.5 text-sm text-zinc-200 hover:bg-zinc-800"
             >
               <Coins className="size-3.5 text-zinc-400" aria-hidden />
               <span className="tabular-nums">
                 {isInternal
-                  ? "Company-funded"
+                  ? t("Company-funded")
                   : balance === undefined
                     ? "…"
                     : formatUsd(balance.balance)}
@@ -353,32 +396,40 @@ function WorkspaceShell() {
                 <Bell className="size-4" />
                 {unreadCount > 0 ? (
                   <span
-                    aria-label={`${unreadCount} unread notifications`}
+                    aria-label={t("{0} unread notifications", {
+                      0: unreadCount,
+                    })}
                     className="absolute right-0 top-0 size-2 rounded-full bg-[var(--color-studio-accent)]"
                   />
                 ) : null}
-                <span className="sr-only">Notifications</span>
+                <span className="sr-only">
+                  <I18nText text="Notifications" />
+                </span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
-                <span>Notifications</span>
+                <span>
+                  <I18nText text="Notifications" />
+                </span>
                 {unreadCount > 0 ? (
                   <button
                     type="button"
                     className="text-xs font-normal text-zinc-400 hover:text-zinc-200"
                     onClick={() => void markAllRead()}
                   >
-                    Mark all read
+                    <I18nText text="Mark all read" />
                   </button>
                 ) : null}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {unread === undefined ? (
-                <div className="px-2 py-3 text-sm text-zinc-500">Loading…</div>
+                <div className="px-2 py-3 text-sm text-zinc-500">
+                  <I18nText text="Loading…" />
+                </div>
               ) : unread.length === 0 ? (
                 <div className="px-2 py-3 text-sm text-zinc-500">
-                  No unread notifications
+                  <I18nText text="No unread notifications" />
                 </div>
               ) : (
                 unread.map((n) => (
@@ -407,7 +458,7 @@ function WorkspaceShell() {
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label="Account menu"
+                aria-label={t("Account menu")}
                 className="size-10 rounded-full p-0"
               >
                 {accountAvatar}
@@ -424,11 +475,11 @@ function WorkspaceShell() {
             role="status"
             className="border-b border-amber-800 bg-amber-950 px-4 py-3 text-sm text-amber-100"
           >
-            {subscriptionMessage} Existing work is available to view and
-            download.{" "}
+            {t(subscriptionMessage ?? "")}{" "}
+            <I18nText text="Existing work is available to view and download." />{" "}
             {role === "owner" ? (
               <Link to="/billing" className="underline">
-                Manage billing
+                <I18nText text="Manage billing" />
               </Link>
             ) : (
               "Ask the workspace owner to manage billing."

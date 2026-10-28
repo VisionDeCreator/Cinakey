@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 type MemberRole = "admin" | "creator";
 
 export function TeamSettings() {
+  useLocale();
   const {
     workspaceId: activeWorkspaceId,
     switchWorkspace,
@@ -86,14 +88,17 @@ export function TeamSettings() {
   const manage = selected?.role === "owner" || selected?.role === "admin";
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-zinc-200">Workspace team</h2>
+      <h2 className="text-sm font-semibold text-zinc-200">
+        <I18nText text="Workspace team" />
+      </h2>
       {(invitations ?? []).map((i) => (
         <div
           className="flex items-center justify-between gap-3 rounded border border-zinc-700 p-3"
           key={i._id}
         >
           <span className="text-sm">
-            {i.workspaceName} invited you as {i.role}
+            {i.workspaceName} <I18nText text="invited you as" />{" "}
+            {t(i.role ?? "")}
           </span>
           <Button
             disabled={busy}
@@ -104,15 +109,19 @@ export function TeamSettings() {
               }, "Invitation accepted. Shared productions are available in Projects.")
             }
           >
-            Accept invitation
+            <I18nText text="Accept invitation" />
           </Button>
         </div>
       ))}
       {workspaces === undefined ? (
-        <p className="text-sm text-zinc-500">Loading team…</p>
+        <p className="text-sm text-zinc-500">
+          <I18nText text="Loading team…" />
+        </p>
       ) : selected ? (
         <>
-          <Label htmlFor="team-workspace">Workspace</Label>
+          <Label htmlFor="team-workspace">
+            <I18nText text="Workspace" />
+          </Label>
           <Select
             value={selected.workspace._id}
             disabled={busy}
@@ -126,7 +135,7 @@ export function TeamSettings() {
           >
             <SelectTrigger
               id="team-workspace"
-              aria-label="Workspace"
+              aria-label={t("Workspace")}
               className="w-full max-w-sm rounded-xl bg-transparent"
             >
               <SelectValue />
@@ -134,7 +143,7 @@ export function TeamSettings() {
             <SelectContent className="rounded-2xl bg-[var(--color-studio-panel)]">
               {workspaces.map((w) => (
                 <SelectItem key={w.workspace._id} value={w.workspace._id}>
-                  {w.workspace.name} ({w.role})
+                  {w.workspace.name} ({t(w.role ?? "")})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -162,7 +171,9 @@ export function TeamSettings() {
                 }}
               >
                 <div className="space-y-1">
-                  <Label htmlFor="team-email">Invite by email</Label>
+                  <Label htmlFor="team-email">
+                    <I18nText text="Invite by email" />
+                  </Label>
                   <Input
                     id="team-email"
                     type="email"
@@ -178,23 +189,26 @@ export function TeamSettings() {
                   onValueChange={(value) => setRole(value as MemberRole)}
                 >
                   <SelectTrigger
-                    aria-label="Invitation role"
+                    aria-label={t("Invitation role")}
                     className="w-36 rounded-xl bg-transparent"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="creator">Creator</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="creator">
+                      <I18nText text="Creator" />
+                    </SelectItem>
+                    <SelectItem value="admin">
+                      <I18nText text="Admin" />
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <Button disabled={busy || !email.trim()} type="submit">
-                  Invite
+                  <I18nText text="Invite" />
                 </Button>
               </form>
               <p className="text-xs text-zinc-500">
-                Creators need project or series assignments. Client sharing will
-                use separate video links.
+                <I18nText text="Creators need project or series assignments. Client sharing will use separate video links." />
               </p>
               <WorkspaceMembers
                 key={selected.workspace._id}
@@ -206,24 +220,24 @@ export function TeamSettings() {
             </>
           ) : (
             <p className="text-sm text-zinc-500">
-              Your role is {selected.role}. Ask an Owner or Admin to change your
-              assignments.
+              <I18nText text="Your role is" /> {t(selected.role ?? "")}
+              <I18nText text=". Ask an Owner or Admin to change your assignments." />
             </p>
           )}
         </>
       ) : (
         <p className="text-sm text-zinc-500">
-          Your workspace will appear after you create your first project.
+          <I18nText text="Your workspace will appear after you create your first project." />
         </p>
       )}
       {message && (
         <p role="status" className="text-sm text-emerald-400">
-          {message}
+          {t(message ?? "")}
         </p>
       )}
       {error && (
         <p role="alert" className="text-sm text-red-400">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
     </section>
@@ -241,6 +255,7 @@ function WorkspaceMembers({
   busy: boolean;
   run: (action: () => Promise<unknown>, success?: string) => Promise<void>;
 }) {
+  useLocale();
   const confirm = useContext(ConfirmContext);
   const transfer = useMutation(api.teams.transferOwnership);
   const [nextOwner, setNextOwner] = useState<Id<"users"> | "">("");
@@ -254,9 +269,11 @@ function WorkspaceMembers({
     <div className="space-y-3">
       {owner && (
         <div className="space-y-2 rounded-2xl border border-zinc-800 p-4">
-          <Label htmlFor="next-owner">Transfer ownership</Label>
+          <Label htmlFor="next-owner">
+            <I18nText text="Transfer ownership" />
+          </Label>
           <p className="text-xs text-zinc-500">
-            The new Owner controls this workspace. You will remain an Admin.
+            <I18nText text="The new Owner controls this workspace. You will remain an Admin." />
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Select
@@ -268,13 +285,15 @@ function WorkspaceMembers({
             >
               <SelectTrigger
                 id="next-owner"
-                aria-label="Transfer ownership"
+                aria-label={t("Transfer ownership")}
                 className="w-full max-w-xs rounded-xl bg-transparent"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Choose a member</SelectItem>
+                <SelectItem value="none">
+                  <I18nText text="Choose a member" />
+                </SelectItem>
                 {(members ?? [])
                   .filter((m) => m.role === "creator" || m.role === "admin")
                   .map((m) => (
@@ -290,10 +309,15 @@ function WorkspaceMembers({
               onClick={async () => {
                 if (!nextOwner || !confirm) return;
                 const approved = await confirm({
-                  title: "Transfer workspace ownership?",
-                  description:
-                    "The selected member will become Owner and you will become an Admin. You will no longer be able to transfer ownership or control workspace billing.",
-                  confirmLabel: "Transfer ownership",
+                  get title() {
+                    return t("Transfer workspace ownership?");
+                  },
+                  get description() {
+                    return t(
+                      "The selected member will become Owner and you will become an Admin. You will no longer be able to transfer ownership or control workspace billing.",
+                    );
+                  },
+                  confirmLabel: t("Transfer ownership"),
                 });
                 if (approved)
                   void run(
@@ -302,7 +326,7 @@ function WorkspaceMembers({
                   );
               }}
             >
-              Transfer ownership
+              <I18nText text="Transfer ownership" />
             </Button>
           </div>
         </div>
@@ -318,7 +342,9 @@ function WorkspaceMembers({
               {m.name && <span className="text-zinc-500">({m.email})</span>}
             </span>
             {m.role === "owner" ? (
-              <span className="text-xs text-zinc-500">Owner</span>
+              <span className="text-xs text-zinc-500">
+                <I18nText text="Owner" />
+              </span>
             ) : (
               <div className="flex gap-2">
                 <Select
@@ -335,17 +361,21 @@ function WorkspaceMembers({
                   }
                 >
                   <SelectTrigger
-                    aria-label={`Role for ${m.email}`}
+                    aria-label={t("Role for {0}", { 0: m.email })}
                     className="w-36 rounded-xl bg-transparent"
                   >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="creator">Creator</SelectItem>
+                    <SelectItem value="admin">
+                      <I18nText text="Admin" />
+                    </SelectItem>
+                    <SelectItem value="creator">
+                      <I18nText text="Creator" />
+                    </SelectItem>
                     {m.role === "reviewer" && (
                       <SelectItem value="reviewer" disabled>
-                        Reviewer (reserved)
+                        <I18nText text="Reviewer (reserved)" />
                       </SelectItem>
                     )}
                   </SelectContent>
@@ -359,7 +389,7 @@ function WorkspaceMembers({
                     )
                   }
                 >
-                  Remove
+                  <I18nText text="Remove" />
                 </Button>
               </div>
             )}
@@ -382,14 +412,14 @@ function WorkspaceMembers({
           key={i._id}
         >
           <span>
-            {i.email} · {i.role} ·{" "}
+            {i.email} · {t(i.role ?? "")} ·{" "}
             {i.emailDelivery === "sent"
-              ? "email sent"
+              ? t("email sent")
               : i.emailDelivery === "failed"
-                ? "email delivery failed"
+                ? t("email delivery failed")
                 : i.emailDelivery === "disabled"
-                  ? "email delivery not configured"
-                  : "email queued"}
+                  ? t("email delivery not configured")
+                  : t("email queued")}
           </span>
           <Button
             disabled={busy || i.emailDelivery === "pending"}
@@ -401,14 +431,14 @@ function WorkspaceMembers({
               )
             }
           >
-            Resend email
+            <I18nText text="Resend email" />
           </Button>
           <Button
             disabled={busy}
             variant="outline"
             onClick={() => void run(() => revoke({ invitationId: i._id }))}
           >
-            Revoke
+            <I18nText text="Revoke" />
           </Button>
         </div>
       ))}
@@ -431,6 +461,7 @@ function Assignments({
   busy: boolean;
   run: (action: () => Promise<unknown>, success?: string) => Promise<void>;
 }) {
+  useLocale();
   const assignments = useQuery(api.teams.assignments, { workspaceId, userId });
   const assign = useMutation(api.teams.assign);
   return (
@@ -438,7 +469,9 @@ function Assignments({
       className="space-y-1"
       disabled={busy || assignments === undefined}
     >
-      <legend className="text-xs text-zinc-500">Production access</legend>
+      <legend className="text-xs text-zinc-500">
+        <I18nText text="Production access" />
+      </legend>
       {series.map((s) => (
         <label className="flex items-center gap-2 text-sm" key={s._id}>
           <input
@@ -455,7 +488,8 @@ function Assignments({
               )
             }
           />
-          Series: {s.title} (all episodes)
+          <I18nText text="Series:" /> {s.title}{" "}
+          <I18nText text="(all episodes)" />
         </label>
       ))}
       {projects.length ? (
@@ -479,7 +513,9 @@ function Assignments({
           </label>
         ))
       ) : (
-        <p className="text-xs text-zinc-500">Create a project to assign it.</p>
+        <p className="text-xs text-zinc-500">
+          <I18nText text="Create a project to assign it." />
+        </p>
       )}
     </fieldset>
   );
@@ -496,6 +532,7 @@ function WorkspaceName({
   busy: boolean;
   run: (action: () => Promise<unknown>, success?: string) => Promise<void>;
 }) {
+  useLocale();
   const rename = useMutation(api.teams.rename);
   const [name, setName] = useState("");
   return (
@@ -510,7 +547,9 @@ function WorkspaceName({
       }}
     >
       <div className="space-y-1">
-        <Label htmlFor="workspace-name">Workspace name</Label>
+        <Label htmlFor="workspace-name">
+          <I18nText text="Workspace name" />
+        </Label>
         <Input
           id="workspace-name"
           placeholder={currentName}
@@ -521,7 +560,7 @@ function WorkspaceName({
         />
       </div>
       <Button type="submit" variant="outline" disabled={busy || !name.trim()}>
-        Rename workspace
+        <I18nText text="Rename workspace" />
       </Button>
     </form>
   );

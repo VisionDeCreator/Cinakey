@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,7 @@ type AssetProps = {
   assetType: AssetSheetType;
 };
 export function PromptWorkbench(props: AssetProps) {
+  useLocale();
   const tipAsset = useQuery(api.promptSheets.getTipForEntity, {
     entityId: props.entityId as never,
   });
@@ -133,7 +135,7 @@ export function PromptWorkbench(props: AssetProps) {
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
-            {TYPE_LABEL[props.assetType]}
+            {t(TYPE_LABEL[props.assetType])}
           </span>
           <div className="ml-auto flex items-center gap-1">
             <Button
@@ -144,7 +146,7 @@ export function PromptWorkbench(props: AssetProps) {
               disabled={busy || !(versions ?? []).some((v) => !v.isTip)}
               onClick={() => void onUndo()}
             >
-              Undo
+              <I18nText text="Undo" />
             </Button>
             <div className="relative">
               <Button
@@ -176,9 +178,9 @@ export function PromptWorkbench(props: AssetProps) {
                       }}
                     >
                       v{v.version}
-                      {v.isTip ? " · current" : ""}
+                      {v.isTip ? " " + t("· current") : ""}
                       <span className="mt-0.5 block truncate text-zinc-600">
-                        {v.preview || "(empty)"}
+                        {v.preview || t("(empty)")}
                       </span>
                     </button>
                   ))}
@@ -195,7 +197,7 @@ export function PromptWorkbench(props: AssetProps) {
                   disabled={uploadBusy}
                   onClick={() => uploadRef.current?.click()}
                 >
-                  {uploadBusy ? "…" : "Upload"}
+                  {uploadBusy ? "…" : t("Upload")}
                 </Button>
                 <Button
                   type="button"
@@ -212,7 +214,7 @@ export function PromptWorkbench(props: AssetProps) {
                     );
                   }}
                 >
-                  Clear references
+                  <I18nText text="Clear references" />
                 </Button>
                 <input
                   ref={uploadRef}
@@ -232,13 +234,13 @@ export function PromptWorkbench(props: AssetProps) {
                     className="h-7"
                     onClick={() => setLibraryOpen((o) => !o)}
                   >
-                    Library
+                    <I18nText text="Library" />
                   </Button>
                   {libraryOpen ? (
                     <div className="absolute right-0 z-20 mt-1 max-h-64 w-64 overflow-auto border border-zinc-700 bg-zinc-900 p-2 shadow-lg">
                       {libraryImages.length === 0 ? (
                         <p className="px-1 py-2 text-[11px] text-zinc-500">
-                          No project images yet.
+                          <I18nText text="No project images yet." />
                         </p>
                       ) : (
                         <div className="grid grid-cols-3 gap-1.5">
@@ -263,7 +265,7 @@ export function PromptWorkbench(props: AssetProps) {
         {null}
 
         {error ? (
-          <p className="mb-1 text-[11px] text-red-300">{error}</p>
+          <p className="mb-1 text-[11px] text-red-300">{t(error ?? "")}</p>
         ) : null}
 
         <Textarea
@@ -279,7 +281,7 @@ export function PromptWorkbench(props: AssetProps) {
               );
             }
           }}
-          placeholder={"Add reference notes and a description…"}
+          placeholder={t("Add reference notes and a description…")}
           className="min-h-[20rem] flex-1 resize-y font-mono text-sm leading-relaxed"
         />
 
@@ -287,8 +289,8 @@ export function PromptWorkbench(props: AssetProps) {
           <div className="mt-3 space-y-2">
             <p className="text-xs text-zinc-500">
               {imageResults.length > 0
-                ? "Images — pick a reference"
-                : "Upload an image or pick a reference from Library"}
+                ? t("Images — pick a reference")
+                : t("Upload an image or pick a reference from Library")}
             </p>
             {imageResults.length > 0 ? (
               <div className="grid grid-cols-2 gap-2 pb-3 sm:grid-cols-4">
@@ -328,6 +330,7 @@ function ResultThumb({
   selected?: boolean;
   onSelect: () => void;
 }) {
+  useLocale();
   const url = useQuery(api.storage.getAssetUrl, {
     assetId: assetId as never,
   });
@@ -339,7 +342,7 @@ function ResultThumb({
         onClick={() => url && setPreviewOpen(true)}
         disabled={!url}
         className="aspect-square w-full bg-zinc-950 disabled:cursor-default"
-        title="View larger"
+        title={t("View larger")}
       >
         {url ? (
           <img src={url} alt={name} className="h-full w-full object-cover" />
@@ -351,7 +354,7 @@ function ResultThumb({
           onClick={onSelect}
           className="w-full truncate text-left text-[10px] text-zinc-500 hover:text-zinc-300"
         >
-          {selected ? "Selected reference" : "Use as reference"}
+          {selected ? t("Selected reference") : t("Use as reference")}
         </button>
       </div>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
@@ -378,6 +381,7 @@ function LibraryThumb({
   name: string;
   onSelect: () => void;
 }) {
+  useLocale();
   const url = useQuery(api.storage.getAssetUrl, {
     assetId: assetId as never,
   });

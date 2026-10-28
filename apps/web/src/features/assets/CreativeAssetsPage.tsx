@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { api } from "@cinakey/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useRef, useState, type DragEvent } from "react";
@@ -25,6 +26,7 @@ function imageFilesFromDataTransfer(dt: DataTransfer | null): File[] {
 }
 
 export function CreativeAssetsPage() {
+  useLocale();
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -215,7 +217,7 @@ export function CreativeAssetsPage() {
             )}
             onClick={() => setSearchParams({})}
           >
-            Assets
+            <I18nText text="Assets" />
           </button>
           <button
             type="button"
@@ -227,7 +229,7 @@ export function CreativeAssetsPage() {
             )}
             onClick={() => setSearchParams({ view: "library" })}
           >
-            Library
+            <I18nText text="Library" />
           </button>
         </div>
         {view === "grid" ? (
@@ -237,19 +239,19 @@ export function CreativeAssetsPage() {
             disabled={creating}
             onClick={() => void onNewAsset()}
           >
-            {creating ? "…" : "New reference"}
+            {creating ? "…" : t("New reference")}
           </Button>
         ) : null}
       </div>
 
       {view === "library" ? (
-        <AssetLibrary projectId={projectId} title="Library" />
+        <AssetLibrary projectId={projectId} title={t("Library")} />
       ) : (
         <>
           <div className="flex flex-wrap items-start gap-4 border border-zinc-800 p-3">
             <div>
               <p className="text-[10px] uppercase tracking-wider text-zinc-500">
-                Style reference
+                <I18nText text="Style reference" />
               </p>
               <button
                 type="button"
@@ -260,7 +262,7 @@ export function CreativeAssetsPage() {
                 {styleUrl ? (
                   <img
                     src={styleUrl}
-                    alt="Style reference"
+                    alt={t("Style reference")}
                     className="h-full w-full object-cover"
                   />
                 ) : uploadingStyle ? (
@@ -281,15 +283,17 @@ export function CreativeAssetsPage() {
               />
             </div>
             <p className="max-w-xs pt-4 text-xs text-zinc-500">
-              Applied to every image.
+              <I18nText text="Applied to every image." />
             </p>
           </div>
 
           {dropError ? (
-            <p className="text-[11px] text-red-300">{dropError}</p>
+            <p className="text-[11px] text-red-300">{t(dropError ?? "")}</p>
           ) : null}
           {dropBusy ? (
-            <p className="text-[11px] text-zinc-500">Uploading…</p>
+            <p className="text-[11px] text-zinc-500">
+              <I18nText text="Uploading…" />
+            </p>
           ) : null}
 
           <div
@@ -306,7 +310,7 @@ export function CreativeAssetsPage() {
           >
             {creative.length === 0 ? (
               <p className="px-2 py-8 text-center text-sm text-zinc-500">
-                No assets yet. Drop images here to create them.
+                <I18nText text="No assets yet. Drop images here to create them." />
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -338,8 +342,7 @@ export function CreativeAssetsPage() {
               </div>
             )}
             <p className="mt-2 px-1 text-[10px] text-zinc-600">
-              Drop an image on a card to assign it, or onto empty space to
-              create a new asset.
+              <I18nText text="Drop an image on a card to assign it, or onto empty space to create a new asset." />
             </p>
           </div>
         </>
@@ -369,6 +372,7 @@ function AssetCard({
   onDragLeaveCard?: () => void;
   onDropFiles?: (files: File[]) => void;
 }) {
+  useLocale();
   const url = useQuery(
     api.storage.getAssetUrl,
     thumbId ? { assetId: thumbId as never } : "skip",
@@ -411,7 +415,7 @@ function AssetCard({
           <img src={url} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-zinc-700">
-            {dropActive ? "Drop" : "—"}
+            {dropActive ? t("Drop") : "—"}
           </div>
         )}
       </div>
@@ -420,9 +424,11 @@ function AssetCard({
           {name}
         </p>
         <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500">
-          {kind}
+          {t(kind ?? "")}
           {stale ? (
-            <span className="text-amber-400">· needs update</span>
+            <span className="text-amber-400">
+              <I18nText text="· needs update" />
+            </span>
           ) : null}
         </p>
       </div>

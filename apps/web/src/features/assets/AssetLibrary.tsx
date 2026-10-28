@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,7 @@ export function AssetLibrary({
   /** When true, show project picker if projectId missing (global page). */
   requireProject?: boolean;
 }) {
+  useLocale();
   const { workspaceId, canWrite } = useWorkspace();
   const projects = useQuery(
     api.projects.listMine,
@@ -116,12 +119,12 @@ export function AssetLibrary({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            {requireProject ? "Your assets" : title}
+            {requireProject ? t("Your assets") : title}
           </h1>
           {description || requireProject ? (
             <p className="mt-1 text-sm text-zinc-400">
               {description ??
-                "Your footage, images and audio, together in one place."}
+                t("Your footage, images and audio, together in one place.")}
             </p>
           ) : null}
         </div>
@@ -130,10 +133,12 @@ export function AssetLibrary({
             size="lg"
             disabled={!canUpload}
             onClick={() => fileRef.current?.click()}
-            title={canUpload ? "Upload files" : "Select a project to upload"}
+            title={
+              canUpload ? t("Upload files") : t("Select a project to upload")
+            }
           >
             <Upload className="size-4" />
-            Upload assets
+            <I18nText text="Upload assets" />
           </Button>
           <input
             ref={fileRef}
@@ -150,7 +155,9 @@ export function AssetLibrary({
       </div>
       {!projectId && (
         <div className="flex flex-wrap items-center gap-4">
-          <span className="text-sm text-zinc-300">Project</span>{" "}
+          <span className="text-sm text-zinc-300">
+            <I18nText text="Project" />
+          </span>{" "}
           {!projectId ? (
             <Select
               value={selectedProjectId ?? "all"}
@@ -161,13 +168,15 @@ export function AssetLibrary({
               }}
             >
               <SelectTrigger
-                aria-label="Project"
+                aria-label={t("Project")}
                 className="w-full max-w-sm rounded-full bg-transparent"
               >
-                <SelectValue placeholder="All projects" />
+                <SelectValue placeholder={t("All projects")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All projects</SelectItem>
+                <SelectItem value="all">
+                  <I18nText text="All projects" />
+                </SelectItem>
                 {(projects ?? []).map(({ project }) => (
                   <SelectItem key={project._id} value={project._id}>
                     {project.title}
@@ -177,14 +186,14 @@ export function AssetLibrary({
             </Select>
           ) : null}
           <p className="text-xs text-zinc-400">
-            Uploads are added to the selected project.
+            <I18nText text="Uploads are added to the selected project." />
           </p>
           {effectiveProjectId && (
             <Link
               to={`/projects/${effectiveProjectId}/assets`}
               className="text-xs text-zinc-400 underline hover:text-zinc-100"
             >
-              Open project assets ↗
+              <I18nText text="Open project assets ↗" />
             </Link>
           )}
         </div>
@@ -211,10 +220,10 @@ export function AssetLibrary({
         <Upload className="mx-auto mb-2 size-5 text-zinc-400" />
         <p className="text-sm text-zinc-400">
           {canUpload
-            ? "Drag and drop video, images, or audio here"
+            ? t("Drag and drop video, images, or audio here")
             : requireProject
-              ? "Select a project above to upload"
-              : "Select a project to upload, or browse all assets below"}
+              ? t("Select a project above to upload")
+              : t("Select a project to upload, or browse all assets below")}
         </p>
         {canUpload && (
           <button
@@ -222,7 +231,7 @@ export function AssetLibrary({
             className="mt-1 text-xs text-[var(--color-studio-accent)]"
             onClick={() => fileRef.current?.click()}
           >
-            or browse files
+            <I18nText text="or browse files" />
           </button>
         )}
       </div>
@@ -237,7 +246,7 @@ export function AssetLibrary({
                   {u.status === "error"
                     ? u.error
                     : u.status === "done"
-                      ? "Done"
+                      ? t("Done")
                       : `${u.progress}%`}
                 </span>
               </div>
@@ -250,7 +259,10 @@ export function AssetLibrary({
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800">
-        <div className="flex flex-wrap gap-5" aria-label="Asset categories">
+        <div
+          className="flex flex-wrap gap-5"
+          aria-label={t("Asset categories")}
+        >
           {["all", ...TYPES].map((value) => (
             <button
               key={value}
@@ -265,12 +277,12 @@ export function AssetLibrary({
               )}
             >
               {value === "all"
-                ? "All assets"
+                ? t("All assets")
                 : value === "image"
-                  ? "Images"
+                  ? t("Images")
                   : value === "logo"
-                    ? "Logos"
-                    : value}
+                    ? t("Logos")
+                    : t(value)}
             </button>
           ))}
         </div>
@@ -286,7 +298,7 @@ export function AssetLibrary({
             )}
           >
             <Star className={starredOnly ? "fill-current" : undefined} />
-            Favourites
+            <I18nText text="Favourites" />
           </Button>
           <div className="flex rounded-xl border border-zinc-800 p-0.5">
             {(["grid", "list"] as const).map((mode) => (
@@ -294,7 +306,7 @@ export function AssetLibrary({
                 key={mode}
                 variant="ghost"
                 size="icon"
-                aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                aria-label={mode === "grid" ? t("Grid view") : t("List view")}
                 aria-pressed={view === mode}
                 onClick={() => setView(mode)}
                 className={cn(
@@ -312,8 +324,8 @@ export function AssetLibrary({
       <div className="flex flex-wrap gap-3">
         {!requireProject && (
           <Input
-            aria-label="Search assets"
-            placeholder="Search name or tags…"
+            aria-label={t("Search assets")}
+            placeholder={t("Search name or tags…")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs rounded-full bg-transparent"
@@ -321,13 +333,15 @@ export function AssetLibrary({
         )}
         <Select value={tag} onValueChange={setTag}>
           <SelectTrigger
-            aria-label="Filter by tag"
+            aria-label={t("Filter by tag")}
             className="w-48 rounded-full bg-transparent"
           >
-            <SelectValue placeholder="Tag" />
+            <SelectValue placeholder={t("Tag")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All tags</SelectItem>
+            <SelectItem value="all">
+              <I18nText text="All tags" />
+            </SelectItem>
             {(filterOpts?.tags ?? []).map((t) => (
               <SelectItem key={t} value={t}>
                 {t}
@@ -337,13 +351,15 @@ export function AssetLibrary({
         </Select>
         <Select value={characterId} onValueChange={setCharacterId}>
           <SelectTrigger
-            aria-label="Filter by character"
+            aria-label={t("Filter by character")}
             className="w-52 rounded-full bg-transparent"
           >
-            <SelectValue placeholder="Character" />
+            <SelectValue placeholder={t("Character")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All characters</SelectItem>
+            <SelectItem value="all">
+              <I18nText text="All characters" />
+            </SelectItem>
             {(filterOpts?.characters ?? []).map((c) => (
               <SelectItem key={c._id} value={c._id}>
                 {c.name}
@@ -355,11 +371,13 @@ export function AssetLibrary({
 
       {error && (
         <p role="alert" className="text-sm text-red-400">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {assets === undefined ? (
-        <p className="text-sm text-zinc-500">Loading assets…</p>
+        <p className="text-sm text-zinc-500">
+          <I18nText text="Loading assets…" />
+        </p>
       ) : assets.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-12 text-center">
           <p className="text-sm text-zinc-500">
@@ -368,13 +386,13 @@ export function AssetLibrary({
             tag !== "all" ||
             characterId !== "all" ||
             starredOnly
-              ? "No matching assets."
-              : "No assets yet."}
+              ? t("No matching assets.")
+              : t("No assets yet.")}
           </p>
           {effectiveProjectId ? (
             <Button asChild variant="secondary" size="sm" className="mt-4">
               <Link to={`/projects/${effectiveProjectId}/assets`}>
-                Back to project
+                <I18nText text="Back to project" />
               </Link>
             </Button>
           ) : null}
@@ -429,14 +447,15 @@ export function AssetLibrary({
                   {asset.name}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {asset.type} · {new Date(asset.updatedAt).toLocaleString()}
+                  {t(asset.type ?? "")} ·{" "}
+                  {new Date(asset.updatedAt).toLocaleString(getLocale())}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 {asset.starred ? (
                   <Star className="size-4 fill-[var(--color-studio-accent)] text-[var(--color-studio-accent)]" />
                 ) : null}
-                <Badge variant="outline">{asset.type}</Badge>
+                <Badge variant="outline">{t(asset.type ?? "")}</Badge>
               </div>
             </li>
           ))}
@@ -445,7 +464,7 @@ export function AssetLibrary({
 
       {assets && (
         <p className="text-xs text-zinc-400">
-          {assets.length} {assets.length === 1 ? "asset" : "assets"}
+          {assets.length} {assets.length === 1 ? t("asset") : t("assets")}
         </p>
       )}
       <AssetDetailDrawer
@@ -474,6 +493,7 @@ function AssetGridItem({
   onOpen: () => void;
   onToggleStar: () => void;
 }) {
+  useLocale();
   const url = useQuery(api.storage.getAssetUrl, { assetId });
   const showThumb = type === "image" || type === "logo" || type === "video";
 
@@ -482,7 +502,7 @@ function AssetGridItem({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Preview ${name}`}
+        aria-label={t("Preview {0}", { 0: name })}
         className="block w-full text-left"
       >
         <div className="aspect-video bg-zinc-950">
@@ -510,7 +530,7 @@ function AssetGridItem({
           <p className="truncate text-sm text-zinc-100">{name}</p>
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="outline" className="rounded-full capitalize">
-              {type}
+              {t(type ?? "")}
             </Badge>
             {tags?.slice(0, 2).map((tag) => (
               <Badge key={tag} variant="muted" className="rounded-full">
@@ -522,7 +542,11 @@ function AssetGridItem({
       </button>
       <button
         type="button"
-        aria-label={`${starred ? "Remove" : "Add"} ${name} ${starred ? "from" : "to"} favourites`}
+        aria-label={
+          starred
+            ? t("Remove {0} from favourites", { 0: name })
+            : t("Add {0} to favourites", { 0: name })
+        }
         aria-pressed={starred}
         className="absolute bottom-4 right-12 p-1 text-zinc-400 hover:text-[var(--color-studio-accent)]"
         onClick={(e) => {
@@ -543,7 +567,7 @@ function AssetGridItem({
           <Button
             variant="ghost"
             size="icon"
-            aria-label={`Actions for ${name}`}
+            aria-label={t("Actions for {0}", { 0: name })}
             className="absolute bottom-3 right-3 size-8"
           >
             <MoreHorizontal />
@@ -551,10 +575,10 @@ function AssetGridItem({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={onOpen}>
-            View asset details
+            <I18nText text="View asset details" />
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onToggleStar}>
-            {starred ? "Remove from favourites" : "Add to favourites"}
+            {starred ? t("Remove from favourites") : t("Add to favourites")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

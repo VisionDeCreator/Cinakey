@@ -1,4 +1,6 @@
-import { formatUsd, parseUsdToMicros, usdInputValue } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { parseUsdToMicros, usdInputValue } from "@cinakey/shared";
 import { useState } from "react";
 import { api } from "@cinakey/backend";
 import type { Id } from "@cinakey/backend";
@@ -25,6 +27,7 @@ function BudgetRow({
   usage: Usage;
   onSave: (cap: number | null) => Promise<unknown>;
 }) {
+  useLocale();
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -66,22 +69,25 @@ function BudgetRow({
     >
       <p className="text-sm font-medium">{title}</p>
       <p className="text-xs text-zinc-400">
-        Spent: {formatUsd(usage.spentUsdMicros)} · Reserved:{" "}
-        {formatUsd(usage.reservedUsdMicros)} · Remaining:{" "}
-        {usage.remaining === null ? "No cap" : formatUsd(usage.remaining)}
+        <I18nText text="Spent:" /> {formatUsd(usage.spentUsdMicros)}{" "}
+        <I18nText text="· Reserved:" /> {formatUsd(usage.reservedUsdMicros)}{" "}
+        <I18nText text="· Remaining:" />{" "}
+        {usage.remaining === null ? t("No cap") : formatUsd(usage.remaining)}
       </p>
       {usage.standardPriceUsdMicros !== undefined && (
         <p className="text-xs text-zinc-400">
-          Recorded provider cost: {formatUsd(usage.providerCostUsdMicros ?? 0)}{" "}
-          · Standard price: {formatUsd(usage.standardPriceUsdMicros)} · Payable:
-          $0
+          <I18nText text="Recorded provider cost:" />{" "}
+          {formatUsd(usage.providerCostUsdMicros ?? 0)}{" "}
+          <I18nText text="· Standard price:" />{" "}
+          {formatUsd(usage.standardPriceUsdMicros)}{" "}
+          <I18nText text="· Payable: $0" />
         </p>
       )}
       <div className="flex gap-2">
         <Input
-          aria-label={`${title} USD cap`}
+          aria-label={t("{0} USD cap", { 0: title })}
           inputMode="decimal"
-          placeholder="No cap"
+          placeholder={t("No cap")}
           value={value}
           onChange={(e) => {
             setDraft(e.target.value);
@@ -89,17 +95,17 @@ function BudgetRow({
           }}
         />
         <Button type="submit" disabled={busy}>
-          Save cap
+          <I18nText text="Save cap" />
         </Button>
       </div>
       {error && (
         <p role="alert" className="text-xs text-red-400">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {saved && (
         <p role="status" className="text-xs text-emerald-400">
-          Budget saved.
+          <I18nText text="Budget saved." />
         </p>
       )}
     </form>
@@ -110,6 +116,7 @@ export function BudgetSettings({
   projectId,
   seriesId,
 }: { projectId?: string; seriesId?: string } = {}) {
+  useLocale();
   const { workspaceId, canManage } = useWorkspace();
   const report = useQuery(
     api.billing.budgets,
@@ -118,7 +125,11 @@ export function BudgetSettings({
   const save = useMutation(api.billing.setBudget);
   if (!workspaceId || !canManage) return null;
   if (!report?.workspace)
-    return <p className="text-sm text-zinc-500">Loading spending…</p>;
+    return (
+      <p className="text-sm text-zinc-500">
+        <I18nText text="Loading spending…" />
+      </p>
+    );
   const update = (
     cap: number | null,
     scope: { seriesId?: Id<"series">; projectId?: Id<"projects"> } = {},
@@ -126,38 +137,38 @@ export function BudgetSettings({
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold text-zinc-200">
-        Spending and budgets
+        <I18nText text="Spending and budgets" />
       </h2>
       <p className="text-xs text-zinc-500">
-        Caps are in USD. Reserved usage counts toward caps. Workspace caps reset
-        monthly in UTC; series and episode caps cover their lifetime. Blank
-        means no cap; zero blocks new spending. Lowering a cap leaves running
-        jobs in place.
+        <I18nText text="Caps are in USD. Reserved usage counts toward caps. Workspace caps reset monthly in UTC; series and episode caps cover their lifetime. Blank means no cap; zero blocks new spending. Lowering a cap leaves running jobs in place." />
       </p>
       {report.billingMode === "internal" && (
         <div className="space-y-1 text-sm text-zinc-400">
-          <p>Company-funded · Amount payable: $0</p>
           <p>
-            This month’s recorded provider cost:{" "}
-            {formatUsd(report.workspace.providerCostUsdMicros ?? 0)} · Standard
-            price: {formatUsd(report.workspace.standardPriceUsdMicros ?? 0)}
+            <I18nText text="Company-funded · Amount payable: $0" />
           </p>
           <p>
-            Budgets count provider costs after settlement and reserve the
-            standard maximum while jobs run. Usage without a provider receipt
-            keeps its standard price as a conservative budget estimate.
+            <I18nText text="This month’s recorded provider cost:" />{" "}
+            {formatUsd(report.workspace.providerCostUsdMicros ?? 0)}{" "}
+            <I18nText text="· Standard price:" />{" "}
+            {formatUsd(report.workspace.standardPriceUsdMicros ?? 0)}
+          </p>
+          <p>
+            <I18nText text="Budgets count provider costs after settlement and reserve the standard maximum while jobs run. Usage without a provider receipt keeps its standard price as a conservative budget estimate." />
           </p>
         </div>
       )}
       {report.account && report.billingMode !== "internal" && (
         <p className="text-xs text-zinc-400">
-          Available: {formatUsd(report.account.available)} · All-time reserved:{" "}
-          {formatUsd(report.account.reserved)} · All-time spent:{" "}
+          <I18nText text="Available:" /> {formatUsd(report.account.available)}{" "}
+          <I18nText text="· All-time reserved:" />{" "}
+          {formatUsd(report.account.reserved)}{" "}
+          <I18nText text="· All-time spent:" />{" "}
           {formatUsd(report.account.spent)}
         </p>
       )}
       <BudgetRow
-        title={`Workspace · ${report.month} UTC`}
+        title={t("Workspace · {0} UTC", { 0: report.month })}
         usage={report.workspace}
         onSave={(cap) => update(cap)}
       />
@@ -166,7 +177,7 @@ export function BudgetSettings({
         .map((row) => (
           <BudgetRow
             key={row.id}
-            title={`Series · ${row.title}`}
+            title={t("Series · {0}", { 0: row.title })}
             usage={row}
             onSave={(cap) => update(cap, { seriesId: row.id })}
           />

@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import "./editor.css";
 import { uploadMedia } from "../../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
@@ -81,6 +82,7 @@ function Segmented<T extends string>({
   options: Array<{ value: T; label: string; icon: ReactNode }>;
   onChange: (v: T) => void;
 }) {
+  useLocale();
   return (
     <div className="flex border border-zinc-800">
       {options.map((o) => (
@@ -113,6 +115,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function BlockoutEditorPage() {
+  useLocale();
   const { canWrite } = useWorkspace();
   const writeAllowed = useRef(canWrite !== false);
   useLayoutEffect(() => {
@@ -456,7 +459,7 @@ export function BlockoutEditorPage() {
     setSelectedKey({ kind: "cam", id: key.id });
     runtimeRef.current?.setCameraDirty(false);
     runtimeRef.current?.setDocument(next);
-    setStatus(`Camera keyed at frame ${frame}`);
+    setStatus(t("Camera keyed at frame {0}", { 0: frame }));
   };
 
   const addObject = (
@@ -558,7 +561,7 @@ export function BlockoutEditorPage() {
         loadedFile.current = saved.fileId;
         setDirty(false);
       }
-      setStatus(`Rendered ${guides.length} guide pairs`);
+      setStatus(t("Rendered {0} guide pairs", { 0: guides.length }));
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Guides failed");
     } finally {
@@ -775,19 +778,24 @@ export function BlockoutEditorPage() {
 
   if (!projectId) return null;
   if (loadError) {
-    return <div className="p-4 text-sm text-rose-300">{loadError}</div>;
+    return (
+      <div className="p-4 text-sm text-rose-300">{t(loadError ?? "")}</div>
+    );
   }
   if (!doc) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-zinc-500">
-        Loading editor…
+        <I18nText text="Loading editor…" />
       </div>
     );
   }
 
   const selectedObject = doc.objects.find((o) => o.id === selectedId) ?? null;
   const shotTitle = cut
-    ? `Camera cut ${cut.n}${cut.shotType ? ` · ${cut.shotType.toUpperCase()}` : ""}`
+    ? t("Camera cut {0}{1}", {
+        0: cut.n,
+        1: cut.shotType ? ` · ${cut.shotType.toUpperCase()}` : "",
+      })
     : doc.name;
 
   return (
@@ -799,14 +807,16 @@ export function BlockoutEditorPage() {
             to={`/projects/${projectId}/studio${stagingId ? `?staging=${stagingId}` : ""}`}
           >
             <ArrowLeft className="size-3.5" />
-            Back to Studio
+            <I18nText text="Back to Studio" />
           </Link>
         </Button>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-zinc-100">
-            3D staging editor
+            <I18nText text="3D staging editor" />
           </p>
-          <p className="text-xs text-zinc-400">{shotTitle} · {dirty ? "Unsaved changes" : "Saved staging"}</p>
+          <p className="text-xs text-zinc-400">
+            {shotTitle} · {dirty ? t("Unsaved changes") : t("Saved staging")}
+          </p>
           {location ? (
             <p className="truncate text-[11px] text-zinc-500">{location}</p>
           ) : null}
@@ -818,22 +828,40 @@ export function BlockoutEditorPage() {
             variant={playing ? "default" : "outline"}
             className="h-8 min-w-[4.5rem]"
             onClick={() => setPlaying((p) => !p)}
-            title="Play / pause (Space)"
+            title={t("Play / pause (Space)")}
           >
             {playing ? (
               <Pause className="size-3.5" />
             ) : (
               <Play className="size-3.5" />
             )}
-            {playing ? "Pause" : "Play"}
+            {playing ? t("Pause") : t("Play")}
           </Button>
           <Segmented
             value={maximize}
             onChange={setMaximize}
             options={[
-              { value: "split", label: "Split", icon: <Maximize2 /> },
-              { value: "shot", label: "Camera view", icon: <Camera /> },
-              { value: "director", label: "Director", icon: <Orbit /> },
+              {
+                value: "split",
+                get label() {
+                  return t("Split");
+                },
+                icon: <Maximize2 />,
+              },
+              {
+                value: "shot",
+                get label() {
+                  return t("Camera view");
+                },
+                icon: <Camera />,
+              },
+              {
+                value: "director",
+                get label() {
+                  return t("Director");
+                },
+                icon: <Orbit />,
+              },
             ]}
           />
           <fieldset disabled={canWrite === false} className="contents">
@@ -841,9 +869,27 @@ export function BlockoutEditorPage() {
               value={gizmoMode}
               onChange={setGizmoMode}
               options={[
-                { value: "translate", label: "Move", icon: <Move3d /> },
-                { value: "rotate", label: "Rotate", icon: <Rotate3d /> },
-                { value: "scale", label: "Scale", icon: <Scale3d /> },
+                {
+                  value: "translate",
+                  get label() {
+                    return t("Move");
+                  },
+                  icon: <Move3d />,
+                },
+                {
+                  value: "rotate",
+                  get label() {
+                    return t("Rotate");
+                  },
+                  icon: <Rotate3d />,
+                },
+                {
+                  value: "scale",
+                  get label() {
+                    return t("Scale");
+                  },
+                  icon: <Scale3d />,
+                },
               ]}
             />
           </fieldset>
@@ -856,7 +902,7 @@ export function BlockoutEditorPage() {
             onClick={() => void onRenderGuides()}
           >
             <ImageIcon className="size-3.5" />
-            Render guides
+            <I18nText text="Render guides" />
           </Button>
           <Button
             type="button"
@@ -869,7 +915,7 @@ export function BlockoutEditorPage() {
             }}
           >
             <Upload className="size-3.5" />
-            Import
+            <I18nText text="Import" />
           </Button>
           <Button
             type="button"
@@ -879,7 +925,7 @@ export function BlockoutEditorPage() {
             onClick={onExportJson}
           >
             <Download className="size-3.5" />
-            Export
+            <I18nText text="Export" />
           </Button>
           <Button
             type="button"
@@ -889,7 +935,7 @@ export function BlockoutEditorPage() {
             onClick={() => void onSave()}
           >
             <Save className="size-3.5" />
-            Save staging
+            <I18nText text="Save staging" />
             {dirty ? (
               <span className="ml-1 size-1.5 rounded-full bg-amber-400" />
             ) : null}
@@ -949,7 +995,7 @@ export function BlockoutEditorPage() {
                 />
               </div>
               <span className="absolute left-2 top-2 text-[10px] uppercase tracking-wide text-zinc-500">
-                Camera
+                <I18nText text="Camera" />
               </span>
             </div>
             <div
@@ -961,7 +1007,7 @@ export function BlockoutEditorPage() {
             >
               <canvas ref={dirCanvasRef} className="block h-full w-full" />
               <span className="absolute left-2 top-2 text-[10px] uppercase tracking-wide text-zinc-500">
-                Director
+                <I18nText text="Director" />
               </span>
               <div className="absolute right-2 top-2 flex gap-1">
                 <button
@@ -974,7 +1020,7 @@ export function BlockoutEditorPage() {
                   )}
                   onClick={() => setPassMode("clay")}
                 >
-                  Clay
+                  <I18nText text="Clay" />
                 </button>
                 <button
                   type="button"
@@ -986,7 +1032,7 @@ export function BlockoutEditorPage() {
                   )}
                   onClick={() => setPassMode("depth")}
                 >
-                  Depth
+                  <I18nText text="Depth" />
                 </button>
               </div>
             </div>
@@ -1007,8 +1053,7 @@ export function BlockoutEditorPage() {
           />
 
           <p className="shrink-0 border-t border-zinc-800 px-3 py-1 text-[11px] text-zinc-500">
-            Click an object to select it. W / E / R move, rotate, scale. Space
-            plays, K sets a key.
+            <I18nText text="Click an object to select it. W / E / R move, rotate, scale. Space plays, K sets a key." />
             {status ? ` · ${status}` : ""}
           </p>
         </div>
@@ -1156,14 +1201,16 @@ export function BlockoutEditorPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="flex max-h-[80vh] w-full max-w-2xl flex-col border border-zinc-700 bg-zinc-900">
             <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-              <p className="text-xs text-zinc-300">Import blockout JSON</p>
+              <p className="text-xs text-zinc-300">
+                <I18nText text="Import blockout JSON" />
+              </p>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 onClick={() => setImportOpen(false)}
               >
-                Close
+                <I18nText text="Close" />
               </Button>
             </div>
             <textarea
@@ -1189,10 +1236,10 @@ export function BlockoutEditorPage() {
                   input.click();
                 }}
               >
-                Open file…
+                <I18nText text="Open file…" />
               </Button>
               <Button type="button" size="sm" onClick={onImportApply}>
-                Apply
+                <I18nText text="Apply" />
               </Button>
             </div>
           </div>

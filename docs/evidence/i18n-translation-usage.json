@@ -1,0 +1,2328 @@
+{
+  "provider": "DeepSeek",
+  "model": "deepseek-flash",
+  "budgetUsd": 0.95,
+  "peakRatesPerMillion": {
+    "input": 0.3,
+    "output": 1.2
+  },
+  "requests": [
+    {
+      "sourceSha256": "369eb86782e0a4f14a218499822b834c4caa5443be67e4b3c214f9f1bcab55d3",
+      "strings": 30,
+      "reservedUsd": 0.0109299,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 488,
+        "completion_tokens": 1717,
+        "total_tokens": 2205,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 488
+      },
+      "upperCostUsd": 0.0022068
+    },
+    {
+      "sourceSha256": "4639061178fe57a0e8c6259e7127d09cceee6fcdc7d13be599801675d9e9b73e",
+      "strings": 30,
+      "reservedUsd": 0.0108408,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 419,
+        "completion_tokens": 1131,
+        "total_tokens": 1550,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 419
+      },
+      "upperCostUsd": 0.0014829
+    },
+    {
+      "sourceSha256": "2273bf21af611d6d5bc9eaa96e5970c003b2db3d65fd742ac467b30519a776dc",
+      "strings": 30,
+      "reservedUsd": 0.010856099999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 424,
+        "completion_tokens": 1137,
+        "total_tokens": 1561,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 424
+      },
+      "upperCostUsd": 0.0014915999999999998
+    },
+    {
+      "sourceSha256": "5b138648ca51f6d15a0bb16aff1fc7e2035ad8b41ba18680afe104e69033aeec",
+      "strings": 30,
+      "reservedUsd": 0.010812299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 402,
+        "completion_tokens": 1025,
+        "total_tokens": 1427,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 402
+      },
+      "upperCostUsd": 0.0013506
+    },
+    {
+      "sourceSha256": "e16409579c4f078b5706ac764a61a9751495e63e398ebbbd1b51010383826b06",
+      "strings": 30,
+      "reservedUsd": 0.0109473,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 480,
+        "completion_tokens": 1715,
+        "total_tokens": 2195,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 480
+      },
+      "upperCostUsd": 0.002202
+    },
+    {
+      "sourceSha256": "11ece54d2b600b25a80cc45fae78f39d1fb95a506ed61b75aeeb03937ea7ee87",
+      "strings": 30,
+      "reservedUsd": 0.010945199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 477,
+        "completion_tokens": 1615,
+        "total_tokens": 2092,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 477
+      },
+      "upperCostUsd": 0.0020811
+    },
+    {
+      "sourceSha256": "a119c03d5f6b28c75e216dfa1d16a0c9d686804f13672aa097621044dc92fbf5",
+      "strings": 30,
+      "reservedUsd": 0.010944299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 466,
+        "completion_tokens": 1658,
+        "total_tokens": 2124,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 466
+      },
+      "upperCostUsd": 0.0021294
+    },
+    {
+      "sourceSha256": "1d6ba1b6adfdd315d751a72d299b93516efc91d4b7c4de0f820f9812c4f19676",
+      "strings": 30,
+      "reservedUsd": 0.010846499999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 406,
+        "completion_tokens": 1136,
+        "total_tokens": 1542,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 406
+      },
+      "upperCostUsd": 0.001485
+    },
+    {
+      "sourceSha256": "e96b1595229c17b178cf8dff5c910b50f300709ff4a56369b2216049b4060eda",
+      "strings": 30,
+      "reservedUsd": 0.0108423,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 435,
+        "completion_tokens": 1286,
+        "total_tokens": 1721,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 435
+      },
+      "upperCostUsd": 0.0016737
+    },
+    {
+      "sourceSha256": "e7412932e235ac47f2472dca96590561483e00e2b8e62618452a4f0ebd5523f2",
+      "strings": 30,
+      "reservedUsd": 0.0108522,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 434,
+        "completion_tokens": 1278,
+        "total_tokens": 1712,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 434
+      },
+      "upperCostUsd": 0.0016638
+    },
+    {
+      "sourceSha256": "78aa3d3bf65cdd3d703771cda929d10ce450f1609a85a753cf97ae27e0dbc337",
+      "strings": 30,
+      "reservedUsd": 0.010864799999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 427,
+        "completion_tokens": 1276,
+        "total_tokens": 1703,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 427
+      },
+      "upperCostUsd": 0.0016593
+    },
+    {
+      "sourceSha256": "e88bef734721caedec35b93a197bce6d280be6f1b9498d45f15e69d921cdbdf4",
+      "strings": 30,
+      "reservedUsd": 0.010867199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 433,
+        "completion_tokens": 1142,
+        "total_tokens": 1575,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 433
+      },
+      "upperCostUsd": 0.0015003
+    },
+    {
+      "sourceSha256": "b4a9fa07b41f539c2040bc0c684c48d79bd8a5c9e2737166c2cc23bf5471f33b",
+      "strings": 30,
+      "reservedUsd": 0.0109293,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 474,
+        "completion_tokens": 1651,
+        "total_tokens": 2125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 474
+      },
+      "upperCostUsd": 0.0021233999999999997
+    },
+    {
+      "sourceSha256": "f1b46f2fb4d5d01322265825f7a8becd9402462567cbdf7f19ed853793ac552d",
+      "strings": 30,
+      "reservedUsd": 0.010845299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 415,
+        "completion_tokens": 1246,
+        "total_tokens": 1661,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 415
+      },
+      "upperCostUsd": 0.0016197
+    },
+    {
+      "sourceSha256": "f1d80f2d6a8468bf7fc23b439d1699dbcb88b3e05104dcfea6654dd7432ad31f",
+      "strings": 30,
+      "reservedUsd": 0.0108645,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 421,
+        "completion_tokens": 1216,
+        "total_tokens": 1637,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 421
+      },
+      "upperCostUsd": 0.0015855
+    },
+    {
+      "sourceSha256": "916e675ba756c8444294587493fe0edd4ffc611bf9f76028834d342509dbaa88",
+      "strings": 30,
+      "reservedUsd": 0.010879499999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 442,
+        "completion_tokens": 1418,
+        "total_tokens": 1860,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 442
+      },
+      "upperCostUsd": 0.0018341999999999998
+    },
+    {
+      "sourceSha256": "38eb369588cd0655184c23093fd9812fa08bf7461ce2d6e1cdc1cc1f9ddd7f87",
+      "strings": 30,
+      "reservedUsd": 0.0109185,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 456,
+        "completion_tokens": 1646,
+        "total_tokens": 2102,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 456
+      },
+      "upperCostUsd": 0.002112
+    },
+    {
+      "sourceSha256": "ac302f1ee66c56a418167459f536c8c40ae15e8e24a882d0599fcdd40194e6a5",
+      "strings": 30,
+      "reservedUsd": 0.0108942,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 445,
+        "completion_tokens": 1502,
+        "total_tokens": 1947,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 445
+      },
+      "upperCostUsd": 0.0019359
+    },
+    {
+      "sourceSha256": "e9a914fd3a34f615afba38fd4657085083a570521698fa7924b789180bf50b02",
+      "strings": 30,
+      "reservedUsd": 0.010911899999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 468,
+        "completion_tokens": 1551,
+        "total_tokens": 2019,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 468
+      },
+      "upperCostUsd": 0.0020016
+    },
+    {
+      "sourceSha256": "ad4bb0a7025aa8f674880a195dfce5ae847d09778679f15dad48db0b8cd24757",
+      "strings": 30,
+      "reservedUsd": 0.0109263,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 469,
+        "completion_tokens": 1566,
+        "total_tokens": 2035,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 469
+      },
+      "upperCostUsd": 0.0020199
+    },
+    {
+      "sourceSha256": "6fcef22727501f6a7852be632d9101192fce25335e2d08856cfc8783dbd90fdb",
+      "strings": 30,
+      "reservedUsd": 0.010851,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 414,
+        "completion_tokens": 1134,
+        "total_tokens": 1548,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 414
+      },
+      "upperCostUsd": 0.001485
+    },
+    {
+      "sourceSha256": "d93e91f255f9c9becd6ad3552acbba1ed6f16313dd36cf99b31b28f18f3b0c92",
+      "strings": 30,
+      "reservedUsd": 0.01086,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 428,
+        "completion_tokens": 1179,
+        "total_tokens": 1607,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 428
+      },
+      "upperCostUsd": 0.0015432
+    },
+    {
+      "sourceSha256": "89f09fffdbccfd7ff3370419a87cca99492f56e2e06b1c689b263e67874ae753",
+      "strings": 30,
+      "reservedUsd": 0.010824899999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 414,
+        "completion_tokens": 1177,
+        "total_tokens": 1591,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 414
+      },
+      "upperCostUsd": 0.0015366
+    },
+    {
+      "sourceSha256": "8aa55ba3dbe2ed3b9c2f98300a8247e4eebe538d66284edb0abfc699d9454f22",
+      "strings": 30,
+      "reservedUsd": 0.010875,
+      "state": "received",
+      "usage": {
+        "prompt_tokens": 443,
+        "completion_tokens": 1311,
+        "total_tokens": 1754,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 443
+      },
+      "upperCostUsd": 0.0017061
+    },
+    {
+      "sourceSha256": "148ce58b6daa2b9407826093c16cf945cdf72fa89fb7dd6631c2eab812028ed8",
+      "strings": 30,
+      "reservedUsd": 0.010809599999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 399,
+        "completion_tokens": 1028,
+        "total_tokens": 1427,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 399
+      },
+      "upperCostUsd": 0.0013533
+    },
+    {
+      "sourceSha256": "76659f74b0fe94dac281a10a0e3e41fca8773f0fc39939243f8df93e92a14419",
+      "strings": 30,
+      "reservedUsd": 0.0108708,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 431,
+        "completion_tokens": 1222,
+        "total_tokens": 1653,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 431
+      },
+      "upperCostUsd": 0.0015956999999999998
+    },
+    {
+      "sourceSha256": "ce0e8ed409fff3c1e4a63850f98d2ba30b494bce0c1d81ab0a2e6d6dcf9a8d66",
+      "strings": 30,
+      "reservedUsd": 0.0108423,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 418,
+        "completion_tokens": 1200,
+        "total_tokens": 1618,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 418
+      },
+      "upperCostUsd": 0.0015654
+    },
+    {
+      "sourceSha256": "4d30de5439d7c5d82f9b4f1b59d79acf230dbcf262b1289a0c9c6f8ca0aacbae",
+      "strings": 15,
+      "reservedUsd": 0.0107979,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 381,
+        "completion_tokens": 996,
+        "total_tokens": 1377,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 381
+      },
+      "upperCostUsd": 0.0013095,
+      "translatedKeyHashes": [
+        "bb9337a35f28599c6a14b4731b21dcb73a92d448f6d01d5bd22f66d833094f65",
+        "b1cd9bc20c625cad44f1290d07ebc962c913e518b5684df78621bc4b1d0eb032",
+        "835d6dc88b708bc646d6db82c853ef4182fabbd4a8de59c213f2b5ab3ae7d9be",
+        "64cff1319d2fd2cbb7a1e84ccecf22c1cc07b24435cdb522f8c0aa525d6002a6",
+        "449995c4fe8fab389053dac72d77798c094dd4a3b7b3cfe69c4d78d119308dce",
+        "fe2def309a42d60ac82083b245f99e742372eb013717ca1756d96f48ca032fd1",
+        "b9ec54586dacc0d57ba45c457fbcd1da6757176f8bc498caf7b46e1ce8abb712",
+        "c1c224b03cd9bc7b6a86d77f5dace40191766c485cd55dc48caf9ac873335d6f",
+        "4b42c6690ebeb867e96784025c16e1b109cf5b688cadce26dd9355a22cc3ad7d",
+        "fc2f5a4752973d7222a35a8558af6b6fee0bbd456defbd4f4c1b721c7d2a04b4",
+        "ebfc1194e6e9de76d74be8c318e269b2071da822de95cba455680ecda3734d18",
+        "e7f5a287f67a3184eac3cfaf14ca9242abcfd43ea5bc3d27c6aec946ff42df44",
+        "af6ea298e1875b2ab825bcd62aaec5e34561260c04e103427aab7645e7947726",
+        "0c93d82293d2068956df57955391b8e825e812e00f47fee18f950437e12939b7",
+        "bc1b88907d3b748af99cb9d4ffc07a0118dad5dab21a9dbdcc5a17a09641364a"
+      ]
+    },
+    {
+      "sourceSha256": "a22dd8d37761fd9d098d61a58d7b12d05a0e45241e9edd293e2c5654a4444e33",
+      "strings": 15,
+      "reservedUsd": 0.0107841,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 371,
+        "completion_tokens": 858,
+        "total_tokens": 1229,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 371
+      },
+      "upperCostUsd": 0.0011408999999999998,
+      "translatedKeyHashes": [
+        "3ff9d243273a9634a03ec2c033e43518add56a29befba54aba77fb3a64f55035",
+        "25e5dbc31fe869f5ee00ed7d65f62a5fdcf96fe92ddb6d495decebb470de1b8d",
+        "dbe364c37d988f064fca5cacf04189cb13b81aaa578bdbb584bfebd7a37bf622",
+        "6240770308aa3f0e312c129c390aace76c0ad99825496d5a2c2f152f320dacd2",
+        "0f7426d13223ddc0c9af6e3e40ae0287a85ec84ab58c8d472bc998f0b7cdef82",
+        "a76783ce0539d9f8847144a340c767d9fe0805bb0f528959868de5a9b470f7cd",
+        "13df1071e07cca52e23b5d1e494e0ac194be9cf381d812ae508cd8beb69fe517",
+        "a1a06e046b0b9ad36e712f098b0c9b350b7ad9e1f562f72bb24c01dcf6e616e5",
+        "42baab1e570ab090e3ab6f37c6c53c5b6ee9a103099263b5a2d94b99acf9fb2c",
+        "12b3f1a3e924fd1367a937621d709aaab9a4ca4ec65b17b7045dcc8f2150413e",
+        "f6571d8962e75237aae61b3eb637f9853252943a4dd711401cddd1e6fcd1fd4b",
+        "b0ebe3349e62e142291ed8cc4730ef3cd50f803988ac3395de3bcba9b63906d5",
+        "9a5280dc4a0844da478cb61d663b5f0b34dece3e0a5dac2a5550acd9fef848ef",
+        "dfd739cadcda6491e63e7506e876eea1791b1466b58bc912dcf27d61f965fa0f",
+        "7cc4f304503055fd067ba79890183fd525fd8592aa822084b981af770b8d3b36"
+      ]
+    },
+    {
+      "sourceSha256": "b40da3af149049849b741dedfe7c5af8c1b073a54197c5ffeff0d03a7c5b1e7e",
+      "strings": 15,
+      "reservedUsd": 0.0108072,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 377,
+        "completion_tokens": 1040,
+        "total_tokens": 1417,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 377
+      },
+      "upperCostUsd": 0.0013610999999999999,
+      "translatedKeyHashes": [
+        "ce54cfa0a5231af10fe74c876e6420bd6f931c8631223a7c04e0abb6c4cadfbe",
+        "8f3f9b94682292cab5beca73e1e2b3ef7e4c907fedece483076b8d9fff4de01b",
+        "52177ab0e42dbe887ee8b509fc14b09d7b954670c27f7dfa7646e3d6948a6440",
+        "42bdd6721fb76a94b3e1ef467c9212e3615e5adba4b26f7998a4576378778300",
+        "26801a01fafd989cfd82887c8349f5e1f8f204fbb09da25e0c6689b7e618f6cc",
+        "5a44f53a85b3945cb0674827004fdb2ecba8b466065405cf7c1b90f02e3a034c",
+        "541db481ca773968c9c88340ed1e8d9e8118607af2946d6e6d77840ebdcdf47d",
+        "143ba7c8436120ac53d7b9c724ef4b23f4bda5d179a2f0888d879cf75893a19a",
+        "432112e55f46c4e6f28d40173e08c3bd40b50727b021007563b1abbbc289bd79",
+        "2d06c2361fc68c886995dde65758247bb2c6281fdadbab8edb0e79739240990d",
+        "18d1ec7f5f6680b60323dbcf3842bd1a5267348a9f0184d1e0dfe7b63c3134fe",
+        "717ee17a8aa50d2facbc828994e5f8f847f13db7b3f469895d1e625e727d9a7e",
+        "27de87f4edaf02ca7267cd25134744ed9fa1891cb875994cf674b14dc97e1746",
+        "f315462814d5c83fb4d7d560fa003a000ee0836a1a78259561f9ea0425b12b5d",
+        "68d67e077b71bbe84ed0256c6c1e91767d06dc6529c732b3959c4244a096d68c"
+      ]
+    },
+    {
+      "sourceSha256": "cb5ad9ad4a052296ae3d1d84125f1a89ffa25a05a0c2ff891e714f18fdfe43eb",
+      "strings": 15,
+      "reservedUsd": 0.0107508,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 344,
+        "completion_tokens": 811,
+        "total_tokens": 1155,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 344
+      },
+      "upperCostUsd": 0.0010764,
+      "translatedKeyHashes": [
+        "2f3ae627ea0caf0ccc8e9c1f111d743bac2e13e9b90fc5b8524d58939c970775",
+        "fb75a9a23f7cb4a31829007e07543b8a135d4299223a8eee135efa1521c7a91e",
+        "415035790e38f775788ce1b1e3ccab6c3303d09bb4182c7ab2d72d9ff9f07132",
+        "88bd83c82cdafeeb787e628dc44824ac18d0fdca2598ff79b0e7352822b494c4",
+        "201809198896d2c46e66de408b661d5dfd834efe3723d668b28422838106eec5",
+        "3ac52afb43cde9b6d955eabba1ba602e9c82236da49b61fd1545c881ceb8d3be",
+        "4a817443b0e982dfd43e2c2d023f008fdbe59c43a361b05541069d13a9957b08",
+        "c4dfa2b1196f73bf145e879f7033cce33008472d1d92ba255431a3095b4d9a70",
+        "b7448528737ff296c3ef205438b3833ebad40735c8c1845dd5e12b6f8f29502c",
+        "46136f89df4e64d180fa3959c3c9871455b8ac981d500b0f95be2b5ff3604530",
+        "d3b02ec44a8874366a44ee10d67069461c47ef516030c475e7477008d0cac808",
+        "31241477cfd210ebbb254364683a8d3da2fda0961500377ee04efa5aaf936966",
+        "6fe227ccd13543f5b02c7080b181aa2a4ef899f95fe64e50b29afd96a875c4ee",
+        "bee58d2967872ab9375e9bf83e4eff7606a7983b817547d68a66a99be60ada86",
+        "df6e8adf1d96073509a23326713d36352b528313d7e74e8237e1818028d42152"
+      ]
+    },
+    {
+      "sourceSha256": "67985ca861e7c1fba02dbf41602adada7ea11b8faaf2075a5dada76c8d990e79",
+      "strings": 15,
+      "reservedUsd": 0.010766399999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 358,
+        "completion_tokens": 851,
+        "total_tokens": 1209,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 358
+      },
+      "upperCostUsd": 0.0011286,
+      "translatedKeyHashes": [
+        "17a7fa9b59838bd53018a9140927acc636bab5c8fbbae70ce8865d310665816f",
+        "6f1eb0da806b4569d06db5771024b54cd4425d7773fb2fce77654c7c085ac43a",
+        "a1b18c56f1512833ee52b193488dc077fa6ae86f726142b56b921e1c086fdf0a",
+        "16efcd21d74fc1d209855cf3bc9a19da1839f4d3f720689586dffbd128477f25",
+        "e3846b6fb0d61fb9d529f5ce1c9e31cac06e5edacccf3792193ba34ed5130dc0",
+        "95ea095b0e39b1dc26c804ca31aa9b75d748e7d1a6f0256c0abe3096e7b50a30",
+        "605292d4ff950195e11567ad86b40d2342150273df3869800d56b550c21f7b47",
+        "015d327a044e975c1d783406ab8da357dcf8ae7bddb1c4fe224f9f5b3befbb95",
+        "4f744df7f071846dd34c0969f584efbc431b39a22115b993ea398b5e66d10b81",
+        "3be58796406ec8b5b356f0f99e20a61c831d1354f1ca2655d563204f7425df7c",
+        "b5c13d1a9591968a4c66792d32bc35c5a4a14bb99d5a0076f5aa57f027f1957d",
+        "e2b8863aba8fbb3d266ac03feb7665282853cccdb1bc134ad080dbfcb2d6c319",
+        "c46354277c75d0c7aa8fec4f7a42a0001dc10a4da15f65af824fc19c4d1e8daf",
+        "00d771da78fe522a6b9c59f597dabd75a0d951f69bbc58cdab9b35c666fef9ee",
+        "d5940ac664ef512d1d4906777b069c0f57a371c8667faeb5ff55ad1954765ec8"
+      ]
+    },
+    {
+      "sourceSha256": "61652531a072f4f82d77fff79db422e4ccd7b8b219b9ebb987f8145125dc480d",
+      "strings": 15,
+      "reservedUsd": 0.0107142,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 325,
+        "completion_tokens": 546,
+        "total_tokens": 871,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 325
+      },
+      "upperCostUsd": 0.0007526999999999999,
+      "translatedKeyHashes": [
+        "9915bdfb4d7cc4fc2e2c3ebabf96bafb813e086785aa9245f694527cfabd3bc1",
+        "67a9f6a6b5b7269d0bfd4b6f313ee77abb040d78dedc1473b04b911154eb1ac8",
+        "4a103f5fd80c3b746de53e392d2f7972ba69651a92323f9edce27682331c43bf",
+        "99c40ab405926cb5ad1def9cff4d7ce624f8f8abfff4e85f655347fcb949d08e",
+        "aef8eb2aaaba28506f6d815a28d35dc2ec5cef998f620604c4ffa22396853ca3",
+        "49c2e3f17096e55b2a01eb30425714775846cbbf5613ffc943ca0a03a4a99999",
+        "8727e2ba364c2c46192df0e1d0318d0cc82b0c1e6f7465e012ac59430254e170",
+        "f256539ae02054b237c59de4c307b6b7e68c7d966c19e684175e148e47500b76",
+        "60f7c4c8be73d49ba1430f4691490ebd6e5103b855e4e30f4eff923b27b2ff0e",
+        "526e0087cc3f254d9f86f6c7d8e23d954c4dfda2b312efc29194ae8a860106ba",
+        "914182d5e25f69e140a41e919664e5d16d3a9f67414c8cb1494b8ead668cd906",
+        "c149bc14e45c0d92e0adae72d5dfa10ad2fde44aebb562d6c1fedebf30ceaca1",
+        "eae34ccbc4432c1358da668b091e7c952fe8be24b02dd4f8ec5ea2edef5ca1a4",
+        "ce9b7cf46902ca97b5f6c21ba0250e4d3a59a61ae393b284e0105a309bdbd4be",
+        "1c0de1be1be6ba1abd5fb23bd35e02ac04b441be17597d1f89bf56544a31c1a1"
+      ]
+    },
+    {
+      "sourceSha256": "7117e66a19e58f1e231d4e901a66cafd30d86adf1dbe763849028deff17b7264",
+      "strings": 15,
+      "reservedUsd": 0.010801199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 379,
+        "completion_tokens": 1021,
+        "total_tokens": 1400,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 379
+      },
+      "upperCostUsd": 0.0013389,
+      "translatedKeyHashes": [
+        "a619b925bb5e70815ca4a2ff8d4b021f3da7afcc98caf955af23b68e7d110839",
+        "e8b5cbb79405a08c99f716e0680d2c70ba959ab0964a473b7943eca8379ac461",
+        "dbf613b63207de48da46b168c2e7b21f5a987ad3c5fc64280df568deb3cf0fe1",
+        "9c4e086a7e3962539865feb261028280981cb9ea14dddfceeecd8ae49baaee38",
+        "d22459ca631292f2795c36c4858c4dbba5d1afddd0950cacab27e83b0fbae534",
+        "03603f180e4f5b2001b578da9a9b7fda6d33240b4b4a33f7768997e00048c0c8",
+        "0841ad9a0f7fcd330080427f91bd96a6eaba00f39c3dd492eb477988f4f5606e",
+        "93c42ef2db7ba5f0ce04d9c7f5521ddebc05ecc41372ef2bb11d5e3c37db67ca",
+        "79278626a17873755390c4a4b291a860a4a1503ac826a0fdd3e9739f104414d9",
+        "33d6e48ec100383bcecbcbec1eecf0b87898bcbac29a9aac3e830e09f94a0507",
+        "3be1abd5cbdb891a29b04b7a966360b8b90cd752636be971bf76b5bafa97a3ff",
+        "14635683b9e7299ad93aa48872cdef300d36940217c07618cf769db58d285ebb",
+        "dbef83d53bfe1aa62e8b0900821e1d938e12c8801866f51b4545b27a0ac7cb20",
+        "47c8e0cee4bd398e18018ee57a71dafa998a7a30d17eac6e7c16b4d341f93e7e",
+        "c0940470a50e0fde266a7877afd0612a3586b1bba1662ff1906670db2fc767de"
+      ]
+    },
+    {
+      "sourceSha256": "2e2a10ced9933b2cbd10055ce647dbd2cf2a7e2ed54f488609234710d374d383",
+      "strings": 15,
+      "reservedUsd": 0.010765499999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 354,
+        "completion_tokens": 776,
+        "total_tokens": 1130,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 354
+      },
+      "upperCostUsd": 0.0010374,
+      "translatedKeyHashes": [
+        "af3b28036d93708ec89dc7b6240c082868ad7bb69d451c760dd4b05ea11d8555",
+        "e94d3ee06ecf6aacdf8caf324ce34fef57c55aebc5b39496d42f724fe094cb35",
+        "ac218e88c037372372c12c59104546a607c02fd2d9eadea6bc78adcd8c39ae19",
+        "1a791e75f04fd54df57a9874ac4e4facc0cf7b93f2f7b80c1f33151c49ad31bd",
+        "518e6db15484081c2c617870ef494edcf2598ea8bd96db29ee824668d28f0b08",
+        "3d2301d732a7a5967d5c296046f486e66f584f6da32d763ee70991ce5be64fcf",
+        "f569bb6bb8f8e26f39fbc1722f79d6a39f68865f36bde5f279b6cee3b57aca1e",
+        "14a7093b299f0196ac47217410fa7c9202f7fae477c16d6e151dc1efaae80f4d",
+        "1136f9e16956dffef22c29988a7745fb14c5d0f949d83ead1d371935deed0e33",
+        "65c231f7a2106a56fee9f8525188b2ba3dc076e7d5a61a38893f5aee291943da",
+        "69520a7ff51859f7c0dc5bf61df8aa4e16686d6c31cf1f9a9d663e25e32bb22e",
+        "a251be657173c018cfef33e6a155cea15ec49f56788845a2c6a8d079ad91c247",
+        "2f343666aaa88c44430b12e6ab8a29591a069de76541125e83ff1b5acc367bf2",
+        "ad911864037d6a9dc16378bf04420da98050fd55881c927bd31f53adebfbf18a",
+        "ee06dd885c123b1d9595230e3c78065c3a93edf12acafd979a68d0d5a2b9c165"
+      ]
+    },
+    {
+      "sourceSha256": "47a6b92dcc94a8987fc29cbf1b6b050be0bd0a4a382fd0be82852439e741e698",
+      "strings": 15,
+      "reservedUsd": 0.010802699999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 374,
+        "completion_tokens": 935,
+        "total_tokens": 1309,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 374
+      },
+      "upperCostUsd": 0.0012342,
+      "translatedKeyHashes": [
+        "f171af6c94ec7b0d9cd150fd5cd99eb36033534f5aeee43b380f347931b5c463",
+        "49e49bb4401e67bd54ffe1e9ab6c2af87ddad0cdc8ca1c84ba1b4e94234438ba",
+        "028566c26d21a5f3719ad181cd5cf14e8dd7f093aacf5b3b5d53f11b356dc4f4",
+        "7016558bc56ce6144b5be364d59ee66ab7491ece0f2478aaeff00ab28e60d1e4",
+        "941809fbd65dcd925960ace22027fb4d0ac6df29dbd6e8cbe9ec785f4c52b7e4",
+        "08965fceda55cb53756980bb4b785df3d535f7da238969e47e320d1f5709cbb5",
+        "aa7ced21b0a4f14f88b350f6cee954d16f0a6eb34213174730d835d054ce8fbb",
+        "be7e2f20129365c2899b2c11bfc465541e61b1858f45bf0248cf99b9271bc707",
+        "81695dd19ea505c466d612e53c6464ba30938c158a62853106f01e42d93eabbd",
+        "b9a0b7f44f99ab4697c68e3356880d5f39537d5f95fd1ae9986c810ec076f2a5",
+        "96c9800c00f69a93d1bc740261cba2559980e6e792c606951d07c1c43a799c9f",
+        "53d14c542c12031449f0d3789c8a282c8363e7c7ebd62c1cca77761994cb9b43",
+        "e1146dc500b7e2520b2c708bd449f111eb75d105f17987cd8f86153c6caa0711",
+        "c11e4a1ae730a0b4270cfcdfd9d2a8e38e1e70f38b6e9f2dd253ecf93b29f943",
+        "5d3f866de5dc26f3dd5269887903730e7f7cce9eb58141a124b8b407df750438"
+      ]
+    },
+    {
+      "sourceSha256": "61a148e1f749e1ceaaa3fcd957f9f1e509c17fe5693692dbfb1ad477cf3a54f2",
+      "strings": 15,
+      "reservedUsd": 0.0107625,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 357,
+        "completion_tokens": 830,
+        "total_tokens": 1187,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 357
+      },
+      "upperCostUsd": 0.0011030999999999999,
+      "translatedKeyHashes": [
+        "a4fe65264ef7dbb38d104b1e81eb3350f3142f3d16f32bdec39b1d9b42c1b8d1",
+        "58ba0ff4270a1c6a6e7aebf40f7bd73a6ccf1743690db584e23245057904e0f7",
+        "979fe3c31516c797cc9995b6b70a524b53a4d00d1bb2c6ae35c30c4c47dc2bcd",
+        "4c3615fb26eb1cecedb7c3a4aff306a2c32f83a590e9dc0e2258ce7b41522576",
+        "78df686aad619aa5a614fb5f000cb32fcc61fde7e119d7e073de1190db5305ee",
+        "4ee9ea60a144fa9cea0fd0ea42c131daf51eed27c4b29ec3cc754e3c52ebf0f0",
+        "cca0753e7f716af74897ff7631ff936abf83b6e2b11788a76abce6928e5fe326",
+        "fbb8854a6a1433f7c32a0d4bb67b5a0d21d276e85ccc6fc8e64de4e955ef6fdc",
+        "95c61170318a2851165109a8116a27a9ec36ef96bcfb0a8c211de5d568435655",
+        "2b0709236ba29664aa003aa5b5aef16925ec71e56cd64ffb611921c5ba052160",
+        "8378c1d1e5aab971ffa48e886e9d4ae7932ca4b3f4aa8f2cba2b90d46c89059c",
+        "9609ce960fab5cd80f874b52a9b87d31ba3a82a2abd3e00d90c493ff4a621c55",
+        "20b4a642da0d87c871280ec4ee9b8fef71ee33e2867fec45d5f157bbfe156ec3",
+        "357b7008f25ea786eff2598339066b6f81e1c8929ce7f338cb2604b0267b1704",
+        "535f0db499620f64f4ec1dd5ecdc893757dda8b9b4ddc45dd0c509287280efa2"
+      ]
+    },
+    {
+      "sourceSha256": "cc52c957d13696933eceef1987441877aa2ac8da0fe0bcdc25b13810b5a851fb",
+      "strings": 15,
+      "reservedUsd": 0.0107844,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 367,
+        "completion_tokens": 961,
+        "total_tokens": 1328,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 367
+      },
+      "upperCostUsd": 0.0012633,
+      "translatedKeyHashes": [
+        "3d434618889c03327233b0d5732554cf1202b893ecca949e8bbfb16b96ec68f6",
+        "8b66701e7f2508db9ea6158050c54bacc617a8e2fff779d4aa4b85d1f7222fde",
+        "d3c3b272407c7a8033d0b1985747227517713c5d0a059219ffef5e44db299422",
+        "74248bd31b160232948bf2021ecc3cea295c933899e3f2dac45875ca7742882b",
+        "d357175cfe8978d39b0f86552dcd9404973493e2816101d9ff6c05ee248ef6bd",
+        "e89e73fd5ff7b75b0251c3b66111356d5498dc86b12b5d380245813522a6f4b3",
+        "1f053f23caf606ae75c37d7db7247097fcd29676e08a54bb874108c9e3b4142b",
+        "949bfe4663b8c8b5700be9619dce81e7791068fac1b2071dd5f1f31d181cadc0",
+        "f83a4bc1f3f469caeb1dbc4cccd601e8f3fd565d92c9d4cf9ff024bdc75f5280",
+        "4e9c010071207d933ceb38b5f1910027c8f1a19308ed76db21df6139d58de321",
+        "8af9c83b00f88dce42d1d35f3c5ce82a2e75c76bfaee2a4dc2792f9bce1c0521",
+        "1a9761f75f423cffb7212390506bda60252c597aefd20a50bec520993955014e",
+        "64956251ab30fb11a965588b4701c152f3b7dbba3c481ec23cf118f8be72c557",
+        "42312451acbd4b01e7d399b59d692952f0192f0e31e7f932ac2f0a8fe5db25f3",
+        "fec4df97faefa730e694be4fa93a0eea668b1268db547ecef0c87a463b6caea4"
+      ]
+    },
+    {
+      "sourceSha256": "49085e380ef8802f99a737b44abde53677aa7b609a3d8a2af0f30454c9d8b692",
+      "strings": 15,
+      "reservedUsd": 0.010734899999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 347,
+        "completion_tokens": 658,
+        "total_tokens": 1005,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 347
+      },
+      "upperCostUsd": 0.0008937000000000001,
+      "translatedKeyHashes": [
+        "1ea442a134b2a184bd5d40104401f2a37fbc09ccf3f4bc9da161c6099be3691d",
+        "8329007820d54938fe5dbf93c1d1ca8d76cd0657ad4c882689605f572e4ae6f0",
+        "788011833a5a0f22db90c91e8eb7bd8e9f5cd423354ff5ef8c338e7895f44ba9",
+        "565339bc4d33d72817b583024112eb7f5cdf3e5eef0252d6ec1b9c9a94e12bb3",
+        "8a0d7658de66d626fdc0072fe41a41092c53e3eb584573ba63fe4ca7729f7d9f",
+        "fd752955e545506671a2d25221e7ea5ac98835850b53e3fb3841ffc0af216cca",
+        "ab0e8623427836ced552ece72d947cc75e08c0f6a8c4b18e20aba5870266ad54",
+        "c8b2999ed42d0d90895c4ebeea482a6fa8b3834d7faae60b843d0812be33cbb0",
+        "5f457d191b7e1ddd3bc39303c5b8eb950797bbbeee87888803961af3cf57548b",
+        "858e4ba7a29fd38b630ed73a79e2738333b3fc6778fafa90252f5556c1262fdc",
+        "c66523fc0372c5cb81b1aa00d3988e9c6e660ef1c0168b3cff6d25a42ba363e3",
+        "a32470324a8b0269e8ad0876000ddc66c79d03694151661ae5e250a29def5817",
+        "ecd5d21583131ecbd83eca1da748c92888ee630223d4f26c7115516fa930dd3a",
+        "26f7797fbedd39309f2a42dd5ac298a87cd6625cf412f1cf66984e3cf80c23dc",
+        "2fa0f802c8d2df35892e9a23296fd8764a2c184f7a16dd88db2c8c5a8b42576a"
+      ]
+    },
+    {
+      "sourceSha256": "300ecfeb3768c8b056f4f9c829f2cc376bf9c7cb81eb9b077ce7a33ad0cf5248",
+      "strings": 15,
+      "reservedUsd": 0.010757099999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 348,
+        "completion_tokens": 786,
+        "total_tokens": 1134,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 348
+      },
+      "upperCostUsd": 0.0010475999999999999,
+      "translatedKeyHashes": [
+        "e86f6a5e340344cdba98ef1e19d9712ab8f060a0fbddd6738d797c8e2cb19e34",
+        "0ea34e0f4988e7d5e095967f1fe4b504d125d41cba5dfd8a273026ccceef26d0",
+        "e7d5d799f027b7ccd6fbb349467ab289b0ca8da842d19a4517b294bcccf381e1",
+        "dcf4387c4973aa3a81d1dee25677501654554fc8bfa7ae65835b13ad7cafb7e2",
+        "afc0404bfcd74347c8fbe17e63f90f780a78cd2c3d5cbd8bff6f98754a463437",
+        "ab873505d5370b6fd8e3f25cdff40bfd3ec47953a3920b74d6e05a3297ce127a",
+        "ee52b83db36626671a096129f08ae849787eef1a7300305a87f7562ff45e52f0",
+        "6d6a057216afb62aff2c6588f13329b839b89a1775f920dbdcfc7f0786d4822a",
+        "a68ee4167406a050681e0ea3b78907f56b7dd167eff9c9f77dc38026802f0b52",
+        "0c5327fd45c725528c37b589d6198944faba2decd050086cbf89fa636c9843c7",
+        "c8f88c23a19196b458e319bdcec0286110e6def74edf88dd9caf82ddbc1d981f",
+        "f84ed4375595ff56536a50d853f9efa4897ac6e815aad3b94a8ac263e92736ef",
+        "5da44bcd44ddbe272e0383a6f69cd9223992a22ec8a81b5c7ed4f7357861c70b",
+        "1e2c2ba401b6db90ec3d445519f8750e54e0bad704ab6f49e6ad6c20e693e7cd",
+        "b704deeb5e683dc8b30c8e74a86b694584f5c95ba4c16cbb671d8beb14709a4f"
+      ]
+    },
+    {
+      "sourceSha256": "a73b8790713750a7c033ad09a6f8ddfc244ebb6c143fab31b11655c1873bde49",
+      "strings": 15,
+      "reservedUsd": 0.010788899999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 357,
+        "completion_tokens": 880,
+        "total_tokens": 1237,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 357
+      },
+      "upperCostUsd": 0.0011630999999999998,
+      "translatedKeyHashes": [
+        "6a0c2874e27f805254ae7fb903c993fcd3ec7201b7c6b6f8459ca350daeaf4ea",
+        "868e7e5534f25d1bbf562104e42c0ddd3b804586cdc6b14e471a9058037cbb8f",
+        "cfce761befa84073c2ea0d29bc3f3d647c985faa02d80854eada5312a7cc24a1",
+        "93badf310723828394cc6b5ecb619455bd4656e4f8d8dab68153c178faffde54",
+        "c8f193b315c86f3a9d5ff6c85697aa6112760966f93f92da5f7a4153f3c0bc8c",
+        "8706afb74110c0a71e850e2fccd0cb7e86d69c5708a07bff74d5bab9018fb470",
+        "1e0f1bd385a2d8fc7ea94d779c60b3d3bd32ae0d2745f0ac5c9d1e3a35a5b5a1",
+        "80aa4575caec4f2db1edac8c69d74e92fe580640e4a679459aae51e000cefebb",
+        "928b14ef21697107564f399480d67519d8c3734c5333c274e668d48fb6e21307",
+        "2098cc067f8b57f10d53655ff8d926b89dff2abdfae20762f1f00e6d4e5a77ad",
+        "75535cbef507d60ebcfcab7ecd035f195504247b73af0809d1fa89d46a44fe37",
+        "598ddd215b111ea6b8c2594368b48c0b450f336cbc8e980cddeaa1b0a5c1e738",
+        "0323dd89503c5174962521ae16cf7ab28d5dfe47e3a12fe6305d1708352f7ab6",
+        "76791756bbd7149fcaa6f40505640423604810744d39d8534b1fbe86a0b67e61",
+        "b8476ceedfdd95b004d8b76a5a5d72c71686fe7e232d1b595bc0dc6941fe093b"
+      ]
+    },
+    {
+      "sourceSha256": "831b697434867e0683b6e9f900f3611fa93686e31f476c86177f0f980afc1290",
+      "strings": 15,
+      "reservedUsd": 0.010733999999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 346,
+        "completion_tokens": 652,
+        "total_tokens": 998,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 346
+      },
+      "upperCostUsd": 0.0008862,
+      "translatedKeyHashes": [
+        "f01d38000d072c4c659cbb67f5aaf658d2fc653df53f0e25a3a875f000745037",
+        "781e9fa53f270d3681ac816a64b9cef8360c3ae8bfaa178e043bfa961a9edd5b",
+        "a76e13b9839270eb73ed11417f7d8acca55df0ad52065799361631d0fff74f27",
+        "9e067a7340eb7e34bae946999f5afc93aae9f0c511ba1e4ba32b4e8e2d3c3d32",
+        "0f26f105a0832bc371fdf125519c266eec376557b149e48cb54c0bcec9d69be9",
+        "fc57a19ceb3320821aa20ed24daba5fe91716df5e291e092c6839ab0ef5ae9ca",
+        "6e7d50e84f4731ef74187cf8cfa2672184eed8866b0b0074a772f4a64e0f4ba2",
+        "d9ab6b061f3d785ead88cb5c999e6548c80baa091722f50b0760f27268ea6dda",
+        "eccee4ef94589b56be5cccebc861c8ec15bfbe5ebe550e9a752d09a56ddeef34",
+        "40c608d06a2ae38859db04c3836f91f5a07d6886c7bc6aa310a3fccf6ec61999",
+        "a0f859bc4db2c2348e91bc2a886828e0cd2e694703b9f0ddc65bcdce76279841",
+        "ceba352728693758d57c715a22131746666ad2acd27f8235f918356817c7465d",
+        "71fdfa790e509d2d3c35ed174350c7162add7eb146a6e8f8699d36b7e9922f83",
+        "731dc6e3f07ab1b090e925be766dd01d8e4aed2f0ad2cef600bf157bd7764500",
+        "e150585535ad9acf3d58b8ce0f854f88e6d0de6219ccb05cc2a7a0c7353f7ece"
+      ]
+    },
+    {
+      "sourceSha256": "9f18e5f50ae87525ed5e6a0b5712a041bbfc7f5deb9da25ac972cde51da79ad9",
+      "strings": 15,
+      "reservedUsd": 0.010732199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 336,
+        "completion_tokens": 626,
+        "total_tokens": 962,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 336
+      },
+      "upperCostUsd": 0.0008519999999999999,
+      "translatedKeyHashes": [
+        "ad25e9eb10b3d156b182bf27d529b770f97acfc776908528f50b5dc0d9fe710d",
+        "38189c6465bb1ab98548145613b62c02e248abb10478f97f40898a44942c6e2a",
+        "d1ed256ff8d381cc15f4403fd32ece1f1c054355ef2d35f6927196a95c8d0ab7",
+        "a026ed47ea8a4fa1a1d1c6c2dfe086e531f6a9ca3aa736c4f652a2b1dcc12cfc",
+        "d2176481912572d660e5b227e26d369922a9e585351e0921dfafd8e49bf75f68",
+        "4292ad27751f3b878f93581a30fe6941a541057c117b1803fe8c8c54b9cf7c2a",
+        "87e6d00bbf53ec5ae251de23ace84d5cf01c69deae04cfff08a5fe353a9853bb",
+        "f6f738d043929f59fe41b1a5b414b33ea28ca9a6ddc74e682bdb7167b5a6ac6e",
+        "f0e9810e9100146c0bc9e0adc911bcc666881648378ab1595da6b321909487f0",
+        "56ccd012fa61dd4b6697697b49cc06debf68c1876c2fa89750ba35dd2ae875d9",
+        "53ad6f999b1f062fb8fc100ddac854c3b96a36c1e03c6c8c61ce892d068b33c9",
+        "960fc7cabb39fdc676d357d045d92d5a27f48d30606fca579f997e543a8a8795",
+        "b5c120b316c237a0deab3140267aebedba61947d3ae268d708a53d5be119e9fb",
+        "d09153343fba5d44756418b4b2c8a8f33de1fc3f2b2b3beedc714125dad2dea4",
+        "102acc10e67a297d79f7a0440d9fb96e2bfe8b1830676ae1d524cde6203212e0"
+      ]
+    },
+    {
+      "sourceSha256": "122ac5e8b35c481993fed7647e5e0ffe523bcbc417f6fe3f7a7022dc111021cc",
+      "strings": 15,
+      "reservedUsd": 0.010775999999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 354,
+        "completion_tokens": 865,
+        "total_tokens": 1219,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 354
+      },
+      "upperCostUsd": 0.0011442,
+      "translatedKeyHashes": [
+        "926b378c1b646cc4a4f68dfb543fc7a231463dcd3a6eb2faa678f89399f9bfab",
+        "65e64b7410a23546734333ed7e4ca98c399a310738cf7d1ee64f154cba1af25d",
+        "8929d33236f77675220456b8c3767a2ac1a1fa9058132195b074da41e1bfc2ed",
+        "2e1330ecb7cc3ad0e5e841eca77bdfb6b4ab9528b1b2b445439adb8f6e78f9cd",
+        "162cc64ca1e4ffe9b9064bdd6f53f3d53f8a969199402bbfa61c749aa693ba43",
+        "86cdd283e5e67034277a75e8eab7f5780adad669bb5bc1cbc84b4276f0d585f1",
+        "a3810c6d73ee845a0c68fd21ea8f3ea581e77158a6fb03b2e59d4b2c987d22d6",
+        "48b62be71056fef8e0e3d3b002fd21d11cdaf515c7a47e93f6f40873d495b9e1",
+        "92cfbf8778905864890fb587e134a05e99d84b2d7efe1b888dd8baf2d5bd0002",
+        "4e0a6e21ec3d96a813f6363196916430a60ac1342dfaa2def67c6d49e7996d1e",
+        "d67bf7c3cf2cc0814bf00603526d072411ceb7b3d83709b349ac3d5341077b88",
+        "ae493e21cd43411d56e1c55c6851d820ce32fb9104e69c0c72a2e1270c7a02c5",
+        "74a883a037bc227f91891ab654a753d3a99f31ab06ae5b5d2b6e594a692b41f8",
+        "46490241b9238a5db4458a31ed67475c5286b855ffefa8269660f6f56e1d5237",
+        "527f5cf0c2eb0e4fd735730355484038f2a6428769c0bc4d8b521b9683d2f71d"
+      ]
+    },
+    {
+      "sourceSha256": "f05bfbce2667b3531c95b44104e69276e4cb47750e3079436a5bdaf7b69ae0cb",
+      "strings": 15,
+      "reservedUsd": 0.0107187,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 330,
+        "completion_tokens": 603,
+        "total_tokens": 933,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 330
+      },
+      "upperCostUsd": 0.0008226,
+      "translatedKeyHashes": [
+        "29887a5ff9846ccc23327565a07e17fa6dcaea6211f1898ae825f84ae38f4223",
+        "5b2267fd218c1c5c3247b9806828e5d4da93070d60bf8ceeced864f099e578c7",
+        "704b071b93fb89eacfc3671c4662a4fe6535c44b1310ff964541b5a97fcf81c3",
+        "8685a2f1551017fb9a75f9d6e14b35fbf6f030bcca91970a02fd58866fa7f272",
+        "0a9769f40f0b524e02b1c91717b79386e24cd65fac2c34484c58d39369c8f167",
+        "dfc315569cf919b198b52069b5e6ce531c2dde88258d56bd5f199b640fe67f1d",
+        "d08128a55aa5ea1845993d9aec099ae1dffbe650c6e67fccf2b391dbb3a79e1f",
+        "067771875ea7dd941c7efd8e3951f7497a9b266c9234a5f1d3b9597f77da6f31",
+        "1a1f9c8da30f16bcf5bec29875e92cff24be7341295f2f97c54c4b5b21a5d64b",
+        "d604310a789a184844490cf496f9d72e2807be60ba55a2ed33c3f1939b333963",
+        "78ba5cbe56db2d95324fc4aaa904691c7f6650a2504f400dc82c12622d79abc0",
+        "ac7b81742393b1bc6fcfe5349591e705c9897638a0aea318d6dd667afdd4c4ba",
+        "bfd402b2f6f3812529b55596136d3a11c51616317e3b1cd999928e2d4eae7d3f",
+        "48f0d3d397d49f135f116d947a805b49f084f637154a8e9913e7233a11dc16a0",
+        "5e2b8e96503d722e7ebf61b9bc3e9988e1ec7fd4eabcf25a52577f845125b31e"
+      ]
+    },
+    {
+      "sourceSha256": "4abf12033704f6d157257a0d1607fe1b62c026b6bb73deaf8eddd07b64acc8e9",
+      "strings": 15,
+      "reservedUsd": 0.010726799999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 332,
+        "completion_tokens": 680,
+        "total_tokens": 1012,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 332
+      },
+      "upperCostUsd": 0.0009156,
+      "translatedKeyHashes": [
+        "8b9d3de8ae00c89c3bdf6548b6acd402d64313654b93a3c8f4a4717324e13a00",
+        "1af851907331c0ed99e7c63b4e55df808bc5fc4c990a1cf80ca8c0f76daf1f3b",
+        "ab827e3fe17da220a9a652087a35d20adda002aa4df887c5d813b2b1e95228f9",
+        "bc4e94f14799f154a61c1272ebfa8772d84c5f17129656428d4404c55065ef15",
+        "ea69436b81bf63f5b49b07c94251df5773dba13ff6b7d32261c6a51bd22af217",
+        "246b1f2bef08bb5bc310f471be7353f081bdc1e196e5bc9d9c9cd3bd4c92f09b",
+        "eddd0c091338ca6b66a97b74105bf3249b273d14e98f5221777bb2ee95bd5a16",
+        "3e1456ea3eec2eb67765dfdd57b0beb34e1e4e9116b2aa423e37f03b1c72833b",
+        "2aa5eeaacd79d97ff876f741bce313e2ab0c39c310213f8feae1fb06817b0d23",
+        "85cf149862a8378ba4c196732c8ebb185da4ed8ec1fbc86f8f754371ffe88241",
+        "c1851d82fb4db117c952e73234bac6b685ebfdb5337c2291b2d2e0dd6f573808",
+        "086b6b38035714b0fcd4fabe18af8efe4375873780f7e3d526846ff7147e2e6c",
+        "bc10891c5dc97f7d7e489d740ebb4ccaab58fd83350e1f8c911aa955baedea7c",
+        "38edbe9c319d4706a1ba16bd1ec87413e1b7da006d3a191035419e97c6bdd35a",
+        "1e5464fc8dff88ba8f6599be83c7b1638b1151a947608ec51008e46d2db4fbc2"
+      ]
+    },
+    {
+      "sourceSha256": "506e375650dd767dba2df6cf8e4f5e3fc99d33254f4fd625774812a409eecf53",
+      "strings": 15,
+      "reservedUsd": 0.0106869,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 313,
+        "completion_tokens": 407,
+        "total_tokens": 720,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 313
+      },
+      "upperCostUsd": 0.0005823,
+      "translatedKeyHashes": [
+        "23271ab68516eeadcf9ec55537b5fbdd193ef2bbf0389d82d9dedb5199c92fac",
+        "03c624c0b9414da646b32734bc98fdf2d446c99d78729bc57df733c705808cbf",
+        "e365a690c460067beb54e819e9d439315ad40e1c2ed6576fae921912991edbd5",
+        "54f8a18d3046905754650da57df927f081e3892f7567b00559de52ae06f6f2e2",
+        "0e570ca6fabe24f94e52c1833f3ffd25567022beb826fa16891f3322051bc221",
+        "c372fee9b4566b85a592ae6e98e571f3929c8e262cf2feff7acba63a65a50f14",
+        "4a24fa7b0123e6a7a57760a455345330e2dd239cf7d96257267e8d107e4db44a",
+        "679652fd13c58c9361ddb7cc8c2e4298214fedd4c4384fa0ef45f737ff6f1766",
+        "f541afdb38500cc10822e4fc196cc176dc4179f2b43e1a7555a2a246ebb01773",
+        "c9e8a01ef40ab54ae7a1fc2699500e6dc375b92b5ee5c0a9c220fa7cdce1fddf",
+        "32afaa784333648025e24b162bece7474051bcaaa29e98e19922b400b4ceb04b",
+        "b3a64b77c8a70675d232dc0b584cbb2a90c1414abc88f447de3cd58247f0c439",
+        "d0ec56da2143f2c9aa5b666ada668adc2bd8b0f22e1666d7baf8749d6daa4395",
+        "de838855e4a6e04ea2f284b246a07a1126e7fcd151be9449e112006ad7db5c50",
+        "21de8033e5a86c5c96cb665f5c4aec166d32f3c70307447497d49b5f525a014d"
+      ]
+    },
+    {
+      "sourceSha256": "5968dcab3ee48a54dffe0dae4cba57df5db232662b24d350060f3dd31c24fb50",
+      "strings": 15,
+      "reservedUsd": 0.010703099999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 319,
+        "completion_tokens": 466,
+        "total_tokens": 785,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 319
+      },
+      "upperCostUsd": 0.0006548999999999999,
+      "translatedKeyHashes": [
+        "9d79f05a75880f00157a7705e7f8c1e2208e0f2626f2513ee2aeb64b3637f834",
+        "6b7a0dbe27fe3d82c96dba1b5859133a95eff822981073d311ba62c1fb17d7e6",
+        "e29a1021845a89577706283bbc7a75347014b8407b774fc2ffb7cab131c6e03e",
+        "660c1acc0369929ede57ec2cd6ff9da900389c60acfa8bcc5a2994b4d92de918",
+        "c38e3efe71311d6d1ddbafcace9461ce1b13faece941cd1bce3887aadcc2de74",
+        "7dfd90ced8d954a22787c3ba087a867cf858a02c3b902956648c87cff3e260a3",
+        "a8e7ac92a1164ad80744cc29090a3a539332a92e0a4907693914d04dca3629b5",
+        "5030b7da67e5ee96466b3bbca40442bb2a71125d1bc991a236181861ef21a66e",
+        "6a22ab60e64e38f36f6fbd40396fcca3ed7ada58ff48136f0007ef65810b1e52",
+        "6a024f49bb15aa9cb5458c4901a715ce5aa13fa7cf5da43090000148cf9a3cc5",
+        "ef6691545d2c5523efed00424407cb261aeb0037d165ca5792f7f8bac3381362",
+        "111aadd4b1b5bdfee099f66f61f816b101f6a9839844ffe4d5676c3a94c57887",
+        "e4bb9f1ece9af9264a3b9e3913bbdb2cf497457167b14ced5f85688bfde74644",
+        "1da475fae0b8fc545fa195bf90337f55294b16a3d90d3c9f289ab20c2f6857da",
+        "bbe5fc3b9ef39f994c259eaf233d625a500b5219784c82f73b50808d4f79d5dc"
+      ]
+    },
+    {
+      "sourceSha256": "540f30c961b537efa8788638ae4ca7740ac22f4544116ffa6e290d01d095f493",
+      "strings": 15,
+      "reservedUsd": 0.010755299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 354,
+        "completion_tokens": 768,
+        "total_tokens": 1122,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 354
+      },
+      "upperCostUsd": 0.0010278,
+      "translatedKeyHashes": [
+        "6d249be854f39e6de9f3cf66727bbeafb0ddac0189bb58c8f3856887f397ee04",
+        "1a7a11245603f9b9547bd5ee0796262c11f820bf01a0c87bd09a35dce7f8156a",
+        "14b54b83238e1ba6cb978e0a76f6e5461cb6388e4469342e0e22340ded71ca4e",
+        "9da66f90a59ee0160bc1a91a95608600cb1185ecdb2e365816c8db435a30bc5f",
+        "bfb19315fcabd52890adf0882fd370ddb7d497011f04967fee23338ae84efdc0",
+        "bbb162a496fa8d65bd6b3882d63638dc019ad15157105359b9c20608bc584dda",
+        "7e744141b40ea5501412e42c8b40fd0b05f1608aa2e4073944ccccbd82f24ee8",
+        "6ade67e2f69af23f989c1d6f6b131e9e0c42b9277aa5501477707ae73d6fb251",
+        "7d644d7a003b740010b6ff93181247c0ec072170878d1231ff3d2345cf66dbde",
+        "b0c866714a47d6c7c17400729d1aaa22088949da2d353eaf273eadb8fe55ae4b",
+        "6aa6b79a7b494e4a4c7e045495afe25c38fb85e765d0da30b1c7523111989f94",
+        "4999c6c6c7badf456f5b0053b09a2076bdb2391a09ab10c9064a680f8f9a0b30",
+        "ea320b358837afdf45eb9a05f22fb399cde0a2a2a14d03cc3e7e70ff43843cd2",
+        "49da60f8a292ccc447ce5fca1d3e5b7d0425b9add0540947aa60d125fe9b06a6",
+        "a6a1fe2c4ab42e5930486c952ce36cef362c399380a463be3690246755615fa1"
+      ]
+    },
+    {
+      "sourceSha256": "72aec5142b402c07dd4d1ee7ac16ecfc5c03f2f8f8aaae8f0e15d76d36d740f8",
+      "strings": 15,
+      "reservedUsd": 0.010725299999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 340,
+        "completion_tokens": 729,
+        "total_tokens": 1069,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 340
+      },
+      "upperCostUsd": 0.0009767999999999999,
+      "translatedKeyHashes": [
+        "ec70b4a614bf504087e4c1efb46c2c62f03e5268bbca0bdb205a0649c9296aba",
+        "d668022f00574fb17fc0a64f2e043042c349598ea75a2d6ca25917a873d471ac",
+        "1503916a2ab2b0fd6768d3455fd8f2d9aa3b31333a8507dadcad983704a975d7",
+        "1331275bc537b4c2bf1e46f7275677967515342e30b572e6852fa6f51b831fe8",
+        "0ccbfa639e45c9abb509e85c9175e1ff0c3887d34fb973196b3de0c40baad373",
+        "33062a3bad4f26e9d94f6711fdb6074da16a4c6fbca1f93fdd2e7ac99c15ff13",
+        "b7531d41a291b9259c10b09f3bdc836362221e024974ed4958d966b012e04180",
+        "d881177358b37c06d79b65d7b6a67753d2a7a032d5a9563ae26d388f6a36c236",
+        "66abfef02cd8305f244c2d1a9540c31a2ab8f0e9b5f7c8cac521aa0a1cee7358",
+        "42ef2c24bd7a422eb09984a0c17d4f3c1b22cd72770629146fdac1b8d7a7e1ce",
+        "0a9e94b929ce336578fa1b68a2abc369a3158a1e0b298bcb7c5c2486a84b3986",
+        "71988c4d8e0803ba4519f0b2864c1331c14a1890bf8694e251379177bfedb5c3",
+        "bc36c9a3d1a2ee4940e2b66e23696bb771370b0256ddc5b99a0178172273111f",
+        "878fc53f6c468f19b6132763b8a74579ccca107396ee520c767aa5294eb6b604",
+        "00a77529c96ceaeabe29f9dd6992de35a65dd11ab05419f3e3e46cee4d2d2f7b"
+      ]
+    },
+    {
+      "sourceSha256": "e6f2297b47899038bf3ca1ad259039a9ee053a98fdfa61cfdeba6948673c54ec",
+      "strings": 10,
+      "reservedUsd": 0.010889999999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 432,
+        "completion_tokens": 1344,
+        "total_tokens": 1776,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 432
+      },
+      "upperCostUsd": 0.0017423999999999999,
+      "translatedKeyHashes": [
+        "26357ac966588f1ea6b6893fe7097763c588163e925f56d0a02f73314e77f9e1",
+        "b2638d2309c82efa77d98b362dbe2985d65cc494b640aadb24ecb951e7d18eeb",
+        "86f8a79209e7fd3fa1e6c1df4379ec27a6c2e03ee0d5332a04f3d8ae313cb0c3",
+        "1fd249ba04560e813f97ca818987339f719c31660b1d41c0f7625701d795fc8b",
+        "981702de5405776a4263cd20a78030365e8224062f5ce695a1220e8292a97bbf",
+        "e27702b7d1475b13a62964232f049e725f02dc0eab0eaf01f62b69af2a0a8ca2",
+        "7000d9a30b785c579cf9c930f45d4e9c1bd21675f27d29003d78b01f3e27df02",
+        "69dc213ee74e24de6eff03b8f9d0e5fe6a35418b78d158658704cedc9811a6be",
+        "35b34e3124ddf7582a446ccf55d9b198299a85e04d4d5bf9918f17ad8d011d5d",
+        "53acbb7bcef205218216408fdfcb832fd815cc7cb1f3868892180ce25c4e0f5c"
+      ]
+    },
+    {
+      "sourceSha256": "35750989222fee5086376f4e8601495bb28b075819cb9ec03c8edeff5dd02c57",
+      "strings": 12,
+      "reservedUsd": 0.010920599999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 451,
+        "completion_tokens": 1575,
+        "total_tokens": 2026,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 451
+      },
+      "upperCostUsd": 0.0020253,
+      "translatedKeyHashes": [
+        "c00a3ac9568b9f1f4b1c3e45256eb5778b8d2b32ae3b14c1dc76a78968de9919",
+        "cd12535e6d77a94ddd38cbd2d0d05542393c923da76342478a9fc0a686871d00",
+        "1b05586e54d028c3e5364ae44892103beb2d31a1cce52798e5d062946f2ce67b",
+        "a574b5146b503692f086b7ad63fe8c5354dc6567c2519de6459744c872c2e43e",
+        "44bc9c7b00c050d2beef5e53536583085b3c8c33178fa59571bc7dc46052ccee",
+        "4583d81cb4433690f98cfae3c3425c56a4ed6eabaaf3e9c4a1e93bdb1d4bb9d0",
+        "2fc4ee7162ad3ec18bfb12f4f1b1a80fc677c5f2a678c01a5e4b7dbe0336270b",
+        "bfcd384137367cda743b3bff414c291263916b4c02672f1bca92aab99182a1c1",
+        "4462761edefc33fd0193261e2a3b36ff65c8aaf72fe028e51e82967fc5525283",
+        "7ec7bf804f28de22dcf6f4178b9e2a628b7e03c55600d534bd12b84a52aeb61a",
+        "e9896d4179e2497fdc94bb080a2f7af8cef44183ed15131253929486ed7fc3cb",
+        "bde19a4d7574e863f44e2ca5185fde10e1ca75088c8b5551bd632c815f313ce8"
+      ]
+    },
+    {
+      "sourceSha256": "e15bf15e6dd120e87d4a05d35254efab6e11d8a0f125472ef7dcb3fea386fdd3",
+      "strings": 15,
+      "reservedUsd": 0.010764,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 358,
+        "completion_tokens": 789,
+        "total_tokens": 1147,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 358
+      },
+      "upperCostUsd": 0.0010542000000000001,
+      "translatedKeyHashes": [
+        "2aea45471cd8094ed78fe31da70acc4d3377d6c3cdf49d2392ce94142fef9fd5",
+        "64547816221f98946ecdbceb320f14a88f28f91f81a8f62513c69f6e907e699a",
+        "9c669b9be2a7776145c622483494abd7b702cbd4d9fa11ef38611b8beb64b9c4",
+        "354009f1721a7b8cb293c9f465bc1f32ab1bf8cfe06707ace6d7e46305cf5fae",
+        "f2bb29d314a74b7359fc80d8ab090b9f382c1d4ab486b225b1f831b7e17e0c0b",
+        "e102cb7b672251411ac1c741245d03746e51ce39a0fffa9c8ea74d02dcab29d5",
+        "60666bfe4a208a5c4859b14017c5245a56f1666a78c5e20a8b0ef5aea898fb22",
+        "17e4b54f27191b83f2c06a61b98f1d54982f57fa86d1cbef3f76ba9dc8d37e84",
+        "7f940a14fb1baefd4d57d268e68677b8d5911f61ac95df6435ee0dea368f2fb5",
+        "0323a8ec15dbdf6f5e7057814fc60d92be5f38f3065cbd90fdbe085b38e19471",
+        "de3957281be335a8bbad2b917385a6d16ca18493506b5165dc66b8675c6f2565",
+        "9dcff98e275f0cb911f1523ef5c629c0aabe9e3b642a6b71ac7d2569e9717121",
+        "fc4e84255a41a3a28fede3ebca9eb1130e112bc53d8371fa038bb953eb7326b8",
+        "482960573b536a2086c4c0622c2133502e8fee94c45beb03b6d2bda6c3b15c05",
+        "49d9da23c2a7c1b2d6054d8d193b95847f98347b47295b282b2887d186c711e0"
+      ]
+    },
+    {
+      "sourceSha256": "71e90570dcc412ae92698e98db6b1d8ba1f882073b9584e95a031ff8985d990f",
+      "strings": 15,
+      "reservedUsd": 0.0107193,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 325,
+        "completion_tokens": 527,
+        "total_tokens": 852,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 325
+      },
+      "upperCostUsd": 0.0007299,
+      "translatedKeyHashes": [
+        "7e8cd2056da73a7fefb6cd91f4e5d199d08d9058c517b9a2476b1b520324d674",
+        "032121c6257a2b3b8caa9997f7ebb96c51c0387b865ea745229eac5d23f0093f",
+        "ac1fe0f767345b4cee025ea3430a6ebfdd06a1aac04a94b86b7e0be6d52bc640",
+        "6054194689135af33a5f946aaf225eab32a4a8dc513229b6ee0449a5f2a3a4fa",
+        "ca02968a32e90594e801691ee5e66d93465a46a7822cc1047f761a7ae6e1930b",
+        "7a25bd78591884b20b6c0e4083a435b52942a6113a1784577f48451b86c0544e",
+        "051f01f095a28b04433fb7b6cc6785ef57533bfb7d5c784d33a472c56ea125dd",
+        "88980154513d74131c5ec47da81bd01d3e921142c6ab810b805bc8e625f4ba5b",
+        "3667f939d52f5974e26f7637a258dadeb2e2b6152c88b23d5855cb787ddc166b",
+        "c867e59b7fbcf501ebfb3352c12765c28c369087a3ced5e9dac4692d79bb51c4",
+        "950abf62a77396f0cdf93033792c37743eac2402b7d617f137d852eab90e8c1c",
+        "60c6f3961fb56401eba222d19857b0696883c9fba1d50d18b5be5bc86d470453",
+        "03816aa075a52941b6a625b2c99b136426316de9142418df486894b72d6ac2f2",
+        "c711946c4d7f24fb2a98566aac33f1037216d590b73d632fd64301e6f058e8e2",
+        "778dd761b5fc64851c4f7a75674d52053695b41ff6c8ff4c496587fadb709a62"
+      ]
+    },
+    {
+      "sourceSha256": "1c058560043bae82af6538ab02cc6a360172e83f3b72a4c916aeb06b22b983cd",
+      "strings": 15,
+      "reservedUsd": 0.0107496,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 348,
+        "completion_tokens": 660,
+        "total_tokens": 1008,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 348
+      },
+      "upperCostUsd": 0.0008964,
+      "translatedKeyHashes": [
+        "f9501add0b0dd9294a4440c42739d5402e0551f1b6eb33b30628be29c8f62d75",
+        "9d0b5c58c2da6b9198aea49b6c477b6c3b793a99e3fce9183048cc83960c2b99",
+        "56bc74136859d08536a11c790ca5debf26099c0a1ea045216ff3b1d123102b6c",
+        "fa70e67ddaf75ff1173dccc4858c59d5eba4f599f883757b0fd5442c20558d7d",
+        "881595ade9821fd5763a90ccb349d37dfbdb3ec334ebdbedd0e16bb47d983b02",
+        "36b4fdc54c4d2b6961aa0d95b34d8d634bdce60f2528a5db86ea80f379681723",
+        "cf2a63375a57a64d79cc85ecb25f6da63e8700487d99eb7ee41cecad7882ebb2",
+        "50553e7e46cdfc2fd13980baaf3a3fb88977cd10a1e9ac403399420d99520df1",
+        "d8696ee5bdeafa7e3406843e9a836bd568c6523c7085b48fc3abca270e5bdaac",
+        "1ae1a15f9e8fe178f404dbd96c78037e8d64612df731ccdf760dce8d1a072b5d",
+        "29cd26302e1a0568606108a10a8471a082b5660a679f8f42d493d07891865634",
+        "d4856f418bf376c4f7efd9344d188f4ff29a3d1127948c03540912cc86d2049f",
+        "baaddf70fb5d432b8bd948ef91d6f910124a6d138edae4d5f000c4610ddc8eae",
+        "f565318d124534cfe0a7630d518f548cd339e464f48d50eda453abd3728ac2a7",
+        "bb2a2afbc2d53d2812aa8e4ae11b89bf1d4bc89c125f6d2971bed30432239ed6"
+      ]
+    },
+    {
+      "sourceSha256": "0c66e42a913ca0d04cc4ff26bc74b003468aa4307cce7db459688915022de854",
+      "strings": 15,
+      "reservedUsd": 0.010701299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 326,
+        "completion_tokens": 491,
+        "total_tokens": 817,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 326
+      },
+      "upperCostUsd": 0.0006869999999999999,
+      "translatedKeyHashes": [
+        "3b35a488c131c5b7654e8d7f4389da52f68302f28b1282d0f3c92ee5066c0612",
+        "69ef9bf0c4982ed056d5312354f5e23622aca29af866269c5b4de72cc1197654",
+        "a8283ade31856f71220db0e6f60a257c6889dc4dad0f275f66ad44b9ed9bf8d5",
+        "d24c41ae530aa23cf3859982199700454c99b66747770438e0f76f449b5fb3bd",
+        "9b3fd9d8cef2ec6daf52b9b14907240f2e88a779d7aed92f5b8f131bd9d11ff6",
+        "a710c2b90913b5375ca6ac865341e49dd6daa42f6d95182e6ed1a7b1b650ff4c",
+        "6250d5725dda6d9fa7aeab21eded4904a7dbbe66200b8035a03694217c7cb1b4",
+        "c24bdea9bf1a5114c61d56def8bb8b0a625fd1d1189f5a016d26163224de810c",
+        "7722226e3d95df506fe858760c2cd065cb6d2886b2170f143366fa36dabce0b9",
+        "f59ab8d1331b7b16952fbd388258f856b9e09ce2d7b904f500bdfe4905640774",
+        "4719e5bc214a11126d2e26f5cd7cc32e845bf76a9c40478c6ab719231f1c38dc",
+        "fec193f29eb189fa5b9978d1522e755f43ae43fe039c508616a552adb40e71d1",
+        "28a1a9b3567cc5cfa70c561173b68cfcc5700beec7cace0861bb1f4f9b7643c5",
+        "83108619398b79ff68b634d0c694512ef06da39bd1df5cf8ba34f72ac3984896",
+        "28971aa951d756e41e4f986066e23b3f7e8ff57c10ec9f62c7b0671294e5ad7f"
+      ]
+    },
+    {
+      "sourceSha256": "f1e091c86b520909d665230241f1e51f4e723b5dc61b8bd43c79b037157d87eb",
+      "strings": 15,
+      "reservedUsd": 0.010764899999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 356,
+        "completion_tokens": 859,
+        "total_tokens": 1215,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 356
+      },
+      "upperCostUsd": 0.0011376,
+      "translatedKeyHashes": [
+        "8f7c94bbb07d4f91822f0b247723d95163076d10c09c3a0bc63b83036fd318f6",
+        "5539b511148c5d2326ca70859a2428f05f17add7345ce7114848ca43b828de14",
+        "c9d422e144fcc42a7d0d049d2e7f00fd4d58390c7a23a5a61016c57b1894f6e3",
+        "21ccccc666f4f2390e1e00ee3932d308fa85ddec9fbd32d570bb53d697120105",
+        "50c7e7ac37edf68a5ccca31936b7d8114c75d38794919fa2af6d537c1db30e44",
+        "0c5db3f55d83e04f093c0841582bd91decc271d051b0fd9f3a3a8830646b61ef",
+        "6efc5d27f30b20c103ca1a855bfc65cdbdf9de98c3f8ac93a3df3f319c3388bd",
+        "18faf9f4a5cc05e1994e563ec648c54d0a591a3596dd3e580277ad3c0b8b6d35",
+        "4118deee6e13aa904fd160495f27866313e67c103c824a5c223b7751465728ab",
+        "3ea5f2ab324407692c354058f9baf37549b1967167a568067a01ffa6f6de2a1f",
+        "2ddbee0a841fbb4e6f54779d7b938385eabcd94bf986a9171ef5e0c598918e12",
+        "11a8bfc000fce25aa81c9f60bb1dc1cfcf7ace71f67c7f1b8228edfb0de2224d",
+        "b943f8d291ba7f086a73a243a5da3eeda52bf29b77b1cf6c9092f92c7e891cb8",
+        "5a49f431a2cc1a1d9817c6c477e547d9f2999a7cf0c6567016e75450d9a06057",
+        "8a27546b91ffdfbc45476c6edf0b4a9e45bb9ec21f12c40d2bec05d66feb4961"
+      ]
+    },
+    {
+      "sourceSha256": "e021e2cf402cf08499e7143ffd7741c4d80dbae38e6ac552456ef0d5a2a1daa2",
+      "strings": 15,
+      "reservedUsd": 0.010818,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 394,
+        "completion_tokens": 1088,
+        "total_tokens": 1482,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 394
+      },
+      "upperCostUsd": 0.0014238,
+      "translatedKeyHashes": [
+        "53dd24d1febca6e2d8a5394f1fddc435518b59710abd877994f7f684629b82bd",
+        "865e89de78d94c747184d6a7e6f5244b453d8062343c07e014ae698cfb0260e8",
+        "386748d82158fc97dc53398ef29840193290b6f6f6ba51f00b8ef88a2f50a565",
+        "5ec9017e75b8ef48402912056f61f449815d5bb2e0053b0fe8bfc09f69b4abd9",
+        "5ce44dd77dae789f322b4bc032812a77a989e90c31928743f4fbdb26321011c2",
+        "5c76b43d4bc67d7ddd779afc3a30ea0b9e5037ca56e76386d10714e1637daf30",
+        "d084236cbcc7f7f0cf14927ea549cb1afacfa849a8d96408bd5676f5e447994d",
+        "0d97ee9349997c3076f147d0da17caea87e6060049c55294c31d729c455ec440",
+        "c8ecf257ff8e7fc91a5f0938583dd530c086227478179383cdc38e1ba4bc8daa",
+        "42c2a210815ffeaf2af8fe68a07eea8a334d0aa71c082b2cabe4d2a7bc5f39e7",
+        "34140d1d91f1798f2bece09aec165a4c850cf925f6905a0fd0f91983a6fc4204",
+        "4d88fc37b93b627aea9d1c422d376b968908706d775678f6760bdc02028a527d",
+        "ffe58dd09a5df2034bfedcafc38d82a00857a51f87a141a980e613433e883017",
+        "7ffe0ea5296bed2a907d6f162a3edf879621c70e2074b089c977d597f45e7ae5",
+        "b9f850eabbd92006616e5643af4a53fd9496e27b5c15c338ab35a0e19eb323f4"
+      ]
+    },
+    {
+      "sourceSha256": "f90f666f3be191c3341d490fb90b9d17aabc0895e705fba2f12f22f5286b5357",
+      "strings": 15,
+      "reservedUsd": 0.010787399999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 375,
+        "completion_tokens": 923,
+        "total_tokens": 1298,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 375
+      },
+      "upperCostUsd": 0.0012201,
+      "translatedKeyHashes": [
+        "d100fe2ee23c91ca107d1ba5c574c52994ebd9c5f6740f2caa487ac39385f46d",
+        "89da6453edb57992562318fe057f196b480c153e7f71528a5bad732b1df09fe0",
+        "1d9d81907597671fa4a65127bd6b47a12e0dfcae69151a668e0ed271b7bdd72e",
+        "a43e19b9832ee9df8494fadad45f2243a16017d11517595dbd3318fc19aeadc2",
+        "2002f3227ff7e8a28e6e068d0b847b64c778337446f7b885efb04724fcacc12b",
+        "3c870f54460d94de4b7453754becae700c32f0d34897c8310aba52049a9b4744",
+        "50f26e5adcb836c73bca0044b300f06b5f25cf6339c0a95c4010ee78939f5a6c",
+        "686673484feebd7802b45947096ab0f083df4a9955f42b56c49502156af5e99c",
+        "8ad682dd628015faad6aaf3a9fd2b4b03e3795011bee4946aa6f334fe4a22280",
+        "659e77597b8b3af668c3238b77331ab248a427380b5d9a63e1c03e95f65aea65",
+        "7967e089a7b94464ee1b0c6d4b8271e99bcf36f9e5481e40a5eec5c5a5108d01",
+        "78388698fe5ef634970eb00f6a1d420dd8853a3e5e6b7e142a6c9eea05062ebe",
+        "cd877a11b45e1a4706c8545f1b6934e0c5d3abd45a642b7a9e1c7c29989d615d",
+        "ddbcc0739bc708d976d2c65b0aa482d0598463f4a3620876d2a0067c588fe60e",
+        "93c60f62578481091eef5f2e59c8aca29173a34704975fa29539564ed8d3da07"
+      ]
+    },
+    {
+      "sourceSha256": "1e321b402314809b4472c1d8ac45fd4dfaeba34fff283dade46ef1b69a54452c",
+      "strings": 15,
+      "reservedUsd": 0.010719,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 331,
+        "completion_tokens": 555,
+        "total_tokens": 886,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 331
+      },
+      "upperCostUsd": 0.0007653,
+      "translatedKeyHashes": [
+        "6b0cc904d081a8c11cfdaec667f05132cbfa8a57f5040d27d5fc0f2fc50d0dc6",
+        "2d45ab91fdd29fcd43fc386e7327c444a26b57ba6ed343d6a1bea33085884bd8",
+        "2eeb05ba78fbf6c3a6654eabfd587807be99eead085e6f3bcad3157776a53ea2",
+        "b2532b314dae5173d192cddee874d468b67f83a9f6ad89fd004da1f6e076b029",
+        "3ee75029c70e284c46b5af29eb87592f923e747f460353b02059a645f332b990",
+        "f0f2383f8af8d23d9564f6f710cbce8980d8ab55de6523e5b0ae2ca89eb94d10",
+        "4f7838402f37674e8ebedb6cf048c0aea66bacdb25607aa3eee4b53093d83f5c",
+        "f6778950d77ca001c72b96232c020750c302b7ef5ac66a94322e2236725c1887",
+        "7a970cb4533f7dd1c22152009417fc7f2dd17d6dc7bb8c8b1fec455322cf8b62",
+        "e89a77e7fe58a6d14ffde89db2a9d370d605da0cad4b8df1fa7eec63fb2fac2b",
+        "bb265946234feb9899fbc24619eb6c16e1d34f52a0fbfc990306460189779853",
+        "eea2745e2867a6772adc3e813211e6ce7b6ebd312d7e84a7c1b1aa2f8c75fd4b",
+        "8c98e1be31cc950a64911750aaf802eaad6f3c7f03917e18046c8309d587ff7b",
+        "b51693fd6f3cb953cf8521c14d4d54faac35740ca01bcd8d5086a453578a612a",
+        "e269e0c30ef61e4d8d6bb664f8a8f307d7c82dd42fd12fc2afd15a35406db964"
+      ]
+    },
+    {
+      "sourceSha256": "562cd97bc594288f0e3e6becd152bf9d6d17916c3b0d13634e8ac5a7c335d056",
+      "strings": 15,
+      "reservedUsd": 0.0107517,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 349,
+        "completion_tokens": 760,
+        "total_tokens": 1109,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 349
+      },
+      "upperCostUsd": 0.0010167,
+      "translatedKeyHashes": [
+        "dd167905de0defcaf72de673ee44c07431770d129ccffab286bd2edfdaf62396",
+        "f89ea27036ac1d3174e2160a4d291d006ad6f85d466726ba04760beec0940c24",
+        "6f175bb3545d861c2bec6f3d63e9975c8f403820259ec85b4c9cf2efce279865",
+        "61f3d579b24e8746c0f357f7a7921fc5d4d3ea8f0465bfa2098567c2ba3e3756",
+        "e6ccba39bfc23a0ac7e81989948921960ce697f9f72710ed3c6073d922576df0",
+        "95be4a17c750041dcbe52001f56563b29b568e0a6c4f3803981e67d9c3bfeb28",
+        "abcd1b361b8ae4c179da73d7a99ed9b9169824aae8e93e350d3aa9d2d9638b1f",
+        "d35a4487b7de9e1d2aa4e97ab2f70d4153b025cd7bee41185045e62b22c734a9",
+        "6b9f63122898e9ecbcd004ba53ebe5fb246f952c9224256b2270c0780e92a179",
+        "be83dc68d2d3a0b3d74d8ac13aad37cec3bffa67a44fbf9984839e097163f69c",
+        "361e53d5a1e8ec1a390ad14c33ff4baf73a956250977b2fe8261f0de9cef2a0a",
+        "d534be829e32196b4d1e53b67103cf1e376b1d60071857572598c196abfefbc6",
+        "eacc565542e4a34db6b3e27e5bd2eabd8373079abfce54560bf3b16e9e21252e",
+        "f7ab0572fbcebe2c92a8334e6f8eed9b1c320b626b010cc7231dab75613bb11b",
+        "3491639a882ae182560a4ad2e8bd72c5b26a0b988bb66ac692d27b4220083c96"
+      ]
+    },
+    {
+      "sourceSha256": "1c725b502b8c75c530ba1eed6eb2b62682a9c58a225a4a4987e01a2b149c2c75",
+      "strings": 15,
+      "reservedUsd": 0.0108393,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 411,
+        "completion_tokens": 1222,
+        "total_tokens": 1633,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 411
+      },
+      "upperCostUsd": 0.0015896999999999999,
+      "translatedKeyHashes": [
+        "6ee818aa2de35ea6849319472b83678a5cb1273f3fb0383ffb279d7fa6c5b961",
+        "01bee0ce07e6287ed9ec844f9ec9aa4ee957179257429330bd403ee5796dc573",
+        "a51b44650fe30318846bd72384c5f86c78bcfc1a11a6fbd14af13109dd840c9f",
+        "e00cf1143c6cdbec728ebf93978641d37e9958c8f7760c6d0c69e02f1e32fce5",
+        "b10fb966d72063f534774c7c6b404f4decca76ac283093ae65fef78d07c1b75e",
+        "0eb2a2d076f86eab4a60008758a65b8172bbff3cabaa433b8387a958c6eb4a6a",
+        "75e4e628597db56e817bf99e5dec3c23cda9d97d0e5d0de22d06ce324e0dd095",
+        "b6ffc14d3aa5a74245a5f2546106253b2dff1ebd61e3fbed0ea747469d7b0fa7",
+        "d208732b40f25b06f21da4894c8e7cffd265049959c6c4a5fe1d8a4fe37e0959",
+        "a71e757324467ccfe2ae90f483fd759eff5378e6afcfcce4c620de929b3f2dd8",
+        "a46ce713836fb2cde4e1e52da00851515778d467fb052acab666e03bc6512dbf",
+        "706ac63a488203f3cbd70cfa5cab0d6dbaf95ab3d58187407784e1f03711de1c",
+        "e05fa3d611908f3a5c01d6367c30471ef59f7fa005f3f2ea0d8222c11a86802e",
+        "9e1f4ac8191170059d4986a799fc60497628a7f4a6e66c97923ae5c9a75bf817",
+        "13ccd18b79403649b794e1026fa15eca4bc7379831e6cd76dcf09200e3c2382c"
+      ]
+    },
+    {
+      "sourceSha256": "ef61ce47e25aa1f951d933d29511f2265367262daed58d0c24e7790a33732432",
+      "strings": 15,
+      "reservedUsd": 0.010711799999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 326,
+        "completion_tokens": 568,
+        "total_tokens": 894,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 326
+      },
+      "upperCostUsd": 0.0007794,
+      "translatedKeyHashes": [
+        "e04633118123931ba471d01b3e81cee65517304cc8ec134927cad8bbaa504cd1",
+        "3ec9177dabb373b9d6163ecea5b4114367124be70ec05eecb8483456d82e5aab",
+        "dfc725a18144b3a45adc8c8013cbca9c4fbd8568da4e584e782b827d35239ea8",
+        "5474eef8d0f179c707cf418e2bbb468c77cc24edc5e9f5f4e137e85e06a8eea0",
+        "524d920a63b6be32c34c4e2cf6e0a4e008ce5f5c2ecc09581b8a82728fef8f8a",
+        "0a21a95a6ef397dd6f645459c103efa12ecbb0cba6361b6e595c69115781d2d7",
+        "55b53044e1889c5ddecba06847e4e4146e59c3453d74e8fdc66a013eb46fb6ca",
+        "56a0eea7f7cbd1b56870057b25a84a3c3b6b0da7ab989b037cbd0904d90d2afc",
+        "73c6fa640c502905f0fc0ae9b1fb7e244bd5842809d6c4f808fce7adb15f7402",
+        "ab95d456c6bb93922be95c8e35dd4418559447f40baac31ee82fdb0272e0b77e",
+        "e2d4a426e50229bc3fa755520eebcc962c7c96a31ec71d5ed4bb2a5b15d284c2",
+        "9619649d8dc1394f89089621a11621651aa271453d81b3af8f7bcc7fa5fe5f1f",
+        "55394fa04e23944ed85325f079f1abc163af91add92b07ba27f6850b68bfc880",
+        "39101523405f28a4d546b76a0d281378b631c476eee259d2bc231646b4067504",
+        "8493b5d6674cd8e17a12c1dbdaa70bcdffaf99b252defc316454bcecb7e78676"
+      ]
+    },
+    {
+      "sourceSha256": "f2cf9ba24088ccdef7dd0a9139fb572f3afd791e5ee483f9ac66f7076a9675d2",
+      "strings": 15,
+      "reservedUsd": 0.010833299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 397,
+        "completion_tokens": 1207,
+        "total_tokens": 1604,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 397
+      },
+      "upperCostUsd": 0.0015674999999999997,
+      "translatedKeyHashes": [
+        "d442e8780d41723f7533482212b0188154a76ca55dc108008eca629d23405a8a",
+        "feb38a7e3d1ddb036bbe35575566f9fe97f9e8b4148f144f30a1d3b397018ec1",
+        "8d18283d417cc7c2f70b83ef476a891342b2e71284320dfa306f88545a9194b4",
+        "858ecef2f1942c48e5eb50e1bf440f4f2da295c9bd67e3d2bfd3d9d1169dd220",
+        "87bb59ba2f92f2a5a9f13e021fd58dd14ae5c065b1046146875e6e68d5ebc8b7",
+        "1377264ba3b0a7172621971b49ac3e82e33b64b14328d9275d02807e67ea8460",
+        "dc1a2a0ace2868e7d3efab0a37e740a51ac7ebc9bdd8d92109eb20f88e11b399",
+        "20c5ae9b1cbaee834276a6054e609e37c4530016c833ee27537b13b6a01c19f8",
+        "2fbe68729cbb4ceae8a76372dfff415e5dd84e8667d1962abd5ae77f6e370896",
+        "f71f772535a81bee32d8f641aa27c3d06e4489139f8bcfa94ba409dba9f35c50",
+        "ebb5196266381dd64145528a7aff032da5e89f366e9104b5e6afefc29a72a041",
+        "dbb5f6371b6a2a677f09c24d17fdc581132a41881a818469a92b58588e8764bc",
+        "28bf802cd0827a41bab6d792401c103ea1473d4faa21fb8ef2e054f8ab72c0de",
+        "c05c3b67ada3e0358db8f6e8c229ba76a06161dd32a0be3467f81185ce1f8b50",
+        "1ba8cb19cf8657c1cc03edb8d486d8fd4715b7e12f5c3f4bf4e959e7d2c50c6b"
+      ]
+    },
+    {
+      "sourceSha256": "137085f2f3b9f36fe26affb7f454872cb7b6a2d3d2859e91c861317d1a124ddf",
+      "strings": 15,
+      "reservedUsd": 0.0108372,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 393,
+        "completion_tokens": 1076,
+        "total_tokens": 1469,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 393
+      },
+      "upperCostUsd": 0.0014091000000000002,
+      "translatedKeyHashes": [
+        "5f971c70e79e5e223ef4166d302065f619f6ab460be3550f36e555a4df03bbf6",
+        "8e381d973f91bfe19b2afdf6e82a1af4f20e4e9e2ec0570aa611265e5459db4c",
+        "9379884518c8679903a04bf9eb5beaa1b3f2fad71e993284a3babbdd7ffba063",
+        "bb2b3c627c70235b02f1f142f919609bb3aa159df350804b998937cb0e9881ab",
+        "561370df5d123a04791d01c0ca6954b7c5b1c1e692ea17a4e3728f356eeade46",
+        "84c7e2a050b53c16791ea74096ac41e8608ff9592460accce76aebf63471c0b2",
+        "4825b67fe226fcc835d96f0561aeaad09b025284ece8830367b4d7e43f3f4c69",
+        "afab12947084c43b67f1e4c186f915f9b2fcaed52b52bd040d9b1ebb5ffc23bf",
+        "9aef462e7f56a4dd005fa038331de685536469e070fc8ecad922d5df81d1390d",
+        "fd3173ce185e526f1adc0a142c9959eb2e3eee19164136a7213f09838dcb65bd",
+        "5c000f2dca8eed2a7a0730c7b799d282b51504ccefab029ee1f75ead6395f2cc",
+        "338639b3600152014fa409f54c89247d3275bb1e156ccd86124e0f4965cf20e0",
+        "a2943c2cdd1ab20405c4cd61573772fbe5be37f6b26945f2cd0907183e6a2098",
+        "cb1633730268607be1e21e7e57e8669bf21ac6d993f2f233e2a44828e3677bfd",
+        "4de6481330a3c2013e39f2f2e70f91931f0fddde5533b52b775cf2958018e827"
+      ]
+    },
+    {
+      "sourceSha256": "7b020c8ae98a56de40456bf5685e887739a6bc742346256db583495711762ca3",
+      "strings": 15,
+      "reservedUsd": 0.010758599999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 353,
+        "completion_tokens": 741,
+        "total_tokens": 1094,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 353
+      },
+      "upperCostUsd": 0.0009950999999999998,
+      "translatedKeyHashes": [
+        "cd09a8cc4df4ba98923e80e1beadd2c9adee31ad5836235f285828995b0349d3",
+        "b3bc03d6987eb845d286722984d75252e9cd07c256f63c901f47868d1950d4b4",
+        "4d0260e6c3e73bd432ebd08441ce21fe226cb7207849959935815d947f0e0434",
+        "2691d35842b9b02b37d861791557940e3c86fc16688f8ff3c81c1310a6b8da26",
+        "509c517ede79fef060a5f3a109fd1f45951eef2c7970b25c20992011e36a4070",
+        "a9462a4020dda70f137f9b3d9bc5114200bb6427c4235f1a29390ed733b66b3f",
+        "96879611650f80a81392a52e0db9b0237669087c4518e1c130e541a505e0eeef",
+        "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+        "d59386e0ae435e292fbe0ebcdb954b75ed5fb3922091277cb19f798fc5d50718",
+        "8bf729ffe074caee622c02928173467e658e19e28233cff8a445819e3cae4d50",
+        "2fae7afe7dabbf15f14c33763f31b59dbbc4cd2ba40fc308c71df2b3b9f368fb",
+        "6ed8919ce20490a5e3ad8630a4fab69475297abd07db73918dd5f36fcfaeb11b",
+        "8a2a4fde3ba4195e389e1a3b1c087f224fc3713d9bafc6e233c474cd5be67559",
+        "f12fde684b2ed4c627b777a0d2346ef769ccdd9f3e4ad3dab5cf663ba9598d0f",
+        "8b47045eb7b8ca42aa967f33ee1d014ba89f8d1ac207426b482d34b5c0d90935"
+      ]
+    },
+    {
+      "sourceSha256": "1fb940fd4b38e1ac9d5101b4db2f0c9e93b948b4ad94ee5d917e1c1aa528047d",
+      "strings": 15,
+      "reservedUsd": 0.010679999999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 304,
+        "completion_tokens": 378,
+        "total_tokens": 682,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 304
+      },
+      "upperCostUsd": 0.0005447999999999999,
+      "translatedKeyHashes": [
+        "4bcef3de76eaf574c6bac3fc98f364793a73aa3e31fe45a7d1dcc0239ed2a5c4",
+        "cc962289af2873dd6dad32931554372a7d2d2de5bd5859c8265eb58b5197a88e",
+        "4ddb3e96801a1ee2b77dc5247c0db478d5f97a93b90e7cdb09f5f51d43764b08",
+        "bc6bfd848ebd7819c9a82bf124d65e7f739d08e002601e23bb906aacd40a3d81",
+        "df8eb42b37df4f774564ac36bc946beb2f4294f2e739f8ad1ce1c7e3ee9d60d1",
+        "816e6c7d9136912f7b3666f1c443820c6ba912fcf23fdb8c6bbb4e55da8acf36",
+        "d922ee9a7f98e03322c8a4e36964565471a7d9e044b8f354b15db4ff11d55b30",
+        "6cbfb9490e1d88388e1190d11bdfd17ed716a44850372484bcd03b6cd91964a5",
+        "abb5ca89995bbeafe7389f9b19c717210783a3b3abab65538b2724768f377998",
+        "87d05cd08817497883161da4d8a323c8986b6aa1c1fdff34d53fc824dec598b2",
+        "923fe53966c6cd9343e11af776cd4b05be315ea4b200b02e4d5dfb0f929b73bf",
+        "ba5285161ba6eed0085fb13784ce5c92f70ebc268b94fd66aa1d68a32884204d",
+        "7e414e6ac41ac7a0658ce2807548af8fb48b145f9b74aa77c9b526c569804bbc",
+        "a8ace1a76c218f36a59a58224a92cf9557122411652d96633dc1cbf8c26e65b1",
+        "ca00fccfb408989eddc401062c4d1219a6aceb6b9b55412357f1790862e8f178"
+      ]
+    },
+    {
+      "sourceSha256": "2e7d90e26d0647a2917bda02e1bee089843e28a1eb8537cab177011a55cc8d85",
+      "strings": 15,
+      "reservedUsd": 0.010712699999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 328,
+        "completion_tokens": 578,
+        "total_tokens": 906,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 328
+      },
+      "upperCostUsd": 0.000792,
+      "translatedKeyHashes": [
+        "11c209b437262b61e354ca822d4219f6a37070299ac2680b372dc18fa4ff6370",
+        "755f20c3eb01169592aa0c81e230c45b64fba846d8c55ef94647b03a74b4d772",
+        "5d28a90f4498a81461efbaf6f628a19d9778390bb5c81a393dd936181cc3d826",
+        "807d0fbcae7c4b20518d4d85664f6820aafdf936104122c5073e7744c46c4b87",
+        "2934fb49d6b38adef036c28fac69f188feae09259f3184e6d9cfbd0f35454fec",
+        "2f02a4f7da5ad4d639709057f6c4ed1aba56511ee494254315d0183d060604df",
+        "f17c1f813b9735caadf45808b4f39ea7f943dbeb2300beb2250b9191f9946874",
+        "941ee53e40d97e41838c835556734d7da1876f9f02842848af0cd39245e8da3f",
+        "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d",
+        "15371a7b97e6b75a1e5bdfbff4f0c658e8ab437e3ba7ef7c572034ab4e809133",
+        "85554bb9dd4b57d6e5c850e0840dbac644cd5568d0e20a2000468b3a01a7532a",
+        "3bed2cb3a3acf7b6a8ef408420cc682d5520e26976d354254f528c965612054f",
+        "5707d65129508a8d25719ad16b571e0cf9c3bbb56854d580bff149f14a3ed6b5",
+        "e6eaea18e885e1078829b56df34896be5ab51439e8f0ba00cb1624b2c572c10e",
+        "721c9525ade2ea8903d343ef25cf68b9bf4ab0aad56bb7b01fbe48d09bc7fcf4"
+      ]
+    },
+    {
+      "sourceSha256": "0eb91989bafba27ce354f9cbfed4645039011425970285920e3b6995a2004018",
+      "strings": 15,
+      "reservedUsd": 0.0106626,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 302,
+        "completion_tokens": 294,
+        "total_tokens": 596,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 302
+      },
+      "upperCostUsd": 0.0004434,
+      "translatedKeyHashes": [
+        "e31ab643c44f7a0ec824b59d1194d60dac334200d845e61d2d289daa0f087ea4",
+        "17373ca1c7634a4be4a13861a891abd975ec916caab8f3dcf5142fa4997d0b96",
+        "a61a30e08bd79b2383259e6027179d47012cfbb2948a597fc53c19fd534030ce",
+        "90e63d85fa1ab2c8ed65222f3ebd794b1e524b4b7cf84bec451542d0451b2985",
+        "d12e88c11f7ead9cf8244c23fc44253679ba95d7e4ad2be0beb274c61e1b4547",
+        "8fa1dddd53606ceb933c5c6a12e714ed41e11d37a2b7bc48e91d15b54171d033",
+        "28391d3bc64ec15cbb090426b04aa6b7649c3cc85f11230bb0105e02d15e3624",
+        "45e21320b717ad3b53993b6cebb35f8ae0d313d5b1e1aebbe29cd27cc1adafb0",
+        "7175517a370b5cd2e664e3fd29c4ea9db5ce17058eb9772fe090a5485e49dad6",
+        "4c1029697ee358715d3a14a2add817c4b01651440de808371f78165ac90dc581",
+        "aae484ea178681b13602a5581fa0697ba601c56b15dbc1b6bd3f4c4d9cdab1b3",
+        "268ad70eb5bc4737a2ae28162cbca30118cc94520e49ef1ac5f72c85d3f2caa9",
+        "6abce86eb29d9723353c5fcbaa046bea885bf284ff9383957c0ddb1dc88b039c",
+        "a7a9dc5bcf71adb2edc202814060a5ab6fca515382e9f1133dcc47d52d9090a2",
+        "62a2fed3d6e08c44835fce71f02210b1ddabfb066e39edf1e6c261988f824dd3"
+      ]
+    },
+    {
+      "sourceSha256": "8a09a34db6b05209c27b4fcc6674cfe2b2cfc8443a34c0cf33f35da8fd456285",
+      "strings": 15,
+      "reservedUsd": 0.0106932,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 316,
+        "completion_tokens": 424,
+        "total_tokens": 740,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 316
+      },
+      "upperCostUsd": 0.0006035999999999999,
+      "translatedKeyHashes": [
+        "0a63dd9aa0a90420bef07f7cd5411b183caca9cb3150cf19733a0316f5335858",
+        "a8792157cb4f27fb949c035f45518c61e884bb86e6f420204379c2baa8beb66e",
+        "0333e2ac13e4bc03b524163bb9f3db1322906edaaf63faf75bb0b69bd0434477",
+        "e835d0bf51a4ea9360cc0329a8272f67aba5513218435577aa7ae3811f1747e8",
+        "d36be6494248ee06ac18f38ea1119dfe4699fdcfcbbcc30a2e4f1ccbce68dfac",
+        "b24d6d33736ecd5604a4b17bc9c6481039fac362bb7df044ef1c10a2bfd21db6",
+        "c099142bc3186ded72786ba27e9ea6d2da240fb9fd3fe79b479ecf8e734b2850",
+        "2d70999ae1805e4bcef9b4ab3a4b827f578c61740f30076fcdc35c7ae7f586b3",
+        "c071cf5f5ed6f884cc70155b6f05f755fd46a302d05e4261b7e92ce878bbfed8",
+        "72b0aa6695ea1333790faa2ca739f61aa6bc61442b2fd183f2e2a414be18f4fe",
+        "6ccbde99c3319e0c754ab535f728515c40b1696be0129f231025c03347368b5c",
+        "59f006d63bd009b7f1f1d7bd7e29e1f3b9db6505ce784ca3216ea90c6d6dcb11",
+        "cde0fb0dec1400c54a0f7e7eafa73624c53e4da258bbd34b3380a0defeba95c1",
+        "cb86eb2d914d37df6857c3cfe4827b5f770b01a86578120618b0b21572160be8",
+        "e06f8cfc39f12aa98dffbc04587ed1a5cf4d65889ec9b02d4cf4b9b94df22e69"
+      ]
+    },
+    {
+      "sourceSha256": "af60c80a2973c98b55b23ef8734f4624bde261aca3bc4e8ff051d53ea855d101",
+      "strings": 15,
+      "reservedUsd": 0.010720799999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 340,
+        "completion_tokens": 552,
+        "total_tokens": 892,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 340
+      },
+      "upperCostUsd": 0.0007643999999999999,
+      "translatedKeyHashes": [
+        "5dceaeceb6d8a49d3665594710ace68dfbc1800e2d663d7febb302b4dbee3d27",
+        "f7cadb2ec28ad87e36832f25e668023bb724acf8a73ca9b6061c55b86b630ab5",
+        "cb094fb589e7cad9a9173dfbeae96760c4567cfba7c1c329c72e7beedd10ac3e",
+        "0c62d4118209576a0667ee0b10654bede1a1dbb8c9fbce49380b4bceaaef3794",
+        "387668e22f8946c1a1dfa26267805821b7ff8d66efee9347c9a2a872f2863748",
+        "55b33752760ffb6141466a3cfa24f3674f32f008d93a0008294d25ae6b82297a",
+        "240ffa1f9fc5f4d1e9176ce8bdf6b71dce27b93c0c3bb613833e583d0d56cb4c",
+        "e66d03af0bf1a4a7befe0a0024bbd724349e44ac105a2849f64f081523cca615",
+        "39e15e2c9d48cbdb58430dc738d41aac543ab39b63270df8619641f70728299a",
+        "0a4e4c29432ecb01b95f87d87ffaff9cb4f36ce4b89ff1a1a136ad1c7392ae07",
+        "0cab1c9617404faf2b24e221e189ca5945813e14d3f766345b09ca13bbe28ffc",
+        "26760e7ce5a56f4b028077f59b3d8382cb7cbb3acbd791dd5385eb3b04616893",
+        "d80c948d4a3d0cab002c80fd3620826187914910676277d06f46b31b7640c728",
+        "8943f3b60ad013c1904464b37a64b5477b2cef08574e9a87b2fee9ae5463c52d",
+        "21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08"
+      ]
+    },
+    {
+      "sourceSha256": "fc085136ab59456d78a1bf59725704253c1ce35f6f802ea6abeef9bdc3227096",
+      "strings": 15,
+      "reservedUsd": 0.010702199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 339,
+        "completion_tokens": 595,
+        "total_tokens": 934,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 339
+      },
+      "upperCostUsd": 0.0008157,
+      "translatedKeyHashes": [
+        "31ee4694152a39b9824d1ffc2ee9ed668a5197b377566c39daaa3b217868cfd5",
+        "6e8d79980fba5ccc49472622f6af250f4c52d0271c3df8b665860a9b535313ae",
+        "3da0de78cebd93282ae440b6683bdbae0c51c0912c9dba53f32b9138df2fa620",
+        "1a1e02b3120f5d68ad9b308dbfa4f94fa6ddf33fb3e63692a926120ac40104ea",
+        "5357aad80f53cf65a0609fe2e1cc8078fdfd5f83f270db5052939d9e8cb59640",
+        "1d8df5645610f379d7901fa37a1acfe7a7a7284f9a7754d6d2aac34491e4a58b",
+        "c933c5bbe303d584b5e8ab0d8d8d291ae82beda8251d7d903b119b1cc98754f4",
+        "dc8d32fc49e1e099d058c23cc94ba1f7d0e8fcadd7c95eb595dbbc2205d63d4a",
+        "e549e94bc93ccaf7a5a9c81955f15a453eb0b35a7239e3b97d89a972b12aaf17",
+        "a2d4c957565a64fc0264827175c6741de1f4f74f8330553e694c9d9c0a0bb2df",
+        "16c3245592e1900b03e78a1743e68a7b528d0f174b9c5a86186645519863fed2",
+        "89f22cd93b6fe5c69dd89d6f780d893b5ff4944f2aa867034dddbb1207bfe2ba",
+        "656f47e87c54a0fa7de29cd9092700a38c464fb0393e6f4a228eb0295ea3f57b",
+        "0c1d48b1d1a3bbf30d88509c8d1340e0d4ac7c18ee2115e058e45cfc0d384b39",
+        "2d9ee60b45a27657eb12f10d0bccf06cf6853fe027d3fa055800ab2200cadad4"
+      ]
+    },
+    {
+      "sourceSha256": "6b623773e515b1c594ea793278f0f2a65e79f07c09cd00776faf0f45b405c65b",
+      "strings": 15,
+      "reservedUsd": 0.010711799999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 336,
+        "completion_tokens": 616,
+        "total_tokens": 952,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 336
+      },
+      "upperCostUsd": 0.0008399999999999999,
+      "translatedKeyHashes": [
+        "2a7211b60bb67aafe01e85650fd5d3d51e25a35c4c45b0edd5ae0c6f4917212b",
+        "25a2360235fbb96e8af51d1dc7804a314c7321eab971d8cbc24653ebc46b1ff4",
+        "a59c4a96b1c7fc9f63f3d2ad2c781abfb694abf3d508ff26dffacd38dc5a9705",
+        "5c87935e32df0c6a304f478deb037a97182061880e2b954906eb7d3c753c7363",
+        "e9d8152b796213018cd13c7fdabe1d48e1f8f43bdc9cce6bd69e9ad4f855efaf",
+        "82d680e1eddaf20126be699e1f04dc6545afdb2e003901840b934e1bd984a79e",
+        "005681ceb29bdd895180925bbc7219fbc56187cfe2cd07fb9e6729d41b93ff32",
+        "df4199ad540b64ef4e8cc570bdea3a42fdbfdfe0181a92fac980b28c129d3be9",
+        "8381720dbc67f73c303a735863fbee49d70f0aa08334859b7ed69b77ce51b938",
+        "a93dacb6017e2eb6e5b02262fe4fd1ff3342e2c4e77ca85bac3578347341894a",
+        "9e606e1cdf60626935f1f92fed45cf9ccaa6e99960279019a9ceee5586a0e584",
+        "93074904c44b9c50333a4373b59910c093f95f13653e1c511ceec5425ec27999",
+        "1d8224b9de3c8226cece61e7684456e4a18c4fd2fef70c74b77078586581ad3b",
+        "8e116f901589906d8274cb30735d422468d03a8aad1f69ffb1643b2b47207a4e",
+        "5d560cbf8021504b8d3632c2ed25085d82f68da2bf45f5123d33e59f6ac88132"
+      ]
+    },
+    {
+      "sourceSha256": "0b5d6b9f9037a0ee009b35010c4a85c5830c1bc71f1b75416188db4a41368c19",
+      "strings": 2,
+      "reservedUsd": 0.0106167,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 257,
+        "completion_tokens": 67,
+        "total_tokens": 324,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 257
+      },
+      "upperCostUsd": 0.0001575,
+      "translatedKeyHashes": [
+        "fca4a0e1713af95775dcabd34bd7ceb9bb794f2352b40af4ffc937fb139cb4ab",
+        "847611d3bdcd24c11d2ca9f5ffddf6c82cb82974544d71afc23eab64c71cadfd"
+      ]
+    },
+    {
+      "sourceSha256": "87e6dbc02fdb6ccecf90a8b3f6a4f14419687806b949b1ca88608498644faafc",
+      "strings": 15,
+      "reservedUsd": 0.010744199999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 379,
+        "completion_tokens": 831,
+        "total_tokens": 1210,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 379
+      },
+      "upperCostUsd": 0.0011109,
+      "translatedKeyHashes": [
+        "a949c7beb417782d2cebf0e5b96bd184da21000b4d31b9a37c5e49fee668a5b8",
+        "b6609a3c50c79cfa5c46974483f88adfee39f52c8d3411be94a14343e0338296",
+        "00555a798dd7d96a658cb8813d7371c9c5201a40e24bb15c6e702f53c29dfcba",
+        "c73a4952b5d7ca985e8beccbc11abe13f68837cfea0af178ae4e0e379f148621",
+        "f7869a76b73bc8186747b94d25fcb183a1424ed39c927deb8da5b8c924b3ea04",
+        "e281ca00939d623b7ee821f57cdc5ff5bb8502991adc456e376045933aa9eb16",
+        "9ba2ce80ffebfcff08aabc4006c31a32a2f92a2616780a49dae29d0279495e1a",
+        "6e2095312a7ad18b1e4d67c6e2c3b21421df2f8e30d851eb95f7d63c357f97d0",
+        "a9888882d822ac718749588cbb9495d79660e4e802baa3e4249ad14ab6cbae55",
+        "08da0034687fd9c949f5399682fbea9616adbfe249b38d705b94eaa2d40f6c21",
+        "bd938c688f49b77c7fc537c6b9222e2c97ebddd63076b87f2feaec66fb9c05d0",
+        "89e8b9518d92279489bbdee26f3dc646d921d89a15afbd3a3e0ad695328a3da0",
+        "730d725c8a59d3a7303def2bed041a577edb4255aabd4889ce12918311d952f0",
+        "72059e4ae63a5e1fd696c8817d6ec88d89f9c9bb05ba8cc90a99a35654516986",
+        "ad3d7f7f6acda5454d4176e1f8feabb2885bf197fbceb3f2725fb8596572442f"
+      ]
+    },
+    {
+      "sourceSha256": "f1cf9a277d24dd0befe9c945f8572717c5c336c6d8de2d1728d5e6523b5c0a6b",
+      "strings": 6,
+      "reservedUsd": 0.010653,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 293,
+        "completion_tokens": 305,
+        "total_tokens": 598,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 293
+      },
+      "upperCostUsd": 0.0004539,
+      "translatedKeyHashes": [
+        "a9491f4c1bf7b0cffbadcba2db8f028e4b3f2867cb59e1f3a0bc1968f3c51242",
+        "f6cfb8c3f101748fab3f98b775ae62e1b58891817d14477a2f4cc15e0e1bb9f8",
+        "52d3cb99df22cb0d8968265fb17e8fa77c84fcb208a32be5bbf956263c7be751",
+        "72aae31e8423b67aaa1a4d102d8f660fd58a5fea3a49585e18c339fde4f59583",
+        "208a19d5eb9000273a202281cc70fd556e829273fbf5f63d7fff6544fccd9576",
+        "f65216b3ac8c5249886b85261ea5a5dc6818f3d3c0f33b7499d04724f5c12235"
+      ]
+    },
+    {
+      "sourceSha256": "9133a5e98269bf4ba28901cbf459298182665f4804f55eee00469215604067ef",
+      "strings": 6,
+      "reservedUsd": 0.010658099999999998,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 303,
+        "completion_tokens": 373,
+        "total_tokens": 676,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 303
+      },
+      "upperCostUsd": 0.0005385,
+      "translatedKeyHashes": [
+        "c1cf2aa4b0c89891d2d9df5a614c902bbab99099a9100548b2fd602eb24bbebe",
+        "3261d3c6f6d21315567684a36af432839d6f1c57d012267d6af1daa29ceb7455",
+        "3f4f8b40150d8f2bd03f4855c5ad38ffffd1d4836b316a10f7908cef477f5268",
+        "47da4e5507b615624e62b8cbdd1afc0c61d4cc81500250fe741a148e54729e00",
+        "5d8c3e1b635eed6f3475260c63650062958ebd2f2e2cddd8abc59de76bea7f72",
+        "25606cd34d60ed60c48fd1f3ce3b00f6e272a9e34f5a79c83ebee6df765e1f47"
+      ]
+    },
+    {
+      "sourceSha256": "f049557d482f5f1f7959d9e7cc7eebf424cc0180a8735e96daf77fe21cee7bd3",
+      "strings": 15,
+      "reservedUsd": 0.0106644,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 307,
+        "completion_tokens": 328,
+        "total_tokens": 635,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 307
+      },
+      "upperCostUsd": 0.00048569999999999993,
+      "translatedKeyHashes": [
+        "512fd3c6042cd1d9150d46fa59b5911a1f97b8275d73eb0a841daa31e93bd349",
+        "bf3fac40de1b75b9308f8bd441aa43219ebf2e4e0a3dfd5938fa3b84cb57444d",
+        "a5cdf07dbbc15892dcb64f1553ebb474330393705ce470b22f0194f582234371",
+        "f56648cd7573460b58fb9642f7e660b6d095ef1e7235f65464f6a3df763728de",
+        "3fdc9a587693f9e63574b30ec55c2b947a7fb4ba5fd11f0cf213072f53d91bdd",
+        "a6cd36b1ad93af914b673467af064eccbb2edc8fd1ca33effcba8d9155824bea",
+        "7fcfdf913a5c76a88ede318a39cfecdd5fa5247bbdb7eed219dec85fedd3fe5f",
+        "fbf247e43d3745e564547a9fec38ece168d8daa78a6354646fab62574f2c369a",
+        "233c47485e281398bb6d5328516689285a748ebd174ee62d3809d9053390239d",
+        "da188e3b1cefc8a70813b78ef4ef13461693a08eb69b0327fbc897cf8981702f",
+        "234ff6869289f2118e4cc90b4edd5832f31726f1652a2cc5e49179e37427bb71",
+        "d7cda0ca2c8586e512c425368fcb2bba62e81475bfceb4284f4906de8ec242bc",
+        "6317c450e152773a2c5f7456e0afbcfdb26db0b05142428fa6dc2bcbc56ece1c",
+        "5266890868f2387fa8f3e80eb4814d428894b191a8e16f3fb5911c2c3ec7798b",
+        "fcd27a23090892c9ae8a59c5a91f4285c948205c34ad7d3a921588b9dd3d1d4f"
+      ]
+    },
+    {
+      "sourceSha256": "14cac5b52ee8638dee3f2c13ba4d9466f70b60e58435e7ba16da66535ddb16ab",
+      "strings": 4,
+      "reservedUsd": 0.010620899999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 263,
+        "completion_tokens": 95,
+        "total_tokens": 358,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 263
+      },
+      "upperCostUsd": 0.00019289999999999997,
+      "translatedKeyHashes": [
+        "16d1c9050a0b32e83764a81d801a880773abedfd7f8b0b08a1cd87ca0e404f12",
+        "b85f5fabf97d3b18eab12b1746fcff04590986982ae5f205a171880c5c21202b",
+        "e787944b58a9c239915bb2ba93b650a5da7197859b4a6e5acd52e92a80b08dd2",
+        "f76ea921edc2e55df3e0a8eef0ddc499bdb4c39fc74356fb49b0c9ed2fab6642"
+      ]
+    },
+    {
+      "sourceSha256": "4fd6248f98672ee45a90e3579e0120c1c4284203f4d3996ac5ae04e60c1257f2",
+      "strings": 15,
+      "reservedUsd": 0.010809599999999999,
+      "state": "received",
+      "usage": {
+        "prompt_tokens": 415,
+        "completion_tokens": 1160,
+        "total_tokens": 1575,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 415
+      },
+      "upperCostUsd": 0.0015165
+    },
+    {
+      "sourceSha256": "6ca29a4a4eca7cd414b53e713d15847100e3254a3fed4af4046fc176c934ea6e",
+      "strings": 8,
+      "reservedUsd": 0.0107418,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 357,
+        "completion_tokens": 756,
+        "total_tokens": 1113,
+        "prompt_tokens_details": {
+          "cached_tokens": 128
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 229
+      },
+      "upperCostUsd": 0.0010142999999999999,
+      "translatedKeyHashes": [
+        "73ae3a69654169125268f584f45fdd650dcdaa8a7e0df3b7de410f06281f4b6b",
+        "23d5461ded65797b4ab65ec9b9c797915caa9ee99ae15eafeb38b4442234af03",
+        "a61271bb136151941660409823871a34c6aa47d43ae7669a800f2378090d098d",
+        "05dede8683b10e345770f29f47ec17dd0cf1f8455ae50296e72d556820bc3ce6",
+        "cb4253e8c0b2fd7c3740e6e2de405938e00dc29aa246f4f940e4721a85078e5e",
+        "d4abb10bf0a0cb94b90fc47f92a51990c1dafa7e62a385c3a486a78b3e838c02",
+        "a2ca5011f0108cb8fa28ab8200e9bf4043da7b53bc2ef6149f254e985dec05a6",
+        "d4cae87221f6d19b03f1557c81f1f1d71afd5299ce4d243b9563ade71a9a8729"
+      ]
+    },
+    {
+      "sourceSha256": "c9848798059c0ae7ad7209ecc05ff09e2dcd34b1fd87f93c83fc93382a69c04c",
+      "strings": 7,
+      "reservedUsd": 0.0106737,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 306,
+        "completion_tokens": 428,
+        "total_tokens": 734,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 306
+      },
+      "upperCostUsd": 0.0006054,
+      "translatedKeyHashes": [
+        "56c106e2e6a46f2b1c11adb4d048d4c582089667685c70bd3147756a7ec3870e",
+        "d83ad7604a0a7535922248d347b9386d877cdb415da05859f951d73c59cb4673",
+        "1f9a0b1be080250f080dca786d132a0bade8620209e0ef4fcb57032eb3901bdb",
+        "6e1b8d4fc6970227dac1cf5f2179f4ba5d8b0aebde4f0bdd5f6271ab86f9ecc2",
+        "61a098e3953152d449fb3996712457975a938fb3a310f34a181c3815f02ecfc7",
+        "962eed316cf34f8d5bfadf57f37de7d930a3f454ceed03cccad4d0416fdfc12f",
+        "0e16eb3000d62ed3fdad41dd21dfb581564997d453aa7dbe053774ed2bdc08a9"
+      ]
+    },
+    {
+      "sourceSha256": "a2797bc99ef915e6371a8951b9c0ac68e39778cda94efb0db4fa802e7bf8629f",
+      "strings": 6,
+      "reservedUsd": 0.0106401,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 278,
+        "completion_tokens": 214,
+        "total_tokens": 492,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 278
+      },
+      "upperCostUsd": 0.0003402,
+      "translatedKeyHashes": [
+        "5bea3ab36d884792954cfa0f3bae76334d75580b675b56b7877ae8fc3339efa2",
+        "9e471951a1b4106e54be128a21112b02914fe98cc79b2c92b49ee80c5464487c",
+        "07607d609f9a3592484e9a0eace33d5a5530379335466648e41279517f7d5859",
+        "6bd6c96b0b2d87ef7c22db604f4f7ba7621e0443e322d73bcb49aeb5fe38b63b",
+        "3dcea8c897530198b736c205b66144bdcc5715864b53b7010a1b99dbb4c52c55",
+        "03494afd4248c42f5fa1237bf2eeebe751ab8d9c977d55405fcb17469dbd91f8"
+      ]
+    },
+    {
+      "sourceSha256": "54133f7753dfdd3b7c2c0ba5b824556b4f159ecd63c7bf138c2ba8788655248f",
+      "strings": 3,
+      "reservedUsd": 0.0106197,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 259,
+        "completion_tokens": 85,
+        "total_tokens": 344,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 259
+      },
+      "upperCostUsd": 0.00017969999999999998,
+      "translatedKeyHashes": [
+        "680afd17b963f06e043be3b145859c11f67968121279ddcc260c1a54758c5799",
+        "5cfb5e7a54b4f29b44786831e9b838e5722e230d83ec949332d2d66dde78bf78",
+        "0e769600933790607b2a13b33ddfade0fa17810eb62c3b28ee23e59516516491"
+      ]
+    },
+    {
+      "sourceSha256": "2cc70601fc094f4a4899a161fcd45cfaa37485dccdb96c924bc1a4b5112f32ad",
+      "strings": 1,
+      "reservedUsd": 0.01062,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 257,
+        "completion_tokens": 79,
+        "total_tokens": 336,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 257
+      },
+      "upperCostUsd": 0.00017189999999999998,
+      "translatedKeyHashes": [
+        "8bdaa0345f56cdc95a61ff78510e9412c1de2cd463ceb5c4fb15e601a0882f2f"
+      ]
+    }
+  ],
+  "peakRateUpperCostUsd": 0.1012677,
+  "note": "Conservative upper bound using published peak Flash rates, including received but invalid replies. Actual off-peak/cache charges can be lower. No credentials or user content were sent or recorded.",
+  "sourceMessages": 1511
+}

@@ -1,3 +1,4 @@
+import { setLocale, t } from "@cinakey/ui/i18n";
 import {
   cleanup,
   fireEvent,
@@ -31,6 +32,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  setLocale("en");
   sessionStorage.clear();
 });
 it("uses the shared email challenge flow and preserves leading-zero verification codes", async () => {
@@ -84,4 +86,22 @@ it("shows verification failures without granting access or clearing a retryable 
     "That code is incorrect or has expired",
   );
   expect(sessionStorage.getItem("cinakey.email-login.v1")).not.toBeNull();
+});
+
+it("switches admin sign-in language without clearing the email field", () => {
+  render(
+    <MemoryRouter>
+      <SignIn />
+    </MemoryRouter>,
+  );
+  const email = screen.getByLabelText("Email");
+  fireEvent.change(email, { target: { value: "owner@example.com" } });
+  Element.prototype.scrollIntoView = vi.fn();
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
+  fireEvent.click(screen.getByRole("option", { name: "Français" }));
+  expect(
+    screen.getByRole("heading", { name: t("Admin sign in") }),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText(t("Email"))).toBe(email);
+  expect(email).toHaveValue("owner@example.com");
 });

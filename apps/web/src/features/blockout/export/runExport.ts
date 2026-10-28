@@ -1,3 +1,4 @@
+import { t } from "@cinakey/ui/i18n";
 import JSZip from "jszip";
 import type { BlockoutDocument } from "@cinakey/shared";
 import { encodePartToMp4, type VideoProgress } from "./videoExport";
@@ -73,7 +74,10 @@ export async function runExport(input: {
       signal,
       onProgress: (p: VideoProgress) => {
         onProgress({
-          label: `Rendering frame ${p.frame} of ${p.totalFrames}`,
+          label: t("Rendering frame {0} of {1}", {
+            0: p.frame,
+            1: p.totalFrames,
+          }),
           fraction: p.totalFrames ? p.frame / p.totalFrames : 1,
         });
       },
@@ -105,7 +109,10 @@ export async function encodePrevizMp4(input: {
     signal: input.signal,
     onProgress: (p) => {
       input.onProgress({
-        label: `Rendering frame ${p.frame} of ${p.totalFrames}`,
+        label: t("Rendering frame {0} of {1}", {
+          0: p.frame,
+          1: p.totalFrames,
+        }),
         fraction: p.totalFrames ? p.frame / p.totalFrames : 1,
       });
     },

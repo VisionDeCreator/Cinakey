@@ -327,3 +327,11 @@ worker processing, the $5 monthly allowance and remaining sandbox qualification.
 Generation pricing uses the verified [October 28 rate card](docs/generation-pricing.md),
 with configurable 5% supplier-cost markup, captured video receipts and cache-aware
 DeepSeek peak/off-peak settlement.
+
+## Internationalisation
+
+The web app and admin panel support English, French, Spanish, Korean, Japanese,
+and Simplified Chinese. Change language in web Settings or the admin top navbar
+without losing unsaved form or editor state. Both sign-in screens also offer
+a language selector. See [internationalisation](docs/internationalisation.md)
+for catalogs, validation, and the budget-capped DeepSeek translation workflow.

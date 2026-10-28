@@ -1,3 +1,4 @@
+import { I18nText, t } from "@cinakey/ui/i18n";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -20,10 +21,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-3 px-4 text-center">
           <h1 className="text-lg font-semibold text-zinc-100">
-            Something went wrong
+            <I18nText text="Something went wrong" />
           </h1>
           <p className="text-sm text-zinc-500">
-            {this.state.error.message || "Unexpected error"}
+            {this.state.error.message || t("Unexpected error")}
           </p>
           <Button
             type="button"
@@ -32,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
               window.location.assign("/projects");
             }}
           >
-            Back to projects
+            <I18nText text="Back to projects" />
           </Button>
         </div>
       );

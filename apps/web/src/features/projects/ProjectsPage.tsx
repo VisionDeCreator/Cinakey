@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useQuery } from "@/lib/api/hooks";
@@ -17,6 +18,7 @@ import { ProjectCard } from "@/features/projects/ProjectCard";
 import { cn } from "@/lib/utils";
 
 export function ProjectsPage() {
+  useLocale();
   const { workspaceId, canCreate, canManage } = useWorkspace();
   const projects = useQuery(
     api.projects.listMine,
@@ -49,10 +51,10 @@ export function ProjectsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Your creative workspace
+            <I18nText text="Your creative workspace" />
           </h1>
           <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-            Pick up where you left off, or start something new.
+            <I18nText text="Pick up where you left off, or start something new." />
           </p>
         </div>
         <Button
@@ -61,7 +63,7 @@ export function ProjectsPage() {
           onClick={() => setCreateOpen(true)}
         >
           <Plus />
-          New project
+          <I18nText text="New project" />
         </Button>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -75,9 +77,11 @@ export function ProjectsPage() {
             <Plus className="size-6" />
           </span>
           <span className="flex-1">
-            <span className="block font-medium">New project</span>
+            <span className="block font-medium">
+              <I18nText text="New project" />
+            </span>
             <span className="mt-1 block text-sm text-zinc-400">
-              Start with a blank canvas.
+              <I18nText text="Start with a blank canvas." />
             </span>
           </span>
           <ArrowRight className="size-4 text-zinc-400" />
@@ -88,12 +92,12 @@ export function ProjectsPage() {
           </span>
           <span className="flex-1">
             <span className="block font-medium">
-              {canManage ? "New series" : "Series"}
+              {canManage ? t("New series") : t("Series")}
             </span>
             <span className="mt-1 block text-sm text-zinc-400">
               {canManage
-                ? "Build an episodic story."
-                : "Explore your episodic stories."}
+                ? t("Build an episodic story.")
+                : t("Explore your episodic stories.")}
             </span>
           </span>
           <ArrowRight className="size-4 text-zinc-400" />
@@ -102,17 +106,21 @@ export function ProjectsPage() {
       <section aria-labelledby="recent-projects" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 id="recent-projects" className="text-xl font-semibold">
-            Recent projects
+            <I18nText text="Recent projects" />
           </h2>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <select
-              aria-label="Sort projects"
+              aria-label={t("Sort projects")}
               value={sort}
               onChange={(e) => setSort(e.target.value)}
               className="h-9 rounded-xl border border-zinc-800 bg-[var(--color-studio-bg)] px-3 text-sm focus-visible:outline-[var(--color-studio-accent)]"
             >
-              <option value="updated">Last edited</option>
-              <option value="title">Name</option>
+              <option value="updated">
+                <I18nText text="Last edited" />
+              </option>
+              <option value="title">
+                <I18nText text="Name" />
+              </option>
             </select>
             <div className="flex rounded-xl border border-zinc-800 p-0.5">
               {(["grid", "list"] as const).map((mode) => (
@@ -120,7 +128,7 @@ export function ProjectsPage() {
                   key={mode}
                   variant="ghost"
                   size="icon"
-                  aria-label={`${mode === "grid" ? "Grid" : "List"} view`}
+                  aria-label={mode === "grid" ? t("Grid view") : t("List view")}
                   aria-pressed={view === mode}
                   onClick={() => setView(mode)}
                   className={cn(
@@ -137,7 +145,7 @@ export function ProjectsPage() {
         </div>
         <div
           className="flex gap-6 border-b border-zinc-800"
-          aria-label="Project category"
+          aria-label={t("Project category")}
         >
           {(["projects", "episodes"] as const).map((category) => (
             <button
@@ -152,23 +160,23 @@ export function ProjectsPage() {
                   : "border-transparent text-zinc-400 hover:text-zinc-100",
               )}
             >
-              {category === "projects" ? "All projects" : "Episodes"}
+              {category === "projects" ? t("All projects") : t("Episodes")}
             </button>
           ))}
         </div>
         {projects === undefined ? (
           <p role="status" className="py-12 text-sm text-zinc-400">
-            Loading projects…
+            <I18nText text="Loading projects…" />
           </p>
         ) : visible?.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-16 text-center">
             <FolderOpen className="mx-auto mb-4 size-8 text-zinc-500" />
             <p className="text-sm text-zinc-400">
               {search.trim()
-                ? "No matching projects."
+                ? t("No matching projects.")
                 : tab === "episodes"
-                  ? "No episodes yet."
-                  : "No projects yet."}
+                  ? t("No episodes yet.")
+                  : t("No projects yet.")}
             </p>
             {!search.trim() && tab === "projects" && (
               <Button
@@ -177,7 +185,7 @@ export function ProjectsPage() {
                 onClick={() => setCreateOpen(true)}
               >
                 <Plus />
-                New project
+                <I18nText text="New project" />
               </Button>
             )}
           </div>

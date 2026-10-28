@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { DetailDrawer } from "@/components/DetailDrawer";
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
@@ -85,6 +86,7 @@ export function ResourceLibrary({
   projectId?: Id<"projects">;
   archived?: boolean;
 }) {
+  useLocale();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [kind, setKind] = useState<Kind | "all">("all");
@@ -161,15 +163,17 @@ export function ResourceLibrary({
             : file.type.startsWith("audio/")
               ? "music"
               : null;
-        if (!type) throw new Error(`Unsupported file: ${file.name}`);
+        if (!type)
+          throw new Error(t("Unsupported file: {0}", { 0: file.name }));
         if (
           file.size >
           (type === "image" ? 25 : type === "video" ? 500 : 50) * 1024 * 1024
         )
-          throw new Error(`File too large: ${file.name}`);
+          throw new Error(t("File too large: {0}", { 0: file.name }));
         const url = await uploadUrl({ seriesId });
         const result = await uploadMedia(url, file);
-        if (!result.ok) throw new Error(`Upload failed: ${file.name}`);
+        if (!result.ok)
+          throw new Error(t("Upload failed: {0}", { 0: file.name }));
         const { storageId } = (await result.json()) as {
           storageId: Id<"_storage" | "r2Files">;
         };
@@ -200,11 +204,17 @@ export function ResourceLibrary({
     <section className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold">Shared creative library</h2>
+          <h2 className="text-xl font-semibold">
+            <I18nText text="Shared creative library" />
+          </h2>
           <p className="mt-1 text-sm text-zinc-400">
             {projectId
-              ? "Choose a version to use in this episode. New versions are adopted explicitly; existing edits keep their files."
-              : "Reusable media, characters, locations, props and style for every episode."}
+              ? t(
+                  "Choose a version to use in this episode. New versions are adopted explicitly; existing edits keep their files.",
+                )
+              : t(
+                  "Reusable media, characters, locations, props and style for every episode.",
+                )}
           </p>
         </div>
         {canEdit && (
@@ -219,19 +229,18 @@ export function ResourceLibrary({
               }}
             >
               <Plus />
-              Create resource
+              <I18nText text="Create resource" />
             </Button>
             <Button disabled={busy} onClick={() => setUploadOpen(true)}>
               <Upload />
-              Upload media
+              <I18nText text="Upload media" />
             </Button>
           </div>
         )}
       </div>
       <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-xs text-zinc-400">
         <Layers className="size-4 shrink-0" />
-        Episodes keep their chosen versions. Publish updates when your resources
-        evolve.
+        <I18nText text="Episodes keep their chosen versions. Publish updates when your resources evolve." />
       </div>
       {canEdit && (
         <>
@@ -243,15 +252,17 @@ export function ResourceLibrary({
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Upload shared media</DialogTitle>
+                <DialogTitle>
+                  <I18nText text="Upload shared media" />
+                </DialogTitle>
                 <DialogDescription>
-                  Add images, video, or audio to this series.
+                  <I18nText text="Add images, video, or audio to this series." />
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 {message && (
                   <p role="status" className="text-sm text-zinc-400">
-                    {message}
+                    {t(message ?? "")}
                   </p>
                 )}
                 <label
@@ -263,9 +274,9 @@ export function ResourceLibrary({
                       void upload(event.dataTransfer.files);
                   }}
                 >
-                  Drop files here or choose shared media
+                  <I18nText text="Drop files here or choose shared media" />
                   <input
-                    aria-label="Upload shared media"
+                    aria-label={t("Upload shared media")}
                     type="file"
                     accept="image/*,video/*,audio/*"
                     multiple
@@ -283,7 +294,7 @@ export function ResourceLibrary({
                     checked={containsLikeness}
                     onChange={(e) => setContainsLikeness(e.target.checked)}
                   />
-                  These files depict real people
+                  <I18nText text="These files depict real people" />
                 </label>
                 {containsLikeness && (
                   <label className="flex items-center gap-2 text-xs text-zinc-400">
@@ -292,7 +303,7 @@ export function ResourceLibrary({
                       checked={consent}
                       onChange={(e) => setConsent(e.target.checked)}
                     />
-                    I have consent to use their likenesses
+                    <I18nText text="I have consent to use their likenesses" />
                   </label>
                 )}
               </div>
@@ -307,11 +318,10 @@ export function ResourceLibrary({
             <DialogContent className="max-h-[85dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {draft.resourceId ? "Edit" : "Create resource"}
+                  {draft.resourceId ? t("Edit") : t("Create resource")}
                 </DialogTitle>
                 <DialogDescription>
-                  Define a reusable resource or promote existing work from a
-                  project.
+                  <I18nText text="Define a reusable resource or promote existing work from a project." />
                 </DialogDescription>
               </DialogHeader>
               <form
@@ -329,8 +339,8 @@ export function ResourceLibrary({
                 }}
               >
                 <Input
-                  aria-label="Resource name"
-                  placeholder="Resource name"
+                  aria-label={t("Resource name")}
+                  placeholder={t("Resource name")}
                   required
                   maxLength={200}
                   value={draft.name}
@@ -347,21 +357,23 @@ export function ResourceLibrary({
                     })
                   }
                 >
-                  <SelectTrigger aria-label="Resource kind">
+                  <SelectTrigger aria-label={t("Resource kind")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {kinds.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {kindLabels[value]}
+                        {t(kindLabels[value] ?? "")}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
                 <Textarea
-                  aria-label="Resource description"
-                  placeholder="Description, character details or visual direction"
+                  aria-label={t("Resource description")}
+                  placeholder={t(
+                    "Description, character details or visual direction",
+                  )}
                   value={draft.description}
                   onChange={(e) =>
                     setDraft({ ...draft, description: e.target.value })
@@ -374,11 +386,13 @@ export function ResourceLibrary({
                     setSourceProject(value === "none" ? "" : value)
                   }
                 >
-                  <SelectTrigger aria-label="Source project">
-                    <SelectValue placeholder="Choose a source project" />
+                  <SelectTrigger aria-label={t("Source project")}>
+                    <SelectValue placeholder={t("Choose a source project")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No source project</SelectItem>
+                    <SelectItem value="none">
+                      <I18nText text="No source project" />
+                    </SelectItem>
                     {projects?.map(({ project }) => (
                       <SelectItem key={project._id} value={project._id}>
                         {project.title}
@@ -403,13 +417,15 @@ export function ResourceLibrary({
                         });
                     }}
                   >
-                    <SelectTrigger aria-label="Promote entity">
-                      <SelectValue placeholder="Choose an existing definition" />
+                    <SelectTrigger aria-label={t("Promote entity")}>
+                      <SelectValue
+                        placeholder={t("Choose an existing definition")}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {entities.map((entity) => (
                         <SelectItem key={entity._id} value={entity._id}>
-                          {entity.name} ({entity.kind})
+                          {entity.name} ({t(entity.kind ?? "")})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -417,7 +433,7 @@ export function ResourceLibrary({
                 )}
                 <fieldset className="max-h-48 space-y-1 overflow-y-auto">
                   <legend className="mb-2 text-xs text-zinc-400">
-                    Files / reference images (up to 32)
+                    <I18nText text="Files / reference images (up to 32)" />
                   </legend>
                   {candidateIds.map((id) => (
                     <label key={id} className="flex items-center gap-2 text-xs">
@@ -433,18 +449,20 @@ export function ResourceLibrary({
                           })
                         }
                       />
-                      {names.get(id) ?? "Pinned reference"}
+                      {names.get(id) ?? t("Pinned reference")}
                     </label>
                   ))}
                 </fieldset>
                 <div className="flex gap-2">
                   {message && (
                     <p role="status" className="text-sm text-zinc-400">
-                      {message}
+                      {t(message ?? "")}
                     </p>
                   )}
                   <Button disabled={busy || !draft.name.trim()}>
-                    {draft.resourceId ? "Save changes" : "Create resource"}
+                    {draft.resourceId
+                      ? t("Save changes")
+                      : t("Create resource")}
                   </Button>
                   <Button
                     type="button"
@@ -452,7 +470,7 @@ export function ResourceLibrary({
                     disabled={busy}
                     onClick={() => setEditing(false)}
                   >
-                    Cancel
+                    <I18nText text="Cancel" />
                   </Button>
                 </div>
               </form>
@@ -462,7 +480,7 @@ export function ResourceLibrary({
       )}
       {message && (
         <p role="status" className="text-sm text-zinc-400">
-          {message}
+          {t(message ?? "")}
         </p>
       )}
       {!projectId && (
@@ -476,21 +494,24 @@ export function ResourceLibrary({
               setPrevious([]);
             }}
           />
-          Show archived resources
+          <I18nText text="Show archived resources" />
         </label>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-48 flex-1">
           <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-zinc-400" />
           <Input
-            aria-label="Search resources"
-            placeholder="Search resources…"
+            aria-label={t("Search resources")}
+            placeholder={t("Search resources…")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="rounded-full bg-transparent pl-9"
           />
         </div>
-        <div className="flex flex-wrap gap-2" aria-label="Resource categories">
+        <div
+          className="flex flex-wrap gap-2"
+          aria-label={t("Resource categories")}
+        >
           {(["all", ...kinds] as const).map((value) => (
             <Button
               key={value}
@@ -503,26 +524,29 @@ export function ResourceLibrary({
                   "border-[var(--color-studio-accent)] text-[var(--color-studio-accent)]",
               )}
             >
-              {value === "all" ? "All resources" : kindLabels[value]}
+              {value === "all" ? t("All resources") : t(kindLabels[value])}
             </Button>
           ))}
         </div>
       </div>
       {(previous.length > 0 || (page && !page.isDone)) && (
         <p className="text-xs text-zinc-400">
-          Search and categories filter this page. Browse other pages for more
-          resources.
+          <I18nText text="Search and categories filter this page. Browse other pages for more resources." />
         </p>
       )}
       {page === undefined ? (
-        <p className="text-sm text-zinc-400">Loading library…</p>
+        <p className="text-sm text-zinc-400">
+          <I18nText text="Loading library…" />
+        </p>
       ) : visible?.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-14 text-center">
           <Layers className="mx-auto mb-3 size-8 text-zinc-500" />
           <p className="text-sm text-zinc-400">
             {search || kind !== "all"
-              ? "No matching resources on this page."
-              : "No shared resources yet. Upload media or create your first resource."}
+              ? t("No matching resources on this page.")
+              : t(
+                  "No shared resources yet. Upload media or create your first resource.",
+                )}
           </p>
         </div>
       ) : (
@@ -589,7 +613,7 @@ export function ResourceLibrary({
             setPrevious(next);
           }}
         >
-          Previous page
+          <I18nText text="Previous page" />
         </Button>
         <Button
           variant="outline"
@@ -600,18 +624,20 @@ export function ResourceLibrary({
             setCursor(page!.cursor);
           }}
         >
-          Next page
+          <I18nText text="Next page" />
         </Button>
       </div>
       {!!projectId && !!bindings?.length && (
         <div className="border-t border-zinc-800 pt-3">
-          <h3 className="text-xs text-zinc-500">Pinned in this project</h3>
+          <h3 className="text-xs text-zinc-500">
+            <I18nText text="Pinned in this project" />
+          </h3>
           <ul className="mt-2 space-y-1 text-xs text-zinc-400">
             {bindings.map((row) => (
               <li key={row.binding._id}>
                 {row.version?.name} · v{row.version?.version}
                 {row.resource?.currentVersionId !== row.binding.versionId
-                  ? " · Newer version available in the library"
+                  ? " " + t("· Newer version available in the library")
                   : ""}
               </li>
             ))}
@@ -644,6 +670,7 @@ function ResourceCard({
   onEdit: () => void;
   onArchive: () => void;
 }) {
+  useLocale();
   const [preview, setPreview] = useState(false);
   const [history, setHistory] = useState(false);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
@@ -678,7 +705,7 @@ function ResourceCard({
     <article className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
       <button
         type="button"
-        aria-label={`Preview ${version.name}`}
+        aria-label={t("Preview {0}", { 0: version.name })}
         onClick={() => {
           setPreview(true);
           setHistory(false);
@@ -702,7 +729,7 @@ function ResourceCard({
             {version.name}
           </h3>
           <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-[10px] capitalize text-zinc-400">
-            {resource.kind}
+            {t(resource.kind ?? "")}
           </span>
           <span className="text-xs text-zinc-400">v{version.version}</span>
           <DropdownMenu>
@@ -710,7 +737,7 @@ function ResourceCard({
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Actions for ${version.name}`}
+                aria-label={t("Actions for {0}", { 0: version.name })}
                 className="size-7"
               >
                 <MoreHorizontal />
@@ -723,7 +750,7 @@ function ResourceCard({
                   setHistory(false);
                 }}
               >
-                View resource details
+                <I18nText text="View resource details" />
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
@@ -731,7 +758,7 @@ function ResourceCard({
                   setHistory(true);
                 }}
               >
-                Versions
+                <I18nText text="Versions" />
               </DropdownMenuItem>
               {canEdit && (
                 <>
@@ -739,10 +766,10 @@ function ResourceCard({
                     disabled={disabled || !!resource.archivedAt}
                     onSelect={onEdit}
                   >
-                    Edit
+                    <I18nText text="Edit" />
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={disabled} onSelect={onArchive}>
-                    {resource.archivedAt ? "Restore" : "Delete"}
+                    {resource.archivedAt ? t("Restore") : t("Delete")}
                   </DropdownMenuItem>
                 </>
               )}
@@ -750,8 +777,8 @@ function ResourceCard({
           </DropdownMenu>
         </div>
         <p className="line-clamp-2 text-xs text-zinc-400">
-          {version.description || "Shared across this series."}
-          {resource.archivedAt ? " · Archived" : ""}
+          {version.description || t("Shared across this series.")}
+          {resource.archivedAt ? " " + t("· Archived") : ""}
         </p>
         {projectId ? (
           <Button
@@ -762,15 +789,15 @@ function ResourceCard({
             onClick={() => onAdopt(version._id)}
           >
             {adopted.has(version._id)
-              ? "Current version added"
-              : "Use current version"}
+              ? t("Current version added")
+              : t("Use current version")}
           </Button>
         ) : null}
       </div>
       <DetailDrawer
         open={preview}
         onOpenChange={setPreview}
-        eyebrow="SHARED RESOURCE"
+        eyebrow={t("SHARED RESOURCE")}
         title={version.name}
         description={`${resource.kind} · v${version.version}${resource.archivedAt ? " · Archived" : ""}`}
         footer={
@@ -786,7 +813,7 @@ function ResourceCard({
                   onEdit();
                 }}
               >
-                Edit
+                <I18nText text="Edit" />
               </Button>
             </>
           ) : projectId ? (
@@ -828,30 +855,36 @@ function ResourceCard({
                   : "border-transparent text-zinc-400",
               )}
             >
-              {value ? "Versions" : "Details"}
+              {value ? t("Versions") : t("Details")}
             </button>
           ))}
         </div>
         {notice && (
           <p role="status" className="text-sm text-zinc-400">
-            {notice}
+            {t(notice ?? "")}
           </p>
         )}
         {!history && (
           <>
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Name</h3>
+              <h3 className="text-sm font-medium">
+                <I18nText text="Name" />
+              </h3>
               <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
                 {version.name}
               </p>
             </div>
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Description</h3>
+              <h3 className="text-sm font-medium">
+                <I18nText text="Description" />
+              </h3>
               <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm text-zinc-400">
-                {version.description || "No description yet."}
+                {version.description || t("No description yet.")}
               </p>
             </div>
-            <h3 className="text-sm font-medium">Reference files</h3>
+            <h3 className="text-sm font-medium">
+              <I18nText text="Reference files" />
+            </h3>
             {files?.map(
               (file) =>
                 file?.url && (
@@ -860,29 +893,31 @@ function ResourceCard({
                       variant="outline"
                       onClick={() => setPreviewFile(file._id)}
                     >
-                      Preview {file.name}
+                      <I18nText text="Preview" /> {file.name}
                     </Button>
                   </div>
                 ),
             )}
 
             {!version.assetIds.length && (
-              <p className="text-sm text-zinc-400">No reference files.</p>
+              <p className="text-sm text-zinc-400">
+                <I18nText text="No reference files." />
+              </p>
             )}
             <div className="flex justify-between text-sm">
-              <span>Current version</span>
+              <span>
+                <I18nText text="Current version" />
+              </span>
               <span>v{version.version}</span>
             </div>
             <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-xs text-zinc-400">
-              Episodes keep their adopted versions. Editing creates a new
-              version; existing episode files are preserved. Deleted resources
-              can be restored using the archived filter.
+              <I18nText text="Episodes keep their adopted versions. Editing creates a new version; existing episode files are preserved. Deleted resources can be restored using the archived filter." />
             </p>
           </>
         )}
         {history && versions === undefined && (
           <p role="status" className="text-sm text-zinc-400">
-            Loading versions…
+            <I18nText text="Loading versions…" />
           </p>
         )}
         {history && (
@@ -904,7 +939,7 @@ function ResourceCard({
                     }
                     onClick={() => onAdopt(item._id)}
                   >
-                    {adopted.has(item._id) ? "Added" : "Use version"}
+                    {adopted.has(item._id) ? t("Added") : t("Use version")}
                   </Button>
                 )}
               </li>
@@ -922,9 +957,11 @@ function ResourceCard({
           <DialogHeader>
             <DialogTitle>
               {files?.find((file) => file?._id === previewFile)?.name ??
-                "File preview"}
+                t("File preview")}
             </DialogTitle>
-            <DialogDescription>Shared resource file preview</DialogDescription>
+            <DialogDescription>
+              <I18nText text="Shared resource file preview" />
+            </DialogDescription>
           </DialogHeader>
           {files
             ?.filter((file) => file?._id === previewFile)

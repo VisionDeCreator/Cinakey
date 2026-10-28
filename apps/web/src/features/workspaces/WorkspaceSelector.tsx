@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import type { Id } from "@cinakey/backend";
 import { useState } from "react";
 import {
@@ -11,6 +12,7 @@ import { useWorkspace } from "./workspace-context";
 import { cn } from "@/lib/utils";
 
 export function WorkspaceSelector({ className }: { className?: string }) {
+  useLocale();
   const { workspaceId, workspaces, switchWorkspace } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -28,10 +30,10 @@ export function WorkspaceSelector({ className }: { className?: string }) {
         }}
       >
         <SelectTrigger
-          aria-label="Active workspace"
+          aria-label={t("Active workspace")}
           className="h-11 w-full rounded-2xl border-zinc-800 bg-[var(--color-studio-panel)] px-3 text-sm [&>span]:truncate"
         >
-          <SelectValue placeholder="Choose workspace" />
+          <SelectValue placeholder={t("Choose workspace")} />
         </SelectTrigger>
         <SelectContent className="max-w-[calc(100vw-2rem)] rounded-2xl border-zinc-800 bg-[var(--color-studio-panel)] p-1.5">
           {workspaces.map(({ workspace }) => (
@@ -47,7 +49,7 @@ export function WorkspaceSelector({ className }: { className?: string }) {
       </Select>
       {error && (
         <p role="alert" className="mt-1 text-xs text-red-400">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
     </div>

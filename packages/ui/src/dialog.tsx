@@ -1,3 +1,4 @@
+import { I18nText } from "./i18n";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import * as React from "react";
@@ -41,7 +42,9 @@ function DialogContent({
         {children}
         <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-zinc-400 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--color-studio-accent)]">
           <X className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">
+            <I18nText text="Close" />
+          </span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
     </DialogPortal>

@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +25,7 @@ type Pending = ConfirmOptions & {
  * that replaces `window.confirm`.
  */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const [pending, setPending] = useState<Pending | null>(null);
   const pendingRef = useRef<Pending | null>(null);
 
@@ -55,14 +57,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{pending?.title ?? "Confirm"}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pending?.title ?? t("Confirm")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {pending?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => settle(false)}>
-              {pending?.cancelLabel ?? "Cancel"}
+              {pending?.cancelLabel ?? t("Cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               className={
@@ -72,7 +76,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               }
               onClick={() => settle(true)}
             >
-              {pending?.confirmLabel ?? "OK"}
+              {pending?.confirmLabel ?? t("OK")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

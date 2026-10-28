@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
+  useLocale();
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
   const urls = useQuery(api.storage.listProjectAssetUrls, {
     projectId: projectId as never,
@@ -41,10 +43,11 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
     return (
       <div className="clip-inspector-empty">
         <SlidersHorizontal size={26} />
-        <h3>Clip settings</h3>
+        <h3>
+          <I18nText text="Clip settings" />
+        </h3>
         <p>
-          Select a clip in the timeline to adjust its timing, playback, and
-          audio.
+          <I18nText text="Select a clip in the timeline to adjust its timing, playback, and audio." />
         </p>
       </div>
     );
@@ -60,7 +63,9 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
   const sourceUrl = urls?.find((item) => item.assetId === asset?._id)?.url;
   return (
     <div className="clip-inspector">
-      <h3>Clip settings</h3>
+      <h3>
+        <I18nText text="Clip settings" />
+      </h3>
       <div className="clip-inspector-summary">
         {asset ? (
           <MediaThumbnail asset={asset} url={sourceUrl} />
@@ -83,10 +88,12 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           </span>
         </div>
       </div>
-      <section className="clip-inspector-section" aria-label="Timing">
-        <h4>Timing</h4>
+      <section className="clip-inspector-section" aria-label={t("Timing")}>
+        <h4>
+          <I18nText text="Timing" />
+        </h4>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <Field label="Start">
+          <Field label={t("Start")}>
             <Input
               type="number"
               step={0.01}
@@ -96,7 +103,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
               }
             />
           </Field>
-          <Field label="Duration">
+          <Field label={t("Duration")}>
             <Input
               type="number"
               step={0.01}
@@ -109,7 +116,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
             />
           </Field>
           {clip.source.type !== "text" && (
-            <Field label="Source in (seconds)">
+            <Field label={t("Source in (seconds)")}>
               <Input
                 type="number"
                 step={0.01}
@@ -127,9 +134,11 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           )}
         </div>
       </section>
-      <section className="clip-inspector-section" aria-label="Playback">
-        <h4>Playback</h4>
-        <Field label="Speed">
+      <section className="clip-inspector-section" aria-label={t("Playback")}>
+        <h4>
+          <I18nText text="Playback" />
+        </h4>
+        <Field label={t("Speed")}>
           <Input
             type="number"
             step={0.05}
@@ -141,19 +150,23 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           />
         </Field>
       </section>
-      <section className="clip-inspector-section" aria-label="Audio">
-        <h4>Audio</h4>
+      <section className="clip-inspector-section" aria-label={t("Audio")}>
+        <h4>
+          <I18nText text="Audio" />
+        </h4>
         <div className="clip-volume">
           <label htmlFor={`clip-volume-${clip.id}`}>
-            Volume{" "}
+            <I18nText text="Volume" />{" "}
             <output htmlFor={`clip-volume-${clip.id}`}>
               {Math.round((clip.volume ?? 1) * 100)}%
             </output>
           </label>
           <input
             id={`clip-volume-${clip.id}`}
-            aria-label="Volume"
-            aria-valuetext={`${Math.round((clip.volume ?? 1) * 100)} percent`}
+            aria-label={t("Volume")}
+            aria-valuetext={t("{0} percent", {
+              0: Math.round((clip.volume ?? 1) * 100),
+            })}
             type="range"
             min={0}
             max={2}
@@ -174,7 +187,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <Field label="Fade in">
+          <Field label={t("Fade in")}>
             <Input
               type="number"
               step={0.05}
@@ -185,7 +198,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
               }
             />
           </Field>
-          <Field label="Fade out">
+          <Field label={t("Fade out")}>
             <Input
               type="number"
               step={0.05}
@@ -201,7 +214,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
 
       {clip.source.type === "text" && (
         <div className="space-y-2">
-          <Field label="Style">
+          <Field label={t("Style")}>
             <Select
               value={clip.source.styleId}
               onValueChange={(value) => {
@@ -216,7 +229,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
                 });
               }}
             >
-              <SelectTrigger aria-label="Title style">
+              <SelectTrigger aria-label={t("Title style")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -228,7 +241,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Text">
+          <Field label={t("Text")}>
             <textarea
               className="min-h-16 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs"
               value={clip.source.text}
@@ -253,7 +266,9 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           </Field>
           {clip.source.lines && clip.source.lines.length > 0 && (
             <div className="space-y-1">
-              <Label className="text-[11px] text-zinc-500">Caption lines</Label>
+              <Label className="text-[11px] text-zinc-500">
+                <I18nText text="Caption lines" />
+              </Label>
               {clip.source.lines.map((line, i) => (
                 <Input
                   key={line.id}
@@ -287,9 +302,13 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
       )}
 
       {clip.source.type !== "text" && (
-        <section className="clip-inspector-section" aria-label="Source">
-          <h4>Source</h4>
-          <span className="clip-source-label">Replace source</span>
+        <section className="clip-inspector-section" aria-label={t("Source")}>
+          <h4>
+            <I18nText text="Source" />
+          </h4>
+          <span className="clip-source-label">
+            <I18nText text="Replace source" />
+          </span>
           <Select
             value={clip.source.assetId}
             disabled={replacing}
@@ -337,8 +356,8 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
               }
             }}
           >
-            <SelectTrigger aria-label="Replace clip source">
-              <SelectValue placeholder="Choose media" />
+            <SelectTrigger aria-label={t("Replace clip source")}>
+              <SelectValue placeholder={t("Choose media")} />
             </SelectTrigger>
             <SelectContent>
               {assets
@@ -364,11 +383,11 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
           </Select>
         </section>
       )}
-      {sourceError && <p role="alert">{sourceError}</p>}
+      {sourceError && <p role="alert">{t(sourceError ?? "")}</p>}
       <div className="clip-inspector-delete">
         <Button type="button" variant="outline" onClick={onDelete}>
           <Trash2 size={15} />
-          Delete clip
+          <I18nText text="Delete clip" />
         </Button>
       </div>
     </div>
@@ -376,6 +395,7 @@ export function ClipInspector({ projectId, clip, onChange, onDelete }: Props) {
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
+  useLocale();
   return (
     <label className="flex flex-col gap-1">
       <span className="text-xs text-zinc-400">{label}</span>

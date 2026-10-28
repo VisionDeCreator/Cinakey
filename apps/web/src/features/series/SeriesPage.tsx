@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { BudgetSettings } from "@/features/settings/BudgetSettings";
 import { api, type Doc, type Id } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
@@ -32,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { ResourceLibrary } from "./ResourceLibrary";
 
 export function SeriesPage() {
+  useLocale();
   const { seriesId } = useParams();
   const data = useQuery(
     api.series.get,
@@ -40,10 +42,15 @@ export function SeriesPage() {
   if (data === undefined)
     return (
       <p role="status" className="text-sm text-zinc-400">
-        Loading series…
+        <I18nText text="Loading series…" />
       </p>
     );
-  if (!data) return <p role="alert">Series not found.</p>;
+  if (!data)
+    return (
+      <p role="alert">
+        <I18nText text="Series not found." />
+      </p>
+    );
   return (
     <SeriesContent
       key={data.series._id}
@@ -59,6 +66,7 @@ function SeriesContent({
   series: Doc<"series">;
   episodes: Doc<"projects">[];
 }) {
+  useLocale();
   const { canManage, canWrite } = useWorkspace();
   const writable = canManage && canWrite !== false;
   const projects = useQuery(api.projects.listMine, {
@@ -103,7 +111,7 @@ function SeriesContent({
         className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"
       >
         <ArrowLeft className="size-4" />
-        All series
+        <I18nText text="All series" />
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -112,11 +120,12 @@ function SeriesContent({
           </h1>
           <p className="mt-2 text-sm text-zinc-400 sm:text-base">
             {series.archivedAt
-              ? "Archived · Existing episodes remain accessible"
-              : series.description || "One series. A shared world of stories."}
+              ? t("Archived · Existing episodes remain accessible")
+              : series.description ||
+                t("One series. A shared world of stories.")}
           </p>
           <p className="mt-3 text-sm text-zinc-400">
-            {series.aspectRatio} · {series.fps} fps
+            {series.aspectRatio} · {series.fps} <I18nText text="fps" />
           </p>
         </div>
         {writable && (
@@ -130,13 +139,13 @@ function SeriesContent({
             }
           >
             <Archive />
-            {series.archivedAt ? "Restore series" : "Archive series"}
+            {series.archivedAt ? t("Restore series") : t("Archive series")}
           </Button>
         )}
       </div>
       <nav
         className="flex gap-6 border-b border-zinc-800"
-        aria-label="Series sections"
+        aria-label={t("Series sections")}
       >
         {(
           [
@@ -159,18 +168,18 @@ function SeriesContent({
             )}
           >
             {value === "library"
-              ? "Shared library"
+              ? t("Shared library")
               : value === "episodes"
-                ? "Episodes"
+                ? t("Episodes")
                 : value === "budgets"
-                  ? "Budgets"
-                  : "Settings"}
+                  ? t("Budgets")
+                  : t("Settings")}
           </button>
         ))}
       </nav>
       {error && (
         <p role="alert" className="text-sm text-red-400">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {tab === "library" ? (
@@ -205,11 +214,13 @@ function SeriesContent({
                     });
                   }}
                 >
-                  <h2 className="font-medium">Create an episode</h2>
+                  <h2 className="font-medium">
+                    <I18nText text="Create an episode" />
+                  </h2>
                   <div className="flex flex-wrap gap-3">
                     <Input
-                      aria-label="Episode title"
-                      placeholder="Episode title"
+                      aria-label={t("Episode title")}
+                      placeholder={t("Episode title")}
                       value={name}
                       maxLength={200}
                       onChange={(e) => setName(e.target.value)}
@@ -219,12 +230,14 @@ function SeriesContent({
                     />
                     <Button disabled={busy || !name.trim()}>
                       <Plus />
-                      New episode
+                      <I18nText text="New episode" />
                     </Button>
                   </div>
                 </form>
                 <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-                  <h2 className="font-medium">Attach an existing project</h2>
+                  <h2 className="font-medium">
+                    <I18nText text="Attach an existing project" />
+                  </h2>
                   <div className="flex flex-wrap gap-3">
                     <Select
                       value={selected}
@@ -232,16 +245,16 @@ function SeriesContent({
                       disabled={busy || !standalone.length}
                     >
                       <SelectTrigger
-                        aria-label="Standalone project"
+                        aria-label={t("Standalone project")}
                         className="min-w-0 flex-1 basis-48 rounded-xl border-zinc-700 bg-transparent [&>span]:truncate"
                       >
                         <SelectValue
                           placeholder={
                             projects === undefined
-                              ? "Loading projects…"
+                              ? t("Loading projects…")
                               : standalone.length
-                                ? "Choose a standalone project"
-                                : "No standalone projects available"
+                                ? t("Choose a standalone project")
+                                : t("No standalone projects available")
                           }
                         />
                       </SelectTrigger>
@@ -270,31 +283,32 @@ function SeriesContent({
                         })
                       }
                     >
-                      Attach project
+                      <I18nText text="Attach project" />
                     </Button>
                   </div>
                 </div>
               </div>
               <p className="text-xs text-zinc-400">
-                New episodes use series defaults. Attached projects keep their
-                existing settings.
+                <I18nText text="New episodes use series defaults. Attached projects keep their existing settings." />
               </p>
             </>
           )}
           <section aria-labelledby="episodes-heading" className="space-y-4">
             <div className="flex items-center gap-4">
               <h2 id="episodes-heading" className="text-xl font-semibold">
-                Episodes
+                <I18nText text="Episodes" />
               </h2>
               <span className="text-xs text-zinc-400">
                 {episodes.length}{" "}
-                {episodes.length === 1 ? "episode" : "episodes"}
+                {episodes.length === 1 ? t("episode") : t("episodes")}
               </span>
             </div>
             {episodes.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-zinc-700 px-6 py-12 text-center">
                 <Clapperboard className="mx-auto mb-3 size-8 text-zinc-500" />
-                <p className="text-sm text-zinc-400">No episodes yet.</p>
+                <p className="text-sm text-zinc-400">
+                  <I18nText text="No episodes yet." />
+                </p>
               </div>
             ) : (
               <ul className="space-y-3">
@@ -309,7 +323,7 @@ function SeriesContent({
                     >
                       <Link
                         to={`/projects/${episode._id}/video`}
-                        aria-label={`Open ${episode.title}`}
+                        aria-label={t("Open {0}", { 0: episode.title })}
                         className="block w-28 shrink-0 overflow-hidden rounded-xl sm:w-48"
                       >
                         <div className="flex aspect-video items-center justify-center bg-[var(--color-studio-panel)]">
@@ -329,7 +343,7 @@ function SeriesContent({
                         className="min-w-0 flex-1"
                       >
                         <p className="text-[10px] tracking-widest text-zinc-400">
-                          EPISODE{" "}
+                          <I18nText text="EPISODE" />{" "}
                           {String(episode.episodeNumber ?? index + 1).padStart(
                             2,
                             "0",
@@ -339,12 +353,14 @@ function SeriesContent({
                           {episode.title}
                         </h3>
                         {episode.archivedAt && (
-                          <p className="text-xs text-zinc-400">Archived</p>
+                          <p className="text-xs text-zinc-400">
+                            <I18nText text="Archived" />
+                          </p>
                         )}
                       </Link>
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/projects/${episode._id}/video`}>
-                          Open episode
+                          <I18nText text="Open episode" />
                         </Link>
                       </Button>
                       {writable && !series.archivedAt && (
@@ -353,7 +369,9 @@ function SeriesContent({
                             <Button
                               variant="ghost"
                               size="icon"
-                              aria-label={`Actions for ${episode.title}`}
+                              aria-label={t("Actions for {0}", {
+                                0: episode.title,
+                              })}
                               disabled={busy}
                             >
                               <MoreHorizontal />
@@ -376,7 +394,7 @@ function SeriesContent({
                                 })
                               }
                             >
-                              Move up
+                              <I18nText text="Move up" />
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onSelect={() =>
@@ -390,8 +408,8 @@ function SeriesContent({
                               }
                             >
                               {episode.archivedAt
-                                ? "Restore episode"
-                                : "Archive episode"}
+                                ? t("Restore episode")
+                                : t("Archive episode")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onSelect={() =>
@@ -403,7 +421,7 @@ function SeriesContent({
                                 )
                               }
                             >
-                              Make standalone
+                              <I18nText text="Make standalone" />
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -427,6 +445,7 @@ function SeriesSettings({
   series: Doc<"series">;
   disabled: boolean;
 }) {
+  useLocale();
   const update = useMutation(api.series.update);
   const [title, setTitle] = useState(series.title);
   const [description, setDescription] = useState(series.description);
@@ -466,9 +485,11 @@ function SeriesSettings({
       }}
     >
       <div>
-        <h2 className="text-xl font-semibold">Series settings</h2>
+        <h2 className="text-xl font-semibold">
+          <I18nText text="Series settings" />
+        </h2>
         <p className="mt-1 text-sm text-zinc-400">
-          Shape the defaults for your shared story.
+          <I18nText text="Shape the defaults for your shared story." />
         </p>
       </div>
       <fieldset
@@ -476,9 +497,11 @@ function SeriesSettings({
         className="grid min-w-0 gap-4 lg:grid-cols-[1.4fr_1fr]"
       >
         <section className="min-w-0 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-lg font-semibold">Series details</h3>
+          <h3 className="text-lg font-semibold">
+            <I18nText text="Series details" />
+          </h3>
           <label className="grid gap-2 text-sm">
-            Series name
+            <I18nText text="Series name" />
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -488,7 +511,7 @@ function SeriesSettings({
             />
           </label>
           <label className="grid gap-2 text-sm">
-            Description
+            <I18nText text="Description" />
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -499,16 +522,18 @@ function SeriesSettings({
           </label>
         </section>
         <section className="min-w-0 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-lg font-semibold">Output defaults</h3>
+          <h3 className="text-lg font-semibold">
+            <I18nText text="Output defaults" />
+          </h3>
           <label className="grid gap-2 text-sm">
-            Aspect ratio
+            <I18nText text="Aspect ratio" />
             <Select
               disabled={disabled || busy}
               value={aspect}
               onValueChange={(value) => setAspect(value as typeof aspect)}
             >
               <SelectTrigger
-                aria-label="Aspect ratio"
+                aria-label={t("Aspect ratio")}
                 className="w-full bg-transparent"
               >
                 <SelectValue />
@@ -523,14 +548,14 @@ function SeriesSettings({
             </Select>
           </label>
           <label className="grid gap-2 text-sm">
-            Frame rate
+            <I18nText text="Frame rate" />
             <Select
               disabled={disabled || busy}
               value={String(fps)}
               onValueChange={(value) => setFps(Number(value))}
             >
               <SelectTrigger
-                aria-label="Frame rate"
+                aria-label={t("Frame rate")}
                 className="w-full bg-transparent"
               >
                 <SelectValue />
@@ -538,38 +563,44 @@ function SeriesSettings({
               <SelectContent>
                 {[24, 25, 30, 60].map((value) => (
                   <SelectItem key={value} value={String(value)}>
-                    {value} fps
+                    {value} <I18nText text="fps" />
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
-          <p className="text-xs text-zinc-400">Applied to new episodes.</p>
+          <p className="text-xs text-zinc-400">
+            <I18nText text="Applied to new episodes." />
+          </p>
         </section>
         <section className="min-w-0 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-lg font-semibold">Visual style</h3>
+          <h3 className="text-lg font-semibold">
+            <I18nText text="Visual style" />
+          </h3>
           <label className="grid gap-2 text-sm">
-            Style notes
+            <I18nText text="Style notes" />
             <Textarea
               value={style}
               onChange={(e) => setStyle(e.target.value)}
               maxLength={20000}
               rows={4}
-              placeholder="Describe the visual direction for this series"
+              placeholder={t("Describe the visual direction for this series")}
               className="bg-transparent"
             />
           </label>
         </section>
         <section className="min-w-0 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
-          <h3 className="text-lg font-semibold">Production rules</h3>
+          <h3 className="text-lg font-semibold">
+            <I18nText text="Production rules" />
+          </h3>
           <label className="grid gap-2 text-sm">
-            One rule per line.
+            <I18nText text="One rule per line." />
             <Textarea
-              aria-label="Production rules"
+              aria-label={t("Production rules")}
               value={rules}
               onChange={(e) => setRules(e.target.value)}
               rows={4}
-              placeholder="Keep characters and world details consistent"
+              placeholder={t("Keep characters and world details consistent")}
               className="bg-transparent"
             />
           </label>
@@ -577,15 +608,14 @@ function SeriesSettings({
       </fieldset>
       {message && (
         <p role="status" className="text-sm text-zinc-400">
-          {message}
+          {t(message ?? "")}
         </p>
       )}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-xs text-zinc-400">
           <Layers className="size-4 shrink-0" />
           <p>
-            New episodes use these defaults. Existing episodes keep their
-            settings and can adopt updated style notes and rules.
+            <I18nText text="New episodes use these defaults. Existing episodes keep their settings and can adopt updated style notes and rules." />
           </p>
         </div>
         <Button
@@ -593,7 +623,7 @@ function SeriesSettings({
           size="lg"
           disabled={disabled || busy || !title.trim()}
         >
-          {busy ? "Saving…" : "Save defaults"}
+          {busy ? t("Saving…") : t("Save defaults")}
         </Button>
       </div>
     </form>

@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { WorkspaceContext } from "./workspace-context";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ function storedWorkspace(userId: string) {
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  useLocale();
   const user = useQuery(api.users.viewer);
   const workspaces = useQuery(api.teams.list, {});
   const ensure = useMutation(api.users.ensurePersonalWorkspace);
@@ -118,10 +120,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (
       routeArgs &&
       !(await confirm({
-        title: "Switch workspace?",
-        description:
-          "This closes the open production. Unsaved changes may be lost if they have not been saved or backed up. Return to the editor to save before switching.",
-        confirmLabel: "Switch workspace",
+        get title() {
+          return t("Switch workspace?");
+        },
+        get description() {
+          return t(
+            "This closes the open production. Unsaved changes may be lost if they have not been saved or backed up. Return to the editor to save before switching.",
+          );
+        },
+        confirmLabel: t("Switch workspace"),
       }))
     )
       return;
@@ -136,7 +143,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   if (error)
     return (
       <p role="alert" className="p-6 text-red-400">
-        {error}
+        {t(error ?? "")}
       </p>
     );
   if (
@@ -147,7 +154,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   )
     return (
       <p role="status" className="p-6 text-zinc-400">
-        Loading workspace…
+        <I18nText text="Loading workspace…" />
       </p>
     );
   if (
@@ -158,9 +165,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   )
     return (
       <p role="alert" className="p-6 text-red-400">
-        This billing workspace is unavailable.{" "}
+        <I18nText text="This billing workspace is unavailable." />{" "}
         <a href="/billing" className="underline">
-          Open your workspace billing
+          <I18nText text="Open your workspace billing" />
         </a>
         .
       </p>

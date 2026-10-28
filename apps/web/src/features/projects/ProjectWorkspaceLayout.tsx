@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { StoredExports } from "@/features/edit/StoredExports";
 import { ProjectSettings } from "./ProjectSettings";
 import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
@@ -13,6 +14,7 @@ import {
 } from "react-router-dom";
 
 export function ProjectWorkspaceLayout() {
+  useLocale();
   const { projectId } = useParams();
   const location = useLocation();
   const project = useQuery(
@@ -28,12 +30,20 @@ export function ProjectWorkspaceLayout() {
   );
   if (!projectId) return <Navigate to="/projects" replace />;
   if (project === undefined)
-    return <p className="p-6 text-sm text-zinc-500">Loading project…</p>;
+    return (
+      <p className="p-6 text-sm text-zinc-500">
+        <I18nText text="Loading project…" />
+      </p>
+    );
   if (!project)
     return (
       <div className="p-6">
-        <h1>Project not found</h1>
-        <NavLink to="/projects">Back to projects</NavLink>
+        <h1>
+          <I18nText text="Project not found" />
+        </h1>
+        <NavLink to="/projects">
+          <I18nText text="Back to projects" />
+        </NavLink>
       </div>
     );
   const auxiliary = /\/(assets|blockout)(\/|$)/.test(location.pathname);
@@ -52,8 +62,10 @@ export function ProjectWorkspaceLayout() {
           <div className="min-w-0">
             <h1 className="truncate text-sm font-semibold">{project.title}</h1>
             <p className="text-xs text-zinc-400">
-              {project.seriesId ? `Episode ${project.episodeNumber} · ` : ""}
-              Creative workspace
+              {project.seriesId
+                ? t("Episode {0} · ", { 0: project.episodeNumber })
+                : ""}
+              <I18nText text="Creative workspace" />
             </p>
           </div>
         </div>
@@ -62,7 +74,7 @@ export function ProjectWorkspaceLayout() {
           <StoredExports key={`exports-${project._id}`} projectId={projectId} />
           {!!activeJobs?.length && (
             <span className="text-zinc-400">
-              {activeJobs.length} generating
+              {activeJobs.length} <I18nText text="generating" />
             </span>
           )}
           {auxiliary ? (
@@ -71,14 +83,14 @@ export function ProjectWorkspaceLayout() {
               to={`/projects/${projectId}/studio${location.search}`}
             >
               <ArrowLeft size={14} />
-              Workspace
+              <I18nText text="Workspace" />
             </NavLink>
           ) : (
             <NavLink
               className="text-zinc-300 hover:text-[var(--color-studio-accent)]"
               to={`/projects/${projectId}/assets${location.search}`}
             >
-              Manage references
+              <I18nText text="Manage references" />
             </NavLink>
           )}
         </div>

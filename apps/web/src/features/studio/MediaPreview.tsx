@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +13,7 @@ export function MediaPreview({
   type?: string;
   onDuration?: (duration: number) => void;
 }) {
+  useLocale();
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const failed = Boolean(url && failedUrl === url);
@@ -21,11 +23,11 @@ export function MediaPreview({
         <div role="status" className="studio-media-error">
           <p>
             {failed
-              ? "This media could not be played."
-              : "The preview is not available yet."}
+              ? t("This media could not be played.")
+              : t("The preview is not available yet.")}
           </p>
           <p className="studio-muted">
-            Your footage is preserved. Retry the preview or open the source.
+            <I18nText text="Your footage is preserved. Retry the preview or open the source." />
           </p>
           {url && (
             <div className="flex flex-wrap justify-center gap-2">
@@ -36,11 +38,11 @@ export function MediaPreview({
                   setFailedUrl(null);
                 }}
               >
-                Retry preview
+                <I18nText text="Retry preview" />
               </Button>
               <Button asChild variant="outline">
                 <a href={url} target="_blank" rel="noreferrer">
-                  Open source
+                  <I18nText text="Open source" />
                 </a>
               </Button>
             </div>

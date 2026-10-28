@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,7 @@ export function AssetDetailDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  useLocale();
   const asset = useQuery(api.storage.getAsset, assetId ? { assetId } : "skip");
   const url = useQuery(api.storage.getAssetUrl, assetId ? { assetId } : "skip");
   const update = useMutation(api.assets.update);
@@ -75,10 +78,15 @@ export function AssetDetailDrawer({
   async function onDelete() {
     if (!assetId || !writable || saving || removing) return;
     const ok = await confirm({
-      title: "Delete asset?",
-      description:
-        "This permanently removes the file from storage. This cannot be undone.",
-      confirmLabel: "Delete",
+      get title() {
+        return t("Delete asset?");
+      },
+      get description() {
+        return t(
+          "This permanently removes the file from storage. This cannot be undone.",
+        );
+      },
+      confirmLabel: t("Delete"),
       destructive: true,
     });
     if (!ok) return;
@@ -99,19 +107,19 @@ export function AssetDetailDrawer({
     <DetailDrawer
       open={open}
       onOpenChange={onOpenChange}
-      eyebrow="ASSET DETAILS"
+      eyebrow={t("ASSET DETAILS")}
       title={
         asset === undefined
-          ? "Loading…"
+          ? t("Loading…")
           : asset === null
-            ? "Asset not found"
+            ? t("Asset not found")
             : asset.name
       }
       description={
         asset ? (
           <span className="flex items-center gap-3">
             <Badge variant="outline" className="rounded-full capitalize">
-              {asset.type}
+              {t(asset.type ?? "")}
             </Badge>
             <Button
               variant="ghost"
@@ -169,7 +177,7 @@ export function AssetDetailDrawer({
             </div>
             {message && (
               <p role="status" className="text-sm text-zinc-400">
-                {message}
+                {t(message ?? "")}
               </p>
             )}
 
@@ -177,9 +185,13 @@ export function AssetDetailDrawer({
               disabled={!writable || saving || removing}
               className="grid gap-4"
             >
-              <h3 className="font-semibold">Asset information</h3>
+              <h3 className="font-semibold">
+                <I18nText text="Asset information" />
+              </h3>
               <div className="grid gap-2">
-                <Label htmlFor="asset-name">Name</Label>
+                <Label htmlFor="asset-name">
+                  <I18nText text="Name" />
+                </Label>
                 <Input
                   id="asset-name"
                   required
@@ -195,7 +207,9 @@ export function AssetDetailDrawer({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="asset-tags">Tags</Label>
+                <Label htmlFor="asset-tags">
+                  <I18nText text="Tags" />
+                </Label>
                 <Textarea
                   id="asset-tags"
                   value={tagsText}
@@ -210,30 +224,42 @@ export function AssetDetailDrawer({
                 />
               </div>
               <p className="text-xs text-zinc-400">
-                Separate tags with commas.
+                <I18nText text="Separate tags with commas." />
               </p>
             </fieldset>
-            <h3 className="font-semibold">File details</h3>
+            <h3 className="font-semibold">
+              <I18nText text="File details" />
+            </h3>
             <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-sm">
-              <dt className="text-zinc-500">Format</dt>
+              <dt className="text-zinc-500">
+                <I18nText text="Format" />
+              </dt>
               <dd className="truncate text-zinc-200">{asset.format}</dd>
-              <dt className="text-zinc-500">Size</dt>
+              <dt className="text-zinc-500">
+                <I18nText text="Size" />
+              </dt>
               <dd>{formatBytes(asset.sizeBytes)}</dd>
               {asset.width && asset.height ? (
                 <>
-                  <dt className="text-zinc-500">Dimensions</dt>
+                  <dt className="text-zinc-500">
+                    <I18nText text="Dimensions" />
+                  </dt>
                   <dd>
                     {asset.width} × {asset.height}
                   </dd>
                 </>
               ) : null}
-              <dt className="text-zinc-500">Created</dt>
+              <dt className="text-zinc-500">
+                <I18nText text="Created" />
+              </dt>
               <dd className="text-zinc-200">
-                {new Date(asset.createdAt).toLocaleString()}
+                {new Date(asset.createdAt).toLocaleString(getLocale())}
               </dd>
               {asset.jobId ? (
                 <>
-                  <dt className="text-zinc-500">Job</dt>
+                  <dt className="text-zinc-500">
+                    <I18nText text="Job" />
+                  </dt>
                   <dd className="font-mono text-xs text-zinc-300">
                     {asset.jobId}
                   </dd>
@@ -243,12 +269,16 @@ export function AssetDetailDrawer({
 
             {asset.lineage || asset.jobId ? (
               <section className="space-y-2 border-t border-zinc-800 pt-4">
-                <h3 className="text-sm font-medium text-zinc-200">Lineage</h3>
+                <h3 className="text-sm font-medium text-zinc-200">
+                  <I18nText text="Lineage" />
+                </h3>
                 {asset.lineage ? (
                   <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 text-sm">
                     {asset.lineage.model ? (
                       <>
-                        <dt className="text-zinc-500">Model</dt>
+                        <dt className="text-zinc-500">
+                          <I18nText text="Model" />
+                        </dt>
                         <dd className="text-zinc-200">
                           {asset.lineage.model}
                           {asset.lineage.modelVersion
@@ -259,7 +289,9 @@ export function AssetDetailDrawer({
                     ) : null}
                     {asset.lineage.prompt ? (
                       <>
-                        <dt className="text-zinc-500">Prompt</dt>
+                        <dt className="text-zinc-500">
+                          <I18nText text="Prompt" />
+                        </dt>
                         <dd className="whitespace-pre-wrap text-zinc-200">
                           {asset.lineage.prompt}
                         </dd>
@@ -267,14 +299,18 @@ export function AssetDetailDrawer({
                     ) : null}
                     {asset.lineage.seed !== undefined ? (
                       <>
-                        <dt className="text-zinc-500">Seed</dt>
+                        <dt className="text-zinc-500">
+                          <I18nText text="Seed" />
+                        </dt>
                         <dd className="text-zinc-200">{asset.lineage.seed}</dd>
                       </>
                     ) : null}
                     {asset.lineage.parentAssetIds &&
                     asset.lineage.parentAssetIds.length > 0 ? (
                       <>
-                        <dt className="text-zinc-500">Parents</dt>
+                        <dt className="text-zinc-500">
+                          <I18nText text="Parents" />
+                        </dt>
                         <dd className="font-mono text-xs text-zinc-400">
                           {asset.lineage.parentAssetIds.join(", ")}
                         </dd>
@@ -283,7 +319,7 @@ export function AssetDetailDrawer({
                   </dl>
                 ) : (
                   <p className="text-sm text-zinc-500">
-                    Linked to generation job {asset.jobId}
+                    <I18nText text="Linked to generation job" /> {asset.jobId}
                   </p>
                 )}
               </section>
@@ -306,10 +342,11 @@ export function AssetDetailDrawer({
 }
 
 function Preview({ asset, url }: { asset: AssetDoc; url: string | null }) {
+  useLocale();
   if (!url) {
     return (
       <div className="flex aspect-video items-center justify-center bg-zinc-950 text-sm text-zinc-600">
-        Loading preview…
+        <I18nText text="Loading preview…" />
       </div>
     );
   }
@@ -330,7 +367,7 @@ function Preview({ asset, url }: { asset: AssetDoc; url: string | null }) {
   }
   return (
     <div className="flex aspect-video items-center justify-center bg-zinc-950 text-sm text-zinc-500">
-      No preview for {asset.type}
+      <I18nText text="No preview for" /> {t(asset.type ?? "")}
     </div>
   );
 }

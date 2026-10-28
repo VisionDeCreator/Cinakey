@@ -1,3 +1,4 @@
+import { I18nText, t } from "@cinakey/ui/i18n";
 import {
   forwardRef,
   useEffect,
@@ -161,7 +162,9 @@ export const ReferencePromptEditor = forwardRef<
       setPicker(null);
       setError(null);
       setNotice(
-        `@${alias} uses the selected source video. Change it in Source footage.`,
+        t("@{0} uses the selected source video. Change it in Source footage.", {
+          0: alias,
+        }),
       );
       return;
     }
@@ -240,7 +243,12 @@ export const ReferencePromptEditor = forwardRef<
           ? { alias, previous, current: assetId }
           : null,
       );
-      setNotice(`@${alias} now uses ${asset.name} everywhere in the prompt.`);
+      setNotice(
+        t("@{0} now uses {1} everywhere in the prompt.", {
+          0: alias,
+          1: asset.name,
+        }),
+      );
       setPicker(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not link image");
@@ -281,14 +289,18 @@ export const ReferencePromptEditor = forwardRef<
   }
   return (
     <div className="genjutsu-reference-editor">
-      <span className="genjutsu-prompt-label">Describe the change</span>
+      <span className="genjutsu-prompt-label">
+        <I18nText text="Describe the change" />
+      </span>
       <PlainScriptEditor
         ref={textarea}
         projectId={projectId}
-        label="Describe the change"
+        label={t("Describe the change")}
         suggestionsId="transform-reference-suggestions"
         maxLength={4000}
-        placeholder="Describe your changes. Type @ to reference an uploaded image."
+        placeholder={t(
+          "Describe your changes. Type @ to reference an uploaded image.",
+        )}
         value={value}
         disabled={disabled}
         readOnly={disabled}
@@ -341,13 +353,15 @@ export const ReferencePromptEditor = forwardRef<
             setActive(0);
           }}
         >
-          Add reference
+          <I18nText text="Add reference" />
         </Button>
-        <span>{resolved.imageIds.length}/8 images linked</span>
+        <span>
+          {resolved.imageIds.length}
+          <I18nText text="/8 images linked" />
+        </span>
       </div>
       <p className="transform-muted">
-        Type @ or click an image to insert it. Click a linked mention to replace
-        it everywhere.
+        <I18nText text="Type @ or click an image to insert it. Click a linked mention to replace it everywhere." />
       </p>
       {mentions.length > 0 && (
         <div className="genjutsu-prompt-reference-list">
@@ -371,7 +385,7 @@ export const ReferencePromptEditor = forwardRef<
                 )}
                 <span>
                   @{alias}
-                  <small>{asset?.name ?? "Link missing image"}</small>
+                  <small>{asset?.name ?? t("Link missing image")}</small>
                 </span>
                 <span>
                   {
@@ -406,17 +420,17 @@ export const ReferencePromptEditor = forwardRef<
             }
           }}
         >
-          Undo reference replacement
+          <I18nText text="Undo reference replacement" />
         </Button>
       )}
       {notice && (
         <p className="transform-muted" role="status">
-          {notice}
+          {t(notice ?? "")}
         </p>
       )}
       {error && (
         <p className="transform-error" role="alert">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {picker &&
@@ -426,7 +440,7 @@ export const ReferencePromptEditor = forwardRef<
             className="genjutsu-reference-picker"
             style={{ position: "fixed", left: picker.left, top: picker.top }}
             role="dialog"
-            aria-label="Reference picker"
+            aria-label={t("Reference picker")}
             onKeyDown={(event) => {
               if (event.key === "Escape") {
                 setPicker(null);
@@ -437,23 +451,26 @@ export const ReferencePromptEditor = forwardRef<
             <div className="genjutsu-section-title">
               <strong>
                 {picker.replace
-                  ? `Replace @${picker.alias} everywhere`
-                  : "Choose image reference"}
+                  ? t("Replace @{0} everywhere", { 0: picker.alias })
+                  : t("Choose image reference")}
               </strong>
               <button
                 type="button"
-                aria-label="Close reference picker"
+                aria-label={t("Close reference picker")}
                 onClick={() => setPicker(null)}
               >
                 ×
               </button>
             </div>
             {picker.replace && (
-              <p>Every @{picker.alias} will use the selected image.</p>
+              <p>
+                <I18nText text="Every @" />
+                {picker.alias} <I18nText text="will use the selected image." />
+              </p>
             )}
             <input
-              aria-label="Search references"
-              placeholder="Search names or @aliases…"
+              aria-label={t("Search references")}
+              placeholder={t("Search names or @aliases…")}
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value.replace(/^@/, ""));
@@ -465,7 +482,7 @@ export const ReferencePromptEditor = forwardRef<
             <div
               id="transform-reference-suggestions"
               role="listbox"
-              aria-label="Image references"
+              aria-label={t("Image references")}
             >
               {results.map((asset, index) => (
                 <ReferenceMedia
@@ -478,7 +495,7 @@ export const ReferencePromptEditor = forwardRef<
                     role="option"
                     id={`transform-reference-option-${index}`}
                     aria-selected={index === active}
-                    aria-label={`Link ${asset.name} (image)`}
+                    aria-label={t("Link {0} (image)", { 0: asset.name })}
                     disabled={disabled}
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setActive(index)}
@@ -498,15 +515,17 @@ export const ReferencePromptEditor = forwardRef<
                 </ReferenceMedia>
               ))}
               {!results.length && (
-                <p>No matching images. Upload images in the reference area.</p>
+                <p>
+                  <I18nText text="No matching images. Upload images in the reference area." />
+                </p>
               )}
             </div>
             {picker.replace && (
               <div className="genjutsu-reference-rename">
                 <label>
-                  Reference name
+                  <I18nText text="Reference name" />
                   <input
-                    aria-label="Reference name"
+                    aria-label={t("Reference name")}
                     value={rename}
                     onChange={(event) => setRename(event.target.value)}
                   />
@@ -559,7 +578,7 @@ export const ReferencePromptEditor = forwardRef<
                     }
                   }}
                 >
-                  Rename everywhere
+                  <I18nText text="Rename everywhere" />
                 </Button>
               </div>
             )}

@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { downloadBlob } from "./export/exportTimeline";
 
 export function StoredExports({ projectId }: { projectId: string }) {
+  useLocale();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Id<"publishedExports"> | null>(null);
   const [error, setError] = useState("");
@@ -63,32 +66,33 @@ export function StoredExports({ projectId }: { projectId: string }) {
   return (
     <section className="text-sm">
       <Button variant="outline" onClick={() => setOpen((v) => !v)}>
-        <Share2 size={14} /> Share & videos
+        <Share2 size={14} /> <I18nText text="Share & videos" />
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="export-sharing-dialog flex max-h-[85vh] flex-col sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-2xl">
               <Share2 size={24} />
-              Share & videos
+              <I18nText text="Share & videos" />
             </DialogTitle>
             <DialogDescription>
-              Saved exports and their viewing links.
+              <I18nText text="Saved exports and their viewing links." />
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5 overflow-y-auto pt-2">
             {rows === undefined && (
               <p role="status" className="text-sm text-zinc-400">
-                Loading stored videos…
+                <I18nText text="Loading stored videos…" />
               </p>
             )}
             {rows?.length === 0 && (
               <div className="export-empty">
                 <Film size={32} />
-                <h3>No stored videos yet</h3>
+                <h3>
+                  <I18nText text="No stored videos yet" />
+                </h3>
                 <p>
-                  Use Export MP4 and select Store video for sharing. Your saved
-                  videos and link controls will appear here.
+                  <I18nText text="Use Export MP4 and select Store video for sharing. Your saved videos and link controls will appear here." />
                 </p>
               </div>
             )}
@@ -103,12 +107,14 @@ export function StoredExports({ projectId }: { projectId: string }) {
                 <div className="stored-video-info">
                   <h3>{row.title}</h3>
                   <p>
-                    {new Date(row.createdAt).toLocaleString()}
+                    {new Date(row.createdAt).toLocaleString(getLocale())}
                     {row.durationSec != null
                       ? ` · ${row.durationSec.toFixed(1)}s`
                       : ""}
                     {row.sizeBytes
-                      ? ` · ${(row.sizeBytes / 1024 / 1024).toFixed(1)} MiB`
+                      ? t(" · {0} MiB", {
+                          0: (row.sizeBytes / 1024 / 1024).toFixed(1),
+                        })
                       : ""}
                   </p>
                   <span className="export-status">{row.state}</span>
@@ -121,14 +127,14 @@ export function StoredExports({ projectId }: { projectId: string }) {
                       onClick={() => void download(row._id)}
                     >
                       <Download size={15} />
-                      Download
+                      <I18nText text="Download" />
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setSelected(row._id)}
                     >
                       <Link2 size={15} />
-                      Share
+                      <I18nText text="Share" />
                     </Button>
                   </>
                 )}
@@ -137,10 +143,15 @@ export function StoredExports({ projectId }: { projectId: string }) {
                   disabled={busy || row.state === "uploading"}
                   onClick={() => {
                     void confirm({
-                      title: "Delete stored video?",
-                      description:
-                        "This deletes the stored export and disables all of its sharing links. Your timeline is kept.",
-                      confirmLabel: "Delete video",
+                      get title() {
+                        return t("Delete stored video?");
+                      },
+                      get description() {
+                        return t(
+                          "This deletes the stored export and disables all of its sharing links. Your timeline is kept.",
+                        );
+                      },
+                      confirmLabel: t("Delete video"),
                     }).then(async (ok) => {
                       if (!ok) return;
                       setBusy(true);
@@ -161,7 +172,7 @@ export function StoredExports({ projectId }: { projectId: string }) {
                   }}
                 >
                   <Trash2 size={15} />
-                  Delete
+                  <I18nText text="Delete" />
                 </Button>
               </div>
             ))}
@@ -170,13 +181,12 @@ export function StoredExports({ projectId }: { projectId: string }) {
             )}
             {error && (
               <p role="alert" className="text-sm text-red-400">
-                {error}
+                {t(error ?? "")}
               </p>
             )}
             <p className="export-footnote">
               <Info size={15} />
-              Stored videos are snapshots. Later edits won’t change their links.
-              Workspace storage limit: 5 GiB.
+              <I18nText text="Stored videos are snapshots. Later edits won’t change their links. Workspace storage limit: 5 GiB." />
             </p>
           </div>
         </DialogContent>
@@ -189,6 +199,7 @@ function ShareControls({
 }: {
   publicationId: Id<"publishedExports">;
 }) {
+  useLocale();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -208,10 +219,10 @@ function ShareControls({
     <div className="share-link-panel">
       <h3 className="flex items-center gap-2 text-base font-semibold">
         <Link2 size={18} />
-        Create a viewing link
+        <I18nText text="Create a viewing link" />
       </h3>
       <p className="text-sm text-zinc-400">
-        Anyone with the link can watch. Add a password for extra protection.
+        <I18nText text="Anyone with the link can watch. Add a password for extra protection." />
       </p>
       <form
         className="share-link-form"
@@ -244,9 +255,9 @@ function ShareControls({
         }}
       >
         <label className="share-field">
-          Optional password
+          <I18nText text="Optional password" />
           <Input
-            placeholder="At least 8 characters"
+            placeholder={t("At least 8 characters")}
             disabled={busy}
             type="password"
             autoComplete="new-password"
@@ -257,15 +268,23 @@ function ShareControls({
           />
         </label>
         <div className="share-field">
-          <label id={`expires-${publicationId}`}>Expires</label>
+          <label id={`expires-${publicationId}`}>
+            <I18nText text="Expires" />
+          </label>
           <Select value={days} onValueChange={setDays} disabled={busy}>
             <SelectTrigger aria-labelledby={`expires-${publicationId}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">7 days</SelectItem>
-              <SelectItem value="30">30 days</SelectItem>
-              <SelectItem value="never">Never</SelectItem>
+              <SelectItem value="7">
+                <I18nText text="7 days" />
+              </SelectItem>
+              <SelectItem value="30">
+                <I18nText text="30 days" />
+              </SelectItem>
+              <SelectItem value="never">
+                <I18nText text="Never" />
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -275,18 +294,24 @@ function ShareControls({
             checked={allowDownload}
             onChange={(e) => setAllowDownload(e.target.checked)}
           />{" "}
-          Allow download
+          <I18nText text="Allow download" />
         </label>
         <Button className="share-create-button" disabled={busy}>
           <Link2 size={16} />
-          {busy ? "Creating…" : "Create private link"}
+          {busy ? t("Creating…") : t("Create private link")}
         </Button>
       </form>
       {url && (
         <div className="share-created-link">
-          <h4 className="text-sm font-medium">New link</h4>
+          <h4 className="text-sm font-medium">
+            <I18nText text="New link" />
+          </h4>
           <div className="share-copy-row">
-            <Input aria-label="New private share link" readOnly value={url} />
+            <Input
+              aria-label={t("New private share link")}
+              readOnly
+              value={url}
+            />
             <Button
               variant="outline"
               onClick={() => {
@@ -301,33 +326,39 @@ function ShareControls({
               }}
             >
               <Copy size={14} />
-              {copied ? "Copied" : "Copy link"}
+              {copied ? t("Copied") : t("Copy link")}
             </Button>
           </div>
           <p className="text-xs text-zinc-400">
-            Save this link now. Its secret is shown only when created.
+            <I18nText text="Save this link now. Its secret is shown only when created." />
           </p>
         </div>
       )}
-      <h4 className="text-sm font-medium">Existing links</h4>
+      <h4 className="text-sm font-medium">
+        <I18nText text="Existing links" />
+      </h4>
       {links === undefined && (
-        <p className="text-xs text-zinc-400">Loading links…</p>
+        <p className="text-xs text-zinc-400">
+          <I18nText text="Loading links…" />
+        </p>
       )}
       {links?.length === 0 && (
-        <p className="text-xs text-zinc-400">No viewing links yet.</p>
+        <p className="text-xs text-zinc-400">
+          <I18nText text="No viewing links yet." />
+        </p>
       )}
       {links?.map((link) => (
         <div key={link._id} className="share-existing-link">
           <LockKeyhole size={18} />
           <span>
-            {new Date(link.createdAt).toLocaleString()} ·{" "}
-            {link.passwordProtected ? "Password" : "Link access"} ·{" "}
-            {link.allowDownload ? "Watch and download" : "Watch"} ·{" "}
+            {new Date(link.createdAt).toLocaleString(getLocale())} ·{" "}
+            {link.passwordProtected ? t("Password") : t("Link access")} ·{" "}
+            {link.allowDownload ? t("Watch and download") : t("Watch")} ·{" "}
             {link.revokedAt !== undefined
-              ? "Revoked"
+              ? t("Revoked")
               : link.expiresAt && link.expiresAt <= now
-                ? "Expired"
-                : "Active"}
+                ? t("Expired")
+                : t("Active")}
           </span>
           {link.revokedAt === undefined && (
             <Button
@@ -348,17 +379,15 @@ function ShareControls({
                   .finally(() => setBusy(false));
               }}
             >
-              Revoke
+              <I18nText text="Revoke" />
             </Button>
           )}
         </div>
       ))}
       <p className="text-xs text-zinc-400">
-        Watch-only hides the download option; recipients can still capture or
-        save delivered video. Revocation stops future requests, not bytes
-        already delivered.
+        <I18nText text="Watch-only hides the download option; recipients can still capture or save delivered video. Revocation stops future requests, not bytes already delivered." />
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error ?? "")}</p>}
     </div>
   );
 }

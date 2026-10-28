@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { api, type Id } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
@@ -26,6 +27,7 @@ export function EpisodeSeriesPanel({
   projectId: Id<"projects">;
   seriesId: Id<"series">;
 }) {
+  useLocale();
   const data = useQuery(api.series.forProject, { projectId });
   const defaults = useMutation(api.series.applyDefaults);
   const navigate = useNavigate();
@@ -46,20 +48,20 @@ export function EpisodeSeriesPanel({
           value={projectId}
           onValueChange={(id) => void navigate(`/projects/${id}/video`)}
         >
-          <SelectTrigger aria-label="Switch episode" className="w-56">
+          <SelectTrigger aria-label={t("Switch episode")} className="w-56">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {data.episodes.map((e) => (
               <SelectItem key={e._id} value={e._id}>
-                Ep {e.episodeNumber}: {e.title}
+                <I18nText text="Ep" /> {e.episodeNumber}: {e.title}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <Button size="sm" variant="outline" onClick={() => setOpen(!open)}>
-          {open ? "Close series library" : "Series library"}
+          {open ? t("Close series library") : t("Series library")}
         </Button>
         {episode?.seriesSettingsVersion !== data.series.settingsVersion && (
           <Button
@@ -76,21 +78,23 @@ export function EpisodeSeriesPanel({
               }
             }}
           >
-            Adopt latest style & rules
+            <I18nText text="Adopt latest style & rules" />
           </Button>
         )}
         {message && (
           <span role="status" className="text-zinc-400">
-            {message}
+            {t(message ?? "")}
           </span>
         )}
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-6xl">
           <DialogHeader>
-            <DialogTitle>Series library · {data.series.title}</DialogTitle>
+            <DialogTitle>
+              <I18nText text="Series library ·" /> {data.series.title}
+            </DialogTitle>
             <DialogDescription>
-              Browse shared resources and choose a version for this episode.
+              <I18nText text="Browse shared resources and choose a version for this episode." />
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 overflow-y-auto">

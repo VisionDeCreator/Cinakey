@@ -1,6 +1,7 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { formatUsd } from "@cinakey/shared";
+import { formatUsd } from "@cinakey/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ import { encodePrevizMp4 } from "./export/runExport";
 export function BlockoutPage({
   onUseForGeneration,
 }: { onUseForGeneration?: (id: string) => void } = {}) {
+  useLocale();
   const navigate = useNavigate();
   const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
@@ -106,9 +108,14 @@ export function BlockoutPage({
       !reuse &&
       estimate?.usdMicros &&
       !(await confirm({
-        title: "Generate staging?",
-        description: `Approximately ${formatUsd(estimate.usdMicros)}. Your script and saved staging versions are preserved.`,
-        confirmLabel: "Generate staging",
+        get title() {
+          return t("Generate staging?");
+        },
+        description: t(
+          "Approximately {0}. Your script and saved staging versions are preserved.",
+          { 0: formatUsd(estimate.usdMicros) },
+        ),
+        confirmLabel: t("Generate staging"),
       }))
     )
       return;
@@ -174,15 +181,15 @@ export function BlockoutPage({
     <section className="studio-staging staging-workspace">
       <h2 className="staging-title">
         <Clapperboard size={20} />
-        Staging
+        <I18nText text="Staging" />
       </h2>
       <p className="studio-muted">
-        Plan movement and camera timing from your script, or start in the 3D
-        editor.
+        <I18nText text="Plan movement and camera timing from your script, or start in the 3D editor." />
       </p>
-      <ol className="staging-workflow" aria-label="Staging workflow">
+      <ol className="staging-workflow" aria-label={t("Staging workflow")}>
         <li className={!selected ? "active" : "complete"}>
-          <span>1</span>Plan your scene
+          <span>1</span>
+          <I18nText text="Plan your scene" />
         </li>
         <li
           className={
@@ -193,15 +200,19 @@ export function BlockoutPage({
                 : ""
           }
         >
-          <span>2</span>Render a preview
+          <span>2</span>
+          <I18nText text="Render a preview" />
         </li>
         <li className={selected?.previzAssetId ? "active" : ""}>
-          <span>3</span>Use as a reference
+          <span>3</span>
+          <I18nText text="Use as a reference" />
         </li>
       </ol>
       <div className="staging-plan-settings">
         <div>
-          <label id="staging-document-label">Staging document</label>
+          <label id="staging-document-label">
+            <I18nText text="Staging document" />
+          </label>
           <Select
             disabled={busy || !state?.staging.length}
             value={selected?._id ?? ""}
@@ -218,7 +229,7 @@ export function BlockoutPage({
             }}
           >
             <SelectTrigger aria-labelledby="staging-document-label">
-              <SelectValue placeholder="No staging documents yet" />
+              <SelectValue placeholder={t("No staging documents yet")} />
             </SelectTrigger>
             <SelectContent>
               {state?.staging.map((item) => (
@@ -231,15 +242,17 @@ export function BlockoutPage({
         </div>
         <div className="staging-duration">
           <label htmlFor="staging-duration">
-            Duration
+            <I18nText text="Duration" />
             <output htmlFor="staging-duration">
-              {Number(duration.toFixed(1))} seconds
+              {Number(duration.toFixed(1))} <I18nText text="seconds" />
             </output>
           </label>
           <input
             id="staging-duration"
-            aria-label="Staging duration"
-            aria-valuetext={`${Number(duration.toFixed(1))} seconds`}
+            aria-label={t("Staging duration")}
+            aria-valuetext={t("{0} seconds", {
+              0: Number(duration.toFixed(1)),
+            })}
             type="range"
             min={1}
             max={600}
@@ -264,7 +277,7 @@ export function BlockoutPage({
           ) : (
             <Sparkles size={15} />
           )}
-          Generate staging
+          <I18nText text="Generate staging" />
           {estimate?.usdMicros ? ` · ~${formatUsd(estimate.usdMicros)}` : ""}
         </Button>
         <Button variant="outline" asChild>
@@ -272,22 +285,24 @@ export function BlockoutPage({
             to={`/projects/${projectId}/blockout/edit${selected ? `?staging=${selected._id}` : ""}`}
           >
             <Box size={15} />
-            Open 3D editor
+            <I18nText text="Open 3D editor" />
           </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link to={`/projects/${projectId}/blockout/edit?new=1`}>
             <Plus size={15} />
-            New document
+            <I18nText text="New document" />
           </Link>
         </Button>
       </div>
       <section
         className="staging-preview-card"
-        aria-label="Staging previsualization"
+        aria-label={t("Staging previsualization")}
       >
         <div className="staging-preview-header">
-          <h3>Previsualization</h3>
+          <h3>
+            <I18nText text="Previsualization" />
+          </h3>
           <Button
             variant="outline"
             size="sm"
@@ -295,13 +310,13 @@ export function BlockoutPage({
             onClick={() => void render()}
           >
             <Play size={14} />
-            Render preview
+            <I18nText text="Render preview" />
           </Button>
         </div>
         {selected?.previzAssetId ? (
           url === undefined ? (
             <p role="status" className="staging-empty-preview">
-              Loading previsualization…
+              <I18nText text="Loading previsualization…" />
             </p>
           ) : (
             <MediaPreview url={url} name={selected.name} />
@@ -311,13 +326,15 @@ export function BlockoutPage({
             <Box size={36} />
             <h3>
               {selected
-                ? "Your scene is ready to preview"
-                : "Plan your first scene"}
+                ? t("Your scene is ready to preview")
+                : t("Plan your first scene")}
             </h3>
             <p>
               {selected
-                ? "Render a preview to review movement and camera timing."
-                : "Generate staging from your script, or open the 3D editor to start manually."}
+                ? t("Render a preview to review movement and camera timing.")
+                : t(
+                    "Generate staging from your script, or open the 3D editor to start manually.",
+                  )}
             </p>
           </div>
         )}
@@ -325,8 +342,12 @@ export function BlockoutPage({
       <div className="staging-use-reference">
         <Link2 size={20} />
         <div>
-          <h3>Use this preview as a video reference</h3>
-          <p>Your script and staging stay connected.</p>
+          <h3>
+            <I18nText text="Use this preview as a video reference" />
+          </h3>
+          <p>
+            <I18nText text="Your script and staging stay connected." />
+          </p>
         </div>
         <Button
           disabled={
@@ -341,7 +362,7 @@ export function BlockoutPage({
               );
           }}
         >
-          Use for generation
+          <I18nText text="Use for generation" />
         </Button>
       </div>
       <div className="staging-utility-actions">
@@ -351,7 +372,7 @@ export function BlockoutPage({
           onClick={() => setExportOpen(true)}
         >
           <Download size={15} />
-          Export staging
+          <I18nText text="Export staging" />
         </Button>
         {selected?.planFileId && (
           <Button
@@ -360,19 +381,21 @@ export function BlockoutPage({
             onClick={() => void run(true)}
           >
             <RotateCcw size={15} />
-            Recompile saved plan
+            <I18nText text="Recompile saved plan" />
           </Button>
         )}
       </div>
       {progress && <p role="status">{progress}</p>}
       {error && (
         <p role="alert" className="studio-error">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
       {selected && (
         <details className="staging-history">
-          <summary>Staging history</summary>
+          <summary>
+            <I18nText text="Staging history" />
+          </summary>
           <Button
             variant="outline"
             onClick={async () => {
@@ -387,7 +410,7 @@ export function BlockoutPage({
               }
             }}
           >
-            Load saved versions
+            <I18nText text="Load saved versions" />
           </Button>
           {history.map((version) => (
             <p key={version.fileId}>
@@ -413,7 +436,7 @@ export function BlockoutPage({
                   }
                 }}
               >
-                Restore as new version
+                <I18nText text="Restore as new version" />
               </Button>
             </p>
           ))}
@@ -422,7 +445,7 @@ export function BlockoutPage({
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
-        scopeLabel="Staging document"
+        scopeLabel={t("Staging document")}
         baseName={selected?.name ?? "staging"}
         multiShot
         loadDocument={async () => {

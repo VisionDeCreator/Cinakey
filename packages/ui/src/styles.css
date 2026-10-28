@@ -45,3 +45,9 @@
     @apply min-h-dvh;
   }
 }
+
+/* Keep Korean words together while allowing long identifiers to wrap. */
+html[lang="ko"] body {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

@@ -1,3 +1,4 @@
+import { I18nText, useLocale } from "@cinakey/ui/i18n";
 import { ShareWatchPage } from "@/features/sharing/ShareWatchPage";
 import { authDestination } from "@/features/auth/auth-errors";
 import { AppShell } from "@/app/AppShell";
@@ -32,13 +33,14 @@ import {
 } from "react-router-dom";
 
 function AuthRedirect({ children }: { children: ReactNode }) {
+  useLocale();
   const [params] = useSearchParams();
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (isLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-sm text-zinc-400">
-        Loading…
+        <I18nText text="Loading…" />
       </div>
     );
   }
@@ -51,6 +53,7 @@ function AuthRedirect({ children }: { children: ReactNode }) {
 }
 
 function LegacyRemixRedirect() {
+  useLocale();
   const { sessionId } = useParams();
   const [params] = useSearchParams();
   const query = params.toString();
@@ -63,11 +66,13 @@ function LegacyRemixRedirect() {
 }
 
 function RedirectToStudio() {
+  useLocale();
   const { projectId } = useParams();
   return <Navigate to={`/projects/${projectId}/studio`} replace />;
 }
 
 function RedirectLookDev() {
+  useLocale();
   const { projectId, entityId } = useParams();
   if (entityId) {
     return (
@@ -78,6 +83,7 @@ function RedirectLookDev() {
 }
 
 export function AppRouter() {
+  useLocale();
   return (
     <ErrorBoundary>
       <Routes>

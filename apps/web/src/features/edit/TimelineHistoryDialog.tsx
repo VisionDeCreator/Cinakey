@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { api } from "@cinakey/backend";
 import { useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ export function TimelineHistoryDialog({
   onRestore,
   canRestore = true,
 }: Props) {
+  useLocale();
   const versions = useQuery(
     api.timelineVersions.listForProject,
     open ? { projectId: projectId as never } : "skip",
@@ -36,10 +39,11 @@ export function TimelineHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Timeline versions</DialogTitle>
+          <DialogTitle>
+            <I18nText text="Timeline versions" />
+          </DialogTitle>
           <DialogDescription>
-            Restoring loads a past version into the editor and saves it as a new
-            tip (history is never overwritten).
+            <I18nText text="Restoring loads a past version into the editor and saves it as a new tip (history is never overwritten)." />
           </DialogDescription>
         </DialogHeader>
         <ul className="max-h-80 space-y-1 overflow-y-auto text-sm">
@@ -50,11 +54,12 @@ export function TimelineHistoryDialog({
             >
               <div className="min-w-0">
                 <p className="truncate text-zinc-200">
-                  {v.label ?? "Untitled"}
-                  {v._id === tipId ? " · tip" : ""}
+                  {v.label ?? t("Untitled")}
+                  {v._id === tipId ? " " + t("· tip") : ""}
                 </p>
                 <p className="text-[11px] text-zinc-500">
-                  {new Date(v.createdAt).toLocaleString()} · {v.createdByName}
+                  {new Date(v.createdAt).toLocaleString(getLocale())} ·{" "}
+                  {v.createdByName}
                 </p>
               </div>
               <Button
@@ -67,12 +72,14 @@ export function TimelineHistoryDialog({
                   onOpenChange(false);
                 }}
               >
-                Restore
+                <I18nText text="Restore" />
               </Button>
             </li>
           ))}
           {versions?.length === 0 && (
-            <li className="text-xs text-zinc-500">No versions yet.</li>
+            <li className="text-xs text-zinc-500">
+              <I18nText text="No versions yet." />
+            </li>
           )}
         </ul>
         <DialogFooter>
@@ -81,7 +88,7 @@ export function TimelineHistoryDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Close
+            <I18nText text="Close" />
           </Button>
         </DialogFooter>
       </DialogContent>

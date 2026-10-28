@@ -1,3 +1,5 @@
+import { getLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { api } from "@cinakey/backend";
 import type { PipelineProgress } from "@cinakey/shared";
 import { useMutation } from "@/lib/api/hooks";
@@ -25,13 +27,17 @@ import { StageProgressBar } from "@/features/projects/StageProgress";
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const relative = new Intl.RelativeTimeFormat(getLocale(), {
+    numeric: "auto",
+    style: "short",
+  });
+  if (mins < 1) return relative.format(0, "second");
+  if (mins < 60) return relative.format(-mins, "minute");
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return relative.format(-hours, "hour");
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(ts).toLocaleDateString();
+  if (days < 30) return relative.format(-days, "day");
+  return new Date(ts).toLocaleDateString(getLocale());
 }
 
 export function ProjectCard({
@@ -51,6 +57,7 @@ export function ProjectCard({
   archived?: boolean;
   layout?: "grid" | "list";
 }) {
+  useLocale();
   const navigate = useNavigate();
   const update = useMutation(api.projects.update);
   const archive = useMutation(api.projects.archive);
@@ -95,7 +102,7 @@ export function ProjectCard({
               />
             ) : (
               <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-                No thumbnail
+                <I18nText text="No thumbnail" />
               </div>
             )}
           </div>
@@ -105,8 +112,8 @@ export function ProjectCard({
             <Link to={`/projects/${projectId}`} className="min-w-0 flex-1">
               <h2 className="truncate font-medium text-zinc-100">{title}</h2>
               <p className="text-xs text-zinc-500">
-                Edited {formatRelative(updatedAt)}
-                {archived ? " · Archived" : ""}
+                <I18nText text="Edited" /> {formatRelative(updatedAt)}
+                {archived ? " " + t("· Archived") : ""}
               </p>
             </Link>
             <DropdownMenu>
@@ -117,14 +124,16 @@ export function ProjectCard({
                   className="size-8 shrink-0 opacity-70 group-hover:opacity-100"
                 >
                   <MoreHorizontal className="size-4" />
-                  <span className="sr-only">Project actions</span>
+                  <span className="sr-only">
+                    <I18nText text="Project actions" />
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onSelect={() => navigate(`/projects/${projectId}`)}
                 >
-                  Open
+                  <I18nText text="Open" />
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
@@ -132,7 +141,7 @@ export function ProjectCard({
                     setRenameOpen(true);
                   }}
                 >
-                  Rename
+                  <I18nText text="Rename" />
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
@@ -141,7 +150,7 @@ export function ProjectCard({
                     );
                   }}
                 >
-                  Duplicate
+                  <I18nText text="Duplicate" />
                 </DropdownMenuItem>
                 {archived ? (
                   <DropdownMenuItem
@@ -149,7 +158,7 @@ export function ProjectCard({
                       void unarchive({ projectId: projectId as never })
                     }
                   >
-                    Unarchive
+                    <I18nText text="Unarchive" />
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
@@ -157,7 +166,7 @@ export function ProjectCard({
                       void archive({ projectId: projectId as never })
                     }
                   >
-                    Archive
+                    <I18nText text="Archive" />
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -171,10 +180,14 @@ export function ProjectCard({
         <DialogContent>
           <form onSubmit={(e) => void onRename(e)}>
             <DialogHeader>
-              <DialogTitle>Rename project</DialogTitle>
+              <DialogTitle>
+                <I18nText text="Rename project" />
+              </DialogTitle>
             </DialogHeader>
             <div className="mt-4 grid gap-2">
-              <Label htmlFor="rename">Title</Label>
+              <Label htmlFor="rename">
+                <I18nText text="Title" />
+              </Label>
               <Input
                 id="rename"
                 value={newTitle}
@@ -187,10 +200,10 @@ export function ProjectCard({
                 variant="outline"
                 onClick={() => setRenameOpen(false)}
               >
-                Cancel
+                <I18nText text="Cancel" />
               </Button>
               <Button type="submit" disabled={busy}>
-                Save
+                <I18nText text="Save" />
               </Button>
             </DialogFooter>
           </form>

@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import { useRef, useState, type ReactNode } from "react";
 import { ASSET_ALLOWED_MIME } from "@cinakey/shared";
 
@@ -13,6 +14,7 @@ export function MediaDropzone({
   onFiles: (files: File[]) => Promise<void>;
   children: ReactNode;
 }) {
+  useLocale();
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const depth = useRef(0);
@@ -80,11 +82,11 @@ export function MediaDropzone({
         {children}
         <span>
           {dragging && !disabled
-            ? "Drop to upload"
-            : "Drag & drop or click to browse"}
+            ? t("Drop to upload")
+            : t("Drag & drop or click to browse")}
         </span>
         <input
-          aria-label={label}
+          aria-label={t(label)}
           type="file"
           accept={type === "video" ? "video/*" : "image/*"}
           multiple={type === "image"}
@@ -97,7 +99,7 @@ export function MediaDropzone({
       </label>
       {error && (
         <p role="alert" className="transform-error">
-          {error}
+          {t(error ?? "")}
         </p>
       )}
     </div>

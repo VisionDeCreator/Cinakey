@@ -1,3 +1,4 @@
+import { t, useLocale } from "@cinakey/ui/i18n";
 import type { TimelineClip } from "@cinakey/shared";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MediaUrlMap } from "../mediaUrls";
@@ -17,6 +18,7 @@ export function ClipMedia({
   width: number;
   waveform?: boolean;
 }) {
+  useLocale();
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const id = clip.source.type === "text" ? "" : clip.source.assetId;
@@ -122,13 +124,13 @@ export function ClipMedia({
       )}
       <span className="absolute bottom-0 right-1 rounded bg-black/70 px-1 text-[8px] text-zinc-300">
         {analysis.proxyStatus === "creating"
-          ? "Creating proxy…"
+          ? t("Creating proxy…")
           : analysis.proxyStatus === "ready"
-            ? "Proxy"
+            ? t("Proxy")
             : analysis.status === "processing"
-              ? "Analyzing…"
+              ? t("Analyzing…")
               : analysis.status === "unavailable"
-                ? "Original media"
+                ? t("Original media")
                 : ""}
       </span>
     </div>

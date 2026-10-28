@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { cn } from "@/lib/utils";
 import type {
   TimelineClip,
@@ -66,6 +67,7 @@ export function TimelineTracks({
   onZoom,
   onDropMedia,
 }: Props) {
+  useLocale();
   const scroller = useRef<HTMLDivElement>(null);
   const [drop, setDrop] = useState<{ trackId: string; time: number } | null>(
     null,
@@ -138,7 +140,7 @@ export function TimelineTracks({
     <div className="flex min-h-0 flex-1 flex-col border-t border-zinc-800 bg-zinc-950">
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
         <label className="flex items-center gap-2">
-          Zoom
+          <I18nText text="Zoom" />
           <input
             type="range"
             min={2}
@@ -164,7 +166,7 @@ export function TimelineTracks({
             if (scroller.current) scroller.current.scrollLeft = 0;
           }}
         >
-          Fit timeline
+          <I18nText text="Fit timeline" />
         </button>
         <button
           type="button"
@@ -176,10 +178,12 @@ export function TimelineTracks({
               );
           }}
         >
-          Show playhead
+          <I18nText text="Show playhead" />
         </button>
         <span className="text-zinc-600">
-          Trim: {trimMode === "ripple" ? "Ripple" : "Roll"} (R to toggle)
+          <I18nText text="Trim:" />{" "}
+          {trimMode === "ripple" ? t("Ripple") : t("Roll")}{" "}
+          <I18nText text="(R to toggle)" />
         </span>
       </div>
       <div
@@ -195,7 +199,9 @@ export function TimelineTracks({
       >
         <div className="flex" style={{ minWidth: width + 120 }}>
           <div className="sticky left-0 z-20 w-[120px] shrink-0 border-r border-zinc-800 bg-zinc-950">
-            <div className="studio-ruler-label">Tracks</div>
+            <div className="studio-ruler-label">
+              <I18nText text="Tracks" />
+            </div>
             {doc.tracks.map((track) => (
               <div
                 key={track.id}
@@ -234,7 +240,10 @@ export function TimelineTracks({
                 onSelectClip(null);
             }}
           >
-            <div className="studio-time-ruler" aria-label="Timeline time ruler">
+            <div
+              className="studio-time-ruler"
+              aria-label={t("Timeline time ruler")}
+            >
               {Array.from(
                 {
                   length:
@@ -334,14 +343,16 @@ export function TimelineTracks({
                     className="studio-drop-marker"
                     style={{ left: drop.time * pxPerSec }}
                   >
-                    <span>Drop at {drop.time.toFixed(2)}s</span>
+                    <span>
+                      <I18nText text="Drop at" /> {drop.time.toFixed(2)}s
+                    </span>
                   </div>
                 )}
                 {track.clips.length === 0 && (
                   <span className="studio-empty-lane">
                     {track.kind === "titles"
-                      ? "Add titles from the toolbar"
-                      : "Drop media here"}
+                      ? t("Add titles from the toolbar")
+                      : t("Drop media here")}
                   </span>
                 )}
                 {track.clips.map((clip) => (
@@ -365,7 +376,9 @@ export function TimelineTracks({
                   />
                 ))}
                 {/* empty lane click already handled */}
-                <span className="sr-only">Track {ti}</span>
+                <span className="sr-only">
+                  <I18nText text="Track" /> {ti}
+                </span>
               </div>
             ))}
 
@@ -419,6 +432,7 @@ function ClipBlock({
   onTrim: (edge: "in" | "out", timelineEdgeSec: number) => void;
   onRoll: (cutSec: number) => void;
 }) {
+  useLocale();
   const label =
     clip.source.type === "text"
       ? clip.source.text.slice(0, 24)
@@ -429,7 +443,7 @@ function ClipBlock({
       data-clip="1"
       role="button"
       tabIndex={0}
-      aria-label={`Select ${label}`}
+      aria-label={t("Select {0}", { 0: label })}
       aria-pressed={selected}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

@@ -1,3 +1,4 @@
+import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import { EmailVerification } from "./EmailVerification";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +13,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 export function SettingsPage() {
+  useLocale();
   const me = useQuery(api.users.viewer);
   const updateProfile = useMutation(api.users.updateProfile);
   const deleteAccount = useMutation(api.users.deleteAccount);
@@ -39,10 +41,18 @@ export function SettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
 
   if (me === undefined) {
-    return <p className="text-sm text-zinc-500">Loading settings…</p>;
+    return (
+      <p className="text-sm text-zinc-500">
+        <I18nText text="Loading settings…" />
+      </p>
+    );
   }
   if (me === null) {
-    return <p className="text-sm text-red-400">Not signed in.</p>;
+    return (
+      <p className="text-sm text-red-400">
+        <I18nText text="Not signed in." />
+      </p>
+    );
   }
 
   async function saveProfile(e: React.FormEvent) {
@@ -83,9 +93,11 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          <I18nText text="Settings" />
+        </h1>
         <p className="mt-2 text-sm text-zinc-400 sm:text-base">
-          Manage your profile, notifications and account.
+          <I18nText text="Manage your profile, notifications and account." />
         </p>
       </header>
       <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
@@ -94,7 +106,9 @@ export function SettingsPage() {
           className={panel}
           onSubmit={(e) => void saveProfile(e)}
         >
-          <h2 className="text-xl font-semibold">Profile</h2>
+          <h2 className="text-xl font-semibold">
+            <I18nText text="Profile" />
+          </h2>
           <div className="flex items-center gap-4 border-b border-zinc-800 pb-4">
             <Avatar className="size-14">
               <AvatarImage src={me.image} alt="" />
@@ -103,16 +117,20 @@ export function SettingsPage() {
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="font-medium">Your account</p>
+              <p className="font-medium">
+                <I18nText text="Your account" />
+              </p>
               <p className="mt-1 break-all text-sm text-zinc-400">{me.email}</p>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="settings-name">Display name</Label>
+            <Label htmlFor="settings-name">
+              <I18nText text="Display name" />
+            </Label>
             <Input
               id="settings-name"
               required
-              placeholder="Enter your display name"
+              placeholder={t("Enter your display name")}
               maxLength={200}
               value={name}
               disabled={busy}
@@ -121,30 +139,48 @@ export function SettingsPage() {
               }
             />
             <p className="text-xs text-zinc-400">
-              This name appears across your workspace.
+              <I18nText text="This name appears across your workspace." />
             </p>
           </div>
           {message && (
             <p role="status" className="text-sm text-emerald-400">
-              {message}
+              {t(message ?? "")}
             </p>
           )}
           {error && (
             <p role="alert" className="text-sm text-red-400">
-              {error}
+              {t(error ?? "")}
             </p>
           )}
           <div className="flex justify-end">
             <Button type="submit" disabled={busy || !name.trim()}>
-              {busy ? "Saving…" : "Save changes"}
+              {busy ? t("Saving…") : t("Save changes")}
             </Button>
           </div>
         </form>
         <EmailVerification />
+        <section
+          className={`${panel} lg:col-span-2`}
+          aria-labelledby="language-heading"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h2 id="language-heading" className="text-xl font-semibold">
+                <I18nText text="Language" />
+              </h2>
+              <p className="text-sm text-zinc-400">
+                <I18nText text="Choose the language used in this browser." />
+              </p>
+            </div>
+            <LanguageSelector className="w-full sm:w-48" />
+          </div>
+        </section>
         <section className={panel}>
-          <h2 className="text-xl font-semibold">Notifications</h2>
+          <h2 className="text-xl font-semibold">
+            <I18nText text="Notifications" />
+          </h2>
           <p className="text-sm text-zinc-400">
-            Choose which updates arrive by email.
+            <I18nText text="Choose which updates arrive by email." />
           </p>
           <label className="flex items-start gap-3">
             <input
@@ -162,35 +198,45 @@ export function SettingsPage() {
             />
             <span>
               <span className="block text-sm font-medium">
-                Job and export alerts
+                <I18nText text="Job and export alerts" />
               </span>
               <span className="mt-1 block text-xs text-zinc-400">
-                Get an email when generation jobs and exports finish.
+                <I18nText text="Get an email when generation jobs and exports finish." />
               </span>
             </span>
           </label>
-          <p className="text-xs text-zinc-400">Saved with your profile.</p>
+          <p className="text-xs text-zinc-400">
+            <I18nText text="Saved with your profile." />
+          </p>
         </section>
         <section className={panel}>
-          <h2 className="text-xl font-semibold">Workspace management</h2>
-          <p className="font-medium">{workspace?.name ?? "Your workspace"}</p>
+          <h2 className="text-xl font-semibold">
+            <I18nText text="Workspace management" />
+          </h2>
+          <p className="font-medium">
+            {workspace?.name ?? t("Your workspace")}
+          </p>
           <p className="text-sm text-zinc-400">
             {canManage
-              ? "Manage team access, seats, funding and spending limits in Billing."
-              : "Your workspace owner manages team access, seats and billing."}
+              ? t(
+                  "Manage team access, seats, funding and spending limits in Billing.",
+                )
+              : t(
+                  "Your workspace owner manages team access, seats and billing.",
+                )}
           </p>
           <div className="flex flex-wrap gap-3">
             {canManage && (
               <Button variant="outline" asChild>
                 <Link to="/billing#members">
-                  Manage team
+                  <I18nText text="Manage team" />
                   <ArrowRight />
                 </Link>
               </Button>
             )}
             <Button variant="outline" asChild>
               <Link to="/billing">
-                Open billing
+                <I18nText text="Open billing" />
                 <ArrowRight />
               </Link>
             </Button>
@@ -198,11 +244,15 @@ export function SettingsPage() {
         </section>
       </div>
       <section className="space-y-3 rounded-2xl border border-red-900/40 p-5 sm:p-6">
-        <h2 className="text-lg font-semibold">Delete account</h2>
+        <h2 className="text-lg font-semibold">
+          <I18nText text="Delete account" />
+        </h2>
         <p className="text-sm text-zinc-400">
-          Permanently delete your account. This action cannot be undone.
+          <I18nText text="Permanently delete your account. This action cannot be undone." />
         </p>
-        <Label htmlFor="delete-account-confirm">Type DELETE to confirm</Label>
+        <Label htmlFor="delete-account-confirm">
+          <I18nText text="Type DELETE to confirm" />
+        </Label>
         <div className="flex flex-wrap items-center gap-3">
           <Input
             id="delete-account-confirm"
@@ -218,7 +268,7 @@ export function SettingsPage() {
             disabled={busy || deleteConfirm !== "DELETE"}
             onClick={() => void onDelete()}
           >
-            Delete account
+            <I18nText text="Delete account" />
           </Button>
         </div>
       </section>

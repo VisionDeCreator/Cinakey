@@ -1,3 +1,4 @@
+import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Clapperboard,
   Film,
@@ -50,6 +51,7 @@ type Props = {
 };
 
 export function ExportDialog(props: Props) {
+  useLocale();
   return props.open ? <ExportSession {...props} /> : null;
 }
 function ExportSession({
@@ -60,6 +62,7 @@ function ExportSession({
   projectTitle,
   projectId,
 }: Props) {
+  useLocale();
   const { canWrite } = useWorkspace();
   const canStore = canWrite !== false;
   const [doc] = useState(() => structuredClone(initialDoc));
@@ -235,10 +238,10 @@ function ExportSession({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <Clapperboard size={25} />
-            Export MP4
+            <I18nText text="Export MP4" />
           </DialogTitle>
           <DialogDescription>
-            Create a video from your saved edit.
+            <I18nText text="Create a video from your saved edit." />
           </DialogDescription>
         </DialogHeader>
 
@@ -251,7 +254,7 @@ function ExportSession({
               <h3>{projectTitle}</h3>
               <p>
                 {doc.durationSec.toFixed(1)}s · {doc.project.aspectRatio} ·{" "}
-                {doc.project.fps} fps
+                {doc.project.fps} <I18nText text="fps" />
               </p>
             </div>
           </div>
@@ -282,38 +285,39 @@ function ExportSession({
               onChange={(e) => setStoreVideo(e.target.checked)}
             />
             <span>
-              Store video for sharing<small>Up to 200 MiB per video</small>
+              <I18nText text="Store video for sharing" />
+              <small>
+                <I18nText text="Up to 200 MiB per video" />
+              </small>
             </span>
           </label>
           <p className="export-footnote">
             <Info size={15} />
-            Your MP4 downloads first, then uploads for sharing when selected.
-            Keep this tab open until complete.
+            <I18nText text="Your MP4 downloads first, then uploads for sharing when selected. Keep this tab open until complete." />
           </p>
           {stored && (
             <p role="status">
-              Video stored. Open Share & videos in the project header to create
-              a viewing link.
+              <I18nText text="Video stored. Open Share & videos in the project header to create a viewing link." />
             </p>
           )}
           {doc.durationSec <= 0 && (
             <p role="status" className="text-xs text-zinc-400">
-              Add media to the timeline before exporting.
+              <I18nText text="Add media to the timeline before exporting." />
             </p>
           )}
           {supported === null && (
             <p role="status" className="text-xs text-zinc-400">
-              Checking browser export support…
+              <I18nText text="Checking browser export support…" />
             </p>
           )}
           {supported === false && (
             <p className="text-amber-400">
-              WebCodecs H.264 + AAC encode is not available in this browser.
+              <I18nText text="WebCodecs H.264 + AAC encode is not available in this browser." />
             </p>
           )}
           {error && (
             <p role="alert" className="text-rose-400">
-              {error}
+              {t(error ?? "")}
             </p>
           )}
           {running && (
@@ -325,18 +329,18 @@ function ExportSession({
               <div className="flex items-center justify-between gap-3">
                 <h3>
                   {uploadPercent === null
-                    ? "Exporting video"
+                    ? t("Exporting video")
                     : uploadPercent === 100
-                      ? "Verifying upload"
-                      : "Uploading video"}
+                      ? t("Verifying upload")
+                      : t("Uploading video")}
                 </h3>
                 <strong>{uploadPercent ?? pct}%</strong>
               </div>
               <Progress
                 aria-label={
                   uploadPercent === null
-                    ? "Rendering progress"
-                    : "Upload progress"
+                    ? t("Rendering progress")
+                    : t("Upload progress")
                 }
                 value={uploadPercent ?? pct}
               />
@@ -345,8 +349,8 @@ function ExportSession({
                   {uploadPercent === null
                     ? progress.message
                     : uploadPercent === 100
-                      ? "Validating and storing…"
-                      : "Uploading your exported video…"}
+                      ? t("Validating and storing…")
+                      : t("Uploading your exported video…")}
                 </p>
               )}
               <div className="export-steps">
@@ -354,11 +358,12 @@ function ExportSession({
                   className={uploadPercent === null ? "active" : "complete"}
                 >
                   <i>{uploadPercent === null ? "1" : <Check size={12} />}</i>
-                  Render video
+                  <I18nText text="Render video" />
                 </span>
                 {storeVideo && (
                   <span className={uploadPercent !== null ? "active" : ""}>
-                    <i>2</i>Upload & store
+                    <i>2</i>
+                    <I18nText text="Upload & store" />
                   </span>
                 )}
               </div>
@@ -374,11 +379,11 @@ function ExportSession({
                 variant="outline"
                 onClick={() => abortRef.current?.abort()}
               >
-                Cancel export
+                <I18nText text="Cancel export" />
               </Button>
               <Button disabled>
                 <LoaderCircle size={15} className="animate-spin" />
-                {uploadPercent === null ? "Exporting…" : "Uploading…"}
+                {uploadPercent === null ? t("Exporting…") : t("Uploading…")}
               </Button>
             </>
           ) : (
@@ -388,11 +393,11 @@ function ExportSession({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Close
+                <I18nText text="Close" />
               </Button>
               {hasPendingUpload && !stored && (
                 <Button disabled={!canStore} onClick={() => void retryUpload()}>
-                  Retry upload
+                  <I18nText text="Retry upload" />
                 </Button>
               )}
               <Button
@@ -406,13 +411,14 @@ function ExportSession({
                 }
                 onClick={() => void start()}
               >
-                Export
+                <I18nText text="Export" />
               </Button>
             </>
           )}
         </DialogFooter>
         <p className="export-footnote">
-          Original media · Up to {TIMELINE_EXPORT_MAX_DURATION_SEC / 60} minutes
+          <I18nText text="Original media · Up to" />{" "}
+          {TIMELINE_EXPORT_MAX_DURATION_SEC / 60} <I18nText text="minutes" />
         </p>
       </DialogContent>
     </Dialog>
