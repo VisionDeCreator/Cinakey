@@ -32,6 +32,7 @@ import type * as lib_authEmail from "../lib/authEmail.js";
 import type * as lib_budgets from "../lib/budgets.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_funding from "../lib/funding.js";
+import type * as lib_generationSettings from "../lib/generationSettings.js";
 import type * as lib_ledger from "../lib/ledger.js";
 import type * as lib_limits from "../lib/limits.js";
 import type * as lib_mediaProtection from "../lib/mediaProtection.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   "lib/budgets": typeof lib_budgets;
   "lib/env": typeof lib_env;
   "lib/funding": typeof lib_funding;
+  "lib/generationSettings": typeof lib_generationSettings;
   "lib/ledger": typeof lib_ledger;
   "lib/limits": typeof lib_limits;
   "lib/mediaProtection": typeof lib_mediaProtection;

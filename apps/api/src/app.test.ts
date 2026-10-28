@@ -356,3 +356,59 @@ it.each(["grantDev", "grantToEmail", "lookupByEmail"])(
     }
   },
 );
+
+it("routes project access and generation preferences through authenticated HTTP operations", async () => {
+  const query = vi
+    .spyOn(ConvexHttpClient.prototype, "query")
+    .mockImplementation(async (...[reference]) =>
+      getFunctionName(reference as never) === "apiIdentity:current"
+        ? { identity: { subject: "user|session" } }
+        : [],
+    );
+  const mutation = vi
+    .spyOn(ConvexHttpClient.prototype, "mutation")
+    .mockResolvedValue({
+      resolution: "1080p",
+      durationSec: 8,
+      aspectRatio: "1:1",
+      useStaging: false,
+      revision: 2,
+    });
+  const app = createApp();
+  for (const path of [
+    "projects/generationSettings",
+    "projects/saveGenerationSettings",
+    "teams/projectAccess",
+  ])
+    expect((await app.handle(request(`/v1/${path}`))).status).toBe(401);
+  for (const path of ["projects/generationSettings", "teams/projectAccess"])
+    expect(
+      (
+        await app.handle(
+          request(`/v1/${path}`, { args: { projectId: "project" } }, "token"),
+        )
+      ).status,
+    ).toBe(200);
+  const args = {
+    projectId: "project",
+    resolution: "1080p",
+    aspectRatio: "1:1",
+  };
+  const response = await app.handle(
+    request("/v1/projects/saveGenerationSettings", { args }, "token"),
+  );
+  expect(response.status).toBe(200);
+  expect((await response.json()).value).toMatchObject({
+    resolution: "1080p",
+    aspectRatio: "1:1",
+  });
+  expect(getFunctionName(mutation.mock.calls[0]![0] as never)).toBe(
+    "projects:saveGenerationSettings",
+  );
+  expect(mutation.mock.calls[0]![1]).toEqual(args);
+  expect(
+    query.mock.calls.some(
+      ([ref]) => getFunctionName(ref as never) === "teams:projectAccess",
+    ),
+  ).toBe(true);
+});

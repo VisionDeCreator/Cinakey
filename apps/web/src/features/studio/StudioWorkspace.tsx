@@ -1,3 +1,4 @@
+import { useGenerationSettings } from "./useGenerationSettings";
 import { getLocale } from "@cinakey/ui/i18n";
 import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
@@ -85,6 +86,8 @@ export function StudioWorkspace({
   useLocale();
   const { canWrite } = useWorkspace();
   const { projectId = "" } = useParams();
+  const preferences = useGenerationSettings(projectId);
+  const { resolution, durationSec, aspectRatio } = preferences.settings;
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
   });
@@ -103,11 +106,12 @@ export function StudioWorkspace({
       cancelled = true;
     };
   }, [projectId, ensure, migrationAttempt]);
-  const [durationSec, setDurationSec] = useState(5);
   const [workspaceParams, setWorkspaceParams] = useSearchParams();
   const staging =
     workspace?.staging.find(
-      (item) => item._id === workspaceParams.get("staging"),
+      (item) =>
+        item._id ===
+        (workspaceParams.get("staging") ?? preferences.settings.stagingId),
     ) ?? workspace?.staging[0];
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
   const urls = useQuery(api.storage.listProjectAssetUrls, {
@@ -148,10 +152,41 @@ export function StudioWorkspace({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [resolution, setResolution] = useState("1080p");
-  const [useStaging, setUseStaging] = useState(
-    workspaceParams.get("stagingReference") === "1",
+  const { loaded: preferencesLoaded, update: updatePreferences } = preferences;
+  const savedStagingId = preferences.settings.stagingId;
+  const savedUseStaging = preferences.settings.useStaging;
+  const useStaging =
+    savedUseStaging &&
+    savedStagingId === staging?._id &&
+    Boolean(staging?.previzAssetId);
+  const linkedStagingId = workspaceParams.get("staging");
+  const linkedStaging = workspace?.staging.find(
+    (item) => item._id === linkedStagingId,
   );
+  const linkedReference = workspaceParams.get("stagingReference") === "1";
+  const appliedStagingLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!preferencesLoaded || canWrite === false || workspace === undefined)
+      return;
+    const linkKey = `${projectId}:${linkedStagingId}:${linkedReference}`;
+    if (appliedStagingLink.current === linkKey) return;
+    appliedStagingLink.current = linkKey;
+    if (!linkedStaging || !linkedReference || !linkedStaging.previzAssetId)
+      return;
+    if (savedStagingId !== linkedStaging._id || !savedUseStaging)
+      updatePreferences({ stagingId: linkedStaging._id, useStaging: true });
+  }, [
+    preferencesLoaded,
+    updatePreferences,
+    savedStagingId,
+    savedUseStaging,
+    canWrite,
+    linkedStaging,
+    linkedReference,
+    linkedStagingId,
+    projectId,
+    workspace,
+  ]);
   const [dirty, setDirty] = useState(false);
   const [referencesValid, setReferencesValid] = useState(false);
   const [mediaDurations, setMediaDurations] = useState<Record<string, number>>(
@@ -297,6 +332,7 @@ export function StudioWorkspace({
     input: {
       durationSec,
       resolution,
+      aspectRatio,
       prompt: "video",
     },
   });
@@ -409,30 +445,41 @@ export function StudioWorkspace({
   const validDuration =
     Number.isInteger(durationSec) && durationSec >= 4 && durationSec <= 30;
   async function startGeneration() {
-    if (busy || running || !validDuration || overCap) return;
-    if (scriptSave.current && !(await scriptSave.current())) return;
     if (
-      usdMicros >= COST_CONFIRM_THRESHOLD_USD_MICROS &&
-      !(await confirm({
-        get title() {
-          return t("Generate video?");
-        },
-        description: t(
-          "Approximately {0}. Previous footage and timeline edits are preserved.",
-          { 0: formatUsd(usdMicros) },
-        ),
-        confirmLabel: t("Generate"),
-      }))
+      busy ||
+      running ||
+      !validDuration ||
+      overCap ||
+      !preferences.loaded ||
+      preferences.error ||
+      (preferences.settings.useStaging && !useStaging)
     )
       return;
     setBusy(true);
     setError(null);
     try {
+      if (!(await preferences.flush())) return;
+      if (scriptSave.current && !(await scriptSave.current())) return;
+      if (
+        usdMicros >= COST_CONFIRM_THRESHOLD_USD_MICROS &&
+        !(await confirm({
+          get title() {
+            return t("Generate video?");
+          },
+          description: t(
+            "Approximately {0}. Previous footage and timeline edits are preserved.",
+            { 0: formatUsd(usdMicros) },
+          ),
+          confirmLabel: t("Generate"),
+        }))
+      )
+        return;
       await generate({
         maxCostUsdMicros: usdMicros,
         projectId: projectId as never,
         durationSec,
         resolution,
+        aspectRatio,
         stagingId:
           useStaging && staging?.previzAssetId ? staging._id : undefined,
       });
@@ -945,6 +992,7 @@ export function StudioWorkspace({
               <div className="studio-staging-panel">
                 <BlockoutPage
                   onUseForGeneration={(id) => {
+                    if (canWrite === false || !preferences.loaded) return;
                     setWorkspaceParams(
                       (previous) => {
                         const next = new URLSearchParams(previous);
@@ -954,7 +1002,10 @@ export function StudioWorkspace({
                       },
                       { replace: true },
                     );
-                    setUseStaging(true);
+                    preferences.update({
+                      stagingId: id as never,
+                      useStaging: true,
+                    });
                     setInspectorView("generation");
                     setLayout((previous) => ({ ...previous, inspector: true }));
                   }}
@@ -1304,13 +1355,46 @@ export function StudioWorkspace({
                 <label id="generation-resolution-label">
                   <I18nText text="Resolution" />
                 </label>
-                <Select value={resolution} onValueChange={setResolution}>
+                <Select
+                  value={resolution}
+                  disabled={canWrite === false || busy || !preferences.loaded}
+                  onValueChange={(value) =>
+                    preferences.update({
+                      resolution: value as "720p" | "1080p",
+                    })
+                  }
+                >
                   <SelectTrigger aria-labelledby="generation-resolution-label">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="720p">720p</SelectItem>
                     <SelectItem value="1080p">1080p</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label id="generation-aspect-label">
+                  <I18nText text="Aspect ratio" />
+                </label>
+                <Select
+                  value={aspectRatio}
+                  disabled={canWrite === false || busy || !preferences.loaded}
+                  onValueChange={(value) =>
+                    preferences.update({
+                      aspectRatio: value as "16:9" | "9:16" | "1:1",
+                    })
+                  }
+                >
+                  <SelectTrigger aria-labelledby="generation-aspect-label">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["16:9", "9:16", "1:1"].map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1330,8 +1414,15 @@ export function StudioWorkspace({
                   max={30}
                   step={1}
                   value={durationSec}
+                  disabled={canWrite === false || busy || !preferences.loaded}
+                  onBlur={() => void preferences.flush()}
+                  onPointerUp={() => void preferences.flush()}
+                  onKeyUp={() => void preferences.flush()}
                   onChange={(event) =>
-                    setDurationSec(Number(event.target.value))
+                    preferences.update(
+                      { durationSec: Number(event.target.value) },
+                      300,
+                    )
                   }
                   style={
                     {
@@ -1352,8 +1443,12 @@ export function StudioWorkspace({
                 </span>
                 <Select
                   value={staging?._id ?? ""}
+                  disabled={canWrite === false || busy || !preferences.loaded}
                   onValueChange={(id) => {
-                    setUseStaging(false);
+                    preferences.update({
+                      stagingId: id as never,
+                      useStaging: false,
+                    });
                     setWorkspaceParams(
                       (previous) => {
                         const next = new URLSearchParams(previous);
@@ -1383,9 +1478,14 @@ export function StudioWorkspace({
                 <input
                   type="checkbox"
                   checked={useStaging}
+                  disabled={canWrite === false || busy || !preferences.loaded}
                   onChange={(event) => {
                     const checked = event.target.checked;
-                    setUseStaging(checked);
+                    if (staging)
+                      preferences.update({
+                        stagingId: staging._id,
+                        useStaging: checked,
+                      });
                     setWorkspaceParams(
                       (previous) => {
                         const next = new URLSearchParams(previous);
@@ -1400,9 +1500,60 @@ export function StudioWorkspace({
                 <I18nText text="Use staging as video reference" />
               </label>
             )}
+            {workspace && preferences.settings.useStaging && !useStaging && (
+              <div role="alert" className="space-y-2 text-xs text-amber-300">
+                <p>
+                  <I18nText text="The saved staging reference is unavailable. Choose another reference or reset it." />
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={canWrite === false || busy}
+                  onClick={() => {
+                    preferences.update({ stagingId: null, useStaging: false });
+                    setWorkspaceParams(
+                      (previous) => {
+                        const next = new URLSearchParams(previous);
+                        next.delete("stagingReference");
+                        next.delete("staging");
+                        return next;
+                      },
+                      { replace: true },
+                    );
+                  }}
+                >
+                  <I18nText text="Reset staging reference" />
+                </Button>
+              </div>
+            )}
+            <div aria-live="polite" className="text-xs text-zinc-400">
+              {preferences.error ? (
+                <div role="alert" className="space-y-2 text-red-400">
+                  <p>{t("Could not save generation settings.")}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void preferences.retry()}
+                  >
+                    <I18nText text="Retry save" />
+                  </Button>
+                </div>
+              ) : !preferences.loaded ? (
+                t("Loading settings…")
+              ) : preferences.saving || preferences.pending ? (
+                t("Saving…")
+              ) : preferences.saved ? (
+                t("All changes saved")
+              ) : null}
+            </div>
             <Button
               className="w-full"
               disabled={
+                !preferences.loaded ||
+                preferences.saving ||
+                preferences.pending ||
+                Boolean(preferences.error) ||
+                (preferences.settings.useStaging && !useStaging) ||
                 canWrite === false ||
                 busy ||
                 running ||

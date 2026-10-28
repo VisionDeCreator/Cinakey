@@ -1,3 +1,4 @@
+import { generationSettingsValidator } from "./lib/generationSettings";
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -218,7 +219,10 @@ const schema = defineSchema(
       projectId: v.optional(v.id("projects")),
       seriesId: v.optional(v.id("series")),
       manageReviews: v.boolean(),
-    }).index("by_workspace_user", ["workspaceId", "userId"]),
+    })
+      .index("by_workspace_user", ["workspaceId", "userId"])
+      .index("by_project", ["projectId"])
+      .index("by_series", ["seriesId"]),
 
     series: defineTable({
       spendCapUsdMicros: v.optional(v.number()),
@@ -359,6 +363,8 @@ const schema = defineSchema(
       styleNotes: v.optional(v.string()),
       rules: v.array(v.string()),
       thumbnailAssetId: v.optional(v.id("assets")),
+      /** Preferences for future generation jobs, independent of the edit canvas. */
+      generationSettings: v.optional(generationSettingsValidator),
       /** Project style reference image for video production. */
       styleReferenceAssetId: v.optional(v.id("assets")),
       /** Stable project-wide script aliases. Asset renames do not break links. */

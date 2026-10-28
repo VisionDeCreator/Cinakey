@@ -2320,9 +2320,85 @@
       "translatedKeyHashes": [
         "8bdaa0345f56cdc95a61ff78510e9412c1de2cd463ceb5c4fb15e601a0882f2f"
       ]
+    },
+    {
+      "sourceSha256": "abd04e3bec8627c477c9ba3e5f12c064cd9812df551426450588dd410e6b5373",
+      "strings": 8,
+      "reservedUsd": 0.010687499999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 300,
+        "completion_tokens": 421,
+        "total_tokens": 721,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 300
+      },
+      "upperCostUsd": 0.0005952,
+      "translatedKeyHashes": [
+        "1957c7181adba3c39bd686f52431fec797ab228b857c1dc3150e27d489eca78b",
+        "61a7cade2fb8fba475f46a9fa5a4daea1daa83a651153c6624a7199e9531cdff",
+        "bad9c7b18f967787b80d9b94ec43a37fed314b23bc3ac2c5d1622f9bd593f19e",
+        "df9c5ec0533c4f95763aafed3f0c8c102da42e923cb48f1d8cf70d6098284185",
+        "502e6040e37f3ee761d574c5453dac392239c55d2b0ec75edcc7d2df94feba1b",
+        "08f714b2ebc6e087e0c661fc1314b437d63ae1403e7979fd45f9420a7b33a499",
+        "4ee466c3880e6273aba6c8a68efca94691ee5ba753bcb55e1471ba1d670fe33d",
+        "5dfc48318c2eadb57a10f36e55e84b6673ef08ac4ea2e715b274e06b485e8bf2"
+      ]
+    },
+    {
+      "sourceSha256": "77467ec7bc3d836421224ad84d076db8bba953dccb4d4c196ad155c34def9ed0",
+      "strings": 8,
+      "reservedUsd": 0.010722299999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 322,
+        "completion_tokens": 596,
+        "total_tokens": 918,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 322
+      },
+      "upperCostUsd": 0.0008118,
+      "translatedKeyHashes": [
+        "4b62231c394cdcb7b6ac061dd7f48aa745bb6d45d18a2da22c9ee7b71492d22d",
+        "4ee9f89bfdb324bc96bb15a6159fab9833779258f92d774dae440302395bde39",
+        "0c9d27738e73c44560cfc12d3b6d1c35e7a7ef32e86ebe9a1bc85fee77d7dee8",
+        "b4d47aec19c7d8e94b926c344fb7ffb2b8ec341fd38234bb4a2f559d19395782",
+        "8a8de13bfd2302f1ef9384c8e9980c39b0c389378e2c580cc04879f48885a9d0",
+        "379e0962ac4e007f79016c8129e08e690b4dc8888ffa7b91c08511103158cc85",
+        "75f10ab4013fa0b3d1068f14fabd36611ab9f9f52d94e38be63dffd98baec0f0",
+        "1e69683f5a830ffe59770eaf7957862670ec47dde3157464a8b71415473b7172"
+      ]
+    },
+    {
+      "sourceSha256": "d1375f1be12755f9bcfb4285034f1a9e49684ef3f3bd94f5598342f0b90af146",
+      "strings": 3,
+      "reservedUsd": 0.010654799999999999,
+      "state": "validated",
+      "usage": {
+        "prompt_tokens": 278,
+        "completion_tokens": 269,
+        "total_tokens": 547,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 278
+      },
+      "upperCostUsd": 0.0004062,
+      "translatedKeyHashes": [
+        "944f7bbacd4468a87e14b46aef995b214cecd6d25b062c46bae9c953613595f5",
+        "6004beefd58ec278a2799d8ed5cee3d1f0798cfd2813eb802d8b2698ba51482b",
+        "5dae3db8d44039cfccdb944491083ae6b4f86174746990232846b330a0b2e204"
+      ]
     }
   ],
-  "peakRateUpperCostUsd": 0.1012677,
+  "peakRateUpperCostUsd": 0.1030809,
   "note": "Conservative upper bound using published peak Flash rates, including received but invalid replies. Actual off-peak/cache charges can be lower. No credentials or user content were sent or recorded.",
-  "sourceMessages": 1511
+  "sourceMessages": 1530
 }

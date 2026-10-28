@@ -199,6 +199,18 @@ See [production safety and workflow](docs/production-safety.md) and the
 [video provider contract](docs/provider-contract.md) for save recovery, media
 retention, spending limits, supported provider operations and validation.
 
+## Saved video generation settings
+
+The editor's Generation panel saves resolution, duration, aspect ratio, and staging
+reference selection per project. Projects without saved preferences use 720p,
+5 seconds, and their existing aspect ratio (16:9 if unsupported). Changes autosave;
+failed writes remain visible with a retry action and block generation until saved.
+Generation aspect ratio is independent of the edit canvas. Existing timelines,
+exports, and already submitted jobs keep their original settings.
+
+Deploy the Convex schema/functions and updated API manifest before the updated web
+app. The new preferences field is optional; existing projects need no bulk backfill.
+
 ## Workspace teams
 
 Settings → Workspace team supports verified-email invitations, member roles, removal,
@@ -207,6 +219,12 @@ after they sign in with the verified invited email; this release does not send e
 Owners and Admins manage access, assigned Creators collaborate on production documents,
 and Reviewers cannot open production files. Shared projects and episodes appear in
 Projects. Removing a member revokes subsequent production requests and clears assignments.
+
+In the editor, Project settings → Project access only controls direct grants for
+existing Creator members. Owners/Admins have automatic access; inherited series
+access is shown separately and survives removal of a direct grant. Workspace-wide
+membership, role, invitation and ownership controls stay on the dedicated workspace
+management page linked from the panel.
 
 Polar integration is disabled by default; team changes do not automatically purchase seats.
 Payment-bound workspaces require available paid capacity for new Admin/Creator memberships.

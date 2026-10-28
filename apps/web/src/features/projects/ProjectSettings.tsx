@@ -4,7 +4,7 @@ import { api, type Doc } from "@cinakey/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { BudgetSettings } from "@/features/settings/BudgetSettings";
-import { TeamSettings } from "@/features/settings/TeamSettings";
+import { ProjectAccess } from "./ProjectAccess";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,7 +83,7 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
               {
                 id: "roles",
                 get label() {
-                  return t("Roles & access");
+                  return t("Project access");
                 },
                 Icon: Users,
               },
@@ -178,11 +178,8 @@ export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
             )}
             {tab === "roles" && (
               <>
-                <p className="text-sm text-zinc-400">
-                  <I18nText text="Owners and admins manage the production. Creators need an assignment to this episode or its series. Manage those assignments in each member’s access controls below." />
-                </p>
                 {canManage ? (
-                  <TeamSettings />
+                  <ProjectAccess project={project} />
                 ) : (
                   <p className="text-sm">
                     <I18nText text="Your role:" /> {t(role ?? "")}

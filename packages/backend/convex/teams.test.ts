@@ -572,3 +572,59 @@ describe("workspace context and ownership", () => {
     expect(await f.t.run((ctx) => ctx.db.get(f.projectId))).toBeNull();
   });
 });
+
+it("reports only project access and preserves inherited series access when a direct grant is removed", async () => {
+  const f = await fixture();
+  await join(f);
+  const seriesId = await f.owner.mutation(api.series.create, {
+    workspaceId: f.workspaceId,
+    title: "Season",
+  });
+  await f.t.run((ctx) => ctx.db.patch(f.projectId, { seriesId }));
+  await f.owner.mutation(api.teams.assign, {
+    workspaceId: f.workspaceId,
+    userId: f.creatorId,
+    seriesId,
+    enabled: true,
+  });
+  await f.owner.mutation(api.teams.assign, {
+    workspaceId: f.workspaceId,
+    userId: f.creatorId,
+    projectId: f.projectId,
+    enabled: true,
+  });
+  let members = await f.owner.query(api.teams.projectAccess, {
+    projectId: f.projectId,
+  });
+  expect(members.find((m) => m.userId === f.creatorId)).toMatchObject({
+    direct: true,
+    inherited: true,
+    automatic: false,
+  });
+  expect(members.find((m) => m.userId === f.ownerId)).toMatchObject({
+    automatic: true,
+  });
+  await f.owner.mutation(api.teams.assign, {
+    workspaceId: f.workspaceId,
+    userId: f.creatorId,
+    projectId: f.projectId,
+    enabled: false,
+  });
+  members = await f.owner.query(api.teams.projectAccess, {
+    projectId: f.projectId,
+  });
+  expect(members.find((m) => m.userId === f.creatorId)).toMatchObject({
+    direct: false,
+    inherited: true,
+  });
+  expect(
+    await f.creator.query(api.projects.get, { projectId: f.projectId }),
+  ).not.toBeNull();
+  await expect(
+    f.creator.query(api.teams.projectAccess, { projectId: f.projectId }),
+  ).rejects.toThrow();
+  await expect(
+    f.outsider.query(api.teams.projectAccess, { projectId: f.projectId }),
+  ).rejects.toThrow();
+  expect(members.some((m) => m.userId === f.outsiderId)).toBe(false);
+});

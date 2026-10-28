@@ -4,6 +4,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { getFunctionName } from "convex/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -11,6 +12,27 @@ import { afterEach, expect, it, vi } from "vitest";
 import { MediaPreview } from "./MediaPreview";
 import { StudioWorkspace } from "./StudioWorkspace";
 const state = vi.hoisted(() => ({
+  settings: {
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: false,
+    revision: 1,
+  } as {
+    resolution: string;
+    durationSec: number;
+    aspectRatio: string;
+    useStaging: boolean;
+    revision: number;
+    stagingId?: string;
+  },
+  mutation: vi.fn().mockResolvedValue({
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: false,
+    revision: 2,
+  }),
   staging: [] as { _id: string; name: string; previzAssetId?: string }[],
   assets: [
     { _id: "video", name: "Camera", type: "video", durationSec: undefined },
@@ -33,6 +55,8 @@ const state = vi.hoisted(() => ({
 vi.mock("@/lib/api/hooks", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
     switch (getFunctionName(ref)) {
+      case "projects:generationSettings":
+        return state.settings;
       case "assets:list":
         return state.assets;
       case "workspace:list":
@@ -59,7 +83,7 @@ vi.mock("@/lib/api/hooks", () => ({
     }
   },
   useAction: () => vi.fn().mockResolvedValue({ id: "script", text: "" }),
-  useMutation: () => vi.fn(),
+  useMutation: () => state.mutation,
 }));
 vi.mock("@/components/use-confirm", () => ({ useConfirm: () => vi.fn() }));
 vi.mock("@/features/assets/useAssetUpload", () => ({
@@ -77,6 +101,13 @@ vi.mock("@/features/blockout/BlockoutPage", () => ({
 afterEach(() => {
   cleanup();
   state.staging = [];
+  state.settings = {
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: false,
+    revision: 1,
+  };
 });
 it("shows unlinked footage without a script and inserts only the explicitly selected valid range", async () => {
   const insert = vi.fn();
@@ -266,4 +297,116 @@ it("opens the generation inspector with the chosen staging reference enabled", a
   expect(
     screen.getByRole("combobox", { name: "Generation staging" }),
   ).toHaveTextContent("Desert crossing");
+});
+
+it("loads saved generation settings and persists edits without changing project output settings", async () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  state.settings = {
+    resolution: "1080p",
+    durationSec: 8,
+    aspectRatio: "9:16",
+    useStaging: false,
+    revision: 3,
+  };
+  state.mutation.mockClear();
+  state.mutation.mockResolvedValueOnce({
+    ...state.settings,
+    aspectRatio: "1:1",
+    revision: 4,
+  });
+  render(
+    <MemoryRouter initialEntries={["/projects/p/studio"]}>
+      <Routes>
+        <Route
+          path="/projects/:projectId/studio"
+          element={
+            <StudioWorkspace
+              toolbar={null}
+              viewer={null}
+              timeline={null}
+              inspector={null}
+              selectedClip={null}
+              onInsert={vi.fn()}
+              onPreview={vi.fn()}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByRole("combobox", { name: "Resolution" }),
+  ).toHaveTextContent("1080p");
+  expect(
+    screen.getByRole("slider", { name: "Generation duration" }),
+  ).toHaveValue("8");
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Aspect ratio" }), {
+    key: "ArrowDown",
+  });
+  fireEvent.click(screen.getByRole("option", { name: "1:1" }));
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith({
+      projectId: "p",
+      aspectRatio: "1:1",
+    }),
+  );
+  expect(
+    screen.getByRole("combobox", { name: "Aspect ratio" }),
+  ).toHaveTextContent("1:1");
+  state.settings = {
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: false,
+    revision: 1,
+  };
+});
+
+it("does not replay an old staging URL over a collaborator's later preference change", async () => {
+  state.staging = [
+    { _id: "s1", name: "Desert crossing", previzAssetId: "preview" },
+  ];
+  state.settings = {
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: true,
+    stagingId: "s1",
+    revision: 2,
+  };
+  state.mutation.mockClear();
+  const editor = () => (
+    <MemoryRouter
+      initialEntries={["/projects/p/studio?staging=s1&stagingReference=1"]}
+    >
+      <Routes>
+        <Route
+          path="/projects/:projectId/studio"
+          element={
+            <StudioWorkspace
+              toolbar={null}
+              viewer={null}
+              timeline={null}
+              inspector={null}
+              selectedClip={null}
+              onInsert={vi.fn()}
+              onPreview={vi.fn()}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>
+  );
+  const view = render(editor());
+  await act(async () => {});
+  expect(
+    screen.getByRole("checkbox", { name: "Use staging as video reference" }),
+  ).toBeChecked();
+  state.settings = { ...state.settings, useStaging: false, revision: 3 };
+  view.rerender(editor());
+  await act(async () => {});
+  expect(
+    screen.getByRole("checkbox", { name: "Use staging as video reference" }),
+  ).not.toBeChecked();
+  expect(state.mutation).not.toHaveBeenCalled();
 });

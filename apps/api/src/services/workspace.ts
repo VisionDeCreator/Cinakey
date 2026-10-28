@@ -1,4 +1,8 @@
 import {
+  generationResolution,
+  generationAspectRatio,
+} from "../../../../packages/backend/convex/lib/generationSettings";
+import {
   assertBlockoutDocument,
   compileStagingPlan,
   emptyPartDocument,
@@ -278,7 +282,8 @@ export const generate = action({
     quoteId: v.optional(v.id("usageQuotes")),
     prompt: v.optional(v.string()),
     durationSec: v.number(),
-    resolution: v.string(),
+    resolution: generationResolution,
+    aspectRatio: v.optional(generationAspectRatio),
     stagingId: v.optional(v.id("workspaceStaging")),
     kind: v.optional(v.string()),
     parentAssetId: v.optional(v.id("assets")),
@@ -291,6 +296,14 @@ export const generate = action({
     jobId: Id<"generationJobs">;
     estimatedCostUsdMicros: number;
   }> => {
+    if (
+      !Number.isInteger(args.durationSec) ||
+      args.durationSec < 4 ||
+      args.durationSec > 30
+    )
+      throw new Error(
+        "Generation duration must be a whole number from 4 to 30 seconds.",
+      );
     await access(ctx, args.projectId);
     await initializeProject(ctx, args.projectId);
     const project = await ctx.runQuery(api.projects.get, {
@@ -350,7 +363,10 @@ export const generate = action({
       input: {
         durationSec: args.durationSec,
         resolution: args.resolution,
-        aspectRatio: project.aspectRatio,
+        aspectRatio:
+          args.aspectRatio ??
+          project.generationSettings?.aspectRatio ??
+          project.aspectRatio,
         scriptVersionId: script.id,
         stagingId: args.stagingId,
       },

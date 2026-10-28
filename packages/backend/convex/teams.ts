@@ -7,6 +7,7 @@ import {
   accessibleWorkspaceIds,
   requireUser,
   requireWorkspaceAccess,
+  requireProjectAccess,
   workspaceRole,
 } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
@@ -508,5 +509,50 @@ export const transferOwnership = mutation({
       targetId: args.workspaceId,
       meta: { newOwnerId: args.newOwnerId },
     });
+  },
+});
+
+/** A project-scoped view: no workspace administration controls or other productions. */
+export const projectAccess = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await requireProjectAccess(ctx, projectId);
+    const workspace = await requireWorkspaceAccess(ctx, project.workspaceId);
+    const members = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace", (q) =>
+        q.eq("workspaceId", project.workspaceId),
+      )
+      .collect();
+    const direct = await ctx.db
+      .query("productionAssignments")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    const inherited = project.seriesId
+      ? await ctx.db
+          .query("productionAssignments")
+          .withIndex("by_series", (q) => q.eq("seriesId", project.seriesId))
+          .collect()
+      : [];
+    const people = [
+      { userId: workspace.ownerUserId, role: "owner" },
+      ...members.filter((m) => m.userId !== workspace.ownerUserId),
+    ];
+    return await Promise.all(
+      people.map(async (member) => {
+        const user = await ctx.db.get(member.userId);
+        return {
+          userId: member.userId,
+          name: user?.name,
+          email: user?.email,
+          role: member.role,
+          direct: direct.some((a) => a.userId === member.userId),
+          inherited:
+            member.role === "creator" &&
+            inherited.some((a) => a.userId === member.userId),
+          automatic: member.role === "owner" || member.role === "admin",
+        };
+      }),
+    );
   },
 });

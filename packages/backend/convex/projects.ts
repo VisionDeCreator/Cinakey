@@ -1,3 +1,8 @@
+import {
+  generationDefaults,
+  generationResolution,
+  generationAspectRatio,
+} from "./lib/generationSettings";
 import { requireProjectWrite } from "./lib/access";
 import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
@@ -311,6 +316,11 @@ export const duplicate = mutation({
     const projectId = await ctx.db.insert("projects", {
       workspaceId: source.workspaceId,
       title: `${source.title} (copy)`,
+      generationSettings: {
+        ...generationDefaults(source),
+        stagingId: undefined,
+        useStaging: false,
+      },
       brief: source.brief,
       aspectRatio: source.aspectRatio,
       fps: source.fps,
@@ -329,5 +339,66 @@ export const duplicate = mutation({
         manageReviews: false,
       });
     return projectId;
+  },
+});
+
+/** Reading preferences never writes defaults into legacy projects. */
+export const generationSettings = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await requireProjectAccess(ctx, projectId);
+    return { ...generationDefaults(project), revision: project.updatedAt };
+  },
+});
+
+/** Patch only changed preferences so concurrent edits to unrelated fields survive. */
+export const saveGenerationSettings = mutation({
+  args: {
+    projectId: v.id("projects"),
+    resolution: v.optional(generationResolution),
+    durationSec: v.optional(v.number()),
+    aspectRatio: v.optional(generationAspectRatio),
+    stagingId: v.optional(v.union(v.id("workspaceStaging"), v.null())),
+    useStaging: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { projectId, ...changes }) => {
+    const project = await requireProjectWrite(ctx, projectId);
+    const settings = { ...generationDefaults(project) };
+    if (changes.resolution !== undefined)
+      settings.resolution = changes.resolution;
+    if (changes.durationSec !== undefined)
+      settings.durationSec = changes.durationSec;
+    if (changes.aspectRatio !== undefined)
+      settings.aspectRatio = changes.aspectRatio;
+    if (changes.useStaging !== undefined)
+      settings.useStaging = changes.useStaging;
+    if (changes.stagingId !== undefined) {
+      if (changes.stagingId === null) {
+        delete settings.stagingId;
+        settings.useStaging = false;
+      } else settings.stagingId = changes.stagingId;
+    }
+    if (
+      !Number.isInteger(settings.durationSec) ||
+      settings.durationSec < 4 ||
+      settings.durationSec > 30
+    )
+      throw new Error(
+        "Generation duration must be a whole number from 4 to 30 seconds.",
+      );
+    if (settings.stagingId) {
+      const staging = await ctx.db.get(settings.stagingId);
+      if (!staging || staging.projectId !== projectId)
+        throw new Error("Staging is not available in this project.");
+      if (settings.useStaging && !staging.previzAssetId)
+        throw new Error("Export staging to a previsualization video first");
+    } else if (settings.useStaging)
+      throw new Error("Choose a staging reference first.");
+    const revision = Math.max(Date.now(), project.updatedAt + 1);
+    await ctx.db.patch(projectId, {
+      generationSettings: settings,
+      updatedAt: revision,
+    });
+    return { ...settings, revision };
   },
 });

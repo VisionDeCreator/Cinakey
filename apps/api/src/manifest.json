@@ -319,6 +319,14 @@
     "kind": "mutation",
     "public": true
   },
+  "projects:generationSettings": {
+    "kind": "query",
+    "public": true
+  },
+  "projects:saveGenerationSettings": {
+    "kind": "mutation",
+    "public": true
+  },
   "projects:archive": {
     "kind": "mutation",
     "public": true
@@ -752,6 +760,10 @@
     "public": true
   },
   "teams:members": {
+    "kind": "query",
+    "public": true
+  },
+  "teams:projectAccess": {
     "kind": "query",
     "public": true
   },
