@@ -1,4 +1,9 @@
-import { tokenPrice } from "@cinakey/shared";
+import {
+  tokenBatchPrice,
+  normalizeTokenUsage,
+  type TokenUsage,
+  type TokenUsageBatch,
+} from "@cinakey/shared";
 import {
   compileVideoTransform,
   resolveTransformPrompt,
@@ -226,10 +231,12 @@ export const analyze = action({
     let analysis: TransformAnalysis;
     let usdMicros: number;
     let usageMissing: boolean;
-    let actualTokens: number | undefined;
+    let usage: TokenUsage | undefined;
+    let batch: TokenUsageBatch | undefined;
     try {
       const result = await completeChat({
         model: "deepseek-flash",
+        maxCostUsdMicros: reserved,
         json: true,
         maxTokens: 2000,
         messages: [
@@ -242,12 +249,10 @@ export const analyze = action({
         ],
       });
       analysis = transformAnalysisSchema.parse(JSON.parse(result.content));
-      actualTokens = result.usage?.total_tokens;
-      usageMissing = actualTokens === undefined;
-      usdMicros = Math.min(
-        reserved,
-        usageMissing ? 0 : tokenPrice(result.usage!.total_tokens!),
-      );
+      usage = normalizeTokenUsage(result.usage) ?? undefined;
+      batch = result.billingBatch;
+      usageMissing = usage === undefined || !batch;
+      usdMicros = Math.min(reserved, batch ? tokenBatchPrice([batch]) : 0);
     } catch (error) {
       await ctx.runMutation(internal.textJobs.settleChatJob, {
         jobId,
@@ -269,7 +274,8 @@ export const analyze = action({
       userId,
       projectId: args.projectId,
       actualCostUsdMicros: usdMicros,
-      actualTokens,
+      usage,
+      batches: batch ? [batch] : undefined,
       succeeded: true,
       usageMissing,
     });

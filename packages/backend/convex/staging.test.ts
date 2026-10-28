@@ -80,8 +80,14 @@ function stubDeepSeek(replies: unknown[]) {
       const reply = replies[Math.min(i++, replies.length - 1)];
       return new Response(
         JSON.stringify({
+          created: Math.floor(Date.now() / 1000),
           choices: [{ message: { content: JSON.stringify(reply) } }],
-          usage: { total_tokens: 2000 },
+          usage: {
+            prompt_tokens: 1000,
+            completion_tokens: 1000,
+            prompt_cache_hit_tokens: 0,
+            total_tokens: 2000,
+          },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );

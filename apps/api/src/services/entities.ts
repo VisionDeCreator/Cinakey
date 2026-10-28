@@ -1,4 +1,11 @@
 import {
+  DEEPSEEK_MODEL,
+  normalizeTokenUsage,
+  tokenBatchPrice,
+  type TokenUsage,
+  type TokenUsageBatch,
+} from "@cinakey/shared";
+import {
   assertSheetDocument,
   createEmptySheet,
   lockedIdsFromSheet,
@@ -359,7 +366,7 @@ export const unlockReference = action({
   },
 });
 
-const AUTOFILL_ESTIMATED_TOKENS = 2000;
+const AUTOFILL_ESTIMATED_TOKENS = 12000;
 
 /**
  * AI auto-fill for character/creature/location/prop Look Dev fields.
@@ -425,31 +432,52 @@ export const autofillSheet = action({
       }
     }
 
-    const jobId = await ctx.runMutation(internal.generation.createQueuedJob, {
+    const jobId = await ctx.runMutation(internal.textJobs.createChatJob, {
       projectId: entity.projectId,
       workspaceId: project.workspaceId,
       entityId: args.entityId,
-      model: "deepseek",
-      modelVersion: "deepseek-chat",
+      modelVersion: DEEPSEEK_MODEL,
       kind: "look-dev-autofill",
       prompt: `autofill ${entity.kind} ${entity.name}`,
       estimatedCostUsdMicros,
-      createdBy: userId as Id<"users">,
+      userId: userId as Id<"users">,
     });
 
     try {
       const useMock = useMockProviders();
-      const fields = useMock
-        ? mockAutofillFields(entity.kind, entity.name, entity.description)
+      const result = useMock
+        ? {
+            fields: mockAutofillFields(
+              entity.kind,
+              entity.name,
+              entity.description,
+            ),
+            usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 },
+            batch: {
+              inputTokens: 0,
+              cachedInputTokens: 0,
+              outputTokens: 0,
+              period: "off_peak" as const,
+              providerCreatedAt: Date.UTC(2026, 9, 28, 12),
+            },
+          }
         : await llmAutofillFields({
             kind: entity.kind,
-            name: entity.name,
-            description: entity.description,
-            brief: project.brief ?? null,
-            rules: project.rules,
-            scriptSummary,
+            name: entity.name.slice(0, 256),
+            description: entity.description?.slice(0, 1000),
+            brief: project.brief
+              ? {
+                  ...project.brief,
+                  logline: project.brief.logline.slice(0, 500),
+                  tone: project.brief.tone?.slice(0, 100),
+                }
+              : null,
+            rules: project.rules.slice(0, 10).map((rule) => rule.slice(0, 100)),
+            scriptSummary: scriptSummary.slice(0, 4000),
+            maxCostUsdMicros: estimatedCostUsdMicros,
           });
 
+      const { fields, usage, batch } = result;
       const sheetPatch: Partial<SheetDocument> = {};
       if (entity.kind === "location" || entity.kind === "prop") {
         const notes = fields.notes?.trim();
@@ -493,19 +521,19 @@ export const autofillSheet = action({
         });
       }
 
-      const actualCostUsdMicros = useMock ? 0 : estimatedCostUsdMicros;
-      await ctx.runMutation(internal.billing.settle, {
+      const actualCostUsdMicros = batch
+        ? Math.min(estimatedCostUsdMicros, tokenBatchPrice([batch]))
+        : 0;
+      await ctx.runMutation(internal.textJobs.settleChatJob, {
         workspaceId: project.workspaceId,
         userId: userId as Id<"users">,
         projectId: entity.projectId,
         jobId,
-        estimated: estimatedCostUsdMicros,
-        actual: actualCostUsdMicros,
-      });
-      await ctx.runMutation(internal.generation.markSucceeded, {
-        jobId,
         actualCostUsdMicros,
-        outputAssetIds: [],
+        usage: usage ?? undefined,
+        batches: batch ? [batch] : undefined,
+        usageMissing: !usage || !batch,
+        succeeded: true,
       });
 
       return {
@@ -515,15 +543,13 @@ export const autofillSheet = action({
         actualCostUsdMicros,
       };
     } catch (err) {
-      await ctx.runMutation(internal.billing.refund, {
+      await ctx.runMutation(internal.textJobs.settleChatJob, {
         workspaceId: project.workspaceId,
         userId: userId as Id<"users">,
         projectId: entity.projectId,
         jobId,
-        amount: estimatedCostUsdMicros,
-      });
-      await ctx.runMutation(internal.generation.markFailed, {
-        jobId,
+        actualCostUsdMicros: 0,
+        succeeded: false,
         errorMessage: safeErrorMessage(err),
       });
       throw err;
@@ -591,7 +617,12 @@ async function llmAutofillFields(args: {
   brief: { logline: string; audience?: string; tone?: string } | null;
   rules: string[];
   scriptSummary: string;
-}): Promise<AutofillFields> {
+  maxCostUsdMicros: number;
+}): Promise<{
+  fields: AutofillFields;
+  usage: TokenUsage | null;
+  batch?: TokenUsageBatch;
+}> {
   const briefLine = args.brief
     ? `Logline: ${args.brief.logline}${args.brief.tone ? ` Tone: ${args.brief.tone}.` : ""}`
     : "No brief yet.";
@@ -611,6 +642,8 @@ async function llmAutofillFields(args: {
     : "Keep details concrete and visual (usable for video reference descriptions). Age/build short; look and wardrobe richer.";
 
   const result = await completeChat({
+    maxCostUsdMicros: args.maxCostUsdMicros,
+    maxTokens: 2000,
     messages: [
       { role: "system", content: system },
       {
@@ -639,13 +672,17 @@ async function llmAutofillFields(args: {
   const pick = (key: string) =>
     typeof parsed[key] === "string" ? (parsed[key] as string) : undefined;
   return {
-    description: pick("description"),
-    look: pick("look"),
-    age: pick("age"),
-    build: pick("build"),
-    wardrobe: pick("wardrobe"),
-    personality: pick("personality"),
-    voiceNotes: pick("voiceNotes"),
-    notes: pick("notes"),
+    usage: normalizeTokenUsage(result.usage),
+    batch: result.billingBatch,
+    fields: {
+      description: pick("description"),
+      look: pick("look"),
+      age: pick("age"),
+      build: pick("build"),
+      wardrobe: pick("wardrobe"),
+      personality: pick("personality"),
+      voiceNotes: pick("voiceNotes"),
+      notes: pick("notes"),
+    },
   };
 }

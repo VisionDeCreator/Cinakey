@@ -85,6 +85,8 @@ export type SubmitResult = {
   providerJobId: string;
   /** When the provider completes synchronously, skip poll. */
   completedInline?: boolean;
+  /** Verified free supplier quote before a paid submission. */
+  supplierCostUpperBoundUsdMicros?: number;
 };
 
 export type PollResult = {
@@ -92,6 +94,8 @@ export type PollResult = {
   error?: string;
   /** Provider-reported cost units (seconds, images, tokens) for settle. */
   actualUnits?: number;
+  /** Final captured supplier charge, never a pre-submission estimate. */
+  supplierActualCostUsdMicros?: number;
 };
 
 export type CollectResult = {

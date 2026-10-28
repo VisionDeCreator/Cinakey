@@ -1,3 +1,12 @@
+import {
+  PRICE_VERSION,
+  VIDEO_RATES,
+  VIDEO_SUPPLIER_RATES,
+  applyUsageMarkup,
+  supplierVideoMaximum,
+  TOKEN_USD_MICROS_PER_1K,
+} from "./pricing";
+export { PRICE_VERSION, VIDEO_RATES, TOKEN_USD_MICROS_PER_1K };
 /** All persisted customer amounts are integer micro-USD. No float dollar arithmetic. */
 export const USD_MICROS = 1_000_000;
 export function assertUsdMicros(value: number): number {
@@ -27,18 +36,11 @@ export function formatUsd(micros: number): string {
   return `$${whole}.${fraction.padEnd(2, "0")}`;
 }
 
-/** Development fixtures only. D1 retail rates remain pending cost verification. */
-export const PRICE_VERSION = "dev-usd-v1";
 export const QUOTE_TTL_MS = 10 * 60_000;
-export const DEV_VIDEO_RATES = {
-  "seedance-2.5": { "720p": 340_000, "1080p": 840_000 },
-  "sume-remix-lite": { "720p": 150_000, "1080p": 300_000 },
-} as const;
-export const DEV_TOKEN_USD_MICROS_PER_1K = 2_000;
 export function videoRate(model: string, resolution = "720p") {
-  if (!(model in DEV_VIDEO_RATES) || !["720p", "1080p"].includes(resolution))
+  if (!(model in VIDEO_RATES) || !["720p", "1080p"].includes(resolution))
     throw new Error("Unsupported price configuration");
-  return DEV_VIDEO_RATES[model as keyof typeof DEV_VIDEO_RATES][
+  return VIDEO_RATES[model as keyof typeof VIDEO_RATES][
     resolution as "720p" | "1080p"
   ];
 }
@@ -53,19 +55,28 @@ export function videoPrice(
     durationSec > (model === "sume-remix-lite" ? 15 : 30)
   )
     throw new Error("Invalid priced duration");
-  return assertUsdMicros(durationSec * videoRate(model, resolution));
+  videoRate(model, resolution);
+  return applyUsageMarkup(
+    supplierVideoMaximum(
+      durationSec *
+        VIDEO_SUPPLIER_RATES[model as keyof typeof VIDEO_SUPPLIER_RATES][
+          (resolution ?? "720p") as "720p" | "1080p"
+        ],
+    ),
+  );
 }
 export function tokenPrice(tokens: number) {
   if (!Number.isSafeInteger(tokens) || tokens < 0)
     throw new Error("Invalid token usage");
   return assertUsdMicros(
-    Number(
-      (BigInt(tokens) * BigInt(DEV_TOKEN_USD_MICROS_PER_1K) + 999n) / 1000n,
-    ),
+    Number((BigInt(tokens) * BigInt(TOKEN_USD_MICROS_PER_1K) + 999n) / 1000n),
   );
 }
+/** Reserve a bounded multi-call allowance; each actual call must also pass its remaining-budget check. */
 export function stagingPrice(tokens: number) {
-  return tokenPrice(Math.max(1000, Math.ceil(tokens * 2.2)));
+  if (!Number.isSafeInteger(tokens) || tokens < 0)
+    throw new Error("Invalid staging token estimate");
+  return tokenPrice(Math.max(30_000, Math.ceil(tokens * 12)));
 }
 
 /** Round fractional usage up once at micro-USD precision. */

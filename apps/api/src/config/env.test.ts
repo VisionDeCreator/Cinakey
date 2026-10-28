@@ -48,15 +48,13 @@ describe("server configuration and credential boundaries", () => {
     expect(() => validateProviderConfiguration()).not.toThrow();
     expect(() => requireProviderKey("openai")).toThrow("disabled");
   });
-  it("gates provisional prices for real provider requests", () => {
+  it("uses the verified rate card without a development-pricing bypass", () => {
     vi.stubEnv("USE_MOCK_ADAPTERS", "false");
     vi.stubEnv("ENABLED_PROVIDERS", "deepseek");
     vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.stubEnv("ALLOW_DEVELOPMENT_PRICES", "false");
     expect(() => validateProviderConfiguration()).not.toThrow();
-    expect(() => requireProviderKey("deepseek")).toThrow(
-      "Retail rates are pending",
-    );
+    expect(requireProviderKey("deepseek")).toBe("test-key");
   });
   it("does not require the retired image provider for legacy environment settings", () => {
     vi.stubEnv("USE_MOCK_ADAPTERS", "false");

@@ -1,0 +1,377 @@
+{
+  "checkedOn": "2026-10-28",
+  "endpoint": "https://api.sume.com/v1/open/estimate",
+  "paidGenerationSubmitted": false,
+  "estimates": [
+    {
+      "model": "seedance-2.5",
+      "resolution": "720p",
+      "duration": 5,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "1.1560",
+          "usd_micros": 1156000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 108,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "model": "seedance-2.5",
+      "resolution": "720p",
+      "duration": 9,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.0808",
+          "usd_micros": 2080800,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 194.4,
+            "duration_seconds": 9,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "model": "seedance-2.5",
+      "resolution": "1080p",
+      "duration": 5,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.8430",
+          "usd_micros": 2843000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 243,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "model": "seedance-2.5",
+      "resolution": "1080p",
+      "duration": 9,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "5.1174",
+          "usd_micros": 5117400,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 437.4,
+            "duration_seconds": 9,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "model": "sume-remix-lite-object-swap",
+      "resolution": "720p",
+      "duration": 5,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "0.5000",
+          "usd_micros": 500000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 5,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "model": "sume-remix-lite-object-swap",
+      "resolution": "720p",
+      "duration": 9,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "0.9000",
+          "usd_micros": 900000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 9,
+            "duration_seconds": 9,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "model": "sume-remix-lite-object-swap",
+      "resolution": "1080p",
+      "duration": 5,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "1.0000",
+          "usd_micros": 1000000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 5,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "model": "sume-remix-lite-object-swap",
+      "resolution": "1080p",
+      "duration": 9,
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "1.8000",
+          "usd_micros": 1800000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 9,
+            "duration_seconds": 9,
+            "resolution": "1080p"
+          }
+        }
+      }
+    }
+  ],
+  "exactAdapterPayloadEstimates": [
+    {
+      "mode": "text",
+      "resolution": "720p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "1.1560",
+          "usd_micros": 1156000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 108,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "first-last",
+      "resolution": "720p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "1.1560",
+          "usd_micros": 1156000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 108,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "references",
+      "resolution": "720p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "1.1560",
+          "usd_micros": 1156000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 432,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "extend",
+      "resolution": "720p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "1.1560",
+          "usd_micros": 1156000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 432,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "remix",
+      "resolution": "720p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "0.5000",
+          "usd_micros": 500000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 5,
+            "duration_seconds": 5,
+            "resolution": "720p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "text",
+      "resolution": "1080p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.8430",
+          "usd_micros": 2843000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 243,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "first-last",
+      "resolution": "1080p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.8430",
+          "usd_micros": 2843000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 243,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "references",
+      "resolution": "1080p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.8430",
+          "usd_micros": 2843000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 972,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "extend",
+      "resolution": "1080p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "seedance-2.5",
+          "currency": "USD",
+          "usd": "2.8430",
+          "usd_micros": 2843000,
+          "route": "r4fdc55",
+          "billing": {
+            "unit": "1000_video_tokens",
+            "quantity": 972,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    },
+    {
+      "mode": "remix",
+      "resolution": "1080p",
+      "status": 200,
+      "result": {
+        "data": {
+          "model": "sume-remix-lite-object-swap",
+          "currency": "USD",
+          "usd": "1.0000",
+          "usd_micros": 1000000,
+          "route": "r765813",
+          "billing": {
+            "unit": "output_video_second",
+            "quantity": 5,
+            "duration_seconds": 5,
+            "resolution": "1080p"
+          }
+        }
+      }
+    }
+  ]
+}

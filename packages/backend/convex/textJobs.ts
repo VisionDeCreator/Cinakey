@@ -1,8 +1,16 @@
 import {
   chargeForUnits,
+  TOKEN_RATES,
+  TOKEN_SUPPLIER_RATES,
+  DEEPSEEK_MODEL,
+  tokenUsagePrice,
+  USAGE_MARKUP_BPS,
+  tokenBatchPrice,
+  tokenBatchSupplierCost,
+  addTokenUsage,
   formatUsd,
   PRICE_VERSION,
-  DEV_TOKEN_USD_MICROS_PER_1K,
+  TOKEN_USD_MICROS_PER_1K,
 } from "@cinakey/shared";
 import { requireProjectAccessForUser } from "./lib/access";
 import { v, ConvexError } from "convex/values";
@@ -17,6 +25,8 @@ export const createChatJob = internalMutation({
     estimatedCostUsdMicros: v.number(),
     prompt: v.string(),
     modelVersion: v.optional(v.string()),
+    kind: v.optional(v.string()),
+    entityId: v.optional(v.id("entities")),
   },
   handler: async (ctx, args) => {
     await requireProjectAccessForUser(ctx, args.projectId, args.userId);
@@ -32,12 +42,16 @@ export const createChatJob = internalMutation({
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
       model: "deepseek",
-      modelVersion: args.modelVersion ?? "deepseek-chat",
-      kind: "chat",
+      modelVersion: args.modelVersion ?? DEEPSEEK_MODEL,
+      kind: args.kind ?? "chat",
+      entityId: args.entityId,
       prompt: args.prompt.slice(0, 500),
       estimatedCostUsdMicros: args.estimatedCostUsdMicros,
       priceVersion: PRICE_VERSION,
-      unitUsdMicros: DEV_TOKEN_USD_MICROS_PER_1K,
+      usageMarkupBps: USAGE_MARKUP_BPS,
+      tokenRateSnapshot: TOKEN_RATES,
+      supplierTokenRateSnapshot: TOKEN_SUPPLIER_RATES,
+      unitUsdMicros: TOKEN_USD_MICROS_PER_1K,
       status: "running",
       outputAssetIds: [],
       attempts: 1,
@@ -80,6 +94,24 @@ export const settleChatJob = internalMutation({
     projectId: v.id("projects"),
     actualCostUsdMicros: v.number(),
     actualTokens: v.optional(v.number()),
+    usage: v.optional(
+      v.object({
+        inputTokens: v.number(),
+        cachedInputTokens: v.number(),
+        outputTokens: v.number(),
+      }),
+    ),
+    batches: v.optional(
+      v.array(
+        v.object({
+          inputTokens: v.number(),
+          cachedInputTokens: v.number(),
+          outputTokens: v.number(),
+          period: v.union(v.literal("peak"), v.literal("off_peak")),
+          providerCreatedAt: v.number(),
+        }),
+      ),
+    ),
     succeeded: v.boolean(),
     usageMissing: v.optional(v.boolean()),
     errorMessage: v.optional(v.string()),
@@ -88,7 +120,7 @@ export const settleChatJob = internalMutation({
     const job = await ctx.db.get(args.jobId);
     if (
       job === null ||
-      (job.status === "succeeded" && !job.billingNeedsReview) ||
+      (job.status === "succeeded" && job.actualCostUsdMicros !== undefined) ||
       job.status === "refunded"
     )
       return;
@@ -105,7 +137,13 @@ export const settleChatJob = internalMutation({
       job.createdBy !== args.userId
     )
       throw new Error("Usage scope mismatch");
-    if (args.usageMissing && args.succeeded) {
+    if (
+      args.succeeded &&
+      (args.usageMissing ||
+        (job.usageMarkupBps !== undefined
+          ? !args.batches?.length
+          : job.tokenRateSnapshot && !args.usage))
+    ) {
       if (job.projectId !== args.projectId || job.createdBy !== args.userId)
         throw new Error("Usage scope mismatch");
       await ctx.db.patch(job._id, {
@@ -121,12 +159,42 @@ export const settleChatJob = internalMutation({
     )
       throw new Error("Invalid token usage");
     if (args.succeeded) {
+      const reconciledUsage =
+        args.batches?.reduce((total, batch) => addTokenUsage(total, batch), {
+          inputTokens: 0,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+        }) ?? args.usage;
+      if (
+        args.usage &&
+        reconciledUsage &&
+        (args.usage.inputTokens !== reconciledUsage.inputTokens ||
+          args.usage.cachedInputTokens !== reconciledUsage.cachedInputTokens ||
+          args.usage.outputTokens !== reconciledUsage.outputTokens)
+      )
+        throw new Error("Provider usage totals do not match billing evidence");
       if (args.actualTokens !== undefined && !job.unitUsdMicros)
         throw new Error("Missing authorized token price");
+      const supplierActualCostUsdMicros =
+        args.batches && job.usageMarkupBps !== undefined
+          ? tokenBatchSupplierCost(args.batches, job.supplierTokenRateSnapshot)
+          : undefined;
+      const billed =
+        args.batches && job.usageMarkupBps !== undefined
+          ? tokenBatchPrice(
+              args.batches,
+              job.supplierTokenRateSnapshot,
+              job.usageMarkupBps,
+            )
+          : undefined;
       const actual = Math.min(
-        args.actualTokens === undefined
-          ? args.actualCostUsdMicros
-          : chargeForUnits(args.actualTokens / 1000, job.unitUsdMicros!),
+        billed !== undefined
+          ? billed
+          : args.usage && job.tokenRateSnapshot
+            ? tokenUsagePrice(args.usage, job.tokenRateSnapshot)
+            : args.actualTokens === undefined
+              ? args.actualCostUsdMicros
+              : chargeForUnits(args.actualTokens / 1000, job.unitUsdMicros!),
         job.estimatedCostUsdMicros,
       );
       await appendLedgerEntry(ctx, {
@@ -140,7 +208,25 @@ export const settleChatJob = internalMutation({
       await ctx.db.patch(args.jobId, {
         status: "succeeded",
         actualCostUsdMicros: actual,
-        billingNeedsReview: false,
+        ...(args.batches
+          ? { tokenUsageBatches: args.batches, supplierActualCostUsdMicros }
+          : {}),
+        billingNeedsReview:
+          billed !== undefined
+            ? billed > job.estimatedCostUsdMicros
+            : args.usage && job.tokenRateSnapshot
+              ? tokenUsagePrice(args.usage, job.tokenRateSnapshot) >
+                job.estimatedCostUsdMicros
+              : false,
+        ...(reconciledUsage
+          ? {
+              tokenUsage: reconciledUsage,
+              supplierCostUpperBoundUsdMicros: tokenUsagePrice(
+                reconciledUsage,
+                job.supplierTokenRateSnapshot ?? TOKEN_SUPPLIER_RATES,
+              ),
+            }
+          : {}),
         updatedAt: Date.now(),
       });
     } else {

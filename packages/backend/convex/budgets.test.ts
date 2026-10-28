@@ -12,14 +12,17 @@ async function fixture() {
   });
   const project = await owner.query(api.projects.get, { projectId });
   const workspaceId = project!.workspaceId;
-  const reserve = (amount = 10) =>
-    t.mutation(internal.textJobs.createChatJob, {
+  const reserve = async (amount = 10) => {
+    const id = await t.mutation(internal.textJobs.createChatJob, {
       workspaceId,
       projectId,
       userId,
       estimatedCostUsdMicros: amount,
       prompt: "Analysis",
     });
+    await t.run((ctx) => ctx.db.patch(id, { usageMarkupBps: undefined }));
+    return id;
+  };
   const report = () => owner.query(api.billing.budgets, { workspaceId });
   const settle = (
     jobId: Awaited<ReturnType<typeof reserve>>,
@@ -32,6 +35,12 @@ async function fixture() {
       userId,
       jobId,
       actualCostUsdMicros: actual,
+      // Supply verified usage corresponding to the integer budget fixture.
+      usage: {
+        inputTokens: Math.floor((actual * 1000) / 315),
+        cachedInputTokens: 0,
+        outputTokens: 0,
+      },
       succeeded,
     });
   return { t, owner, userId, projectId, workspaceId, reserve, report, settle };

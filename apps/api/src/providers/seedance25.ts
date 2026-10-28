@@ -1,8 +1,11 @@
-import { videoPrice } from "@cinakey/shared";
+import { videoPrice, videoRate } from "@cinakey/shared";
 import type { GenerationAdapter } from "@cinakey/shared";
 import { validateVideoInput } from "@cinakey/shared";
 import { sumeLifecycle } from "./sume";
-const COST = { unit: "per_second", usdMicrosPerUnit: 340_000 } as const;
+const COST = {
+  unit: "per_second",
+  usdMicrosPerUnit: videoRate("seedance-2.5", "720p"),
+} as const;
 export const seedance25Adapter: GenerationAdapter = {
   capabilities: {
     id: "seedance-2.5",

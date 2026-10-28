@@ -1,5 +1,7 @@
 import {
   PRICE_VERSION,
+  USAGE_MARKUP_BPS,
+  applyUsageMarkup,
   QUOTE_TTL_MS,
   videoPrice,
   videoRate,
@@ -64,7 +66,7 @@ export const estimateCost = query({
     return {
       usdMicros: adapter.estimateCost(input),
       priceVersion: PRICE_VERSION,
-      developmentPrice: true,
+      developmentPrice: false,
       costModel: {
         ...adapter.capabilities.costModel,
         usdMicrosPerUnit: videoRate(args.adapterId, input.resolution),
@@ -118,6 +120,7 @@ export const quote = mutation({
       resolution: args.resolution,
       priceVersion: PRICE_VERSION,
       unitUsdMicros: videoRate(args.adapterId, args.resolution),
+      usageMarkupBps: USAGE_MARKUP_BPS,
       maximumUsdMicros,
       expiresAt: Date.now() + QUOTE_TTL_MS,
     };
@@ -263,6 +266,7 @@ export const createQueuedJob = internalMutation({
       quoteId: args.quoteId,
       priceVersion: quote?.priceVersion ?? PRICE_VERSION,
       unitUsdMicros: quote?.unitUsdMicros ?? args.estimatedCostUsdMicros,
+      usageMarkupBps: quote?.usageMarkupBps,
       status: "queued",
       outputAssetIds: [],
       attempts: 0,
@@ -308,6 +312,7 @@ export const markSubmitted = internalMutation({
     attempts: v.number(),
     providerResultFileId: v.optional(v.id("_storage")),
     providerActualUnits: v.optional(v.number()),
+    supplierCostUpperBoundUsdMicros: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.jobId, {
@@ -316,6 +321,7 @@ export const markSubmitted = internalMutation({
       submissionState: "accepted",
       providerResultFileId: args.providerResultFileId,
       providerActualUnits: args.providerActualUnits,
+      supplierCostUpperBoundUsdMicros: args.supplierCostUpperBoundUsdMicros,
       attempts: args.attempts,
       updatedAt: Date.now(),
       errorMessage: undefined,
@@ -348,6 +354,17 @@ export const markSucceeded = internalMutation({
       args.actualCostUsdMicros > job.estimatedCostUsdMicros
     )
       throw new Error("Invalid actual cost");
+    const actualCostUsdMicros =
+      job.usageMarkupBps !== undefined &&
+      job.supplierActualCostUsdMicros !== undefined
+        ? Math.min(
+            job.estimatedCostUsdMicros,
+            applyUsageMarkup(
+              job.supplierActualCostUsdMicros!,
+              job.usageMarkupBps,
+            ),
+          )
+        : args.actualCostUsdMicros;
     const project = await ctx.db.get(job.projectId);
     if (!project) throw new Error("Project not found");
     await appendLedgerEntry(ctx, {
@@ -355,7 +372,7 @@ export const markSucceeded = internalMutation({
       userId: job.createdBy,
       projectId: job.projectId,
       jobId: job._id,
-      delta: job.estimatedCostUsdMicros - args.actualCostUsdMicros,
+      delta: job.estimatedCostUsdMicros - actualCostUsdMicros,
       reason: "settle",
     });
     // The checkpoint is temporary; final assets have their own storage files.
@@ -365,7 +382,15 @@ export const markSucceeded = internalMutation({
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
       outputAssetIds: args.outputAssetIds,
-      actualCostUsdMicros: args.actualCostUsdMicros,
+      actualCostUsdMicros,
+      billingNeedsReview:
+        job.usageMarkupBps !== undefined &&
+        job.supplierActualCostUsdMicros !== undefined
+          ? applyUsageMarkup(
+              job.supplierActualCostUsdMicros,
+              job.usageMarkupBps,
+            ) > job.estimatedCostUsdMicros
+          : false,
       updatedAt: now,
       completedAt: now,
       providerResultFileId: undefined,
@@ -623,5 +648,21 @@ export const markSubmissionRejected = internalMutation({
       submissionState: "rejected",
       updatedAt: Date.now(),
     });
+  },
+});
+
+/** Final captured receipt, separate from a free preflight estimate; never overwrite it on retries. */
+export const recordSupplierCharge = internalMutation({
+  args: { jobId: v.id("generationJobs"), amount: v.number() },
+  handler: async (ctx, { jobId, amount }) => {
+    const job = await ctx.db.get(jobId);
+    if (!job || !Number.isSafeInteger(amount) || amount < 0)
+      throw new Error("Invalid supplier charge");
+    if (
+      job.supplierActualCostUsdMicros !== undefined &&
+      job.supplierActualCostUsdMicros !== amount
+    )
+      throw new Error("Supplier receipt changed; reconciliation required");
+    await ctx.db.patch(jobId, { supplierActualCostUsdMicros: amount });
   },
 });

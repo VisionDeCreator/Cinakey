@@ -17,7 +17,7 @@ async function fixture() {
       kind: "text-to-video",
       durationSec: 5,
       resolution: "720p",
-      maxCostUsdMicros: 1_700_000,
+      maxCostUsdMicros: 1_218_000,
     });
   const start = (
     quoteId: Awaited<ReturnType<typeof quote>>["quoteId"],
@@ -107,7 +107,7 @@ describe("USD authorizations and accounting", () => {
         kind: "text-to-video",
         durationSec: 5,
         resolution: "1080p",
-        maxCostUsdMicros: 1_700_000,
+        maxCostUsdMicros: 1_218_000,
       }),
     ).rejects.toThrow("accepted maximum");
     const quote = await f.quote();
@@ -178,6 +178,8 @@ describe("USD authorizations and accounting", () => {
     ).toBe(true);
   });
   it("does not grant development fixture dollars outside explicit development mode", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-28T02:00:00Z"));
     vi.stubEnv("USE_MOCK_ADAPTERS", "false");
     vi.stubEnv("ALLOW_DEV_USD", "false");
     const f = await fixture();
@@ -213,7 +215,16 @@ describe("USD authorizations and accounting", () => {
     ).toBe(20_000);
     await f.t.mutation(internal.textJobs.settleChatJob, {
       ...args,
-      actualTokens: 2000,
+      usage: { inputTokens: 1000, cachedInputTokens: 0, outputTokens: 1000 },
+      batches: [
+        {
+          inputTokens: 1000,
+          cachedInputTokens: 0,
+          outputTokens: 1000,
+          period: "peak",
+          providerCreatedAt: Date.UTC(2026, 9, 28, 2),
+        },
+      ],
     });
     await f.t.mutation(internal.textJobs.settleChatJob, {
       ...args,
@@ -222,6 +233,258 @@ describe("USD authorizations and accounting", () => {
     expect(
       (await f.owner.query(api.billing.budgets, { workspaceId: f.workspaceId }))
         .account,
-    ).toMatchObject({ reserved: 0, spent: 4_000 });
+    ).toMatchObject({ reserved: 0, spent: 1_575 });
   });
+});
+it("settles token categories at the authorized snapshot and stores peak supplier cost separately", async () => {
+  const f = await fixture();
+  const jobId = await f.t.mutation(internal.textJobs.createChatJob, {
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    estimatedCostUsdMicros: 20_000,
+    prompt: "Categories",
+  });
+  // A historical accepted snapshot must win even when today's shared card differs.
+  await f.t.run((ctx) =>
+    ctx.db.patch(jobId, {
+      priceVersion: "saved-token-price",
+      usageMarkupBps: 2500,
+      supplierTokenRateSnapshot: {
+        cachedInput: 500_000,
+        input: 1_000_000,
+        output: 2_000_000,
+      },
+    }),
+  );
+  const usage = {
+    inputTokens: 1000,
+    cachedInputTokens: 500,
+    outputTokens: 500,
+  };
+  const args = {
+    jobId,
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    actualCostUsdMicros: 19_999,
+    usage,
+    batches: [
+      {
+        ...usage,
+        period: "peak" as const,
+        providerCreatedAt: Date.UTC(2026, 9, 28, 2),
+      },
+    ],
+    succeeded: true,
+  };
+  await f.t.mutation(internal.textJobs.settleChatJob, args);
+  const job = await f.t.run((ctx) => ctx.db.get(jobId));
+  expect(job).toMatchObject({
+    modelVersion: "deepseek-flash",
+    priceVersion: "saved-token-price",
+    actualCostUsdMicros: 2188,
+    supplierCostUpperBoundUsdMicros: 1750,
+    supplierActualCostUsdMicros: 1750,
+    tokenUsage: usage,
+    billingNeedsReview: false,
+  });
+  await f.t.mutation(internal.textJobs.settleChatJob, {
+    ...args,
+    usage: { inputTokens: 1000, cachedInputTokens: 0, outputTokens: 1000 },
+  });
+  expect((await f.t.run((ctx) => ctx.db.get(jobId)))?.actualCostUsdMicros).toBe(
+    2188,
+  );
+  expect(
+    (await f.t.query(internal.billing.audit, { workspaceId: f.workspaceId }))
+      .consistent,
+  ).toBe(true);
+});
+it("never charges beyond a text reservation and flags unexpected provider usage for review", async () => {
+  const f = await fixture();
+  const jobId = await f.t.mutation(internal.textJobs.createChatJob, {
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    estimatedCostUsdMicros: 10,
+    prompt: "Bound",
+  });
+  await f.t.mutation(internal.textJobs.settleChatJob, {
+    jobId,
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    actualCostUsdMicros: 0,
+    usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 1000 },
+    batches: [
+      {
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 1000,
+        period: "peak",
+        providerCreatedAt: Date.UTC(2026, 9, 28, 2),
+      },
+    ],
+    succeeded: true,
+  });
+  expect(await f.t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+    actualCostUsdMicros: 10,
+    billingNeedsReview: true,
+  });
+});
+it("autofill settles measured token categories instead of charging its fixed maximum", async () => {
+  const f = await fixture();
+  const entityId = await f.owner.mutation(api.entities.create, {
+    projectId: f.projectId,
+    kind: "character",
+    name: "Hero",
+  });
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-10-28T02:00:00Z"));
+  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      Response.json({
+        created: Math.floor(Date.now() / 1000),
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                description: "A hero",
+                look: "Red coat",
+              }),
+            },
+          },
+        ],
+        usage: {
+          prompt_tokens: 1000,
+          completion_tokens: 1000,
+          prompt_cache_hit_tokens: 0,
+          total_tokens: 2000,
+        },
+      }),
+    ),
+  );
+  const result = await f.owner.action(api.entities.autofillSheet, { entityId });
+  expect(result.actualCostUsdMicros).toBe(1575);
+  expect(result.actualCostUsdMicros).toBeLessThan(
+    result.estimatedCostUsdMicros,
+  );
+  const jobs = await f.t.run((ctx) => ctx.db.query("generationJobs").collect());
+  expect(jobs[0]).toMatchObject({
+    entityId,
+    kind: "look-dev-autofill",
+    status: "succeeded",
+    actualCostUsdMicros: 1575,
+    tokenUsage: { inputTokens: 1000, cachedInputTokens: 0, outputTokens: 1000 },
+  });
+});
+
+it.each([
+  ["seedance-2.5", "720p", 1218000, 1160000, 1218000],
+  ["seedance-2.5", "1080p", 2992500, 2840000, 2982000],
+  ["sume-remix-lite", "720p", 525000, 500000, 525000],
+  ["sume-remix-lite", "1080p", 1050000, 1000000, 1050000],
+] as const)(
+  "settles %s %s from the captured supplier receipt, releasing unused quote funds",
+  async (model, resolution, maximum, supplier, charged) => {
+    const f = await fixture();
+    const kind = "text-to-video";
+    const quote = await f.owner.mutation(api.generation.quote, {
+      projectId: f.projectId,
+      adapterId: model,
+      kind,
+      durationSec: 5,
+      resolution,
+      maxCostUsdMicros: maximum,
+    });
+    const jobId = await f.t.mutation(internal.generation.createQueuedJob, {
+      projectId: f.projectId,
+      workspaceId: f.workspaceId,
+      createdBy: f.userId,
+      model,
+      modelVersion: "fixture",
+      kind,
+      prompt: "Receipt",
+      estimatedCostUsdMicros: maximum,
+      quoteId: quote.quoteId,
+      durationSec: 5,
+      resolution,
+    });
+    await f.t.mutation(internal.generation.recordSupplierCharge, {
+      jobId,
+      amount: supplier,
+    });
+    const args = { jobId, outputAssetIds: [], actualCostUsdMicros: maximum };
+    await f.t.mutation(internal.generation.markSucceeded, args);
+    await f.t.mutation(internal.generation.markSucceeded, args);
+    expect(await f.t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+      actualCostUsdMicros: charged,
+      supplierActualCostUsdMicros: supplier,
+      usageMarkupBps: 500,
+      billingNeedsReview: false,
+    });
+    expect(
+      (await f.owner.query(api.billing.budgets, { workspaceId: f.workspaceId }))
+        .account,
+    ).toMatchObject({
+      reserved: 0,
+      spent: charged,
+      available: 5000000 - charged,
+    });
+    await expect(
+      f.t.mutation(internal.generation.recordSupplierCharge, {
+        jobId,
+        amount: supplier + 1,
+      }),
+    ).rejects.toThrow("receipt changed");
+    expect(
+      (await f.t.query(internal.billing.audit, { workspaceId: f.workspaceId }))
+        .consistent,
+    ).toBe(true);
+  },
+);
+it("settles mixed peak and off-peak DeepSeek calls from cache-aware batches instead of the peak reserve", async () => {
+  const f = await fixture();
+  const jobId = await f.t.mutation(internal.textJobs.createChatJob, {
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    estimatedCostUsdMicros: 20000,
+    prompt: "Mixed",
+  });
+  const batch = {
+    inputTokens: 1000,
+    cachedInputTokens: 500,
+    outputTokens: 500,
+  };
+  await f.t.mutation(internal.textJobs.settleChatJob, {
+    jobId,
+    projectId: f.projectId,
+    workspaceId: f.workspaceId,
+    userId: f.userId,
+    actualCostUsdMicros: 19999,
+    succeeded: true,
+    usage: { inputTokens: 2000, cachedInputTokens: 1000, outputTokens: 1000 },
+    batches: [
+      { ...batch, period: "peak", providerCreatedAt: Date.UTC(2026, 9, 28, 2) },
+      {
+        ...batch,
+        period: "off_peak",
+        providerCreatedAt: Date.UTC(2026, 9, 28, 12),
+      },
+    ],
+  });
+  expect(await f.t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+    supplierActualCostUsdMicros: 1130,
+    actualCostUsdMicros: 1187,
+    billingNeedsReview: false,
+  });
+  expect(
+    (await f.owner.query(api.billing.budgets, { workspaceId: f.workspaceId }))
+      .account,
+  ).toMatchObject({ reserved: 0, spent: 1187 });
 });

@@ -145,7 +145,7 @@ describe("production safety", () => {
     const { t, asUser, projectId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapUsdMicros: 1_700_000,
+      spendCapUsdMicros: 1_218_000,
     });
     const before = (await asUser.query(api.billing.getBalance, {})).balance;
     const request = {
@@ -160,7 +160,7 @@ describe("production safety", () => {
     const replay = await asUser.action(api.generation.startGeneration, request);
     expect(replay.jobId).toBe(first.jobId);
     expect((await asUser.query(api.billing.getBalance, {})).balance).toBe(
-      before - 1_700_000,
+      before - 1_218_000,
     );
     await expect(
       asUser.action(api.generation.startGeneration, {
@@ -186,7 +186,7 @@ describe("production safety", () => {
     const { t, asUser, projectId, workspaceId, userId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapUsdMicros: 1_700_000,
+      spendCapUsdMicros: 1_218_000,
     });
     const args = {
       projectId,
@@ -196,7 +196,7 @@ describe("production safety", () => {
       modelVersion: "test",
       kind: "text-to-video",
       prompt: "fixture",
-      estimatedCostUsdMicros: 1_700_000,
+      estimatedCostUsdMicros: 1_218_000,
     };
     await t.mutation(internal.generation.createQueuedJob, args);
     await expect(
@@ -216,7 +216,7 @@ describe("production safety", () => {
     const { t, asUser, projectId } = await fixture();
     await asUser.mutation(api.projects.update, {
       projectId,
-      spendCapUsdMicros: 1_700_000,
+      spendCapUsdMicros: 1_218_000,
     });
     const request = {
       projectId,

@@ -1,5 +1,7 @@
 # Phase 1 implementation readiness
 
+> Pricing update — October 28, 2026: the current card uses supplier cost plus configurable 5% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
+
 Initial assessment date: October 26, 2026. At assessment time, no application code, schema,
 payment products, or live billing configuration changed. No paid generation was run.
 

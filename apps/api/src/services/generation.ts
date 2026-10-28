@@ -1,3 +1,4 @@
+import { applyUsageMarkup } from "@cinakey/shared";
 import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
 import {
   chargeForUnits,
@@ -472,6 +473,8 @@ export const submitAndTrack = internalAction({
       const result = await adapter.submit({
         ...request,
         _idempotencyKey: `cinakey:${job._id}:${attempt}`,
+        _maximumRetailUsdMicros: job.estimatedCostUsdMicros,
+        _usageMarkupBps: job.usageMarkupBps,
       });
 
       let providerResultFileId: Id<"_storage"> | undefined;
@@ -488,6 +491,7 @@ export const submitAndTrack = internalAction({
       await ctx.runMutation(internal.generation.markSubmitted, {
         jobId: job._id,
         providerJobId: result.providerJobId,
+        supplierCostUpperBoundUsdMicros: result.supplierCostUpperBoundUsdMicros,
         providerResultFileId,
         providerActualUnits,
         attempts: attempt,
@@ -658,7 +662,13 @@ export const pollJob = internalAction({
       }
 
       // succeeded
-      await finishSuccess(ctx, job, adapter, poll.actualUnits);
+      await finishSuccess(
+        ctx,
+        job,
+        adapter,
+        poll.actualUnits,
+        poll.supplierActualCostUsdMicros,
+      );
     } catch (err) {
       if (err instanceof SubmissionUncertainError) throw err;
       if (currentProviderSignal()?.aborted) throw workerCancellationError(err);
@@ -700,7 +710,21 @@ async function finishSuccess(
   job: Doc<"generationJobs">,
   adapter: GenerationAdapter,
   actualUnits?: number,
+  supplierActualCostUsdMicros?: number,
 ) {
+  supplierActualCostUsdMicros ??= job.supplierActualCostUsdMicros;
+  if (!useMockProviders() && adapter.capabilities.kind === "video") {
+    if (supplierActualCostUsdMicros === undefined)
+      throw new Error(
+        "Final supplier billing is missing; reconcile before settlement",
+      );
+    await ctx.runMutation(internal.generation.recordSupplierCharge, {
+      jobId: job._id,
+      amount: supplierActualCostUsdMicros,
+    });
+    job = { ...job, supplierActualCostUsdMicros };
+  }
+
   if (!job.providerJobId) {
     throw new Error("Missing providerJobId");
   }
@@ -840,12 +864,18 @@ async function finishSuccess(
   )
     throw new Error("Invalid reported usage");
   const actualCost =
-    actualUnits === undefined
-      ? job.estimatedCostUsdMicros
-      : Math.min(
+    job.usageMarkupBps !== undefined &&
+    job.supplierActualCostUsdMicros !== undefined
+      ? Math.min(
           job.estimatedCostUsdMicros,
-          chargeForUnits(actualUnits, job.unitUsdMicros),
-        );
+          applyUsageMarkup(job.supplierActualCostUsdMicros, job.usageMarkupBps),
+        )
+      : actualUnits === undefined
+        ? job.estimatedCostUsdMicros
+        : Math.min(
+            job.estimatedCostUsdMicros,
+            chargeForUnits(actualUnits, job.unitUsdMicros),
+          );
 
   await ctx.runMutation(internal.generation.markSucceeded, {
     jobId: job._id,

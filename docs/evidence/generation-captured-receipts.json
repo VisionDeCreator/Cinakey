@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-10-28",
+  "source": "Authenticated read-only Sume historical job and job-list usage_summary",
+  "newPaidJobsSubmitted": false,
+  "receipts": [
+    {
+      "model": "seedance-2.5",
+      "resolution": "720p",
+      "durationSeconds": 5,
+      "status": "captured",
+      "final": true,
+      "capturedUsdCents": 116,
+      "sampleCount": 2
+    },
+    {
+      "model": "sume-remix-lite-object-swap",
+      "resolution": "720p",
+      "durationSeconds": 10,
+      "status": "captured",
+      "final": true,
+      "capturedUsdCents": 100,
+      "sampleCount": 1
+    }
+  ],
+  "privacy": "Job IDs, prompts, media, customer data and credentials omitted."
+}

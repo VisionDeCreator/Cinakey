@@ -70,7 +70,7 @@ it("saves a reviewed transformation snapshot and replays the request without a s
   const first = await asUser.action(api.transforms.generate, request);
   const replay = await asUser.action(api.transforms.generate, request);
   expect(replay.jobId).toBe(first.jobId);
-  expect(first.estimatedCostUsdMicros).toBe(900_000);
+  expect(first.estimatedCostUsdMicros).toBe(630_000);
   const job = await t.run((ctx) => ctx.db.get(first.jobId));
   const snapshot = await t.run(async (ctx) =>
     JSON.parse(await (await ctx.storage.get(job!.inputsFileId!))!.text()),
@@ -122,8 +122,14 @@ it("uses Flash image blocks and refunds invalid model analysis", async () => {
   const send = vi.fn().mockResolvedValue(
     new Response(
       JSON.stringify({
+        created: Math.floor(Date.now() / 1000),
         choices: [{ message: { content: "{}" } }],
-        usage: { total_tokens: 1000 },
+        usage: {
+          prompt_tokens: 500,
+          completion_tokens: 500,
+          prompt_cache_hit_tokens: 0,
+          total_tokens: 1000,
+        },
       }),
     ),
   );

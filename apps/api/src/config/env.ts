@@ -67,10 +67,6 @@ export function requireProviderKey(provider: ProviderName): string {
       "Polar sandbox balances cannot fund live provider requests. Use mock adapters while testing payments.",
     );
   const key = configuredProviderKey(provider);
-  if (process.env.ALLOW_DEVELOPMENT_PRICES !== "true")
-    throw new Error(
-      "Retail rates are pending. Set ALLOW_DEVELOPMENT_PRICES=true only for authorized development provider tests.",
-    );
   return key;
 }
 export function useMockProviders(): boolean {

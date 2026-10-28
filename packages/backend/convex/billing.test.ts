@@ -201,7 +201,7 @@ describe("generation jobs with mock adapter", () => {
         input: { mockDelayMs: 0 },
       },
     );
-    expect(estimatedCostUsdMicros).toBe(1_700_000);
+    expect(estimatedCostUsdMicros).toBe(1_218_000);
 
     await drain(t);
 

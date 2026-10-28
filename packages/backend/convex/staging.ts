@@ -4,7 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { convexEnv } from "./lib/env";
 
 /**
- * Development USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
+ * USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
  * the conversation. Settled to actual usage afterwards.
  */
 export function stagingUsdMicros(tokens: number): number {

@@ -1,4 +1,12 @@
-import { formatUsd, stagingPrice, tokenPrice } from "@cinakey/shared";
+import {
+  formatUsd,
+  stagingPrice,
+  tokenBatchPrice,
+  normalizeTokenUsage,
+  addTokenUsage,
+  type TokenUsage,
+  type TokenUsageBatch,
+} from "@cinakey/shared";
 import {
   auditStagedDocument,
   buildAuditRepairMessage,
@@ -21,7 +29,7 @@ import { internalAction } from "../runtime/operation";
 import { saveJson } from "./storage";
 
 /**
- * Development USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
+ * USD reserved for one plan at the versioned token rate with room for the check-driven repair turn, which re-sends
  * the conversation. Settled to actual usage afterwards.
  */
 export function stagingUsdMicros(tokens: number): number {
@@ -107,18 +115,28 @@ export const generatePlan = internalAction({
     }
 
     let usageMissing = false;
-    const settle = async (
-      succeeded: boolean,
-      tokens: number,
-      errorMessage?: string,
-    ) =>
+    let usage: TokenUsage = {
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+    };
+    const batches: TokenUsageBatch[] = [];
+    const collectUsage = (raw: unknown, batch?: TokenUsageBatch) => {
+      const next = normalizeTokenUsage(raw);
+      if (next) usage = addTokenUsage(usage, next);
+      else usageMissing = true;
+      if (batch) batches.push(batch);
+      else usageMissing = true;
+    };
+    const settle = async (succeeded: boolean, errorMessage?: string) =>
       ctx.runMutation(internal.textJobs.settleChatJob, {
         jobId,
         workspaceId: project.workspaceId,
         userId: args.userId,
         projectId: args.projectId,
-        actualCostUsdMicros: tokenPrice(tokens),
-        actualTokens: tokens,
+        actualCostUsdMicros: batches.length ? tokenBatchPrice(batches) : 0,
+        usage,
+        batches: batches.length ? batches : undefined,
         usageMissing: succeeded && usageMissing,
         succeeded,
         errorMessage,
@@ -153,7 +171,6 @@ export const generatePlan = internalAction({
     const shotsWith = (issues: StagingIssue[]) =>
       new Set(issues.map((i) => i.shot)).size;
 
-    let tokens = 0;
     try {
       let best: {
         plan: StagingPlan;
@@ -165,9 +182,11 @@ export const generatePlan = internalAction({
           messages,
           json: true,
           maxTokens: 8000,
+          maxCostUsdMicros: usageMissing
+            ? 0
+            : estimate - (batches.length ? tokenBatchPrice(batches) : 0),
         });
-        usageMissing ||= res.usage?.total_tokens === undefined;
-        tokens += res.usage?.total_tokens ?? 0;
+        collectUsage(res.usage, res.billingBatch);
         const parsed = parseStagingPlan(res.content);
         if (parsed.ok) {
           best = {
@@ -183,7 +202,7 @@ export const generatePlan = internalAction({
         }
       }
       if (!best) {
-        await settle(false, tokens, "Staging plan failed validation twice");
+        await settle(false, "Staging plan failed validation twice");
         return { ok: false, reason: "The AI staging plan did not validate" };
       }
 
@@ -200,9 +219,11 @@ export const generatePlan = internalAction({
             messages,
             json: true,
             maxTokens: 8000,
+            maxCostUsdMicros: usageMissing
+              ? 0
+              : estimate - (batches.length ? tokenBatchPrice(batches) : 0),
           });
-          usageMissing ||= res.usage?.total_tokens === undefined;
-          tokens += res.usage?.total_tokens ?? 0;
+          collectUsage(res.usage, res.billingBatch);
           const parsed = parseStagingPlan(res.content);
           if (parsed.ok) {
             const issues = check(parsed.plan);
@@ -217,12 +238,14 @@ export const generatePlan = internalAction({
       }
 
       const { storageId } = await saveJson(ctx, best.plan);
-      await settle(true, tokens);
+      await settle(true);
       return {
         ok: true,
         plan: best.plan,
         planFileId: storageId,
-        usdMicros: usageMissing ? 0 : Math.min(estimate, tokenPrice(tokens)),
+        usdMicros: usageMissing
+          ? 0
+          : Math.min(estimate, batches.length ? tokenBatchPrice(batches) : 0),
         issuesBefore,
         issuesAfter: shotsWith(best.issues),
         issueSample: issueLines(best.issues).slice(0, 12),
@@ -230,7 +253,7 @@ export const generatePlan = internalAction({
       };
     } catch (err) {
       const message = safeErrorMessage(err);
-      await settle(false, tokens, message);
+      await settle(false, message);
       return {
         ok: false,
         reason: `AI staging failed: ${message.slice(0, 160)}`,

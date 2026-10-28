@@ -474,9 +474,44 @@ const schema = defineSchema(
       estimatedCostUsdMicros: v.number(),
       priceVersion: v.optional(v.string()),
       unitUsdMicros: v.optional(v.number()),
+      usageMarkupBps: v.optional(v.number()),
+      supplierActualCostUsdMicros: v.optional(v.number()),
+      tokenUsageBatches: v.optional(
+        v.array(
+          v.object({
+            inputTokens: v.number(),
+            cachedInputTokens: v.number(),
+            outputTokens: v.number(),
+            period: v.union(v.literal("peak"), v.literal("off_peak")),
+            providerCreatedAt: v.number(),
+          }),
+        ),
+      ),
       quoteId: v.optional(v.id("usageQuotes")),
       actualCostUsdMicros: v.optional(v.number()),
       billingNeedsReview: v.optional(v.boolean()),
+      tokenRateSnapshot: v.optional(
+        v.object({
+          cachedInput: v.number(),
+          input: v.number(),
+          output: v.number(),
+        }),
+      ),
+      supplierTokenRateSnapshot: v.optional(
+        v.object({
+          cachedInput: v.number(),
+          input: v.number(),
+          output: v.number(),
+        }),
+      ),
+      tokenUsage: v.optional(
+        v.object({
+          inputTokens: v.number(),
+          cachedInputTokens: v.number(),
+          outputTokens: v.number(),
+        }),
+      ),
+      supplierCostUpperBoundUsdMicros: v.optional(v.number()),
       status: v.union(
         v.literal("queued"),
         v.literal("submitted"),
@@ -545,6 +580,7 @@ const schema = defineSchema(
       resolution: v.string(),
       priceVersion: v.string(),
       unitUsdMicros: v.number(),
+      usageMarkupBps: v.optional(v.number()),
       maximumUsdMicros: v.number(),
       expiresAt: v.number(),
       jobId: v.optional(v.id("generationJobs")),

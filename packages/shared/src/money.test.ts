@@ -31,9 +31,9 @@ describe("USD amounts", () => {
     expect(() => formatUsd(-1)).toThrow();
   });
   it("prices video by resolution and rejects unpriced configurations", () => {
-    expect(videoPrice("seedance-2.5", 5, "720p")).toBe(1_700_000);
-    expect(videoPrice("seedance-2.5", 5, "1080p")).toBe(4_200_000);
-    expect(videoPrice("sume-remix-lite", 6, "720p")).toBe(900_000);
+    expect(videoPrice("seedance-2.5", 5, "720p")).toBe(1_218_000);
+    expect(videoPrice("seedance-2.5", 5, "1080p")).toBe(2_992_500);
+    expect(videoPrice("sume-remix-lite", 6, "720p")).toBe(630_000);
     expect(() => videoPrice("unknown", 5)).toThrow();
     expect(() => videoPrice("seedance-2.5", 5, "4K")).toThrow();
   });

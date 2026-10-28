@@ -260,7 +260,7 @@ export const findStyleInternal = internalQuery({
   },
 });
 
-const AUTOFILL_ESTIMATED_TOKENS = 2000;
+const AUTOFILL_ESTIMATED_TOKENS = 12000;
 
 /** Estimated DeepSeek usdMicros to auto-fill a Look Dev entity sheet. */
 export const estimateAutofillCost = query({

@@ -1,33 +1,26 @@
+import {
+  TOKEN_USD_MICROS_PER_1K,
+  DEEPSEEK_MODEL,
+  tokenUsagePrice,
+  normalizeTokenUsage,
+  verifiedDeepseekPeriod,
+  type TokenUsageBatch,
+} from "@cinakey/shared";
 import type {
   BuildRequestInput,
-  CollectResult,
   GenerationAdapter,
-  PollResult,
   ProviderRequest,
-  SubmitResult,
 } from "@cinakey/shared";
 import { requireProviderKey } from "../config/env";
 import { providerFetch } from "./transport";
 import { estimateTokenCost, isDefaultTransientError } from "./cost";
 
-const COST = { unit: "per_1k_tokens", usdMicrosPerUnit: 2_000 } as const;
+const COST = {
+  unit: "per_1k_tokens",
+  usdMicrosPerUnit: TOKEN_USD_MICROS_PER_1K,
+} as const;
 
-const inlineResults = new Map<
-  string,
-  {
-    status: PollResult["status"];
-    outputs: CollectResult["outputs"];
-    error?: string;
-    actualUnits?: number;
-  }
->();
-
-/**
- * DeepSeek — chat completion with tool calling.
- *
- * Completes synchronously inside the API.
- * TODO(deepseek-api): confirm tool-calling payload is OpenAI-compatible.
- */
+/** Text estimates are exposed here; paid text execution uses metered textJobs + completeChat. */
 export const deepseekAdapter: GenerationAdapter = {
   capabilities: {
     id: "deepseek",
@@ -52,7 +45,7 @@ export const deepseekAdapter: GenerationAdapter = {
     ];
     return {
       kind: "chat",
-      model: "deepseek-chat",
+      model: DEEPSEEK_MODEL,
       messages,
       // OpenAI-compatible tools array if provided.
       tools: input.tools,
@@ -60,80 +53,18 @@ export const deepseekAdapter: GenerationAdapter = {
     };
   },
 
-  async submit(request: ProviderRequest): Promise<SubmitResult> {
-    const apiKey = requireProviderKey("deepseek");
-    const providerJobId = `deepseek_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    const body: Record<string, unknown> = {
-      model: request.model ?? "deepseek-chat",
-      messages: request.messages,
-      stream: false,
-    };
-    if (request.tools) {
-      body.tools = request.tools;
-    }
-
-    const res = await providerFetch(
-      "deepseek",
-      "https://api.deepseek.com/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      },
+  async submit() {
+    throw new Error("Use the metered textJobs flow for DeepSeek requests");
+  },
+  async poll() {
+    throw new Error(
+      "DeepSeek text jobs are settled synchronously from reported usage",
     );
-
-    const data = (await res.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string | null;
-          tool_calls?: unknown;
-        };
-      }>;
-      usage?: { total_tokens?: number };
-    };
-    const message = data.choices?.[0]?.message;
-    const tokens = data.usage?.total_tokens ?? 1000;
-    inlineResults.set(providerJobId, {
-      status: "succeeded",
-      actualUnits: Math.ceil(tokens / 1000),
-      outputs: [
-        {
-          type: "text",
-          metadata: {
-            content: message?.content ?? "",
-            tool_calls: message?.tool_calls,
-            usage: data.usage,
-          },
-        },
-      ],
-    });
-    return { providerJobId, completedInline: true };
   },
-
-  async poll(providerJobId: string): Promise<PollResult> {
-    const stored = inlineResults.get(providerJobId);
-    if (!stored) {
-      return { status: "failed", error: "Unknown DeepSeek job" };
-    }
-    if (stored.status === "failed") {
-      return { status: "failed", error: stored.error };
-    }
-    return {
-      status: "succeeded",
-      actualUnits: stored.actualUnits ?? 1,
-    };
-  },
-
-  async collect(providerJobId: string): Promise<CollectResult> {
-    const stored = inlineResults.get(providerJobId);
-    if (!stored || stored.status !== "succeeded") {
-      throw new Error("DeepSeek job not ready");
-    }
-    return { outputs: stored.outputs };
+  async collect() {
+    throw new Error(
+      "DeepSeek text jobs are settled synchronously from reported usage",
+    );
   },
 
   isTransientError: isDefaultTransientError,
@@ -170,10 +101,13 @@ export type StreamChatResult = {
     name: string;
     arguments: string;
   }>;
+  billingBatch?: TokenUsageBatch;
   usage?: {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    prompt_cache_hit_tokens?: number;
+    prompt_cache_miss_tokens?: number;
   };
 };
 
@@ -191,21 +125,38 @@ export async function completeChat(args: {
   /** Force a single JSON object reply. */
   json?: boolean;
   maxTokens?: number;
+  /** Remaining reserved retail budget, checked before every paid request. */
+  maxCostUsdMicros: number;
 }): Promise<StreamChatResult> {
   const apiKey = requireProviderKey("deepseek");
+  if (args.model && args.model !== DEEPSEEK_MODEL)
+    throw new Error("Unpriced analysis model");
+  const maxTokens = args.maxTokens ?? 2000;
+  if (
+    !Number.isSafeInteger(args.maxCostUsdMicros) ||
+    args.maxCostUsdMicros < 0 ||
+    chatRequestMaximum(args.messages, maxTokens, args.tools) >
+      args.maxCostUsdMicros
+  )
+    throw new Error(
+      "Remaining analysis budget cannot cover another model call",
+    );
   const body: Record<string, unknown> = {
-    model: args.model ?? "deepseek-chat",
+    model: args.model ?? DEEPSEEK_MODEL,
+    thinking: { type: "disabled" },
+    max_tokens: maxTokens,
     messages: args.messages,
     stream: false,
   };
   if (args.json) body.response_format = { type: "json_object" };
-  if (args.maxTokens) body.max_tokens = args.maxTokens;
+
   if (args.tools && args.tools.length > 0) {
     body.tools = args.tools;
   }
   if (args.toolChoice !== undefined) {
     body.tool_choice = args.toolChoice;
   }
+  const requestStartedAt = Date.now();
   const res = await providerFetch(
     "deepseek",
     "https://api.deepseek.com/chat/completions",
@@ -219,6 +170,7 @@ export async function completeChat(args: {
     },
   );
   const data = (await res.json()) as {
+    created?: number;
     choices?: Array<{
       message?: {
         content?: string | null;
@@ -230,6 +182,18 @@ export async function completeChat(args: {
     }>;
     usage?: StreamChatResult["usage"];
   };
+  const usage = normalizeTokenUsage(data.usage);
+  const providerCreatedAt =
+    typeof data.created === "number" && Number.isSafeInteger(data.created)
+      ? data.created * 1000
+      : NaN;
+  const period = verifiedDeepseekPeriod(
+    requestStartedAt,
+    Date.now(),
+    providerCreatedAt,
+  );
+  const billingBatch: TokenUsageBatch | undefined =
+    usage && period ? { ...usage, period, providerCreatedAt } : undefined;
   const message = data.choices?.[0]?.message;
   const toolCalls = (message?.tool_calls ?? [])
     .map((tc) => ({
@@ -242,5 +206,37 @@ export async function completeChat(args: {
     content: message?.content ?? "",
     toolCalls,
     usage: data.usage,
+    billingBatch,
   };
+}
+
+/** UTF-8 byte bound for text plus the documented <=1024 tokens per image; output includes all generated tokens. */
+export function chatRequestMaximum(
+  messages: ChatMessage[],
+  maxOutputTokens: number,
+  tools?: ChatToolDefinition[],
+): number {
+  if (
+    !Number.isSafeInteger(maxOutputTokens) ||
+    maxOutputTokens < 1 ||
+    maxOutputTokens > 8000
+  )
+    throw new Error("Invalid model output limit");
+  let images = 0;
+  const text = JSON.stringify(messages, (key, value) => {
+    if (key === "image_url") {
+      images++;
+      return "[image]";
+    }
+    return value;
+  });
+  return tokenUsagePrice({
+    inputTokens:
+      new TextEncoder().encode(text + JSON.stringify(tools ?? [])).length +
+      1024 +
+      messages.length * 256 +
+      images * 1024,
+    cachedInputTokens: 0,
+    outputTokens: maxOutputTokens,
+  });
 }

@@ -267,3 +267,7 @@ financial changes and portal access are Owner-only.
 Server placeholders are in root `.env` and `.env.example`; no live keys were added.
 Follow [Polar setup and activation](docs/polar-payments.md) for products, signed webhooks,
 worker processing, the $5 monthly allowance and remaining sandbox qualification.
+
+Generation pricing uses the verified [October 28 rate card](docs/generation-pricing.md),
+with configurable 5% supplier-cost markup, captured video receipts and cache-aware
+DeepSeek peak/off-peak settlement.

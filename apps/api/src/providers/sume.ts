@@ -1,12 +1,25 @@
-import { videoPrice } from "@cinakey/shared";
+import {
+  videoPrice,
+  videoRate,
+  applyUsageMarkup,
+  supplierVideoMaximum,
+} from "@cinakey/shared";
 import { validateRemixInput } from "@cinakey/shared";
 import type { GenerationAdapter, ProviderRequest } from "@cinakey/shared";
 import { providerConfig, requireProviderKey } from "../config/env";
 import { isDefaultTransientError } from "./cost";
+import { ProviderError } from "./errors";
 import { providerFetch } from "./transport";
 
 async function request(path: string, body?: ProviderRequest) {
-  const { _idempotencyKey, ...input } = body ?? {};
+  const {
+    _idempotencyKey,
+    _maximumRetailUsdMicros,
+    _usageMarkupBps,
+    ...input
+  } = body ?? {};
+  void _maximumRetailUsdMicros;
+  void _usageMarkupBps;
   const response = await providerFetch(
     "sume",
     `${providerConfig().sumeBaseUrl}${path}`,
@@ -33,7 +46,16 @@ type SumeData = {
   request_id?: string;
   sume_status?: string;
   status?: string;
-  job?: { id?: string; status?: string };
+  job?: {
+    id?: string;
+    status?: string;
+    usage_summary?: {
+      final?: boolean;
+      status?: string;
+      captured_usd_cents?: number;
+      captured_usd_micros?: number;
+    };
+  };
   result?: { artifacts?: Artifact[] };
 };
 export function sumeLifecycle(
@@ -41,10 +63,66 @@ export function sumeLifecycle(
 ): Pick<GenerationAdapter, "submit" | "poll" | "collect" | "isTransientError"> {
   return {
     async submit(body) {
+      const {
+        _idempotencyKey,
+        _maximumRetailUsdMicros,
+        _usageMarkupBps,
+        ...input
+      } = body;
+      void _idempotencyKey;
+      const model =
+        endpoint === "/v1/sume/remix-lite/object-swap/v1.0"
+          ? "sume-remix-lite-object-swap"
+          : "seedance-2.5";
+      let supplierCostUpperBoundUsdMicros: number;
+      try {
+        if (
+          typeof _maximumRetailUsdMicros !== "number" ||
+          !Number.isSafeInteger(_maximumRetailUsdMicros) ||
+          _maximumRetailUsdMicros <= 0
+        )
+          throw new Error("Missing accepted price");
+        const response = await providerFetch(
+          "sume",
+          `${providerConfig().sumeBaseUrl}/v1/open/estimate`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${requireProviderKey("sume")}`,
+            },
+            body: JSON.stringify({ model, input }),
+          },
+        );
+        const quote = (await response.json()).data;
+        if (
+          !quote ||
+          quote.model !== model ||
+          quote.currency !== "USD" ||
+          !Number.isSafeInteger(quote.usd_micros) ||
+          quote.usd_micros <= 0 ||
+          applyUsageMarkup(
+            supplierVideoMaximum(quote.usd_micros),
+            typeof _usageMarkupBps === "number" ? _usageMarkupBps : undefined,
+          ) > _maximumRetailUsdMicros
+        )
+          throw new Error("Supplier price exceeds accepted maximum");
+        supplierCostUpperBoundUsdMicros = quote.usd_micros;
+      } catch {
+        // This is a FREE estimate, not a generation submission; its failure is a definite no-charge outcome.
+        throw new ProviderError(
+          "sume",
+          422,
+          false,
+          false,
+          0,
+          "Supplier price could not be verified within the accepted price. No generation was submitted; request a new quote.",
+        );
+      }
       const data = await request(endpoint, body);
       const id = data.job?.id ?? data.request_id;
       if (!id) throw new Error("Sume did not return a job ID");
-      return { providerJobId: id };
+      return { providerJobId: id, supplierCostUpperBoundUsdMicros };
     },
     async poll(id) {
       const data = await request(`/v1/jobs/${encodeURIComponent(id)}/status`);
@@ -54,8 +132,31 @@ export function sumeLifecycle(
         data.status ??
         ""
       ).toLowerCase();
-      if (["completed", "succeeded"].includes(status))
-        return { status: "succeeded" };
+      if (["completed", "succeeded"].includes(status)) {
+        const receipt = (await request(`/v1/jobs/${encodeURIComponent(id)}`))
+          .job?.usage_summary;
+        const amount =
+          receipt?.captured_usd_micros ??
+          (typeof receipt?.captured_usd_cents === "number"
+            ? receipt.captured_usd_cents * 10_000
+            : undefined);
+        if (
+          !receipt?.final ||
+          receipt.status !== "captured" ||
+          amount === undefined ||
+          !Number.isSafeInteger(amount) ||
+          amount < 0
+        )
+          throw new ProviderError(
+            "sume",
+            503,
+            true,
+            false,
+            0,
+            "Final supplier billing is pending; reservation retained",
+          );
+        return { status: "succeeded", supplierActualCostUsdMicros: amount };
+      }
       if (["failed", "canceled", "cancelled", "expired"].includes(status))
         return { status: "failed", error: "Sume video generation failed" };
       if (["queued", "pending"].includes(status)) return { status: "queued" };
@@ -80,7 +181,10 @@ export function sumeLifecycle(
     isTransientError: isDefaultTransientError,
   };
 }
-const COST = { unit: "per_second", usdMicrosPerUnit: 150_000 } as const;
+const COST = {
+  unit: "per_second",
+  usdMicrosPerUnit: videoRate("sume-remix-lite", "720p"),
+} as const;
 export const remixLiteAdapter: GenerationAdapter = {
   capabilities: {
     id: "sume-remix-lite",
