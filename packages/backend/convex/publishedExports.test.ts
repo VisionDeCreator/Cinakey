@@ -9,7 +9,7 @@ import {
   serveSharedMedia,
 } from "../../../apps/api/src/services/exportSharing";
 import { readExportMetadata } from "../../../apps/api/src/services/exportMetadata";
-import { SAMPLE_MP4_BASE64 } from "../../../apps/api/src/providers/mockVideo";
+import { SAMPLE_MP4_BASE64 } from "../../../apps/api/test/mockVideo";
 import { makeTest, createTestUser, authIdentity } from "../test/helpers";
 
 async function fixture() {

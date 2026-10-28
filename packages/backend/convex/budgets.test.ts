@@ -1,11 +1,11 @@
 import { ConvexError } from "convex/values";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 
 async function fixture() {
   const t = makeTest();
-  const userId = await createTestUser(t, "budget@test.com");
+  const userId = await createFundedTestUser(t, "budget@test.com");
   const owner = t.withIdentity(authIdentity(userId));
   const projectId = await owner.mutation(api.projects.create, {
     title: "Episode",
@@ -166,7 +166,7 @@ describe("production budgets", () => {
       }),
     ).rejects.toThrow("non-negative integer");
     const jobId = await f.reserve();
-    const otherUserId = await createTestUser(f.t, "forged@test.com");
+    const otherUserId = await createFundedTestUser(f.t, "forged@test.com");
     await expect(
       f.t.mutation(internal.textJobs.settleChatJob, {
         workspaceId: f.workspaceId,
@@ -192,7 +192,10 @@ describe("production budgets", () => {
 
   it("lets assigned Creators see project usage but denies workspace finances and cap edits", async () => {
     const f = await fixture();
-    const creatorId = await createTestUser(f.t, "creator-budget@test.com");
+    const creatorId = await createFundedTestUser(
+      f.t,
+      "creator-budget@test.com",
+    );
     const creator = f.t.withIdentity(authIdentity(creatorId));
     await f.t.run(async (ctx) => {
       await ctx.db.insert("workspaceMembers", {

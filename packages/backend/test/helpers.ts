@@ -95,3 +95,39 @@ export async function createTestUser(
     }),
   );
 }
+
+/** Explicit test funding; never exported as a public API operation. */
+export async function fundTestWorkspace(
+  t: ReturnType<typeof makeTest>,
+  userId: Id<"users">,
+  amount: number,
+  requestId?: string,
+) {
+  const { appendLedgerEntry } = await import("../convex/lib/ledger");
+  return t.run(async (ctx) => {
+    const user = await ctx.db.get(userId);
+    if (!user?.personalWorkspaceId)
+      throw new Error("Create the test workspace before funding");
+    return appendLedgerEntry(ctx, {
+      workspaceId: user.personalWorkspaceId,
+      userId,
+      delta: amount,
+      reason: "grant",
+      requestId,
+    });
+  });
+}
+
+/** User fixture with an explicitly funded workspace for paid workflow tests. */
+export async function createFundedTestUser(
+  t: ReturnType<typeof makeTest>,
+  email: string,
+  opts?: { isStaff?: boolean },
+) {
+  const userId = await createTestUser(t, email, opts);
+  const { ensurePersonalWorkspaceForUser } =
+    await import("../convex/lib/workspaces");
+  await t.run((ctx) => ensurePersonalWorkspaceForUser(ctx, userId));
+  await fundTestWorkspace(t, userId, 5_000_000);
+  return userId;
+}

@@ -55,8 +55,7 @@ identities and query caches are never shared across users.
 
 Keep auth keys, OAuth secrets and `SITE_URL` configured in Convex. Provider,
 webhook and email secrets now belong to the API/worker environment. Convex needs
-only the non-secret `USE_MOCK_ADAPTERS`, `STAGING_LLM_ENABLED` and
-`ALLOW_DEV_USD` flags for matching estimates and existing development controls.
+only the non-secret `STAGING_LLM_ENABLED` flag for staging controls. Development funding and runtime mock-provider switches have been removed.
 Set `STAGING_LLM_ENABLED=false` if the API has no DeepSeek key. Do not put the
 deployment key, provider keys or webhook secret in any `VITE_*` variable.
 
@@ -162,7 +161,7 @@ For hosted deployments mount the private `.env` at the repository root. Auth
 configuration and deployment selectors remain with Convex.
 
 `ENABLED_PROVIDERS` selects `deepseek,seedance,openai`. Startup validates keys for
-every enabled provider when `USE_MOCK_ADAPTERS=false`. Missing keys no longer
+every enabled provider. Missing keys no longer
 silently select fake responses. Keep mock mode explicitly enabled for development
 until ready for real spending. Never enable paid mode as part of tests.
 

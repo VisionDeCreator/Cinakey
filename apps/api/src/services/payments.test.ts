@@ -1,3 +1,4 @@
+import { setTestProviders } from "../../test/setup";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import type { ActionCtx } from "../runtime/operation";
@@ -47,8 +48,7 @@ const secretBytes = Buffer.from("cinakey-test-webhook-key-not-live");
 const secret = `whsec_${secretBytes.toString("base64")}`;
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
-  vi.stubEnv("ALLOW_DEV_USD", "false");
+  setTestProviders(false);
   for (const [name, value] of Object.entries({
     POLAR_PAYMENTS_ENABLED: "true",
     POLAR_ENVIRONMENT: "sandbox",

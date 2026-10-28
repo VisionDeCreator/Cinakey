@@ -1,3 +1,4 @@
+import { setTestProviders } from "../../test/setup";
 import { describe, expect, it, vi } from "vitest";
 import { withProviderSignal } from "../runtime/provider-scope";
 import {
@@ -11,19 +12,11 @@ import {
   setProviderTransportForTests,
 } from "./transport";
 function live() {
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("PROVIDER_READ_RETRIES", "1");
 }
 describe("controlled provider transport", () => {
-  it("cannot send a paid call in mock mode or through a real test transport", async () => {
-    const send = vi.fn();
-    setProviderTransportForTests(send);
-    await expect(
-      providerFetch("openai", "https://api.openai.com/v1/images/generations", {
-        method: "POST",
-      }),
-    ).rejects.toThrow("mock mode");
-    expect(send).not.toHaveBeenCalled();
+  it("cannot send a paid call through a real test transport", async () => {
     live();
     setProviderTransportForTests();
     await expect(

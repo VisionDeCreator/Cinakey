@@ -1,3 +1,5 @@
+import { fundTestWorkspace } from "../test/helpers";
+import { setTestProviders } from "../../../apps/api/test/setup";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
@@ -98,14 +100,14 @@ function stubDeepSeek(replies: unknown[]) {
 
 async function setup() {
   vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   const t = makeTest();
   const userId = await createTestUser(t, "stage@test.com", { isStaff: true });
   const asUser = t.withIdentity(authIdentity(userId));
   const projectId = await asUser.mutation(api.projects.create, {
     title: "Staging",
   });
-  await asUser.mutation(api.billing.grantDev, { amount: 50_000_000 });
+  await fundTestWorkspace(t, userId, 50_000_000);
   return {
     run: () =>
       t.action(internal.staging.generatePlan, {

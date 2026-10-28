@@ -1,7 +1,7 @@
 # Video provider contract
 
 Cinakey uses Sume for video generation. Configure `SUME_API_KEY` in the ignored
-root `.env`, set `ENABLED_PROVIDERS=deepseek,sume` and `USE_MOCK_ADAPTERS=false`.
+root `.env`, set `ENABLED_PROVIDERS=deepseek,sume`.
 While the USD rate card is provisional, real provider access also requires the explicit
 `ALLOW_DEVELOPMENT_PRICES=true` development opt-in.
 API and worker processes load that same file. Keys never enter browser bundles or

@@ -113,7 +113,6 @@ export function VideoTransformPanel({
   const [review, setReview] = useState<{
     key: string;
     analysis: TransformAnalysis;
-    mock: boolean;
     usdMicros: number;
     settlementPending?: boolean;
     sampledFrameTimes: number[];
@@ -185,7 +184,7 @@ export function VideoTransformPanel({
         preserveCamera,
         preserveMotion,
         analysis: currentReview.analysis,
-        analysisModel: currentReview.mock ? "mock" : "deepseek-flash",
+        analysisModel: "deepseek-flash",
         sampledFrameTimes: currentReview.sampledFrameTimes,
       }
     : null;
@@ -246,7 +245,7 @@ export function VideoTransformPanel({
         preserveCamera,
         preserveMotion,
         analysis: analyzed.analysis,
-        analysisModel: analyzed.mock ? "mock" : "deepseek-flash",
+        analysisModel: "deepseek-flash",
         sampledFrameTimes: analyzed.sampledFrameTimes,
       };
       setPhase("submitting");
@@ -382,7 +381,7 @@ export function VideoTransformPanel({
         <details className="transform-review">
           <summary>Video analysis and generation details</summary>
           <h3>
-            {currentReview.mock ? "Mock analysis" : "Source analysis"} ·{" "}
+            Source analysis ·{" "}
             {currentReview.settlementPending
               ? "Usage pending review; funds remain reserved"
               : formatUsd(currentReview.usdMicros)}

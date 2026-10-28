@@ -3,7 +3,7 @@ import { useConvexAuth, useQuery } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
-/** Client gate for /staff and /dev — server still enforces requireStaff. */
+/** Client gate for /staff — server still enforces requireStaff. */
 export function StaffRoute({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const me = useQuery(api.users.viewer);

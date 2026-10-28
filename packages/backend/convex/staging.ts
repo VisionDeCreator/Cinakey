@@ -12,10 +12,7 @@ export function stagingUsdMicros(tokens: number): number {
 }
 
 export function stagingUsesLlm(): boolean {
-  return (
-    convexEnv("USE_MOCK_ADAPTERS") !== "true" &&
-    convexEnv("STAGING_LLM_ENABLED") !== "false"
-  );
+  return convexEnv("STAGING_LLM_ENABLED") !== "false";
 }
 
 /** Cost shown before Update / Regenerate. */

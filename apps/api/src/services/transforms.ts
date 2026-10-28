@@ -19,7 +19,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
 import { getFileUrl } from "../../../../packages/backend/convex/storage";
-import { requireProviderKey, useMockProviders } from "../config/env";
+import { requireProviderKey } from "../config/env";
 import { api, internal } from "../operations";
 import { completeChat, type ChatContentPart } from "../providers/deepseek";
 import { safeErrorMessage } from "../providers/errors";
@@ -137,7 +137,6 @@ export const analyze = action({
   ): Promise<{
     analysis: TransformAnalysis;
     usdMicros: number;
-    mock: boolean;
     settlementPending?: boolean;
   }> => {
     if (!args.instruction.trim() || args.instruction.length > 4000)
@@ -169,19 +168,6 @@ export const analyze = action({
         throw new Error("Invalid sampled video frame");
       previous = frame.timeSec;
     }
-    if (useMockProviders())
-      return {
-        analysis: {
-          subjects:
-            "Mock analysis: inspect the source subjects before rendering.",
-          action: "Motion follows the source video.",
-          camera: "Camera follows the source video.",
-          setting: "Setting follows the source video unless changed.",
-          uncertainties: ["Mock mode: no visual analysis was performed."],
-        },
-        usdMicros: 0,
-        mock: true,
-      };
     requireProviderKey("deepseek");
     const content: ChatContentPart[] = [
       {
@@ -282,7 +268,6 @@ export const analyze = action({
     return {
       analysis,
       usdMicros,
-      mock: false,
       settlementPending: usageMissing,
     };
   },

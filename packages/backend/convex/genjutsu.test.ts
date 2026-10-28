@@ -1,10 +1,11 @@
+import { installAnalysisFixture } from "../../../apps/api/test/analysisFixture";
 import { expect, it } from "vitest";
 import { api } from "../../../apps/api/src/operations";
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 
 it("keeps Genjutsu sessions and their media separate from production projects, series, and the global asset library", async () => {
   const t = makeTest();
-  const userId = await createTestUser(t, "genjutsu@test.com");
+  const userId = await createFundedTestUser(t, "genjutsu@test.com");
   const user = t.withIdentity(authIdentity(userId));
   const sessionId = await user.mutation(api.genjutsu.create, {
     title: "Watercolor experiment",
@@ -56,7 +57,7 @@ it("keeps Genjutsu sessions and their media separate from production projects, s
 });
 it("rejects cross-session sources and unauthorized session access", async () => {
   const t = makeTest();
-  const userId = await createTestUser(t, "owner@test.com");
+  const userId = await createFundedTestUser(t, "owner@test.com");
   const user = t.withIdentity(authIdentity(userId));
   const first = await user.mutation(api.genjutsu.create, { title: "First" });
   const second = await user.mutation(api.genjutsu.create, { title: "Second" });
@@ -78,7 +79,7 @@ it("rejects cross-session sources and unauthorized session access", async () => 
     }),
   ).rejects.toThrow("from this transformation session");
   const other = t.withIdentity(
-    authIdentity(await createTestUser(t, "other@test.com")),
+    authIdentity(await createFundedTestUser(t, "other@test.com")),
   );
   expect(await other.query(api.genjutsu.list, {})).toEqual([]);
   await expect(
@@ -93,8 +94,9 @@ it("rejects cross-session sources and unauthorized session access", async () => 
 });
 
 it("removes inputs without deleting generation history and requires removing the source before replacing it", async () => {
+  installAnalysisFixture();
   const t = makeTest();
-  const userId = await createTestUser(t, "removal@test.com");
+  const userId = await createFundedTestUser(t, "removal@test.com");
   const user = t.withIdentity(authIdentity(userId));
   const sessionId = await user.mutation(api.genjutsu.create, {
     title: "Remove test",
@@ -160,7 +162,7 @@ it("removes inputs without deleting generation history and requires removing the
       targets: [],
       instruction: args.instruction,
       analysis,
-      analysisModel: "mock",
+      analysisModel: "deepseek-flash",
       preserveCamera: true,
       preserveMotion: true,
       sampledFrameTimes: [0.1, 2, 4],
@@ -195,10 +197,10 @@ it("removes inputs without deleting generation history and requires removing the
 it("rejects input removal from another user's session or another session's media", async () => {
   const t = makeTest();
   const owner = t.withIdentity(
-    authIdentity(await createTestUser(t, "owner-removal@test.com")),
+    authIdentity(await createFundedTestUser(t, "owner-removal@test.com")),
   );
   const other = t.withIdentity(
-    authIdentity(await createTestUser(t, "other-removal@test.com")),
+    authIdentity(await createFundedTestUser(t, "other-removal@test.com")),
   );
   const first = await owner.mutation(api.genjutsu.create, { title: "First" });
   const second = await owner.mutation(api.genjutsu.create, { title: "Second" });

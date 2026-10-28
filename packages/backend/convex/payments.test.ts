@@ -1,10 +1,10 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { setTestProviders } from "../../../apps/api/test/setup";
+import { beforeEach, expect, it } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 
 beforeEach(() => {
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
-  vi.stubEnv("ALLOW_DEV_USD", "false");
+  setTestProviders(false);
 });
 async function fixture() {
   const t = makeTest();

@@ -10,7 +10,7 @@ import {
   estimateImageCost,
   estimateTokenCost,
   estimateVideoCost,
-} from "./cost";
+} from "../src/providers/cost";
 import { SAMPLE_MP4_BASE64 } from "./mockVideo";
 
 /** 1x1 PNG (transparent) as base64 for mock image outputs. */
@@ -34,7 +34,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Mock adapter used when USE_MOCK_ADAPTERS=true.
+ * Mock adapter used when the test provider fixture.
  * Same capability shapes as real adapters, but returns sample outputs after a delay.
  */
 export function createMockAdapter(base: GenerationAdapter): GenerationAdapter {

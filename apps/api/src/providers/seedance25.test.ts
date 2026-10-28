@@ -1,3 +1,4 @@
+import { setTestProviders } from "../../test/setup";
 import { describe, expect, it, vi } from "vitest";
 import { seedance25Adapter as adapter } from "./seedance25";
 import { remixLiteAdapter } from "./sume";
@@ -6,7 +7,7 @@ function fixture(data: unknown) {
   return new Response(JSON.stringify({ data }));
 }
 function live() {
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("ENABLED_PROVIDERS", "deepseek,sume");
   vi.stubEnv("SUME_API_KEY", "test-key");
 }

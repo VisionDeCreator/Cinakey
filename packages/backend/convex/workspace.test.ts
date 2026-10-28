@@ -1,11 +1,12 @@
+import { setTestProviders } from "../../../apps/api/test/setup";
 import { afterEach, expect, it, vi } from "vitest";
 import { api } from "../../../apps/api/src/operations";
 
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 afterEach(() => vi.unstubAllEnvs());
 async function fixture() {
   const t = makeTest();
-  const userId = await createTestUser(t, "workspace@test.com");
+  const userId = await createFundedTestUser(t, "workspace@test.com");
   const user = t.withIdentity(authIdentity(userId));
   const projectId = await user.mutation(api.projects.create, {
     title: "Existing film",
@@ -68,7 +69,7 @@ it("creates and saves project staging without a script hierarchy and protects it
 it("does not expose another user's documents", async () => {
   const { t, user, projectId } = await fixture();
   await user.action(api.workspace.ensure, { projectId });
-  const stranger = await createTestUser(t, "stranger@test.com");
+  const stranger = await createFundedTestUser(t, "stranger@test.com");
   await expect(
     t
       .withIdentity(authIdentity(stranger))
@@ -191,7 +192,7 @@ it("recompiles a saved staging plan from plain text with no production records o
   ).toHaveLength(3);
 });
 it("queues generation from text and reference assets with a frozen input snapshot and no production identifiers", async () => {
-  vi.stubEnv("USE_MOCK_ADAPTERS", "true");
+  setTestProviders(true);
   const { t, user, projectId } = await fixture();
   await user.action(api.workspace.ensure, { projectId });
   const script = await user.action(api.workspace.script, { projectId });
@@ -219,7 +220,7 @@ it("queues generation from text and reference assets with a frozen input snapsho
 });
 
 it("rejects undersized image references before charging usdMicros or queuing a job", async () => {
-  vi.stubEnv("USE_MOCK_ADAPTERS", "true");
+  setTestProviders(true);
   const { t, user, userId, projectId } = await fixture();
   await user.action(api.workspace.ensure, { projectId });
   await t.run(async (ctx) =>

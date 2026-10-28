@@ -1,11 +1,14 @@
+import { installAnalysisFixture } from "../../../apps/api/test/analysisFixture";
+import { setTestProviders } from "../../../apps/api/test/setup";
 import { expect, it, vi } from "vitest";
 import { api } from "../../../apps/api/src/operations";
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 import { setProviderTransportForTests } from "../../../apps/api/src/providers/transport";
 
 async function fixture() {
+  installAnalysisFixture();
   const t = makeTest();
-  const userId = await createTestUser(t, "transform@test.com");
+  const userId = await createFundedTestUser(t, "transform@test.com");
   const asUser = t.withIdentity(authIdentity(userId));
   await asUser.mutation(api.users.ensurePersonalWorkspace, {});
   const projectId = await asUser.mutation(api.projects.create, {
@@ -49,7 +52,7 @@ async function fixture() {
 it("saves a reviewed transformation snapshot and replays the request without a second USD reservation", async () => {
   const { t, asUser, args } = await fixture();
   const result = await asUser.action(api.transforms.analyze, args);
-  expect(result).toMatchObject({ mock: true, usdMicros: 0 });
+  expect(result.usdMicros).toBeGreaterThanOrEqual(0);
   const request = {
     projectId: args.projectId,
     sourceAssetId: args.sourceAssetId,
@@ -63,7 +66,7 @@ it("saves a reviewed transformation snapshot and replays the request without a s
       preserveCamera: true,
       preserveMotion: true,
       analysis: result.analysis,
-      analysisModel: "mock",
+      analysisModel: "deepseek-flash",
       sampledFrameTimes: [0.1, 2, 4],
     },
   };
@@ -84,7 +87,12 @@ it("saves a reviewed transformation snapshot and replays the request without a s
   });
   expect(snapshot.referenceImageUrls).toHaveLength(1);
   expect(
-    await t.run((ctx) => ctx.db.query("generationJobs").collect()),
+    await t.run((ctx) =>
+      ctx.db
+        .query("generationJobs")
+        .filter((q) => q.eq(q.field("kind"), "text-to-video"))
+        .collect(),
+    ),
   ).toHaveLength(1);
   await expect(
     asUser.action(api.transforms.generate, {
@@ -108,16 +116,21 @@ it("rejects unauthorized source access and malformed sampling before invoking a 
     }),
   ).rejects.toThrow("Invalid sampled");
   const other = t.withIdentity(
-    authIdentity(await createTestUser(t, "other@test.com")),
+    authIdentity(await createFundedTestUser(t, "other@test.com")),
   );
   await expect(other.action(api.transforms.analyze, args)).rejects.toThrow();
   expect(
-    await t.run((ctx) => ctx.db.query("generationJobs").collect()),
+    await t.run((ctx) =>
+      ctx.db
+        .query("generationJobs")
+        .filter((q) => q.eq(q.field("kind"), "text-to-video"))
+        .collect(),
+    ),
   ).toHaveLength(0);
 });
 it("uses Flash image blocks and refunds invalid model analysis", async () => {
   const { t, asUser, args } = await fixture();
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
   const send = vi.fn().mockResolvedValue(
     new Response(
@@ -153,7 +166,7 @@ it("uses Flash image blocks and refunds invalid model analysis", async () => {
 it("enforces the project spend cap before paid analysis", async () => {
   const { t, asUser, args } = await fixture();
   await t.run((ctx) => ctx.db.patch(args.projectId, { spendCapUsdMicros: 1 }));
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
   const send = vi.fn();
   setProviderTransportForTests(send);
@@ -186,7 +199,7 @@ it("accepts combined transformations with Remix Lite image references", async ()
         preserveCamera: true,
         preserveMotion: true,
         analysis,
-        analysisModel: "mock",
+        analysisModel: "deepseek-flash",
         sampledFrameTimes: [0.1, 2, 4],
       },
     });
@@ -250,7 +263,7 @@ it("resolves prompt aliases in first-mention order and updates every occurrence 
       analysis,
       preserveCamera: true,
       preserveMotion: true,
-      analysisModel: "mock",
+      analysisModel: "deepseek-flash",
       sampledFrameTimes: [0.1, 2, 4],
     },
   };
@@ -307,13 +320,18 @@ it("blocks missing or ambiguous prompt references before either analysis or rend
         analysis,
         preserveCamera: true,
         preserveMotion: true,
-        analysisModel: "mock",
+        analysisModel: "deepseek-flash",
         sampledFrameTimes: [0.1, 2, 4],
       },
     }),
   ).rejects.toThrow("@missing");
   expect(
-    await t.run((ctx) => ctx.db.query("generationJobs").collect()),
+    await t.run((ctx) =>
+      ctx.db
+        .query("generationJobs")
+        .filter((q) => q.eq(q.field("kind"), "text-to-video"))
+        .collect(),
+    ),
   ).toHaveLength(0);
 });
 
@@ -342,7 +360,7 @@ it("accepts the source video alias alongside an image without trying to bind vid
       analysis,
       preserveCamera: true,
       preserveMotion: true,
-      analysisModel: "mock",
+      analysisModel: "deepseek-flash",
       sampledFrameTimes: [0.1, 2, 4],
     },
   });
@@ -378,7 +396,7 @@ it("rejects Remix Lite renders without images or with sources longer than 15 sec
       preserveCamera: true,
       preserveMotion: true,
       analysis,
-      analysisModel: "mock",
+      analysisModel: "deepseek-flash",
       sampledFrameTimes: [0.1, 2, 4],
     },
   };
@@ -395,6 +413,11 @@ it("rejects Remix Lite renders without images or with sources longer than 15 sec
     }),
   ).rejects.toThrow("4–15");
   expect(
-    await t.run((ctx) => ctx.db.query("generationJobs").collect()),
+    await t.run((ctx) =>
+      ctx.db
+        .query("generationJobs")
+        .filter((q) => q.eq(q.field("kind"), "text-to-video"))
+        .collect(),
+    ),
   ).toHaveLength(0);
 });

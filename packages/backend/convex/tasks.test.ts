@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 import { api, internal } from "./_generated/api";
 
 afterEach(() => vi.useRealTimers());
@@ -46,7 +46,7 @@ describe("API worker persistence", () => {
   });
   it("atomically queues a reservation and settles it only once", async () => {
     const t = makeTest();
-    const userId = await createTestUser(t, "worker@test.com");
+    const userId = await createFundedTestUser(t, "worker@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     const workspaceId = await asUser.mutation(
       api.users.ensurePersonalWorkspace,
@@ -100,8 +100,8 @@ describe("API worker persistence", () => {
   });
   it("keeps private projects isolated through authenticated database operations", async () => {
     const t = makeTest();
-    const owner = await createTestUser(t, "owner@test.com"),
-      stranger = await createTestUser(t, "stranger@test.com");
+    const owner = await createFundedTestUser(t, "owner@test.com"),
+      stranger = await createFundedTestUser(t, "stranger@test.com");
     const projectId = await t
       .withIdentity(authIdentity(owner))
       .mutation(api.projects.create, { title: "Private" });
@@ -119,7 +119,7 @@ describe("API worker persistence", () => {
   it("keeps request-bound text jobs out of the provider queue and recovers interrupted reservations", async () => {
     vi.useFakeTimers();
     const t = makeTest();
-    const userId = await createTestUser(t, "text@test.com");
+    const userId = await createFundedTestUser(t, "text@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     const workspaceId = await asUser.mutation(
       api.users.ensurePersonalWorkspace,
@@ -163,7 +163,7 @@ describe("API worker persistence", () => {
 describe("paid submission recovery", () => {
   it("fences duplicate dispatches and holds uncertain outcomes without refund or replay", async () => {
     const t = makeTest();
-    const userId = await createTestUser(t, "fence@test.com");
+    const userId = await createFundedTestUser(t, "fence@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     const workspaceId = await asUser.mutation(
       api.users.ensurePersonalWorkspace,
@@ -229,7 +229,7 @@ describe("paid submission recovery", () => {
   });
   it("resumes accepted synchronous outputs from a durable checkpoint after worker restart", async () => {
     const t = makeTest();
-    const userId = await createTestUser(t, "checkpoint@test.com");
+    const userId = await createFundedTestUser(t, "checkpoint@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     const workspaceId = await asUser.mutation(
       api.users.ensurePersonalWorkspace,

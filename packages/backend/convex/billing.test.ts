@@ -1,23 +1,21 @@
+import { fundTestWorkspace } from "../test/helpers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
-import { STARTER_USD_MICROS } from "./lib/limits";
+const STARTER_USD_MICROS = 5_000_000;
 
 describe("usdMicros ledger", () => {
-  beforeEach(() => {
-    process.env.ALLOW_DEV_USD = "true";
-  });
-
   it("grants usdMicros and reports balance", async () => {
     const t = makeTest();
     const userId = await createTestUser(t, "usdMicros@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
 
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
     const before = await asUser.query(api.billing.getBalance, {});
     expect(before.balance).toBe(STARTER_USD_MICROS);
 
-    const grant = await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    const grant = await fundTestWorkspace(t, userId, 100);
     expect(grant.balanceAfter).toBe(STARTER_USD_MICROS + 100);
 
     const after = await asUser.query(api.billing.getBalance, {});
@@ -29,6 +27,7 @@ describe("usdMicros ledger", () => {
     const userId = await createTestUser(t, "poor@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
     const balance = await asUser.query(api.billing.getBalance, {});
     const workspaceId = balance.workspaceId!;
     const projectId = await asUser.mutation(api.projects.create, {
@@ -68,7 +67,8 @@ describe("usdMicros ledger", () => {
     const userId = await createTestUser(t, "settle@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
+    await fundTestWorkspace(t, userId, 100);
     const { workspaceId } = await asUser.query(api.billing.getBalance, {});
     const projectId = await asUser.mutation(api.projects.create, {
       title: "P",
@@ -121,7 +121,8 @@ describe("usdMicros ledger", () => {
     const userId = await createTestUser(t, "refund@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.billing.grantDev, { amount: 50 });
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
+    await fundTestWorkspace(t, userId, 50);
     const { workspaceId } = await asUser.query(api.billing.getBalance, {});
     const projectId = await asUser.mutation(api.projects.create, {
       title: "P",
@@ -165,14 +166,11 @@ describe("usdMicros ledger", () => {
 
 describe("generation jobs with mock adapter", () => {
   beforeEach(() => {
-    process.env.USE_MOCK_ADAPTERS = "true";
-    process.env.ALLOW_DEV_USD = "true";
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    delete process.env.USE_MOCK_ADAPTERS;
   });
 
   async function drain(t: ReturnType<typeof makeTest>) {
@@ -186,7 +184,8 @@ describe("generation jobs with mock adapter", () => {
     const userId = await createTestUser(t, "job-ok@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
+    await fundTestWorkspace(t, userId, 100);
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });
@@ -226,7 +225,8 @@ describe("generation jobs with mock adapter", () => {
     const userId = await createTestUser(t, "job-fail@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
+    await fundTestWorkspace(t, userId, 100);
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });
@@ -258,7 +258,8 @@ describe("generation jobs with mock adapter", () => {
     const userId = await createTestUser(t, "job-retry@test.com");
     const asUser = t.withIdentity(authIdentity(userId));
     await asUser.mutation(api.users.ensurePersonalWorkspace, {});
-    await asUser.mutation(api.billing.grantDev, { amount: 100 });
+    await fundTestWorkspace(t, userId, STARTER_USD_MICROS);
+    await fundTestWorkspace(t, userId, 100);
     const projectId = await asUser.mutation(api.projects.create, {
       title: "Gen",
     });

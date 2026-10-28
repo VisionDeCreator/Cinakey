@@ -101,6 +101,7 @@ export class ApiClient {
       .then((data) => {
         const changed =
           entry.error !== undefined ||
+          entry.transientError === true ||
           JSON.stringify(entry.data) !== JSON.stringify(data);
         if (changed) entry.data = data;
         entry.error = undefined;

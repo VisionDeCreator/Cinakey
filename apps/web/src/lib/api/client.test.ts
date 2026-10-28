@@ -67,7 +67,8 @@ describe("API client", () => {
 it("keeps the current query data during a network interruption and recovers through polling", async () => {
   const client = new ApiClient("http://api.test", "token");
   const entry = client.entry("workspace:list", { projectId: "p" });
-  entry.listeners.add(() => {});
+  const listener = vi.fn();
+  entry.listeners.add(listener);
   vi.stubGlobal(
     "fetch",
     vi
@@ -85,8 +86,10 @@ it("keeps the current query data during a network interruption and recovers thro
   expect(entry.data).toEqual({ script: "saved" });
   expect(entry.error).toBeUndefined();
   expect(entry.transientError).toBe(true);
+  listener.mockClear();
   await client.poll();
   expect(entry.transientError).toBe(false);
+  expect(listener).toHaveBeenCalled();
   client.close();
 });
 it("polls workspace generation jobs without waiting for a notification", async () => {

@@ -282,8 +282,7 @@ into the USD schema.
 
 The generation, ledger and account tables were confirmed empty. The deployed quote
 estimate returned 1,700,000 micro-USD for the five-second 720p development fixture.
-`ALLOW_DEV_USD=true` now initializes a $5 development balance when the user signs
-in again and creates their fresh workspace; no synthetic user account was created.
+Development auto-funding has been removed. Fund workspaces explicitly through the Admin panel.
 The API health endpoint and frontend both responded successfully. No paid provider
 requests were made. All backed-up generation jobs were succeeded/refunded.
 

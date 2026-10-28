@@ -52,3 +52,15 @@ describe("migration boundaries", () => {
     }
   });
 });
+
+it("keeps developer routes and funding hooks out of the product web app", () => {
+  const root = fileURLToPath(new URL("../../web/src", import.meta.url));
+  for (const file of files(root).filter(
+    (file) => /\.tsx?$/.test(file) && !file.includes(".test."),
+  )) {
+    const source = readFileSync(file, "utf8");
+    expect(source, file).not.toMatch(
+      /(?:\/dev(?:["/])|billing\.(?:grantDev|grantToEmail|lookupByEmail)|ALLOW_DEV_USD|USE_MOCK_ADAPTERS)/,
+    );
+  }
+});

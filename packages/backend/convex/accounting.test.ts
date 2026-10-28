@@ -1,7 +1,9 @@
+import { fundTestWorkspace } from "../test/helpers";
+import { setTestProviders } from "../../../apps/api/test/setup";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
-async function fixture() {
+async function fixture(funded = true) {
   const t = makeTest();
   const userId = await createTestUser(t, "usd@test.com");
   const owner = t.withIdentity(authIdentity(userId));
@@ -10,6 +12,7 @@ async function fixture() {
   });
   const workspaceId = (await owner.query(api.projects.get, { projectId }))!
     .workspaceId;
+  if (funded) await fundTestWorkspace(t, userId, 5_000_000);
   const quote = () =>
     owner.mutation(api.generation.quote, {
       projectId,
@@ -129,15 +132,14 @@ describe("USD authorizations and accounting", () => {
   });
   it("deduplicates identified development funding and rejects conflicting replays", async () => {
     const f = await fixture();
-    vi.stubEnv("ALLOW_DEV_USD", "true");
     const request = { amount: 1_000_000, requestId: "manual-test-funding" };
-    await f.owner.mutation(api.billing.grantDev, request);
-    await f.owner.mutation(api.billing.grantDev, request);
+    await fundTestWorkspace(f.t, f.userId, request.amount, request.requestId);
+    await fundTestWorkspace(f.t, f.userId, request.amount, request.requestId);
     expect((await f.owner.query(api.billing.getBalance, {})).balance).toBe(
       6_000_000,
     );
     await expect(
-      f.owner.mutation(api.billing.grantDev, { ...request, amount: 2_000_000 }),
+      fundTestWorkspace(f.t, f.userId, 2_000_000, request.requestId),
     ).rejects.toThrow("Funding request mismatch");
   });
   it("rebuilds corrupted aggregates from the ledger and rejects a stale rebuild sequence", async () => {
@@ -177,16 +179,15 @@ describe("USD authorizations and accounting", () => {
         .consistent,
     ).toBe(true);
   });
-  it("does not grant development fixture dollars outside explicit development mode", async () => {
+  it("never grants automatic dollars on workspace creation or repeat visits", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-28T02:00:00Z"));
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
-    vi.stubEnv("ALLOW_DEV_USD", "false");
-    const f = await fixture();
+    setTestProviders(false);
+    const f = await fixture(false);
+    await f.owner.mutation(api.users.ensurePersonalWorkspace, {});
+    await f.owner.mutation(api.users.ensurePersonalWorkspace, {});
     expect((await f.owner.query(api.billing.getBalance, {})).balance).toBe(0);
-    await expect(
-      f.owner.mutation(api.billing.grantDev, { amount: 5_000_000 }),
-    ).rejects.toThrow("require staff");
+    expect(await f.owner.query(api.billing.listLedger, {})).toEqual([]);
   });
   it("keeps missing text usage reserved for review and settles it once when reconciled", async () => {
     const f = await fixture();
@@ -342,7 +343,7 @@ it("autofill settles measured token categories instead of charging its fixed max
   });
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-28T02:00:00Z"));
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
   vi.stubGlobal(
     "fetch",

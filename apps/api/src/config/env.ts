@@ -6,9 +6,7 @@ export const providerKeyNames = {
   sume: "SUME_API_KEY",
   openai: "OPENAI_API_KEY",
 } as const;
-const flags = z.enum(["true", "false"]);
 const schema = z.object({
-  USE_MOCK_ADAPTERS: flags.default("false"),
   ENABLED_PROVIDERS: z.string().default("deepseek,sume"),
   PROVIDER_TIMEOUT_MS: z.coerce
     .number()
@@ -38,7 +36,6 @@ export function providerConfig() {
   )
     throw new Error("Invalid ENABLED_PROVIDERS");
   return {
-    mock: parsed.data.USE_MOCK_ADAPTERS === "true",
     enabled: enabled as ProviderName[],
     timeoutMs: parsed.data.PROVIDER_TIMEOUT_MS,
     readRetries: parsed.data.PROVIDER_READ_RETRIES,
@@ -64,16 +61,16 @@ export function requireProviderKey(provider: ProviderName): string {
     (process.env.POLAR_ENVIRONMENT ?? "sandbox") === "sandbox"
   )
     throw new Error(
-      "Polar sandbox balances cannot fund live provider requests. Use mock adapters while testing payments.",
+      "Polar sandbox balances cannot fund live provider requests. Sandbox funds cannot be used for live generation.",
     );
   const key = configuredProviderKey(provider);
   return key;
 }
+/** Test seam: only the test runner replaces this implementation. Runtime always uses live providers. */
 export function useMockProviders(): boolean {
-  return providerConfig().mock;
+  return false;
 }
 export function validateProviderConfiguration() {
   const config = providerConfig();
-  if (!config.mock)
-    for (const provider of config.enabled) configuredProviderKey(provider);
+  for (const provider of config.enabled) configuredProviderKey(provider);
 }

@@ -19,17 +19,10 @@ cap enforcement use indexed totals rather than full ledger scans. The invariant 
 
 `funded = available + reserved + spent`
 
-Funding tooling is development/staff-only. Identified funding requests are
-idempotent and conflicting retries are rejected; the development UI preserves the
-request identity until acknowledgement. It grants the selected workspace in the
-generation test page, and personal workspaces for staff email grants. There is no
-payment webhook funding, subscription allowance renewal or purchased/promotional
-funds expiry policy implemented yet.
-
-The $5 one-time development fixture is enabled only by `USE_MOCK_ADAPTERS=true`
-or `ALLOW_DEV_USD=true` in Convex. It is not the $5 allowance associated with a
-paid subscription, which awaits payment integration. Without these flags, creating
-a workspace does not fund it.
+Manual funding is Admin-only through audited staff operations. Identified funding
+requests are idempotent and conflicting retries are rejected. New workspaces
+receive no development balance. Automated tests explicitly seed their own wallets;
+production generation has no environment-controlled mock provider mode.
 
 ## Prices and quotes
 

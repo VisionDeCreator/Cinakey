@@ -1,3 +1,4 @@
+import { setTestProviders } from "../../test/setup";
 import { describe, expect, it, vi } from "vitest";
 import {
   providerConfig,
@@ -24,7 +25,7 @@ describe("server configuration and credential boundaries", () => {
       const path = join(directory, ".env");
       writeFileSync(
         path,
-        "OPENAI_API_KEY=root-test-key\nSUME_API_KEY=root-sume-key\nUSE_MOCK_ADAPTERS=true\n",
+        "OPENAI_API_KEY=root-test-key\nSUME_API_KEY=root-sume-key\n",
       );
       vi.stubEnv("OPENAI_API_KEY", "inherited-test-key");
       vi.stubEnv("DEEPSEEK_API_KEY", "inherited-test-key");
@@ -37,9 +38,9 @@ describe("server configuration and credential boundaries", () => {
     }
   });
 
-  it("requires live keys and accepts explicit mock mode without keys", () => {
+  it("requires live keys outside isolated test fixtures", () => {
     expect(() => validateProviderConfiguration()).not.toThrow();
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+    setTestProviders(false);
     vi.stubEnv("ENABLED_PROVIDERS", "deepseek");
     expect(() => validateProviderConfiguration()).toThrow(
       "DEEPSEEK_API_KEY is required",
@@ -49,7 +50,7 @@ describe("server configuration and credential boundaries", () => {
     expect(() => requireProviderKey("openai")).toThrow("disabled");
   });
   it("uses the verified rate card without a development-pricing bypass", () => {
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+    setTestProviders(false);
     vi.stubEnv("ENABLED_PROVIDERS", "deepseek");
     vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.stubEnv("ALLOW_DEVELOPMENT_PRICES", "false");
@@ -57,7 +58,7 @@ describe("server configuration and credential boundaries", () => {
     expect(requireProviderKey("deepseek")).toBe("test-key");
   });
   it("does not require the retired image provider for legacy environment settings", () => {
-    vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+    setTestProviders(false);
     vi.stubEnv("ENABLED_PROVIDERS", "deepseek,seedance,openai");
     vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
     vi.stubEnv("SUME_API_KEY", "test-key");

@@ -134,9 +134,6 @@ function WorkspaceShell() {
           <DropdownMenuItem asChild>
             <Link to="/staff">Admin panel</Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/dev">Dev tools</Link>
-          </DropdownMenuItem>
         </>
       )}
       <DropdownMenuSeparator />

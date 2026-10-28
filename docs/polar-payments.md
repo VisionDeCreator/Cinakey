@@ -58,7 +58,7 @@ bunx convex env set POLAR_ENVIRONMENT sandbox
 bunx convex env set SUBSCRIPTION_PAYWALL_ENABLED false
 ```
 
-Run that command from `packages/backend` against the intended deployment. Match `USE_MOCK_ADAPTERS` and `SUBSCRIPTION_PAYWALL_ENABLED` between Convex and the API/worker. The startup handshake checks the deployed `payments:deploymentEnvironment` function. For sandbox payment qualification use mock generation in both services and Convex. Live provider requests are explicitly rejected when Polar sandbox payments are enabled.
+Run that command from `packages/backend` against the intended deployment. Match `SUBSCRIPTION_PAYWALL_ENABLED` between Convex and API/worker. The startup handshake checks `payments:deploymentEnvironment`. Runtime mock generation has been removed; sandbox deployments can serve Admin and payment APIs, while live provider requests remain blocked because test balances must not fund live generation. Use isolated automated fixtures for sandbox payment tests.
 
 Use separate Convex deployments for sandbox and production. A workspace bound to sandbox billing cannot be reused for production billing; sandbox balances are not converted into real money. Changing environment strings on existing records is not a supported activation procedure.
 

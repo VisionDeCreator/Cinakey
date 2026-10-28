@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { readVideoMetadata } from "./mediaMetadata";
-import { SAMPLE_MP4_BASE64 } from "../providers/mockVideo";
+import { SAMPLE_MP4_BASE64 } from "../../test/mockVideo";
 it("measures local video duration and dimensions without decoding or networking", async () => {
   const blob = new Blob(
     [

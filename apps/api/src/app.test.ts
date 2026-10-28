@@ -343,3 +343,16 @@ it("allows the configured admin origin for the same API boundary as the web app"
     "http://localhost:5174",
   );
 });
+
+it.each(["grantDev", "grantToEmail", "lookupByEmail"])(
+  "removes legacy billing operation %s for all sessions",
+  async (operation) => {
+    const app = createApp();
+    for (const token of [undefined, "member-token", "staff-token"]) {
+      const response = await app.handle(
+        request(`/v1/billing/${operation}`, { args: {} }, token),
+      );
+      expect(response.status).toBe(404);
+    }
+  },
+);

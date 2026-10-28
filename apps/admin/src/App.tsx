@@ -1,4 +1,14 @@
-import { Clapperboard, Users, Folder, ShieldCheck, Activity, CloudUpload, ScrollText, ExternalLink, LogOut } from "lucide-react";
+import {
+  Clapperboard,
+  Users,
+  Folder,
+  ShieldCheck,
+  Activity,
+  CloudUpload,
+  ScrollText,
+  ExternalLink,
+  LogOut,
+} from "lucide-react";
 import { Component, type ReactNode } from "react";
 import {
   Link,
@@ -11,7 +21,7 @@ import {
 } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "@cinakey/backend";
-import { useConvexAuth, useQuery } from "@cinakey/api-client";
+import { useConvexAuth, useQuery, useQueryStatus } from "@cinakey/api-client";
 import { Button } from "@cinakey/ui/button";
 import { SignIn } from "./SignIn";
 import {
@@ -29,7 +39,9 @@ import {
 
 export function AdminGate({ children }: { children: ReactNode }) {
   const auth = useConvexAuth();
-  const me = useQuery(api.users.viewer, auth.isAuthenticated ? {} : "skip");
+  const viewerArgs = auth.isAuthenticated ? {} : "skip";
+  const me = useQuery(api.users.viewer, viewerArgs);
+  const viewerStatus = useQueryStatus(api.users.viewer, viewerArgs);
   const location = useLocation();
   const { signOut } = useAuthActions();
   if (auth.isLoading)
@@ -44,6 +56,19 @@ export function AdminGate({ children }: { children: ReactNode }) {
         to={`/sign-in?next=${encodeURIComponent(location.pathname + location.search)}`}
         replace
       />
+    );
+  if (viewerStatus.isReconnecting)
+    return (
+      <main className="mx-auto max-w-lg space-y-4 p-10">
+        <h1 className="text-xl">Cannot connect to the API</h1>
+        <p role="status">
+          Administrator access cannot be checked while the API is unavailable.
+          Reconnecting automatically…
+        </p>
+        <Button onClick={() => void viewerStatus.retry()}>
+          Retry connection
+        </Button>
+      </main>
     );
   if (me === undefined)
     return (
@@ -76,16 +101,16 @@ function Layout() {
   const { signOut } = useAuthActions();
   const me = useQuery(api.users.viewer, {});
   const location = useLocation();
-  const title = sections.find(([path]) => location.pathname.startsWith(path))?.[1] || "Administration";
+  const title =
+    sections.find(([path]) => location.pathname.startsWith(path))?.[1] ||
+    "Administration";
   const icons = [Users, Folder, ShieldCheck, Activity, CloudUpload, ScrollText];
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <Link
-          to="/users"
-          className="admin-brand"
-        >
-          <Clapperboard size={30} /> <span>Cinakey</span><small>ADMIN</small>
+        <Link to="/users" className="admin-brand">
+          <Clapperboard size={30} /> <span>Cinakey</span>
+          <small>ADMIN</small>
         </Link>
         <p className="rounded border border-amber-900 px-2 py-1 text-xs text-amber-200">
           {import.meta.env.VITE_APP_ENV || "Environment not labeled"}
@@ -94,17 +119,21 @@ function Layout() {
           aria-label="Administration"
           className="flex flex-wrap gap-2 md:flex-col"
         >
-          {sections.map(([path, label], index) => { const Icon = icons[index]!; return (
-            <NavLink
-              key={path}
-              to={path}
-              className={({ isActive }) =>
-                `rounded-xl border-l-2 px-3 py-2 text-sm ${isActive ? "border-[var(--color-studio-accent)] bg-zinc-800 text-zinc-100" : "border-transparent text-zinc-400 hover:bg-zinc-900"}`
-              }
-            >
-              <Icon size={20} />{label}
-            </NavLink>
-          ); })}
+          {sections.map(([path, label], index) => {
+            const Icon = icons[index]!;
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                className={({ isActive }) =>
+                  `rounded-xl border-l-2 px-3 py-2 text-sm ${isActive ? "border-[var(--color-studio-accent)] bg-zinc-800 text-zinc-100" : "border-transparent text-zinc-400 hover:bg-zinc-900"}`
+                }
+              >
+                <Icon size={20} />
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
         <a
           className="admin-web-link"
@@ -112,10 +141,34 @@ function Layout() {
         >
           <ExternalLink size={18} /> Open web app
         </a>
-        <div className="admin-account"><span className="admin-avatar">{(me?.name || me?.email || "A").slice(0,2).toUpperCase()}</span><div><strong>{me?.name || me?.email || "Administrator"}</strong><small>Administrator</small></div><Button aria-label="Sign out" title="Sign out" variant="ghost" onClick={() => void signOut()}><LogOut size={18} /></Button></div>
+        <div className="admin-account">
+          <span className="admin-avatar">
+            {(me?.name || me?.email || "A").slice(0, 2).toUpperCase()}
+          </span>
+          <div>
+            <strong>{me?.name || me?.email || "Administrator"}</strong>
+            <small>Administrator</small>
+          </div>
+          <Button
+            aria-label="Sign out"
+            title="Sign out"
+            variant="ghost"
+            onClick={() => void signOut()}
+          >
+            <LogOut size={18} />
+          </Button>
+        </div>
       </aside>
       <main className="admin-main">
-        <header className="admin-topbar"><span>Administration <span className="mx-3">/</span> <strong>{title}</strong></span><small>{import.meta.env.VITE_APP_ENV || "Environment not labeled"}</small></header>
+        <header className="admin-topbar">
+          <span>
+            Administration <span className="mx-3">/</span>{" "}
+            <strong>{title}</strong>
+          </span>
+          <small>
+            {import.meta.env.VITE_APP_ENV || "Environment not labeled"}
+          </small>
+        </header>
         <div className="admin-content space-y-6">
           <Outlet />
         </div>

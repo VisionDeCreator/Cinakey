@@ -1,3 +1,4 @@
+import { setTestProviders } from "../../test/setup";
 import { afterEach, expect, it, vi } from "vitest";
 import { completeChat, chatRequestMaximum } from "./deepseek";
 import { normalizeTokenUsage, tokenUsagePrice } from "@cinakey/shared";
@@ -5,7 +6,7 @@ afterEach(() => vi.useRealTimers());
 function live() {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-28T02:00:00Z"));
-  vi.stubEnv("USE_MOCK_ADAPTERS", "false");
+  setTestProviders(false);
   vi.stubEnv("DEEPSEEK_API_KEY", "fixture-key");
 }
 it("pins the verified Flash model, bounded non-thinking output, and preserves cache/input/output usage", async () => {

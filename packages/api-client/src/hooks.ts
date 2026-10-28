@@ -3,7 +3,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { getFunctionName, type FunctionReference } from "convex/server";
 import { useClient } from "./context";
 export { useConvexAuth } from "convex/react";
-function useApiQuery(
+function useQueryEntry(
   reference: FunctionReference<any>,
   args: Record<string, unknown> | "skip" = {},
 ) {
@@ -26,8 +26,26 @@ function useApiQuery(
     () => entry?.snapshot ?? 0,
     () => 0,
   );
+  return { client, entry };
+}
+function useApiQuery(
+  reference: FunctionReference<any>,
+  args: Record<string, unknown> | "skip" = {},
+) {
+  const { client, entry } = useQueryEntry(reference, args);
   if (entry?.error) throw entry.error;
   return client.token ? entry?.data : undefined;
+}
+/** Connection state for a query, with retry while automatic polling remains active. */
+export function useQueryStatus(
+  reference: FunctionReference<any>,
+  args: Record<string, unknown> | "skip" = {},
+) {
+  const { client, entry } = useQueryEntry(reference, args);
+  return {
+    isReconnecting: entry?.transientError === true,
+    retry: () => (entry ? client.load(entry, true) : Promise.resolve()),
+  };
 }
 function useApiWrite(reference: FunctionReference<any>) {
   const client = useClient(),

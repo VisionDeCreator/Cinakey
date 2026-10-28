@@ -48,8 +48,6 @@ export async function providerFetch(
   const config = providerConfig();
   const parentSignal = init.signal ?? currentProviderSignal();
   if (parentSignal?.aborted) throw new ProviderError(provider);
-  if (config.mock)
-    throw new Error("Real provider requests are disabled in mock mode");
   const parsed = new URL(url),
     expected =
       provider === "openai"

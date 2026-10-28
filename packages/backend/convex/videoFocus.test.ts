@@ -1,11 +1,11 @@
 import { internal as databaseInternal } from "./_generated/api";
 import { describe, expect, it } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
-import { authIdentity, createTestUser, makeTest } from "../test/helpers";
+import { authIdentity, createFundedTestUser, makeTest } from "../test/helpers";
 
 async function fixture() {
   const t = makeTest();
-  const userId = await createTestUser(t, "focus@test.com");
+  const userId = await createFundedTestUser(t, "focus@test.com");
   const asUser = t.withIdentity(authIdentity(userId));
   const workspaceId = await asUser.mutation(
     api.users.ensurePersonalWorkspace,

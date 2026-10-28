@@ -1,3 +1,9 @@
 export { ApiClient } from "./client";
 export { ApiProvider } from "./ApiProvider";
-export { useQuery, useMutation, useAction, useConvexAuth } from "./hooks";
+export {
+  useQuery,
+  useQueryStatus,
+  useMutation,
+  useAction,
+  useConvexAuth,
+} from "./hooks";

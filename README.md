@@ -90,8 +90,8 @@ Google's callback remains
 Provider keys are loaded exclusively from the ignored root `.env`; missing live
 keys fail validation instead of silently producing mock responses.
 Provider, email and generation-webhook secrets belong to the API/worker root
-`.env`, not Convex or the browser. Use `USE_MOCK_ADAPTERS=true` for local
-validation without paid model requests. Match that flag in Convex; set Convex's
+`.env`, not Convex or the browser. Runtime generation uses live providers;
+automated tests supply their own isolated provider fixtures. Set Convex's
 `STAGING_LLM_ENABLED=false` when no DeepSeek key is configured.
 
 From the root:
@@ -187,9 +187,13 @@ cutover sequence, restart behavior, rollback, environment ownership and cost
 measurement. The migration preserves existing data and IDs. File storage remains
 on Convex, including its storage and download costs.
 
-Staff accounts still use `users.isStaff=true`; staff tools are at `/staff` and
-`/dev`. Mock/development workspaces can receive a one-time $5 fixture balance; paid subscription allowances remain deferred. Saved edits protect their
-source media. Settings controls email preferences.
+Staff accounts use `users.isStaff=true`. Administration is served separately by
+`apps/admin` (locally at `http://localhost:5174`). Account lookup and manual USD
+funding live under Users.
+The web app has no `/dev` routes. New workspaces start with no automatic funding;
+manual grants require an administrator and an audited reason. Existing balances
+and payment-funded credits are preserved. Saved edits protect their source media.
+Settings controls email preferences.
 
 See [production safety and workflow](docs/production-safety.md) and the
 [video provider contract](docs/provider-contract.md) for save recovery, media

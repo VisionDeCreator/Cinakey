@@ -12,9 +12,6 @@ import { SignInPage } from "@/features/auth/SignInPage";
 import { SignUpPage } from "@/features/auth/SignUpPage";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { BlockoutEditorPage } from "@/features/blockout/editor/BlockoutEditorPage";
-import { DevHomePage } from "@/features/dev/DevHomePage";
-import { GenerationTestPage } from "@/features/dev/GenerationTestPage";
-import { UploadTestPage } from "@/features/dev/UploadTestPage";
 import { EditPage } from "@/features/edit/EditPage";
 import { ProjectWorkspaceLayout } from "@/features/projects/ProjectWorkspaceLayout";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
@@ -142,30 +139,6 @@ export function AppRouter() {
               element={
                 <StaffRoute>
                   <AdminRedirect />
-                </StaffRoute>
-              }
-            />
-            <Route
-              path="/dev"
-              element={
-                <StaffRoute>
-                  <DevHomePage />
-                </StaffRoute>
-              }
-            />
-            <Route
-              path="/dev/upload"
-              element={
-                <StaffRoute>
-                  <UploadTestPage />
-                </StaffRoute>
-              }
-            />
-            <Route
-              path="/dev/generation"
-              element={
-                <StaffRoute>
-                  <GenerationTestPage />
                 </StaffRoute>
               }
             />

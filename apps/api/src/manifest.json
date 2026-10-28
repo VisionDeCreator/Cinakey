@@ -59,18 +59,6 @@
     "kind": "query",
     "public": true
   },
-  "billing:grantDev": {
-    "kind": "mutation",
-    "public": true
-  },
-  "billing:grantToEmail": {
-    "kind": "mutation",
-    "public": true
-  },
-  "billing:lookupByEmail": {
-    "kind": "query",
-    "public": true
-  },
   "billing:reserve": {
     "kind": "mutation",
     "public": false

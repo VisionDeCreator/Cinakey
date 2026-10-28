@@ -14,6 +14,8 @@ const state = vi.hoisted(() => ({
   authenticated: true,
   loading: false,
   staff: true,
+  reconnecting: false,
+  retry: vi.fn(),
   query: vi.fn(),
   mutation: vi.fn(),
   signOut: vi.fn(),
@@ -28,12 +30,18 @@ vi.mock("@cinakey/api-client", () => ({
   }),
   useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) =>
     state.query(getFunctionName(ref), args),
+  useQueryStatus: () => ({
+    isReconnecting: state.reconnecting,
+    retry: state.retry,
+  }),
   useMutation: () => state.mutation,
 }));
 beforeEach(() => {
   state.authenticated = true;
   state.loading = false;
   state.staff = true;
+  state.reconnecting = false;
+  state.retry.mockReset().mockResolvedValue(undefined);
   state.query.mockReset().mockImplementation((name: string) => {
     if (name === "users:viewer") return { isStaff: state.staff };
     if (name === "staff:listUsers")
@@ -140,4 +148,38 @@ it("restricts sign-in return destinations to local admin routes", () => {
   ])
     expect(adminDestination(value)).toBe("/users");
   expect(adminDestination("/workspaces/one")).toBe("/workspaces/one");
+});
+
+it.each(["/diagnostics/generation", "/diagnostics/upload"])(
+  "returns not found for removed diagnostic route %s",
+  (path) => {
+    page(path);
+    expect(
+      screen.getByRole("heading", { name: "Page not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Generation diagnostic" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Upload diagnostic" }),
+    ).not.toBeInTheDocument();
+    expect(
+      state.query.mock.calls.every(([name]) => name === "users:viewer"),
+    ).toBe(true);
+  },
+);
+
+it("shows an API outage and retries instead of waiting indefinitely for administrator access", () => {
+  state.reconnecting = true;
+  state.query.mockReturnValue(undefined);
+  page();
+  expect(
+    screen.getByRole("heading", { name: "Cannot connect to the API" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText("Checking administrator access…"),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry connection" }));
+  expect(state.retry).toHaveBeenCalledOnce();
 });

@@ -639,7 +639,6 @@ export const deploymentEnvironment = internalQuery({
   args: {},
   handler: () => ({
     environment: convexEnv("POLAR_ENVIRONMENT") ?? "sandbox",
-    mock: convexEnv("USE_MOCK_ADAPTERS") === "true",
     paywall: convexEnv("SUBSCRIPTION_PAYWALL_ENABLED") === "true",
   }),
 });
