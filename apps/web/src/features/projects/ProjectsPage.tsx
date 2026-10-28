@@ -3,15 +3,13 @@ import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@cinakey/backend";
 import { useQuery } from "@/lib/api/hooks";
 import {
-  ArrowRight,
   FolderOpen,
   LayoutGrid,
-  Layers,
   List,
   Plus,
 } from "lucide-react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NewProjectDialog } from "@/features/projects/NewProjectDialog";
 import { ProjectCard } from "@/features/projects/ProjectCard";
@@ -19,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 export function ProjectsPage() {
   useLocale();
-  const { workspaceId, canCreate, canManage } = useWorkspace();
+  const { workspaceId, canCreate } = useWorkspace();
   const projects = useQuery(
     api.projects.listMine,
     workspaceId ? { workspaceId } : {},
@@ -41,11 +39,6 @@ export function ProjectsPage() {
         ? a.project.title.localeCompare(b.project.title)
         : b.project.updatedAt - a.project.updatedAt,
     );
-  const actionClass =
-    "group flex min-h-24 items-center gap-4 rounded-2xl border border-zinc-800 bg-[var(--color-studio-bg)] p-5 text-left transition-colors hover:border-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-studio-accent)] disabled:opacity-50";
-  const iconClass =
-    "flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-studio-accent-soft)] text-[var(--color-studio-accent)]";
-
   return (
     <div className="mx-auto max-w-[1600px] space-y-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -65,43 +58,6 @@ export function ProjectsPage() {
           <Plus />
           <I18nText text="New project" />
         </Button>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <button
-          type="button"
-          className={actionClass}
-          disabled={!canCreate}
-          onClick={() => setCreateOpen(true)}
-        >
-          <span className={iconClass}>
-            <Plus className="size-6" />
-          </span>
-          <span className="flex-1">
-            <span className="block font-medium">
-              <I18nText text="New project" />
-            </span>
-            <span className="mt-1 block text-sm text-zinc-400">
-              <I18nText text="Start with a blank canvas." />
-            </span>
-          </span>
-          <ArrowRight className="size-4 text-zinc-400" />
-        </button>
-        <Link to="/series" className={actionClass}>
-          <span className={iconClass}>
-            <Layers className="size-6" />
-          </span>
-          <span className="flex-1">
-            <span className="block font-medium">
-              {canManage ? t("New series") : t("Series")}
-            </span>
-            <span className="mt-1 block text-sm text-zinc-400">
-              {canManage
-                ? t("Build an episodic story.")
-                : t("Explore your episodic stories.")}
-            </span>
-          </span>
-          <ArrowRight className="size-4 text-zinc-400" />
-        </Link>
       </div>
       <section aria-labelledby="recent-projects" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
