@@ -1,5 +1,5 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
-import { scriptMentionRanges } from "@cinakey/shared";
+import { t, useLocale } from "@dirrio/ui/i18n";
+import { scriptMentionRanges } from "@dirrio/shared";
 import { forwardRef, useRef, type KeyboardEvent, type Ref } from "react";
 import { ReferenceMedia, type ReferenceMediaAsset } from "./ReferenceMedia";
 
@@ -69,7 +69,7 @@ export const PlainScriptEditor = forwardRef(function PlainScriptEditor(
         e.preventDefault();
         try {
           const item = JSON.parse(
-            e.dataTransfer.getData("application/x-cinakey-asset"),
+            e.dataTransfer.getData("application/x-dirrio-asset"),
           );
           if (typeof item.assetId === "string") onDropAsset(item.assetId);
         } catch {

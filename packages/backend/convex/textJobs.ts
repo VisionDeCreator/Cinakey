@@ -12,7 +12,7 @@ import {
   formatUsd,
   PRICE_VERSION,
   TOKEN_USD_MICROS_PER_1K,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { requireProjectAccessForUser } from "./lib/access";
 import { v, ConvexError } from "convex/values";
 import { internalMutation } from "./_generated/server";

@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { providerScopes } from "@cinakey/shared";
+import { providerScopes } from "@dirrio/shared";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 type Ctx = QueryCtx | MutationCtx;

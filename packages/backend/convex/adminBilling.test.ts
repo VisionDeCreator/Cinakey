@@ -357,7 +357,7 @@ it("matches uncertain refunds by provider metadata without issuing another refun
         currency: "usd",
         amount: 500,
         status: "succeeded",
-        metadata: { cinakey_refund: intent.id },
+        metadata: { dirrio_refund: intent.id },
       },
     ],
   });
@@ -392,7 +392,7 @@ it("keeps absent provider refunds uncertain and rejects wrong receipt amounts", 
         currency: "usd",
         amount: 999,
         status: "succeeded",
-        metadata: { cinakey_refund: intent.id },
+        metadata: { dirrio_refund: intent.id },
       },
     ],
   });

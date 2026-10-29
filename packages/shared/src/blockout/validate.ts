@@ -1,9 +1,12 @@
 import {
+  documentSchemaMatches,
+  normalizeDocumentNamespace,
+} from "../document-schema";
+import {
   ASPECT_DIMS,
   BLOCKOUT_EASES,
   BLOCKOUT_LIGHT_ROLES,
   BLOCKOUT_OBJECT_TYPES,
-  BLOCKOUT_READABLE_SCHEMAS,
   BLOCKOUT_SCHEMA_ID,
   BLOCKOUT_SCHEMA_V1,
   type BlockoutCameraKey,
@@ -35,12 +38,12 @@ function isVec2(v: unknown): v is [number, number] {
 export function validateBlockoutDocument(value: unknown): string | null {
   if (!isRecord(value)) return "Not an object";
   if (
-    typeof value.schema !== "string" ||
-    !BLOCKOUT_READABLE_SCHEMAS.includes(value.schema)
+    !documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_ID) &&
+    !documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_V1)
   ) {
     return `Unsupported schema ${String(value.schema)}`;
   }
-  if (value.schema === BLOCKOUT_SCHEMA_V1) {
+  if (documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_V1)) {
     return validateV1(value);
   }
   return validateV2(value);
@@ -152,7 +155,7 @@ export function isBlockoutDocument(value: unknown): value is BlockoutDocument {
   return (
     validateBlockoutDocument(value) === null &&
     isRecord(value) &&
-    value.schema === BLOCKOUT_SCHEMA_ID
+    documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_ID)
   );
 }
 
@@ -162,19 +165,22 @@ export function isBlockoutDocumentV1(
   return (
     validateBlockoutDocument(value) === null &&
     isRecord(value) &&
-    value.schema === BLOCKOUT_SCHEMA_V1
+    documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_V1)
   );
 }
 
 export function assertBlockoutDocument(value: unknown): BlockoutDocument {
   const err = validateBlockoutDocument(value);
   if (err !== null) {
-    throw new Error(`Invalid cinakey.blockout document: ${err}`);
+    throw new Error(`Invalid dirrio.blockout document: ${err}`);
   }
-  if (!isRecord(value) || value.schema !== BLOCKOUT_SCHEMA_ID) {
-    throw new Error("Expected cinakey.blockout/2.0 (call migrateToV2 first)");
+  if (
+    !isRecord(value) ||
+    !documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_ID)
+  ) {
+    throw new Error("Expected dirrio.blockout/2.0 (call migrateToV2 first)");
   }
-  return value as BlockoutDocument;
+  return normalizeDocumentNamespace(value) as BlockoutDocument;
 }
 
 /** Normalize a parsed JSON blob into a usable v2 document (fill defaults). */
@@ -182,6 +188,7 @@ export function normalizeImportedDocument(
   raw: unknown,
   uid = () => `id${Math.random().toString(36).slice(2, 8)}`,
 ): { doc: BlockoutDocument; error: string | null } {
+  raw = normalizeDocumentNamespace(raw);
   if (!isRecord(raw)) {
     return { doc: emptyPartDocument(), error: "That is not valid JSON" };
   }

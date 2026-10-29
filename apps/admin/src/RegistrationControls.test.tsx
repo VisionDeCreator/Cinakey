@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { RegistrationControls } from "./RegistrationControls";
 const configure = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-vi.mock("@cinakey/api-client", () => ({ useMutation: () => configure }));
+vi.mock("@dirrio/api-client", () => ({ useMutation: () => configure }));
 it("requires a reason and explicit confirmation before persisting the toggle", async () => {
   render(<RegistrationControls requireApproval={true} revision={7} />);
   expect(screen.getByRole("switch")).toBeChecked();

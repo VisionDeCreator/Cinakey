@@ -114,7 +114,7 @@ describe("staging plan → blockout", () => {
       durationSec: 20,
       shotCount: 6,
     });
-    expect(msgs[0]!.content).toContain("cinakey.staging/1.0");
+    expect(msgs[0]!.content).toContain("dirrio.staging/1.0");
     expect(msgs[1]!.content).toContain("Shot 5");
     expect(estimateStagingTokens(HUNT_SCRIPT, 23)).toBeGreaterThan(4000);
   });

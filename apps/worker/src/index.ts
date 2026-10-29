@@ -1,8 +1,8 @@
-import { validatePolarDeployment } from "@cinakey/api/payments-startup";
-import { polarConfiguration } from "@cinakey/api/payments-config";
-import { loadRootEnvironment } from "@cinakey/api/load-root-env";
-import { validateProviderConfiguration } from "@cinakey/api/config";
-import { runWorker } from "@cinakey/api/worker";
+import { validatePolarDeployment } from "@dirrio/api/payments-startup";
+import { polarConfiguration } from "@dirrio/api/payments-config";
+import { loadRootEnvironment } from "@dirrio/api/load-root-env";
+import { validateProviderConfiguration } from "@dirrio/api/config";
+import { runWorker } from "@dirrio/api/worker";
 loadRootEnvironment();
 validateProviderConfiguration();
 polarConfiguration();

@@ -1,19 +1,19 @@
 import { RegistrationControls } from "./RegistrationControls";
 import { useId, useRef, useState } from "react";
 import type { FunctionReturnType } from "convex/server";
-import { api } from "@cinakey/backend";
-import { useQuery, useMutation, useQueryStatus } from "@cinakey/api-client";
-import { t, useLocale, I18nText } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { useQuery, useMutation, useQueryStatus } from "@dirrio/api-client";
+import { t, useLocale, I18nText } from "@dirrio/ui/i18n";
 import { Permission } from "./Permissions";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@cinakey/ui/select";
+} from "@dirrio/ui/select";
 import {
   Users,
   Clock,

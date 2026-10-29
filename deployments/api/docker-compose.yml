@@ -1,7 +1,7 @@
-name: cinakey-api
+name: dirrio-api
 services:
   api:
-    image: cinakey-server:${RELEASE_VERSION:-local}
+    image: dirrio-server:${RELEASE_VERSION:-local}
     build:
       context: ../..
       dockerfile: deployments/api/Dockerfile
@@ -16,7 +16,7 @@ services:
         bind: { create_host_path: false }
     environment:
       PORT: "3001"
-      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+      WORKER_HEALTH_FILE: /tmp/dirrio-worker-health.json
     stop_grace_period: 150s
     restart: unless-stopped
     init: true

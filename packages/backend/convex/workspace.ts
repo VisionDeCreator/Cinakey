@@ -1,6 +1,6 @@
 import { requireProjectWrite } from "./lib/access";
 import { projectUsage } from "./lib/budgets";
-import { estimateStagingTokens, resolveReferences } from "@cinakey/shared";
+import { estimateStagingTokens, resolveReferences } from "@dirrio/shared";
 import { stagingUsdMicros, stagingUsesLlm } from "./staging";
 /** Project-owned creative documents. */
 import { v } from "convex/values";

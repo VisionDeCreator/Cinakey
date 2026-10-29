@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { api } from "../../../apps/api/src/operations";
-import { adminRoles, hasAdminPermission } from "@cinakey/shared";
+import { adminRoles, hasAdminPermission } from "@dirrio/shared";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 async function fixture() {
   const t = makeTest();

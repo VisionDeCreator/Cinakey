@@ -3,7 +3,7 @@
  * CanvasSink when available, HTMLVideoElement fallback) + Web Audio.
  */
 
-import type { TimelineDocument, TimelineClip } from "@cinakey/shared";
+import type { TimelineDocument, TimelineClip } from "@dirrio/shared";
 import { seekMediaFrame } from "./mediaSeek";
 import { Compositor } from "./Compositor";
 import { AudioGraph, textClipsAt, videoClipsAt } from "./AudioGraph";

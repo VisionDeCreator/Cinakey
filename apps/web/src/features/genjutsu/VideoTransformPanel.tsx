@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -6,10 +6,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { useDraftScope } from "@/features/workspaces/workspace-context";
 import { useEffect, useRef, useState, type Ref } from "react";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import {
   TRANSFORM_TARGETS,
   compileVideoTransform,
@@ -20,7 +20,7 @@ import {
   type VideoTransform,
   resolveTransformPrompt,
   type ReferenceBinding,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,7 +60,7 @@ export function VideoTransformPanel({
   const generate = useAction(api.transforms.generate);
   const [targets, setTargets] = useState<TransformTarget[]>([]);
   const draftScope = useDraftScope();
-  const draftKey = `cinakey.genjutsuPrompt.${draftScope}${projectId}`;
+  const draftKey = `dirrio.genjutsuPrompt.${draftScope}${projectId}`;
   const [instruction, setInstruction] = useState(() => {
     try {
       return localStorage.getItem(draftKey) ?? "";

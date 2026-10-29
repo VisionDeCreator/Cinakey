@@ -9,8 +9,8 @@ import {
   QUOTE_TTL_MS,
   videoPrice,
   videoRate,
-} from "@cinakey/shared";
-import type { BuildRequestInput } from "@cinakey/shared";
+} from "@dirrio/shared";
+import type { BuildRequestInput } from "@dirrio/shared";
 import { ConvexError, v } from "convex/values";
 import {
   internalMutation,

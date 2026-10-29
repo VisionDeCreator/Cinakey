@@ -1,5 +1,5 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { api, type Id } from "@cinakey/backend";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { api, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

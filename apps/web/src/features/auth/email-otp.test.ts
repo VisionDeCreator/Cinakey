@@ -19,7 +19,7 @@ it("does not restore malformed or expired challenges and tolerates unavailable s
       resendAt: 1,
     }),
   ]) {
-    sessionStorage.setItem("cinakey.email-login.v1", value);
+    sessionStorage.setItem("dirrio.email-login.v1", value);
     expect(restoreChallenge()).toBeNull();
   }
   vi.stubGlobal("sessionStorage", {

@@ -1,5 +1,5 @@
 import type { FunctionReturnType, FunctionArgs } from "convex/server";
-import type { api } from "@cinakey/backend";
+import type { api } from "@dirrio/backend";
 
 export type SavedGenerationSettings = FunctionReturnType<
   typeof api.projects.generationSettings

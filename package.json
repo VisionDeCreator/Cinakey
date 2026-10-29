@@ -1,5 +1,5 @@
 {
-  "name": "cinakey",
+  "name": "dirrio",
   "private": true,
   "version": "0.0.0",
   "workspaces": [
@@ -42,7 +42,7 @@
     "deploy:check:services": "bun --no-env-file deployments/scripts/check-env.ts all"
   },
   "devDependencies": {
-    "@cinakey/config": "*",
+    "@dirrio/config": "*",
     "prettier": "^3.9.9",
     "turbo": "^2.5.4"
   },

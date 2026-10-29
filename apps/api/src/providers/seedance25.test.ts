@@ -42,7 +42,7 @@ describe("Sume video contracts (no paid network)", () => {
     expect(
       await adapter.submit({
         ...body,
-        _idempotencyKey: "cinakey:job:1",
+        _idempotencyKey: "dirrio:job:1",
         _maximumRetailUsdMicros: 1_218_000,
       }),
     ).toEqual({
@@ -53,7 +53,7 @@ describe("Sume video contracts (no paid network)", () => {
       "https://api.sume.com/v1/video-router/generate",
     );
     expect(send.mock.calls[1]![1].headers["Idempotency-Key"]).toBe(
-      "cinakey:job:1",
+      "dirrio:job:1",
     );
     expect(JSON.parse(send.mock.calls[1]![1].body)).toEqual(body);
   });

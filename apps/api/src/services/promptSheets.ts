@@ -3,7 +3,7 @@ import {
   normalizeEntityName,
   validateAssetPromptText,
   type SheetDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type {
@@ -270,7 +270,7 @@ export const savePromptText = action({
     }
 
     const stub = {
-      schema: "cinakey.prompt/custom/1",
+      schema: "dirrio.prompt/custom/1",
       type: args.type,
       customPrompt: true,
     };

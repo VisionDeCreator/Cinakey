@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createEmptyTimeline, assertTimelineDocument } from "@cinakey/shared";
+import { createEmptyTimeline, assertTimelineDocument } from "@dirrio/shared";
 import { insertMedia } from "./insertMedia";
 import { createHistory, pushDocument, undo } from "./timelineHistory";
 const empty = () =>

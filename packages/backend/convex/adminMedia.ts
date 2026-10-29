@@ -1,7 +1,7 @@
 import { enqueueTask } from "./tasks";
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { hasAdminPermission } from "@cinakey/shared";
+import { hasAdminPermission } from "@dirrio/shared";
 import {
   query,
   mutation,

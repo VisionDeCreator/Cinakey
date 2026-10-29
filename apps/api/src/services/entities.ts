@@ -4,7 +4,7 @@ import {
   tokenBatchPrice,
   type TokenUsage,
   type TokenUsageBatch,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   assertSheetDocument,
   createEmptySheet,
@@ -12,7 +12,7 @@ import {
   mergeSheet,
   type IdentitySlotKey,
   type SheetDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type {
@@ -633,8 +633,8 @@ async function llmAutofillFields(args: {
 
   const isPlaceOrProp = args.kind === "location" || args.kind === "prop";
   const system = isPlaceOrProp
-    ? "You fill Look Dev sheet fields for Cinakey. Return ONLY a single JSON object with keys: description, notes. Each value is a concise string. No markdown fences."
-    : "You fill Look Dev sheet fields for Cinakey. Return ONLY a single JSON object with keys: description, look, age, build, wardrobe, personality, voiceNotes. Each value is a concise string. No markdown fences.";
+    ? "You fill Look Dev sheet fields for Dirrio. Return ONLY a single JSON object with keys: description, notes. Each value is a concise string. No markdown fences."
+    : "You fill Look Dev sheet fields for Dirrio. Return ONLY a single JSON object with keys: description, look, age, build, wardrobe, personality, voiceNotes. Each value is a concise string. No markdown fences.";
   const userHint = isPlaceOrProp
     ? args.kind === "location"
       ? "Describe place, time of day, land, sky/light, and color palette in notes — concrete and visual for environment reference descriptions. No readable text or logos."

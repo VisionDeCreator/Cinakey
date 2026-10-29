@@ -66,7 +66,7 @@ const a = (id: string, name: string, at: [number, number], facing: number) => ({
 });
 
 export const HUNT_PLAN = {
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: {
     terrain: "open",
     timeOfDay: "golden",

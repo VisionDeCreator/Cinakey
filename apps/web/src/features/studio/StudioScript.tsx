@@ -1,5 +1,5 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   useWorkspace,
   useDraftScope,
@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import {
   referenceAlias,
   mentionAtCaret,
@@ -15,7 +15,7 @@ import {
   scriptMentions,
   scriptMentionRanges,
   replacementReferenceAlias,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { Check, Link2, Upload, X } from "lucide-react";
 import {
   useCallback,
@@ -60,7 +60,7 @@ export function StudioScript({
     projectId: projectId as never,
   });
   const currentId = useRef<
-    import("@cinakey/backend").Id<"workspaceScripts"> | undefined
+    import("@dirrio/backend").Id<"workspaceScripts"> | undefined
   >(undefined);
   const assets = useQuery(api.assets.list, { projectId: projectId as never });
   const sharedResources = useQuery(api.resources.referenceCandidates, {
@@ -141,7 +141,7 @@ export function StudioScript({
   const saving = useRef<Promise<boolean> | null>(null);
   const alive = useRef(true);
   const draftScope = useDraftScope();
-  const key = `cinakey.scriptDraft.${draftScope}${projectId}.plain`;
+  const key = `dirrio.scriptDraft.${draftScope}${projectId}.plain`;
   useEffect(() => {
     alive.current = true;
     return () => {

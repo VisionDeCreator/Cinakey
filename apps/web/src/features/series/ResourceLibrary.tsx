@@ -1,8 +1,8 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { DetailDrawer } from "@/components/DetailDrawer";
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { api, type Doc, type Id } from "@cinakey/backend";
+import { api, type Doc, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

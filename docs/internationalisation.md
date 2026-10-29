@@ -1,12 +1,12 @@
 # Internationalisation
 
 The web app and admin panel share the localization API exported by
-`@cinakey/ui/i18n`. Both offer English, French, Spanish, Korean, Japanese,
+`@dirrio/ui/i18n`. Both offer English, French, Spanish, Korean, Japanese,
 and Simplified Chinese. The web app keeps its language selector in Settings; the admin panel places it
 in the top navigation bar. Both sign-in screens also offer a selector beneath
 the form. Selectors use the shared application dropdown styles.
 
-The initial language uses the saved `cinakey.locale` browser preference, then
+The initial language uses the saved `dirrio.locale` browser preference, then
 supported browser languages, then English. Preferences persist per origin and
 sync between tabs on the same origin. The apps may run on different origins,
 so each keeps its own saved preference. Storage restrictions do not prevent
@@ -20,7 +20,7 @@ translated metadata. For plain text, `<I18nText text="Save changes" />` includes
 its own subscription. The English source is the catalog key and the fallback.
 
 ```tsx
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { t, useLocale } from "@dirrio/ui/i18n";
 
 function Example({ name }: { name: string }) {
   useLocale();

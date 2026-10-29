@@ -23,6 +23,7 @@ import type * as assets from "../assets.js";
 import type * as auth from "../auth.js";
 import type * as authOtp from "../authOtp.js";
 import type * as billing from "../billing.js";
+import type * as bucketCleanup from "../bucketCleanup.js";
 import type * as crons from "../crons.js";
 import type * as earlyAccess from "../earlyAccess.js";
 import type * as egress from "../egress.js";
@@ -104,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authOtp: typeof authOtp;
   billing: typeof billing;
+  bucketCleanup: typeof bucketCleanup;
   crons: typeof crons;
   earlyAccess: typeof earlyAccess;
   egress: typeof egress;

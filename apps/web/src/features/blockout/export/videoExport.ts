@@ -5,7 +5,7 @@ import {
   objAt,
   timecodeString,
   type BlockoutDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import * as THREE from "three";
 import { buildObjectMesh } from "@/features/blockout/editor/runtime/objects";
 import {

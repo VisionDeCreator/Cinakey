@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import {
   TIMELINE_EXPORT_MAX_DURATION_SEC,
   TIMELINE_EXPORT_MAX_LONG_EDGE,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
 import { MAX_EXPORT_BYTES } from "../../../../packages/backend/convex/publishedExports";
 import { action, type ActionCtx } from "../runtime/operation";

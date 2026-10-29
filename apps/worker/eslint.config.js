@@ -1,2 +1,2 @@
-import { baseConfigs, baseIgnores } from "@cinakey/config/eslint/base.js";
+import { baseConfigs, baseIgnores } from "@dirrio/config/eslint/base.js";
 export default [...baseConfigs, { ignores: baseIgnores }];

@@ -1,6 +1,6 @@
 /**
  * Prompt for the staging-plan LLM call. The model reads any script and returns
- * one `cinakey.staging/1.0` JSON object; `parseStagingPlan` validates it and
+ * one `dirrio.staging/1.0` JSON object; `parseStagingPlan` validates it and
  * `compileStagingPlan` turns it into the blockout.
  */
 

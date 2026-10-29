@@ -32,7 +32,7 @@ AUDIO (native sound, synced to picture):
 
 /** A plan whose hero is hidden during shot 2 — the automatic check flags it. */
 const plan = (heroVisible?: Array<[number, number]>) => ({
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: { terrain: "urban", timeOfDay: "day", features: [] },
   cast: [
     {

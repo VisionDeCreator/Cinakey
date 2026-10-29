@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useTimelineLease } from "./useTimelineLease";
 import {
   useWorkspace,
@@ -25,7 +25,7 @@ import { TimelineTracks, type TrimMode } from "@/features/edit/TimelineTracks";
 import type { StudioInsert } from "@/features/studio/StudioWorkspace";
 import { StudioWorkspace } from "@/features/studio/StudioWorkspace";
 import { useAction, useQuery } from "@/lib/api/hooks";
-import { api, type Id } from "@cinakey/backend";
+import { api, type Id } from "@dirrio/backend";
 import {
   addClip,
   assertTimelineDocument,
@@ -42,7 +42,7 @@ import {
   updateClip,
   type TimelineClip,
   type TimelineDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { insertMedia, resolveMediaDuration } from "./insertMedia";
@@ -216,7 +216,7 @@ function ProjectEditor() {
   const aspectRatio = project?.aspectRatio;
   const projectFps = project?.fps;
   const draftScope = useDraftScope();
-  const recoveryKey = `cinakey.timelineRecovery.${draftScope}${projectId}`;
+  const recoveryKey = `dirrio.timelineRecovery.${draftScope}${projectId}`;
   const workspaceReady = workspaceState?.migrated;
   const workspaceKnown = workspaceState !== undefined;
   const load = useCallback(() => {

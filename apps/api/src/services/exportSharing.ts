@@ -93,8 +93,8 @@ export function viewerToken(request: Request) {
     .get("cookie")
     ?.split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("cinakey_share="))
-    ?.slice("cinakey_share=".length);
+    .find((part) => part.startsWith("dirrio_share="))
+    ?.slice("dirrio_share=".length);
   if (!token || !/^[a-f0-9]{64}$/.test(token))
     throw new Error("Share unavailable");
   return hashSecret(token);

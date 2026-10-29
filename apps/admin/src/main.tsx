@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
-import { ApiProvider } from "@cinakey/api-client";
+import { ApiProvider } from "@dirrio/api-client";
 import { App } from "./App";
 import "./index.css";
 const url = import.meta.env.VITE_CONVEX_URL;

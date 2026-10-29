@@ -1,6 +1,6 @@
-import { formatUsd } from "@cinakey/ui/i18n";
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Wallet,
   UserSearch,
@@ -18,21 +18,21 @@ import {
   CalendarDays,
   Folder,
 } from "lucide-react";
-import { parseUsdToMicros } from "@cinakey/shared";
-import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
+import { parseUsdToMicros } from "@dirrio/shared";
+import { api } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@cinakey/ui/select";
-import { Label } from "@cinakey/ui/label";
+} from "@dirrio/ui/select";
+import { Label } from "@dirrio/ui/label";
 
 export function StaffUsersPage() {
   useLocale();
@@ -682,7 +682,7 @@ export function InternalWorkspaceForm() {
   useLocale();
   const create = useMutation(api.staff.createInternalWorkspace);
   const [ownerEmail, setOwnerEmail] = useState("");
-  const [name, setName] = useState("Cinakey Internal");
+  const [name, setName] = useState("Dirrio Internal");
   const [cap, setCap] = useState("100");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);

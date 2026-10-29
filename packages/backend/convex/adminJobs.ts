@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { hasAdminPermission } from "@cinakey/shared";
+import { hasAdminPermission } from "@dirrio/shared";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,

@@ -67,7 +67,7 @@ AUDIO (native sound, synced to picture):
 
 /** What the model produced in the attached girl blockout: an in-place hop, no rides link. */
 const GIRL_PLAN = {
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: {
     terrain: "forest",
     timeOfDay: "night",

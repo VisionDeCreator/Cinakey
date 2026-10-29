@@ -1,4 +1,4 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { t, useLocale } from "@dirrio/ui/i18n";
 import {
   AlertDialog,
   AlertDialogAction,

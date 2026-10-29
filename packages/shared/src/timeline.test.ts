@@ -14,7 +14,7 @@ import {
 
 const project = { id: "proj_1", aspectRatio: "16:9", fps: 24 };
 
-describe("cinakey.timeline/1.0", () => {
+describe("dirrio.timeline/1.0", () => {
   it("creates and validates an empty timeline", () => {
     const doc = createEmptyTimeline(project);
     expect(doc.schema).toBe(TIMELINE_SCHEMA_ID);

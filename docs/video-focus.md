@@ -1,6 +1,6 @@
 # Video production focus
 
-Cinakey now focuses on Script → References (optional) → Staging (optional) →
+Dirrio now focuses on Script → References (optional) → Staging (optional) →
 Video → Edit → Export. Projects open on Video. The old `/copilot` route redirects
 to Video; existing assets and look-dev links remain valid.
 

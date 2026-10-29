@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 

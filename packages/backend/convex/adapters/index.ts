@@ -2,8 +2,8 @@ import {
   videoPrice,
   videoRate,
   TOKEN_USD_MICROS_PER_1K,
-} from "@cinakey/shared";
-import type { GenerationAdapter } from "@cinakey/shared";
+} from "@dirrio/shared";
+import type { GenerationAdapter } from "@dirrio/shared";
 import { estimateTokenCost } from "./cost";
 const seedance25Adapter: Pick<
   GenerationAdapter,

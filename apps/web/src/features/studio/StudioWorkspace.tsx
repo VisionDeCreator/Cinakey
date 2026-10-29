@@ -1,8 +1,8 @@
 import { useGenerationSettings } from "./useGenerationSettings";
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +18,11 @@ import { BlockoutPage } from "@/features/blockout/BlockoutPage";
 import { resolveMediaDuration } from "@/features/edit/insertMedia";
 import { beginMediaPointerDrag } from "@/features/edit/mediaDrag";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import {
   COST_CONFIRM_THRESHOLD_USD_MICROS,
   type TimelineClip,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   Film,
   Link2,
@@ -210,7 +210,7 @@ export function StudioWorkspace({
     };
     try {
       const saved = JSON.parse(
-        localStorage.getItem("cinakey:workspace-layout:2") ?? "null",
+        localStorage.getItem("dirrio:workspace-layout:2") ?? "null",
       );
       if (!saved) return defaults;
       return {
@@ -238,7 +238,7 @@ export function StudioWorkspace({
   useEffect(() => {
     try {
       localStorage.setItem(
-        "cinakey:workspace-layout:2",
+        "dirrio:workspace-layout:2",
         JSON.stringify(layout),
       );
     } catch {

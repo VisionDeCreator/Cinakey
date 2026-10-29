@@ -1,4 +1,4 @@
-import { assertTimelineDocument, type TimelineDocument } from "@cinakey/shared";
+import { assertTimelineDocument, type TimelineDocument } from "@dirrio/shared";
 import { ConvexError, v } from "convex/values";
 import type {
   Doc,

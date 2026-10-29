@@ -1,2 +1,2 @@
-export { Button, buttonVariants } from "@cinakey/ui/button";
-export type { ButtonProps } from "@cinakey/ui/button";
+export { Button, buttonVariants } from "@dirrio/ui/button";
+export type { ButtonProps } from "@dirrio/ui/button";

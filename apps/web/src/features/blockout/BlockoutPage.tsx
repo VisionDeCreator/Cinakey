@@ -1,7 +1,7 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/use-confirm";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { useEffect, useState } from "react";
 import {
   Link,
@@ -60,7 +60,7 @@ export function BlockoutPage({
   const restore = useAction(api.workspace.restoreStaging);
   const [history, setHistory] = useState<
     Array<{
-      fileId: import("@cinakey/backend").Id<"_storage">;
+      fileId: import("@dirrio/backend").Id<"_storage">;
       version: number;
       name: string;
     }>

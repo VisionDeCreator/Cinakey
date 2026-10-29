@@ -14,7 +14,7 @@ const keys = Object.keys(catalogs.en).sort();
 const placeholders = (text) => (text.match(/\{\w+\}/g) || []).sort().join(",");
 const errors = [];
 const technical = new Set([
-  "Cinakey",
+  "Dirrio",
   "MP4",
   "JSON",
   "USD",

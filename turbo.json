@@ -18,27 +18,27 @@
     "test": {
       "dependsOn": ["^build"]
     },
-    "@cinakey/shared#build": {
+    "@dirrio/shared#build": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@cinakey/backend#build": {
+    "@dirrio/backend#build": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@cinakey/api#build": {
+    "@dirrio/api#build": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@cinakey/worker#build": {
+    "@dirrio/worker#build": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@cinakey/api-client#build": {
+    "@dirrio/api-client#build": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@cinakey/ui#build": {
+    "@dirrio/ui#build": {
       "dependsOn": ["^build"],
       "outputs": []
     }

@@ -1,6 +1,6 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useState } from "react";
-import { api, type Doc } from "@cinakey/backend";
+import { api, type Doc } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { BudgetSettings } from "@/features/settings/BudgetSettings";
@@ -16,7 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Settings, Wallet, Users } from "lucide-react";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 
 export function ProjectSettings({ project }: { project: Doc<"projects"> }) {
   useLocale();

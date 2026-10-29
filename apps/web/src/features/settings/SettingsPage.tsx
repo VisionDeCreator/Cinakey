@@ -1,4 +1,4 @@
-import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, LanguageSelector, t, useLocale } from "@dirrio/ui/i18n";
 import { EmailVerification } from "./EmailVerification";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useMutation, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

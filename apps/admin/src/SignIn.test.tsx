@@ -1,4 +1,4 @@
-import { setLocale, t } from "@cinakey/ui/i18n";
+import { setLocale, t } from "@dirrio/ui/i18n";
 import {
   cleanup,
   fireEvent,
@@ -10,14 +10,14 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { SignIn } from "./SignIn";
 const state = vi.hoisted(() => ({ request: vi.fn(), signIn: vi.fn() }));
-vi.mock("@cinakey/api-client", () => ({
+vi.mock("@dirrio/api-client", () => ({
   useConvexAuth: () => ({ isAuthenticated: false, isLoading: false }),
 }));
 vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signIn: state.signIn }),
 }));
-vi.mock("@cinakey/api-client/email-otp", async (original) => ({
-  ...(await original<typeof import("@cinakey/api-client/email-otp")>()),
+vi.mock("@dirrio/api-client/email-otp", async (original) => ({
+  ...(await original<typeof import("@dirrio/api-client/email-otp")>()),
   requestEmailCode: state.request,
 }));
 beforeEach(() => {
@@ -63,7 +63,7 @@ it("uses the shared email challenge flow and preserves leading-zero verification
     }),
   );
   await waitFor(() =>
-    expect(sessionStorage.getItem("cinakey.email-login.v1")).toBeNull(),
+    expect(sessionStorage.getItem("dirrio.email-login.v1")).toBeNull(),
   );
 });
 it("shows verification failures without granting access or clearing a retryable challenge", async () => {
@@ -85,7 +85,7 @@ it("shows verification failures without granting access or clearing a retryable 
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "That code is incorrect or has expired",
   );
-  expect(sessionStorage.getItem("cinakey.email-login.v1")).not.toBeNull();
+  expect(sessionStorage.getItem("dirrio.email-login.v1")).not.toBeNull();
 });
 
 it("switches admin sign-in language without clearing the email field", () => {

@@ -32,7 +32,7 @@ AUDIO (native sound, synced to picture):
 `;
 
 export const CAR_CHASE_PLAN = {
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: {
     terrain: "urban",
     timeOfDay: "night",

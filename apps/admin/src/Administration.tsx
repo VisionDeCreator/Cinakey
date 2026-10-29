@@ -1,16 +1,16 @@
 import { useRef, useState } from "react";
-import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
+import { api } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
 import {
   ADMIN_ROLES,
   ADMIN_ROLE_LABELS,
   hasAdminPermission,
   type AdminPermission,
   type AdminRole,
-} from "@cinakey/shared";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
-import { Label } from "@cinakey/ui/label";
+} from "@dirrio/shared";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
+import { Label } from "@dirrio/ui/label";
 import {
   Users,
   Search,
@@ -22,7 +22,7 @@ import {
   BookOpen,
   Info,
 } from "lucide-react";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 const roleInfo = {
   platform_admin: { Icon: Crown, description: "All admin permissions." },
   support: {

@@ -36,7 +36,7 @@ export async function verifiedEmailUser(
     (existingUserId && matches.some((u) => u._id !== existingUserId))
   )
     throw new Error(
-      "This email needs account assistance. Contact Cinakey support.",
+      "This email needs account assistance. Contact Dirrio support.",
     );
   const existing = existingUserId
     ? await ctx.db.get(existingUserId)

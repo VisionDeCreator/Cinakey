@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { api } from "@cinakey/backend";
-import { useQuery } from "@cinakey/api-client";
-import { hasAdminPermission, type AdminPermission } from "@cinakey/shared";
-import { I18nText } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { useQuery } from "@dirrio/api-client";
+import { hasAdminPermission, type AdminPermission } from "@dirrio/shared";
+import { I18nText } from "@dirrio/ui/i18n";
 export function Permission({
   permission,
   children,

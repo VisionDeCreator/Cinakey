@@ -7,7 +7,7 @@ import {
   type BlockoutDocument,
   type BlockoutObject,
   type CameraPose,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   LAYER_CONTENT,
   LAYER_GIZMOS,

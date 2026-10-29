@@ -1,4 +1,4 @@
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { TimelineTracks } from "./TimelineTracks";

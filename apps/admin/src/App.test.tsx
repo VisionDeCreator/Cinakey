@@ -1,4 +1,4 @@
-import { setLocale, t } from "@cinakey/ui/i18n";
+import { setLocale, t } from "@dirrio/ui/i18n";
 import {
   act,
   cleanup,
@@ -30,7 +30,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@convex-dev/auth/react", () => ({
   useAuthActions: () => ({ signOut: state.signOut, signIn: vi.fn() }),
 }));
-vi.mock("@cinakey/api-client", () => ({
+vi.mock("@dirrio/api-client", () => ({
   useConvexAuth: () => ({
     isAuthenticated: state.authenticated,
     isLoading: state.loading,
@@ -142,7 +142,7 @@ it("creates company workspaces through the API with an explicit budget and reaso
   await waitFor(() =>
     expect(state.mutation).toHaveBeenCalledWith({
       ownerEmail: "owner@test.com",
-      name: "Cinakey Internal",
+      name: "Dirrio Internal",
       monthlyCapUsdMicros: 25_500_000,
       reason: "Company test team",
     }),
@@ -837,7 +837,7 @@ it("collapses the navigation while keeping account controls and link labels", ()
   );
   expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Directory" })).toBeInTheDocument();
-  expect(localStorage.getItem("cinakey.admin.sidebar.collapsed")).toBe("true");
+  expect(localStorage.getItem("dirrio.admin.sidebar.collapsed")).toBe("true");
   fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
   expect(document.querySelector(".admin-shell")).not.toHaveClass(
     "admin-shell-collapsed",

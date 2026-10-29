@@ -1,11 +1,11 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { cn } from "@/lib/utils";
 import type {
   TimelineClip,
   TimelineDocument,
   TrackKind,
-} from "@cinakey/shared";
-import { snapTime } from "@cinakey/shared";
+} from "@dirrio/shared";
+import { snapTime } from "@dirrio/shared";
 import { useEffect, useRef, useState } from "react";
 import { ClipMedia } from "./media/ClipMedia";
 import type { EditorMedia } from "./media/EditorMedia";

@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
 async function fixture() {

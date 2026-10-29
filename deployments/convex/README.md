@@ -1,4 +1,4 @@
-# Cinakey convex deployment
+# Dirrio convex deployment
 
 See the [deployment runbook](../README.md) for environment ownership, setup, rollout and rollback.
 

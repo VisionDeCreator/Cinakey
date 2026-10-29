@@ -1,4 +1,4 @@
-# Cinakey api deployment
+# Dirrio api deployment
 
 See the [deployment runbook](../README.md) for environment ownership, setup, rollout and rollback.
 

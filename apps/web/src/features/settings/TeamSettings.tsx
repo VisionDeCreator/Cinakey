@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Select,
   SelectContent,
@@ -9,7 +9,7 @@ import {
 import { ConfirmContext } from "@/components/use-confirm";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useContext, useEffect, useState } from "react";
-import { api, type Id } from "@cinakey/backend";
+import { api, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

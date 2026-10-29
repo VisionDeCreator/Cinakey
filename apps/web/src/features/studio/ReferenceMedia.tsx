@@ -1,4 +1,4 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { t, useLocale } from "@dirrio/ui/i18n";
 import { Film, Image as ImageIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MediaPreview } from "./MediaPreview";

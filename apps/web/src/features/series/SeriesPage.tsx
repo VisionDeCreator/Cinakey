@@ -1,6 +1,6 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { BudgetSettings } from "@/features/settings/BudgetSettings";
-import { api, type Doc, type Id } from "@cinakey/backend";
+import { api, type Doc, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";

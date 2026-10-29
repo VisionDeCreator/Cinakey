@@ -1,7 +1,7 @@
 import { setTestProviders } from "../../test/setup";
 import { afterEach, expect, it, vi } from "vitest";
 import { completeChat, chatRequestMaximum } from "./deepseek";
-import { normalizeTokenUsage, tokenUsagePrice } from "@cinakey/shared";
+import { normalizeTokenUsage, tokenUsagePrice } from "@dirrio/shared";
 afterEach(() => vi.useRealTimers());
 function live() {
   vi.useFakeTimers();

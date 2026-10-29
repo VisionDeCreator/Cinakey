@@ -1,4 +1,4 @@
-# Cinakey product roadmap
+# Dirrio product roadmap
 
 > Pricing update — October 28, 2026: the current card uses supplier cost plus configurable 5% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
 
@@ -18,7 +18,7 @@ Planning baseline: October 26, 2026. No delivery dates or engineering estimates 
 See [Phase 1 implementation plan](phase-1-implementation-plan.md) for tasks,
 dependencies, acceptance criteria, accepted decisions, and release gates.
 
-Cinakey is still in development. Replace schemas and billing paths directly; no
+Dirrio is still in development. Replace schemas and billing paths directly; no
 production migration, legacy billing compatibility, or balance-preservation tooling
 is in scope. Development fixtures can be regenerated during implementation. Saved
 creative history and published versioning remain core product features.
@@ -45,7 +45,7 @@ workflows remain deferred.
 
 ## Product direction
 
-Cinakey is a production workspace for small creative teams: from script and visual
+Dirrio is a production workspace for small creative teams: from script and visual
 planning to finished, client-approved video. The initial audience hypothesis is
 freelancers and small studios producing short commercial videos for clients.
 
@@ -191,7 +191,7 @@ Priority: P2. Depends on demonstrated demand from larger studios.
 
 Acceptance criteria:
 
-- [ ] Larger teams can adopt Cinakey without losing financial oversight, access
+- [ ] Larger teams can adopt Dirrio without losing financial oversight, access
       control, or production reliability.
 - [ ] Each expansion has validated demand and sustainable operating economics.
 
@@ -215,7 +215,7 @@ is required for a development-only product.
 
 Show retail USD estimates, lock accepted 10-minute quotes, reserve the maximum, settle
 actual authorized usage, and release unused funds. Purchased funds do not expire;
-promotional funding is separate with explicit expiry. Cinakey absorbs unauthorized
+promotional funding is separate with explicit expiry. Dirrio absorbs unauthorized
 overruns. Successful analysis remains billable when a later rendering stage fails.
 
 ### Included subscription usage — accepted
@@ -236,10 +236,10 @@ mix, taxes, currency, and account terms; examples below are US domestic-card ben
 
 | Topic                     | Stripe Payments + Billing                                              | Polar                                                                                                         |
 | ------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Seller model              | Direct processing; Cinakey retains seller responsibilities             | Merchant of record; handles indirect sales tax on supported sales                                             |
+| Seller model              | Direct processing; Dirrio retains seller responsibilities             | Merchant of record; handles indirect sales tax on supported sales                                             |
 | Published example pricing | US domestic cards 2.9% + $0.30, Billing 0.7% of Billing volume         | Starter 5% + $0.50; Pro $20/month + 3.8% + $0.40; non-US card surcharge 1.5%; payout fees also apply          |
 | Subscription/team fit     | Flexible subscription items and payment-contingent updates             | Native team seats, subscriptions, prepaid credits/top-up products                                             |
-| Cinakey-specific policies | More direct control of base fee, seats, and payment-gated entitlements | Verify base + seat packaging, payment gating, and next-renewal decreases; native immediate reductions prorate |
+| Dirrio-specific policies | More direct control of base fee, seats, and payment-gated entitlements | Verify base + seat packaging, payment gating, and next-renewal decreases; native immediate reductions prorate |
 | Main advantage            | Control and lower direct collection fees in the benchmark              | Less global indirect-tax operational work at launch                                                           |
 | Main tradeoff             | More billing/tax operations to arrange                                 | Higher collection costs and more provider policy constraints                                                  |
 
@@ -264,7 +264,7 @@ At 20% API margin, collection fees must be in the rate card; encourage $25/$50 t
 while retaining the accepted $10 minimum. Evaluate Polar paid tiers using actual volume
 and average order size rather than headline percentages alone.
 
-For either provider, Cinakey retains its transactional USD ledger, reservations,
+For either provider, Dirrio retains its transactional USD ledger, reservations,
 hierarchical budgets, and RBAC. Native provider meters do not replace admission controls.
 Do not bill settled usage again after funding it through a top-up.
 

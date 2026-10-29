@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SeriesPage } from "./SeriesPage";
 const m = vi.hoisted(() => ({ mutate: vi.fn() }));
-vi.mock("@cinakey/backend", () => ({
+vi.mock("@dirrio/backend", () => ({
   api: {
     series: {
       get: "get",

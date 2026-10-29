@@ -1,4 +1,4 @@
-import { I18nText, t } from "@cinakey/ui/i18n";
+import { I18nText, t } from "@dirrio/ui/i18n";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 

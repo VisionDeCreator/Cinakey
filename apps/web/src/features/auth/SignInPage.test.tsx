@@ -79,7 +79,7 @@ it("requests a code without password or premature session; verifies leading-zero
     challenge: "a".repeat(64),
     code: "004921",
   });
-  expect(sessionStorage.getItem("cinakey.email-login.v1")).toBeNull();
+  expect(sessionStorage.getItem("dirrio.email-login.v1")).toBeNull();
 });
 it("uses the same passwordless signup flow and keeps Google sign-in", async () => {
   page(true);
@@ -134,7 +134,7 @@ it("can change the destination email and never leaks delivery errors", async () 
   await request();
   fireEvent.click(screen.getByRole("button", { name: "Change email" }));
   expect(screen.getByLabelText("Email")).toBeInTheDocument();
-  expect(sessionStorage.getItem("cinakey.email-login.v1")).toBeNull();
+  expect(sessionStorage.getItem("dirrio.email-login.v1")).toBeNull();
   state.request.mockRejectedValue(new Error("SMTP_PASSWORD=secret"));
   fireEvent.click(screen.getByRole("button", { name: "Continue with email" }));
   expect(await screen.findByRole("alert")).not.toHaveTextContent(

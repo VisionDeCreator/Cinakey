@@ -1,7 +1,7 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { api } from "@cinakey/backend";
-import type { PipelineProgress } from "@cinakey/shared";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { api } from "@dirrio/backend";
+import type { PipelineProgress } from "@dirrio/shared";
 import { useMutation } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";

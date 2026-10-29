@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import "./editor.css";
 import { uploadMedia } from "../../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
@@ -10,7 +10,7 @@ import {
 } from "@/features/blockout/export/runExport";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import {
   CAMERA_MOVE_PRESETS,
   createPartDocument,
@@ -24,7 +24,7 @@ import {
   type BlockoutProject,
   type CameraMovePresetId,
   type CameraPose,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   ArrowLeft,
   Camera,
@@ -133,7 +133,7 @@ export function BlockoutEditorPage() {
     projectId ? { projectId: projectId as never } : "skip",
   );
   const loadedFile = useRef<
-    import("@cinakey/backend").Id<"_storage"> | undefined
+    import("@dirrio/backend").Id<"_storage"> | undefined
   >(undefined);
   const entities = useQuery(
     api.entities.listForProject,

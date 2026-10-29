@@ -67,7 +67,7 @@ const CHASE = script(
 );
 
 const CHASE_PLAN = {
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: {
     terrain: "forest",
     timeOfDay: "night",
@@ -330,7 +330,7 @@ describe("staging refinements (boy / cheetah hunt)", () => {
     11,
   );
   const PLAN = {
-    schema: "cinakey.staging/1.0",
+    schema: "dirrio.staging/1.0",
     set: { terrain: "open", timeOfDay: "golden", features: [] },
     cast: [
       { id: "boy", name: "the boy", kind: "person", at: [0, 0], facing: 90 },

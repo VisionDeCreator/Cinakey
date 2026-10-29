@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { api } from "@cinakey/backend";
-import { useMutation } from "@cinakey/api-client";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { Button } from "@cinakey/ui/button";
+import { api } from "@dirrio/backend";
+import { useMutation } from "@dirrio/api-client";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { Button } from "@dirrio/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@cinakey/ui/dialog";
+} from "@dirrio/ui/dialog";
 export function RegistrationControls({
   requireApproval,
   revision,

@@ -1,7 +1,7 @@
 import { createApp } from "./app";
 const port = Number(process.env.PORT ?? 3001);
 const app = createApp().listen(port);
-console.log(`Cinakey API listening on :${port}`);
+console.log(`Dirrio API listening on :${port}`);
 
 let stopping = false;
 async function shutdown() {

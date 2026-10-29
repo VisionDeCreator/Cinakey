@@ -1,5 +1,5 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/components/use-confirm";
 import { useMutation, useQuery } from "@/lib/api/hooks";
-import { api, type Doc, type Id } from "@cinakey/backend";
+import { api, type Doc, type Id } from "@dirrio/backend";
 import { Star, Trash2 } from "lucide-react";
 import { useState } from "react";
 

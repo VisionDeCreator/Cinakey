@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export function ShareWatchPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-4xl flex-col justify-center gap-4 p-6 text-zinc-100">
       <h1 className="text-xl font-semibold">
-        {info?.title ?? t("Cinakey private video")}
+        {info?.title ?? t("Dirrio private video")}
       </h1>
       {!info ? (
         <form

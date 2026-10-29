@@ -7,7 +7,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import type { ReferenceBinding } from "@cinakey/shared";
+import type { ReferenceBinding } from "@dirrio/shared";
 import {
   ReferencePromptEditor,
   type ReferencePromptHandle,

@@ -1,9 +1,9 @@
 /**
- * `cinakey.staging/1.0` — a script-agnostic staging plan.
+ * `dirrio.staging/1.0` — a script-agnostic staging plan.
  *
  * An LLM reads any script and writes this plan (set, cast, per-shot action and
  * camera) in a small fixed vocabulary; `compileStagingPlan` turns it into a
- * part-scoped `cinakey.blockout/2.0` document deterministically.
+ * part-scoped `dirrio.blockout/2.0` document deterministically.
  *
  * Conventions: metres; ground plane is x/z with y up; +x is "forward" (the
  * direction of travel when anything travels); headings are degrees where
@@ -16,7 +16,7 @@
 
 import { z } from "zod";
 
-export const STAGING_SCHEMA_ID = "cinakey.staging/1.0" as const;
+export const STAGING_SCHEMA_ID = "dirrio.staging/1.0" as const;
 
 const num = (lo: number, hi: number, fallback: number) =>
   z.coerce

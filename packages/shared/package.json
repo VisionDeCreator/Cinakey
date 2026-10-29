@@ -1,5 +1,5 @@
 {
-  "name": "@cinakey/shared",
+  "name": "@dirrio/shared",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@cinakey/config": "*",
+    "@dirrio/config": "*",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",

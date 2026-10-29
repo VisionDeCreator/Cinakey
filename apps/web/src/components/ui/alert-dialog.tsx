@@ -10,4 +10,4 @@ export {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@cinakey/ui/alert-dialog";
+} from "@dirrio/ui/alert-dialog";

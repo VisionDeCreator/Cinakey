@@ -106,7 +106,7 @@ Internal membership/RBAC and USD accounting may proceed using fixture prices. Li
 Polar activation is blocked by product-policy compatibility (Genjutsu), account-level
 seller verification, and unexecuted authenticated sandbox proofs. The likely jurisdiction
 is Hong Kong (published payout coverage confirmed); the supplied organization name is
-Cinakey. Final incorporation and sandbox/live account identities remain unverified.
+Dirrio. Final incorporation and sandbox/live account identities remain unverified.
 
 ## Objective and boundaries
 
@@ -118,7 +118,7 @@ Retain React, Bun/Elysia API/worker, Convex authentication/persistence, the curr
 project/series model, and browser rendering. Keep the product HTTP facade; do not
 assume product queries already use live Convex subscriptions.
 
-Development-only implementation: Cinakey is not in production. Replace old schemas,
+Development-only implementation: Dirrio is not in production. Replace old schemas,
 credit paths, and fixtures directly. No production migration, legacy billing bridge,
 backfill, dual write, or backward-compatible billing version is required. Development
 fixtures may be regenerated during implementation; this document does not execute
@@ -583,7 +583,7 @@ are accepted; exact retail rates and provider qualification remain open.
   fixed fee for every generation. Provider selection and top-up size affect the rate card.
 - Quotes expire after 10 minutes and accepted quotes retain their price. Reserve the
   maximum, settle authorized actual usage, and release unused funds.
-- Cinakey absorbs unauthorized overruns. Failed generation releases its generation
+- Dirrio absorbs unauthorized overruns. Failed generation releases its generation
   charge; successful analysis remains billable if a later rendering stage fails.
 - Poor creative results alone do not cause automatic refunds. Technical failures do.
 - Display cents; describe sub-cent charges as less than $0.01 with exact detail available.
@@ -685,7 +685,7 @@ implement both providers or build a speculative provider framework.
   generation; no increased capacity or unpaid included allowance.
 - After grace, retain read/review/download access within the recovery window. Failed
   top-ups never fund balances; disputed funds are quarantined and usage may be paused.
-- Cinakey owns the authoritative USD ledger, holds, budgets, and RBAC for either provider.
+- Dirrio owns the authoritative USD ledger, holds, budgets, and RBAC for either provider.
   Payment-side credits/meters must not produce a second charge or competing balance.
 - [x] Select Polar for launch.
 - [ ] Confirm operating-entity eligibility and prepaid usage acceptance with Polar.

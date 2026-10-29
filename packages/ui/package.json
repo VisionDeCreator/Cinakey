@@ -1,5 +1,5 @@
 {
-  "name": "@cinakey/ui",
+  "name": "@dirrio/ui",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -36,7 +36,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@cinakey/config": "*",
+    "@dirrio/config": "*",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",

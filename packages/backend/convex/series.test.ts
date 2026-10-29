@@ -1,4 +1,4 @@
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { describe, expect, it } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { authIdentity, createTestUser, makeTest } from "../test/helpers";
@@ -255,7 +255,7 @@ describe("Series production model", () => {
         new Blob(
           [
             JSON.stringify({
-              schema: "cinakey.sheet/1.0",
+              schema: "dirrio.sheet/1.0",
               entityKind: "character",
               version: 1,
               wardrobe: "Red coat",

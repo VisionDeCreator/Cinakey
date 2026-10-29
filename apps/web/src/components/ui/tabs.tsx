@@ -1,1 +1,1 @@
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "@cinakey/ui/tabs";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "@dirrio/ui/tabs";

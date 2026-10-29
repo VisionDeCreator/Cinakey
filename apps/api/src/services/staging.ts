@@ -6,7 +6,7 @@ import {
   addTokenUsage,
   type TokenUsage,
   type TokenUsageBatch,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   auditStagedDocument,
   buildAuditRepairMessage,
@@ -18,7 +18,7 @@ import {
   parseStagingPlan,
   type StagingIssue,
   type StagingPlan,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
 import { requireProviderKey, useMockProviders } from "../config/env";

@@ -5,7 +5,7 @@ import type {
   PollResult,
   ProviderRequest,
   SubmitResult,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   estimateImageCost,
   estimateTokenCost,

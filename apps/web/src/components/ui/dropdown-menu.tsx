@@ -7,4 +7,4 @@ export {
   DropdownMenuSeparator,
   DropdownMenuGroup,
   DropdownMenuPortal,
-} from "@cinakey/ui/dropdown-menu";
+} from "@dirrio/ui/dropdown-menu";

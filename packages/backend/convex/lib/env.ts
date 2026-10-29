@@ -1,6 +1,6 @@
 /**
  * Read Convex environment variables without a bare `process` identifier
- * (keeps apps that import `@cinakey/backend` api types happy without @types/node).
+ * (keeps apps that import `@dirrio/backend` api types happy without @types/node).
  */
 export function convexEnv(name: string): string | undefined {
   const g = globalThis as {

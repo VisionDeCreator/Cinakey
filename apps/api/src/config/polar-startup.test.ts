@@ -15,7 +15,7 @@ it("rejects mismatched payment environments before serving billing", async () =>
   for (const [name, value] of Object.entries({
     POLAR_PAYMENTS_ENABLED: "true",
     POLAR_ENVIRONMENT: "production",
-    SITE_URL: "https://cinakey.example",
+    SITE_URL: "https://dirrio.example",
     POLAR_ACCESS_TOKEN: "test-token",
     POLAR_WEBHOOK_SECRET: "test-secret",
     POLAR_WORKSPACE_PRODUCT_ID: "sub",

@@ -2,13 +2,13 @@ import {
   WORKSPACE_MONTHLY_USD_MICROS,
   ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
   INCLUDED_MONTHLY_USAGE_USD_MICROS,
-} from "@cinakey/shared";
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+} from "@dirrio/shared";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Wallet, Clock3, Users } from "lucide-react";
 import { useEffect, useState } from "react";
-import { api, type Id } from "@cinakey/backend";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { api, type Id } from "@dirrio/backend";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { useAction, useQuery } from "@/lib/api/hooks";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";
@@ -331,7 +331,7 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
             <I18nText text="Invoices & payment methods" />
           </h3>
           <p className="text-sm text-zinc-400">
-            <I18nText text="The workspace owner can use Manage subscription & invoices above to download invoices and receipts, update payment methods and billing details, or cancel and resume the subscription in Polar’s secure portal. Card details are never stored in Cinakey." />
+            <I18nText text="The workspace owner can use Manage subscription & invoices above to download invoices and receipts, update payment methods and billing details, or cancel and resume the subscription in Polar’s secure portal. Card details are never stored in Dirrio." />
           </p>
           {!config?.enabled && (
             <p className="text-sm text-zinc-500">

@@ -36,7 +36,7 @@ it("sends localized approval mail and records delivery without granting access",
     { id: "waitlist-id" as never, generation: 1 },
   );
   expect(sendMail.mock.calls[0]![0]).toMatchObject({
-    subject: "Votre accès anticipé à Cinakey est approuvé",
+    subject: "Votre accès anticipé à Dirrio est approuvé",
     text: expect.stringContaining("https://app.example.com/sign-up"),
   });
   expect(getFunctionName(runMutation.mock.calls[0]![0])).toBe(

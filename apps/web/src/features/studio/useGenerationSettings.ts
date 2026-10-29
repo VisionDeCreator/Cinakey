@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { api, type Id } from "@cinakey/backend";
+import { api, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { GenerationSettingsDraft } from "./generationSettingsDraft";
 

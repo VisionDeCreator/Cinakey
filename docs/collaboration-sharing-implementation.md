@@ -9,7 +9,7 @@ Final rate validation and provider eligibility remain activation checks. Automat
 
 Owner invites a teammate → teammate signs up and verifies email → Owner/Admin assigns
 productions → one teammate edits a timeline safely → creator exports a saved edit →
-Cinakey stores the finished video → a recipient watches or downloads through a revocable
+Dirrio stores the finished video → a recipient watches or downloads through a revocable
 link without creating an account.
 
 ## A — Onboarding and permissions
@@ -154,7 +154,7 @@ explicit transactional email flows.
 With `SMTP_SECURE=true`, TLS starts immediately (normally port 465). With
 `SMTP_SECURE=false`, STARTTLS is required (normally port 587); certificate validation
 stays enabled. Host/user/password/from-email are required when email is enabled.
-Reply-to is optional and the sender name defaults to Cinakey. SMTP errors are sanitized.
+Reply-to is optional and the sender name defaults to Dirrio. SMTP errors are sanitized.
 Task delivery state prevents ordinary repeats; deterministic Message-IDs assist recipient
 deduplication, but SMTP cannot guarantee exactly-once delivery after an uncertain response.
 See the official [SMTP transport](https://nodemailer.com/smtp) and
@@ -164,7 +164,7 @@ Deploy the Convex schema/functions and API/worker/web together, without resettin
 Allow a 200 MiB upload body in the reverse proxy and sufficient memory for two bounded
 uploads; ordinary JSON requests remain capped at 6 MiB. Set `SITE_URL` to the web origin
 and `WEB_ORIGINS` to the exact allowed origins. Production web/API origins must use HTTPS
-and share a site (for example app.cinakey.com and api.cinakey.com), or use a same-origin
+and share a site (for example app.dirrio.com and api.dirrio.com), or use a same-origin
 proxy, so SameSite viewer cookies work without third-party-cookie exceptions. Preserve
 Range/Content-Range headers and prevent caching of public sharing routes. The API streams
 ranges from private storage rather than redirecting the recipient to a bearer file URL.

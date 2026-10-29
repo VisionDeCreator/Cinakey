@@ -1,5 +1,5 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +22,8 @@ import { AssetDetailDrawer } from "@/features/assets/AssetDetailDrawer";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { cn } from "@/lib/utils";
-import { api, type Id } from "@cinakey/backend";
-import type { AssetType } from "@cinakey/shared";
+import { api, type Id } from "@dirrio/backend";
+import type { AssetType } from "@dirrio/shared";
 import {
   LayoutGrid,
   List,

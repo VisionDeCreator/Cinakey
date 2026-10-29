@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 try {
   const state = JSON.parse(
     readFileSync(
-      process.env.WORKER_HEALTH_FILE ?? "/tmp/cinakey-worker-health.json",
+      process.env.WORKER_HEALTH_FILE ?? "/tmp/dirrio-worker-health.json",
       "utf8",
     ),
   );

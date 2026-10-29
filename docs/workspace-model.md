@@ -1,6 +1,6 @@
 # Project-owned workspace model
 
-Cinakey stores plain-text script versions (`workspaceScripts`), independent staging documents (`workspaceStaging`), assets, generation jobs, and saved timeline versions. Scenes, sequences, shots, and takes have been removed from the database schema and application operations. Local camera cuts and animation timing remain inside staging JSON; they are not production records.
+Dirrio stores plain-text script versions (`workspaceScripts`), independent staging documents (`workspaceStaging`), assets, generation jobs, and saved timeline versions. Scenes, sequences, shots, and takes have been removed from the database schema and application operations. Local camera cuts and animation timing remain inside staging JSON; they are not production records.
 
 Scripts accept arbitrary text or an empty document. Project aliases bind repeated `@name`, `@image_1`, and `@video_1` mentions to stable asset IDs. Renaming an asset does not break an existing binding. Generation freezes the script version, resolved image/video references, settings, and staging selection in its input snapshot. Regeneration, extend, and upscale create ordinary assets and preserve earlier outputs.
 

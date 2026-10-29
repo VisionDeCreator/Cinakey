@@ -1,1 +1,1 @@
-export * from "@cinakey/api-client/context";
+export * from "@dirrio/api-client/context";

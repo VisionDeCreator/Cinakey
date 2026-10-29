@@ -51,7 +51,7 @@ export function deriveLocationDescription(data: EnvironmentSheetData): string {
 }
 
 /**
- * Map a structured asset prompt sheet onto Look Dev `cinakey.sheet/1.0` fields
+ * Map a structured asset prompt sheet onto Look Dev `dirrio.sheet/1.0` fields
  * so accepting a Copilot asset_sheet fills the entity editor.
  */
 export function lookDevPatchFromAssetSheet(

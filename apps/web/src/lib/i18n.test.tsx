@@ -12,7 +12,7 @@ import {
   t,
   tn,
   useLocale,
-} from "@cinakey/ui/i18n";
+} from "@dirrio/ui/i18n";
 
 beforeEach(() => {
   const values = new Map<string, string>();

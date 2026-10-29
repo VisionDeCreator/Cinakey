@@ -1,5 +1,5 @@
 import { useRegistrationPolicy } from "./useRegistrationPolicy";
-import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, LanguageSelector, t, useLocale } from "@dirrio/ui/i18n";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -119,7 +119,7 @@ export function EmailAuthPage({ mode }: { mode: "signIn" | "signUp" }) {
               ? t("Check your email")
               : mode === "signUp"
                 ? t("Create your account")
-                : t("Sign in to Cinakey")}
+                : t("Sign in to Dirrio")}
           </h1>
           <p className="text-sm text-zinc-400">
             {challenge
@@ -254,7 +254,7 @@ export function EmailAuthPage({ mode }: { mode: "signIn" | "signUp" }) {
         </Button>
         <p className="text-center text-sm text-zinc-400">
           {mode === "signIn"
-            ? t("New to Cinakey?")
+            ? t("New to Dirrio?")
             : t("Already have an account?")}{" "}
           <Link
             className="text-zinc-100 underline"

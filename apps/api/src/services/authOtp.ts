@@ -51,8 +51,8 @@ export async function requestEmailOtp(
     });
     const result = await sendSmtpEmail({
       to: email,
-      subject: "Your Cinakey sign-in code",
-      text: `Your Cinakey sign-in code is ${code}.\n\nIt expires in 10 minutes and can only be used once. Enter it in the browser tab where you requested it.\n\nIf you did not request this code, you can ignore this email. Never share your code with anyone.`,
+      subject: "Your Dirrio sign-in code",
+      text: `Your Dirrio sign-in code is ${code}.\n\nIt expires in 10 minutes and can only be used once. Enter it in the browser tab where you requested it.\n\nIf you did not request this code, you can ignore this email. Never share your code with anyone.`,
       idempotencyKey: `login:${id}`,
     });
     if (!result.sent) throw new Error("SMTP unavailable");

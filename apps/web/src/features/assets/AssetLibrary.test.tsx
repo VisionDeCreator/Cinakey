@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { AssetLibrary } from "./AssetLibrary";
 const m = vi.hoisted(() => ({ star: vi.fn().mockResolvedValue(null) }));
-vi.mock("@cinakey/backend", () => ({
+vi.mock("@dirrio/backend", () => ({
   api: {
     projects: { listMine: "projects" },
     assets: { filterOptions: "filters", list: "assets", setStarred: "star" },

@@ -12,7 +12,7 @@ import {
   resolveReferences,
   type BlockoutDocument,
   type StagingPlan,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";

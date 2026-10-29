@@ -1,6 +1,6 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { t, useLocale } from "@dirrio/ui/i18n";
 import { useRef, useState, type ReactNode } from "react";
-import { ASSET_ALLOWED_MIME } from "@cinakey/shared";
+import { ASSET_ALLOWED_MIME } from "@dirrio/shared";
 
 /** Native file chooser and desktop file drops share the same validation/upload path. */
 export function MediaDropzone({

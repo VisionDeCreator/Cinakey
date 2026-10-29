@@ -1,8 +1,8 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useState } from "react";
 import { Box, UserRound, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BlockoutLightRole, BlockoutObjectType } from "@cinakey/shared";
+import type { BlockoutLightRole, BlockoutObjectType } from "@dirrio/shared";
 import { LIGHT_ADD_ROLES, PROP_ADD_TYPES } from "./editorModel";
 import { LIGHT_DEFAULTS } from "./runtime/objects";
 

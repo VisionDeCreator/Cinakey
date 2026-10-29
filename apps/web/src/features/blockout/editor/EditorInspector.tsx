@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Children, isValidElement, type ReactElement, useState } from "react";
 import {
   Select,
@@ -20,7 +20,7 @@ import {
   type BlockoutObject,
   type CameraMovePresetId,
   type CameraPose,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import type { SelKey } from "./editorModel";
 
 type Props = {

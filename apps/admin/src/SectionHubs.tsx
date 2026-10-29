@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api } from "@cinakey/backend";
-import { useQuery } from "@cinakey/api-client";
-import { hasAdminPermission, type AdminPermission } from "@cinakey/shared";
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { useQuery } from "@dirrio/api-client";
+import { hasAdminPermission, type AdminPermission } from "@dirrio/shared";
+import { t, useLocale } from "@dirrio/ui/i18n";
 import { UsersPage, WorkspacesPage } from "./Directory";
 import { ProviderControlsPage } from "./ProviderControls";
 import { AnalyticsPage } from "./Analytics";

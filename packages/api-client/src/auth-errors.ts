@@ -7,7 +7,7 @@ export function authErrorMessage(error: unknown) {
   if (/Rate limit|Too many/i.test(message))
     return "Too many attempts. Please wait before requesting a new code.";
   if (/account assistance/i.test(message))
-    return "We couldn’t sign you in. Please contact Cinakey support for account assistance.";
+    return "We couldn’t sign you in. Please contact Dirrio support for account assistance.";
   return "Could not sign in. Please try again or request a new code.";
 }
 

@@ -2,7 +2,7 @@
  * WebGL2 compositor: draw video/image frames and title overlays onto a canvas.
  */
 
-import type { CaptionLine, TimelineClip, TitleStyleId } from "@cinakey/shared";
+import type { CaptionLine, TimelineClip, TitleStyleId } from "@dirrio/shared";
 
 export class Compositor {
   readonly canvas: HTMLCanvasElement;

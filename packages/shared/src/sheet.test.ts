@@ -7,10 +7,10 @@ import {
   styleSheetToPromptText,
 } from "./sheet";
 
-describe("cinakey.sheet/1.0 helpers", () => {
+describe("dirrio.sheet/1.0 helpers", () => {
   it("creates an empty character sheet", () => {
     const sheet = createEmptySheet("character");
-    expect(sheet.schema).toBe("cinakey.sheet/1.0");
+    expect(sheet.schema).toBe("dirrio.sheet/1.0");
     expect(sheet.version).toBe(1);
     expect(sheet.entityKind).toBe("character");
   });

@@ -155,7 +155,7 @@ describe("blockout engine", () => {
   });
 });
 
-describe("cinakey.blockout/2.0", () => {
+describe("dirrio.blockout/2.0", () => {
   it("validates a part document", () => {
     const doc = emptyPartDocument({
       id: "p1",
@@ -170,7 +170,7 @@ describe("cinakey.blockout/2.0", () => {
   });
 
   it("rejects broken docs with one-line errors", () => {
-    expect(validateBlockoutDocument({ schema: "cinakey.blockout/9.0" })).toMatch(
+    expect(validateBlockoutDocument({ schema: "dirrio.blockout/9.0" })).toMatch(
       /Unsupported schema/,
     );
     expect(

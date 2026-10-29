@@ -1,10 +1,10 @@
 import { deepseekAdapter } from "./deepseek";
 import { remixLiteAdapter } from "./sume";
 import { seedance25Adapter } from "./seedance25";
-import type { GenerationAdapter } from "@cinakey/shared";
+import type { GenerationAdapter } from "@dirrio/shared";
 import { requireProviderKey } from "../config/env";
 
-export type { GenerationAdapter, ModelCapabilities } from "@cinakey/shared";
+export type { GenerationAdapter, ModelCapabilities } from "@dirrio/shared";
 
 const realAdapters: Record<string, GenerationAdapter> = {
   "seedance-2.5": seedance25Adapter,

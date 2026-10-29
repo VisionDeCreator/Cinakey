@@ -1,4 +1,4 @@
-import { I18nText, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, useLocale } from "@dirrio/ui/i18n";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,7 @@ export function NotFoundPage() {
         <I18nText text="Page not found" />
       </h1>
       <p className="text-sm text-zinc-500">
-        <I18nText text="That route does not exist in Cinakey." />
+        <I18nText text="That route does not exist in Dirrio." />
       </p>
       <Button asChild>
         <Link to="/projects">

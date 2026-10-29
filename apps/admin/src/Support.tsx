@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, type Id } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
-import { getLocale, I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { api, type Id } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
+import { getLocale, I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Permission } from "./Permissions";
 const statuses = ["open", "investigating", "waiting", "resolved"] as const;
 function SupportAction({

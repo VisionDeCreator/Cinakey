@@ -5,7 +5,7 @@ import {
   useLocale,
   LanguageSelector,
   formatUsd,
-} from "@cinakey/ui/i18n";
+} from "@dirrio/ui/i18n";
 import desertImage from "./images/desert.jpg";
 import characterImage from "./images/character.jpg";
 import stagingImage from "./images/staging.jpg";
@@ -19,7 +19,7 @@ import {
   WORKSPACE_MONTHLY_USD_MICROS,
   ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
   INCLUDED_MONTHLY_USAGE_USD_MICROS,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   ArrowRight,
   Clapperboard,
@@ -228,7 +228,7 @@ function Waitlist({ requireApproval }: { requireApproval: boolean }) {
           <I18nText text="INVITE-ONLY EARLY ACCESS" />
         </span>
         <h2>
-          <I18nText text="Bring your next story to Cinakey." />
+          <I18nText text="Bring your next story to Dirrio." />
         </h2>
         <p>
           <I18nText text="For creators and small production teams. Join the waitlist and tell us what you want to make." />
@@ -361,9 +361,9 @@ export function LandingPage() {
   return (
     <div className="marketing-page">
       <header className="marketing-nav">
-        <Link className="marketing-brand" to="/" aria-label={t("Cinakey home")}>
+        <Link className="marketing-brand" to="/" aria-label={t("Dirrio home")}>
           <Clapperboard />
-          Cinakey
+          Dirrio
         </Link>
         <nav aria-label={t("Public navigation")}>
           <a href="#workflow">
@@ -438,7 +438,7 @@ export function LandingPage() {
           <header>
             <span>
               <Clapperboard size={20} />
-              Cinakey{" "}
+              Dirrio{" "}
               <b>
                 <I18nText text="Studio" />
               </b>
@@ -687,9 +687,9 @@ export function LandingPage() {
       <footer className="marketing-footer">
         <Link className="marketing-brand" to="/">
           <Clapperboard />
-          Cinakey
+          Dirrio
         </Link>
-        <span>© {new Date().getFullYear()} Cinakey</span>
+        <span>© {new Date().getFullYear()} Dirrio</span>
         <a href="#pricing">
           <I18nText text="Pricing" />
         </a>

@@ -1,3 +1,4 @@
+import { paymentMetadata } from "./paymentMetadata";
 import { v } from "convex/values";
 import { action } from "../runtime/operation";
 import { internal } from "../operations";
@@ -51,7 +52,7 @@ export const refund = action({
         amount: args.amountCents,
         reason: "customer_request",
         comment: args.reason,
-        metadata: { cinakey_refund: intent.id },
+        metadata: { dirrio_refund: intent.id },
       });
     } catch {
       await ctx.runMutation(internal.adminBilling.recordRefund, {
@@ -101,7 +102,7 @@ export const reconcileRefunds = action({
         (r) =>
           r.order_id === order.orderId &&
           (r.id === intent.providerRefundId ||
-            r.metadata.cinakey_refund === intent._id),
+            paymentMetadata(r.metadata, "refund") === intent._id),
       );
       if (matches.length !== 1) continue;
       const receipt = matches[0]!;

@@ -1,6 +1,6 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { useQuery } from "@/lib/api/hooks";
 import {
   FolderOpen,

@@ -1,14 +1,14 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { WorkspaceContext } from "./workspace-context";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
-import { api, type Id } from "@cinakey/backend";
+import { api, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useConfirm } from "@/components/use-confirm";
 
 function storedWorkspace(userId: string) {
   try {
-    return localStorage.getItem(`cinakey.workspace:${userId}`);
+    return localStorage.getItem(`dirrio.workspace:${userId}`);
   } catch {
     return null;
   }
@@ -102,7 +102,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return;
     try {
       localStorage.setItem(
-        `cinakey.workspace:${user._id}`,
+        `dirrio.workspace:${user._id}`,
         active.workspace._id,
       );
     } catch {
@@ -133,7 +133,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     )
       return;
     try {
-      localStorage.setItem(`cinakey.workspace:${user._id}`, id);
+      localStorage.setItem(`dirrio.workspace:${user._id}`, id);
     } catch {
       /* Selection remains usable for this session. */
     }

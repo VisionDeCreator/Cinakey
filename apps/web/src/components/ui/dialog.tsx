@@ -9,4 +9,4 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-} from "@cinakey/ui/dialog";
+} from "@dirrio/ui/dialog";

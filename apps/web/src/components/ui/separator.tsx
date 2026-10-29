@@ -1,1 +1,1 @@
-export { Separator } from "@cinakey/ui/separator";
+export { Separator } from "@dirrio/ui/separator";

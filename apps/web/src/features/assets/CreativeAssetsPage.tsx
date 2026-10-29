@@ -1,5 +1,5 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { api } from "@cinakey/backend";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { api } from "@dirrio/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import {

@@ -4,7 +4,7 @@ export type EmailChallenge = {
   expiresAt: number;
   resendAt: number;
 };
-const storageKey = "cinakey.email-login.v1";
+const storageKey = "dirrio.email-login.v1";
 export function restoreChallenge(): EmailChallenge | null {
   try {
     const c = JSON.parse(sessionStorage.getItem(storageKey) ?? "null");

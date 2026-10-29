@@ -1,6 +1,6 @@
 import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { TimelineClip } from "@cinakey/shared";
+import type { TimelineClip } from "@dirrio/shared";
 import { ClipMedia } from "./ClipMedia";
 import type { EditorMedia, MediaAnalysis } from "./EditorMedia";
 afterEach(() => vi.unstubAllGlobals());

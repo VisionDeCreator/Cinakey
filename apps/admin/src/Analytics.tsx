@@ -1,16 +1,16 @@
-import { getLocale, formatUsd, I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale, formatUsd, I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useRef, useState } from "react";
-import { api, type Id } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
+import { api, type Id } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
 import {
   ANALYTICS_METRICS,
   ANALYTICS_DIMENSIONS,
   ANALYTICS_FINANCIAL_METRICS,
   type AnalyticsMetric,
   type AnalyticsDimension,
-} from "@cinakey/shared";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
+} from "@dirrio/shared";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
 import { BarChart3, ChevronRight } from "lucide-react";
 import {
   Select,
@@ -18,7 +18,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@cinakey/ui/select";
+} from "@dirrio/ui/select";
 import { Permission } from "./Permissions";
 const day = 86400000;
 const date = (time: number) => new Date(time).toISOString().slice(0, 10);

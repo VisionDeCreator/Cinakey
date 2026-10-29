@@ -1,7 +1,7 @@
-name: cinakey-web
+name: dirrio-web
 services:
   web:
-    image: cinakey-web:${RELEASE_VERSION:-local}
+    image: dirrio-web:${RELEASE_VERSION:-local}
     build:
       context: ../..
       dockerfile: deployments/web/Dockerfile

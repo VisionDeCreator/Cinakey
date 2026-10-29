@@ -1,14 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Id } from "@cinakey/backend";
+import type { Id } from "@dirrio/backend";
 import { AssetDetailDrawer } from "./AssetDetailDrawer";
 const m = vi.hoisted(() => ({
   update: vi.fn(),
   remove: vi.fn(),
   confirm: vi.fn(),
 }));
-vi.mock("@cinakey/backend", () => ({
+vi.mock("@dirrio/backend", () => ({
   api: {
     storage: { getAsset: "asset", getAssetUrl: "url" },
     assets: { update: "update", setStarred: "star", remove: "remove" },

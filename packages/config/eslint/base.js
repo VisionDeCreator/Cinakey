@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
-/** Shared ESLint flat-config pieces for Cinakey packages. */
+/** Shared ESLint flat-config pieces for Dirrio packages. */
 export const baseIgnores = ["dist", "**/_generated/**", "node_modules"];
 
 export const baseConfigs = tseslint.config(

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { BlockoutObject, BlockoutLightRole } from "@cinakey/shared";
+import type { BlockoutObject, BlockoutLightRole } from "@dirrio/shared";
 import { LAYER_CONTENT, LAYER_LABELS } from "./layers";
 
 const matCache = new Map<string, THREE.MeshLambertMaterial>();

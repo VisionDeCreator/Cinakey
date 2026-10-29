@@ -1,1 +1,1 @@
-export { Input } from "@cinakey/ui/input";
+export { Input } from "@dirrio/ui/input";

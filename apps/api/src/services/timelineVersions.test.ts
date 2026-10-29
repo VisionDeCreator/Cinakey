@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import type { ServiceOperation } from "../runtime/context";
 import { save } from "./timelineVersions";
 

@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Clapperboard,
   Film,
@@ -24,12 +24,12 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useAction, useMutation } from "@/lib/api/hooks";
-import { api, type Id } from "@cinakey/backend";
-import type { TimelineDocument } from "@cinakey/shared";
+import { api, type Id } from "@dirrio/backend";
+import type { TimelineDocument } from "@dirrio/shared";
 import {
   TIMELINE_EXPORT_MAX_DURATION_SEC,
   TIMELINE_EXPORT_MAX_LONG_EDGE,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { useEffect, useRef, useState } from "react";
 import {
   downloadBlob,

@@ -5,7 +5,7 @@ import {
   ANALYTICS_METRICS,
   ANALYTICS_DIMENSIONS,
   type AnalyticsDimension,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireAdminPermission } from "./lib/access";
@@ -313,7 +313,7 @@ export const exportCsv = mutation({
     });
     return {
       csv,
-      filename: `cinakey-report-${report.from}-${report.to}-${args.dimension}.csv`,
+      filename: `dirrio-report-${report.from}-${report.to}-${args.dimension}.csv`,
     };
   },
 });

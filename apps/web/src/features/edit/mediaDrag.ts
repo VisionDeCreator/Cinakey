@@ -1,5 +1,5 @@
 /** Only project asset identifiers cross the drag boundary; media is resolved locally. */
-export const MEDIA_DRAG_TYPE = "application/x-cinakey-asset";
+export const MEDIA_DRAG_TYPE = "application/x-dirrio-asset";
 export function readDraggedAsset(
   data: Pick<DataTransfer, "getData">,
 ): string | null {
@@ -16,7 +16,7 @@ export function readDraggedAsset(
     return null;
   }
 }
-export const MEDIA_POINTER_EVENT = "cinakey:media-pointer";
+export const MEDIA_POINTER_EVENT = "dirrio:media-pointer";
 export type MediaPointerDetail = {
   assetId: string;
   x: number;

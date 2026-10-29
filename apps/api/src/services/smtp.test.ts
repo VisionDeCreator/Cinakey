@@ -9,7 +9,7 @@ function configured() {
     SMTP_SECURE: "true",
     SMTP_USER: "fixture-user",
     SMTP_PASSWORD: "fixture-password",
-    SMTP_FROM_NAME: "Cinakey",
+    SMTP_FROM_NAME: "Dirrio",
     SMTP_FROM_EMAIL: "hello@example.com",
     SMTP_REPLY_TO: "support@example.com",
   }))
@@ -52,7 +52,7 @@ it("uses configured sender, reply-to, TLS and deterministic message IDs", async 
   );
   expect(sendMail).toHaveBeenCalledWith(
     expect.objectContaining({
-      from: { name: "Cinakey", address: "hello@example.com" },
+      from: { name: "Dirrio", address: "hello@example.com" },
       replyTo: "support@example.com",
       messageId: expect.stringMatching(/^<[a-f0-9]{64}@example.com>$/),
     }),

@@ -1,5 +1,5 @@
-import { I18nText, useLocale } from "@cinakey/ui/i18n";
-import { api } from "@cinakey/backend";
+import { I18nText, useLocale } from "@dirrio/ui/i18n";
+import { api } from "@dirrio/backend";
 import { useConvexAuth, useQuery } from "@/lib/api/hooks";
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";

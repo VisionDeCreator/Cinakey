@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Id } from "@cinakey/backend";
+import type { Id } from "@dirrio/backend";
 import { ResourceLibrary } from "./ResourceLibrary";
 const m = vi.hoisted(() => ({ mutate: vi.fn() }));
-vi.mock("@cinakey/backend", () => ({
+vi.mock("@dirrio/backend", () => ({
   api: {
     resources: {
       list: "list",

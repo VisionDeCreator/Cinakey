@@ -1,9 +1,9 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { StoredExports } from "@/features/edit/StoredExports";
 import { ProjectSettings } from "./ProjectSettings";
 import { EpisodeSeriesPanel } from "@/features/series/EpisodeSeriesPanel";
 import { useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { ArrowLeft, Clapperboard } from "lucide-react";
 import {
   NavLink,

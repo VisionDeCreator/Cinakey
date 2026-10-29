@@ -1,4 +1,4 @@
-# Cinakey web deployment
+# Dirrio web deployment
 
 See the [deployment runbook](../README.md) for environment ownership, setup, rollout and rollback.
 

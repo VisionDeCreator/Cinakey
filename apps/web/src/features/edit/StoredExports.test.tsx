@@ -55,7 +55,7 @@ beforeEach(() => {
   HTMLElement.prototype.setPointerCapture = vi.fn();
   HTMLElement.prototype.releasePointerCapture = vi.fn();
   mocks.create.mockResolvedValue({
-    url: "https://cinakey.test/share/link#private-secret",
+    url: "https://dirrio.test/share/link#private-secret",
   });
   mocks.revoke.mockResolvedValue(null);
 });
@@ -70,7 +70,7 @@ it("defaults to watch-only links with an expiry and reveals a new link for copyi
   fireEvent.click(screen.getByRole("button", { name: "Create private link" }));
   await waitFor(() =>
     expect(screen.getByLabelText("New private share link")).toHaveValue(
-      "https://cinakey.test/share/link#private-secret",
+      "https://dirrio.test/share/link#private-secret",
     ),
   );
   expect(mocks.create).toHaveBeenCalledWith(

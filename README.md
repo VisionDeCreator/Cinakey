@@ -1,9 +1,9 @@
-# Cinakey
+# Dirrio
 
 Browser-based AI video production: script → image references → 3D staging →
 video generation → edit → export.
 
-Upload images or reuse existing assets as references. Cinakey does not generate
+Upload images or reuse existing assets as references. Dirrio does not generate
 images or provide a conversational copilot. Projects open in a unified blue-and-charcoal workspace with a connected viewer,
 plain-text script, references, generation history and editing timeline. Staging is
 available inside the viewer; detailed reference tools remain accessible.
@@ -261,7 +261,7 @@ the selected source video. When converting a mismatched numbered video alias to
 an image, the editor chooses an unused `@image_N` alias and rewrites all mentions
 without overwriting existing image aliases.
 
-Click **Generate** after uploading a video and writing a prompt. Cinakey decodes
+Click **Generate** after uploading a video and writing a prompt. Dirrio decodes
 eight timestamped frames locally, analyzes them and the selected reference images
 with `deepseek-flash`, then submits the transformation to Sume Remix Lite automatically.
 The button shows the combined maximum estimate for analysis and rendering. Analysis
@@ -713,3 +713,5 @@ Live roles, funds, refunds, media deletion, and provider controls were not chang
 Role and financial-permission boundaries remain covered by automated tests.
 
 Docker deployment configuration, per-service environment templates, production Convex tooling, and rollout/rollback instructions are available in [the deployment runbook](deployments/README.md).
+
+See [brand and infrastructure transition](docs/brand-transition.md) for new Dirrio infrastructure configuration and saved-data compatibility.

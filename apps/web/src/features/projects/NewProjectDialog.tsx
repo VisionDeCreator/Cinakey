@@ -1,7 +1,7 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
-import { api } from "@cinakey/backend";
-import type { AspectRatio } from "@cinakey/shared";
+import { api } from "@dirrio/backend";
+import type { AspectRatio } from "@dirrio/shared";
 import { useMutation } from "@/lib/api/hooks";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

@@ -1,1 +1,1 @@
-export { ApiProvider } from "@cinakey/api-client/ApiProvider";
+export { ApiProvider } from "@dirrio/api-client/ApiProvider";

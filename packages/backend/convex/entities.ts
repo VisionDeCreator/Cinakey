@@ -1,6 +1,6 @@
 import { requireProjectWrite } from "./lib/access";
 import { requireProjectAccessForUser } from "./lib/access";
-import { normalizeEntityName } from "@cinakey/shared";
+import { normalizeEntityName } from "@dirrio/shared";
 import { v } from "convex/values";
 import {
   internalMutation,

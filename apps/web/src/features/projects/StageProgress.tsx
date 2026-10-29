@@ -1,6 +1,6 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
+import { t, useLocale } from "@dirrio/ui/i18n";
 import { cn } from "@/lib/utils";
-import type { PipelineProgress, PipelineStage } from "@cinakey/shared";
+import type { PipelineProgress, PipelineStage } from "@dirrio/shared";
 
 const STAGES: { key: PipelineStage; label: string }[] = [
   {

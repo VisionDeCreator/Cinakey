@@ -1,5 +1,5 @@
 import { mediaUnavailable } from "./mediaControls";
-import { hasAdminPermission, type AdminPermission } from "@cinakey/shared";
+import { hasAdminPermission, type AdminPermission } from "@dirrio/shared";
 import { assertPaymentProduction } from "./paymentAccess";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";

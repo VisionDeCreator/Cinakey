@@ -4,7 +4,7 @@ import {
   keyCameraAtFrame,
   placeInFrontOfCamera,
 } from "./editorModel";
-import { emptyPartDocument } from "@cinakey/shared";
+import { emptyPartDocument } from "@dirrio/shared";
 
 describe("editorModel", () => {
   it("places objects in front of camera", () => {

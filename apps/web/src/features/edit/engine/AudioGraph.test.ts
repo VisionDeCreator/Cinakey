@@ -1,4 +1,4 @@
-import { assertTimelineDocument } from "@cinakey/shared";
+import { assertTimelineDocument } from "@dirrio/shared";
 import { afterEach, expect, it, vi } from "vitest";
 import { timelineWithMedia } from "../../../../../../packages/shared/test/timelineFixture";
 import { AudioGraph, videoClipsAt } from "./AudioGraph";

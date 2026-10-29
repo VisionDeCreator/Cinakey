@@ -1,2 +1,2 @@
-export { Badge } from "@cinakey/ui/badge";
-export type { BadgeProps } from "@cinakey/ui/badge";
+export { Badge } from "@dirrio/ui/badge";
+export type { BadgeProps } from "@dirrio/ui/badge";

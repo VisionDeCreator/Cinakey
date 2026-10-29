@@ -1,4 +1,4 @@
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { describe, expect, it } from "vitest";
 import { api, internal } from "../../../apps/api/src/operations";
 import { timelineWithMedia } from "../../shared/test/timelineFixture";

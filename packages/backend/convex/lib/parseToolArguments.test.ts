@@ -15,7 +15,7 @@ describe("parseToolArguments", () => {
       JSON.stringify({
         summary: "Draft",
         document: JSON.stringify({
-          schema: "cinakey.script/1.0",
+          schema: "dirrio.script/1.0",
           scenes: [{ heading: "INT. A" }],
         }),
       }),

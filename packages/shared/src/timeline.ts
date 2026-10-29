@@ -1,5 +1,6 @@
+import { normalizeDocumentNamespace } from "./document-schema";
 /**
- * Timeline document (cinakey.timeline/1.0).
+ * Timeline document (dirrio.timeline/1.0).
  *
  * Stored as a JSON file on timelineVersions.timelineFileId. Tracks hold clips
  * that reference takes, uploaded assets, or generated text/captions.
@@ -7,7 +8,7 @@
 
 import { z } from "zod";
 
-export const TIMELINE_SCHEMA_ID = "cinakey.timeline/1.0" as const;
+export const TIMELINE_SCHEMA_ID = "dirrio.timeline/1.0" as const;
 
 /** Schema ids this build can read. Minor versions must stay additive. */
 export const TIMELINE_READABLE_SCHEMAS: readonly string[] = [
@@ -210,7 +211,9 @@ export function recomputeTimelineDuration(
 }
 
 export function validateTimelineDocument(value: unknown): string | null {
-  const result = timelineDocumentSchema.safeParse(value);
+  const result = timelineDocumentSchema.safeParse(
+    normalizeDocumentNamespace(value),
+  );
   if (!result.success) {
     const issue = result.error.issues[0];
     if (!issue) return "Invalid timeline document";
@@ -234,9 +237,9 @@ export function isTimelineDocument(value: unknown): value is TimelineDocument {
 export function assertTimelineDocument(value: unknown): TimelineDocument {
   const err = validateTimelineDocument(value);
   if (err !== null) {
-    throw new Error(`Invalid cinakey.timeline/1.0 document: ${err}`);
+    throw new Error(`Invalid dirrio.timeline/1.0 document: ${err}`);
   }
-  return value as TimelineDocument;
+  return normalizeDocumentNamespace(value) as TimelineDocument;
 }
 
 export function findTrack(

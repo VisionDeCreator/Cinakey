@@ -1,1 +1,1 @@
-export { Label } from "@cinakey/ui/label";
+export { Label } from "@dirrio/ui/label";

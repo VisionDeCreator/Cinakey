@@ -1,1 +1,1 @@
-export { Textarea } from "@cinakey/ui/textarea";
+export { Textarea } from "@dirrio/ui/textarea";

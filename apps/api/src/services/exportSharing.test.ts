@@ -69,7 +69,7 @@ it("refuses a legacy Convex upstream that ignores ranges", async () => {
       ctx as never,
       new Request("http://localhost/media", {
         headers: {
-          Cookie: `cinakey_share=${"a".repeat(64)}`,
+          Cookie: `dirrio_share=${"a".repeat(64)}`,
           Range: "bytes=0-9",
         },
       }),
@@ -96,7 +96,7 @@ it("authorizes R2 shares before redirecting to a short-lived signed URL", async 
       ctx as never,
       new Request("https://app.example/media", {
         headers: {
-          Cookie: `cinakey_share=${"a".repeat(64)}`,
+          Cookie: `dirrio_share=${"a".repeat(64)}`,
           Range: "bytes=0-9",
         },
       }),
@@ -121,7 +121,7 @@ it("does not sign a URL when a share has been revoked", async () => {
       serveSharedMedia(
         ctx as never,
         new Request("https://app.example/media", {
-          headers: { Cookie: `cinakey_share=${"a".repeat(64)}` },
+          headers: { Cookie: `dirrio_share=${"a".repeat(64)}` },
         }),
         "link" as never,
       ),

@@ -9,7 +9,7 @@ import {
   TOKEN_RATES,
   TOKEN_SUPPLIER_RATES,
   DEEPSEEK_MODEL,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { query, mutation, internalMutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";

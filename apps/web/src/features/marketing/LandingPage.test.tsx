@@ -2,7 +2,7 @@ const policy = vi.hoisted(() => ({ required: true }));
 vi.mock("../auth/useRegistrationPolicy", () => ({
   useRegistrationPolicy: () => policy.required,
 }));
-import { setLocale, t } from "@cinakey/ui/i18n";
+import { setLocale, t } from "@dirrio/ui/i18n";
 import {
   act,
   cleanup,

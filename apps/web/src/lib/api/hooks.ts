@@ -1,1 +1,1 @@
-export * from "@cinakey/api-client/hooks";
+export * from "@dirrio/api-client/hooks";

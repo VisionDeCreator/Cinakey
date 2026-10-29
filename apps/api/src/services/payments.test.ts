@@ -44,7 +44,7 @@ vi.mock("@polar-sh/sdk/2026-10", async (importOriginal) => {
     }),
   };
 });
-const secretBytes = Buffer.from("cinakey-test-webhook-key-not-live");
+const secretBytes = Buffer.from("dirrio-test-webhook-key-not-live");
 const secret = `whsec_${secretBytes.toString("base64")}`;
 beforeEach(() => {
   vi.clearAllMocks();
@@ -108,7 +108,7 @@ function signed(
   const signature = createHmac("sha256", secretBytes)
     .update(`${id}.${time}.${body}`)
     .digest("base64");
-  return new Request("https://api.cinakey.test/webhooks/polar", {
+  return new Request("https://api.dirrio.test/webhooks/polar", {
     method: "POST",
     body,
     headers: {
@@ -270,7 +270,7 @@ it("recovers an unknown checkout outcome without another creation POST", async (
         id: "recovered",
         url: "https://sandbox.polar.sh/checkout/recovered",
         expires_at: new Date(Date.now() + 3600_000).toISOString(),
-        metadata: { cinakey_intent: intent!._id },
+        metadata: { dirrio_intent: intent!._id },
       },
     ],
   });
@@ -338,7 +338,7 @@ async function paidFixture() {
     product_id: "subscription-product",
     customer_id: "customer",
     customer: { external_id: f.workspaceId },
-    metadata: { cinakey_intent: intent!._id },
+    metadata: { dirrio_intent: intent!._id },
     status: "active",
     currency: "usd",
     recurring_interval: "month",
@@ -356,7 +356,7 @@ async function paidFixture() {
     product_id: "subscription-product",
     customer_id: "customer",
     customer: { external_id: f.workspaceId },
-    metadata: { cinakey_intent: intent!._id },
+    metadata: { dirrio_intent: intent!._id },
     subscription_id: "sub",
     subscription: sub,
     checkout_id: "checkout",
@@ -425,7 +425,7 @@ it("runs signed paid/refund events through the durable worker and real ledger, w
     product_id: "topup-10",
     subscription_id: null,
     subscription: null,
-    metadata: { cinakey_intent: topIntent!._id },
+    metadata: { dirrio_intent: topIntent!._id },
     billing_reason: "purchase",
     subtotal_amount: 1000,
     net_amount: 1000,

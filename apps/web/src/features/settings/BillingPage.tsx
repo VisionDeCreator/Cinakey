@@ -1,5 +1,5 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useState } from "react";
 import { useClient } from "@/lib/api/context";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -11,8 +11,8 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { api } from "@cinakey/backend";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { useQuery } from "@/lib/api/hooks";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { BillingSettings } from "./BillingSettings";
@@ -200,7 +200,7 @@ function BalanceActivity({
   workspaceId,
   internal,
 }: {
-  workspaceId: import("@cinakey/backend").Id<"workspaces">;
+  workspaceId: import("@dirrio/backend").Id<"workspaces">;
   internal?: boolean;
 }) {
   useLocale();

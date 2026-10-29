@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { getFunctionName } from "convex/server";
 import { afterEach, expect, it, vi } from "vitest";
-import { type TimelineClip } from "@cinakey/shared";
+import { type TimelineClip } from "@dirrio/shared";
 import { ClipInspector } from "./ClipInspector";
 
 vi.mock("@/lib/api/hooks", () => ({

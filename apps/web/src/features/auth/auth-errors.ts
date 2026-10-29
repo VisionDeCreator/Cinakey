@@ -1,1 +1,1 @@
-export * from "@cinakey/api-client/auth-errors";
+export * from "@dirrio/api-client/auth-errors";

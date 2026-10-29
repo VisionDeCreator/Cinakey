@@ -12,7 +12,7 @@ export const sendApproval = internalAction({
     try {
       const link = new URL(
         "/sign-up",
-        serverEnv("SITE_URL") ?? "https://app.cinakey.com",
+        serverEnv("SITE_URL") ?? "https://app.dirrio.com",
       );
       const result = await sendSmtpEmail({
         to: row.email,

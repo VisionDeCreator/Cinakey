@@ -1,11 +1,11 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { useAction, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
-import { type AssetSheetType } from "@cinakey/shared";
+import { api } from "@dirrio/backend";
+import { type AssetSheetType } from "@dirrio/shared";
 import { useEffect, useRef, useState } from "react";
 const TYPE_LABEL: Record<AssetSheetType, string> = {
   character: "character",

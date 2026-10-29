@@ -1,8 +1,8 @@
 # Dokploy: select this file; configure .env through the Environment editor.
-name: cinakey
+name: dirrio
 services:
   api:
-    image: cinakey-server:${RELEASE_VERSION:-local}
+    image: dirrio-server:${RELEASE_VERSION:-local}
     build:
       context: .
       dockerfile: deployments/api/Dockerfile
@@ -17,7 +17,7 @@ services:
         bind: { create_host_path: false }
     environment:
       PORT: "3001"
-      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+      WORKER_HEALTH_FILE: /tmp/dirrio-worker-health.json
     stop_grace_period: 150s
     restart: unless-stopped
     init: true
@@ -38,7 +38,7 @@ services:
       start_period: 120s
       retries: 5
   worker:
-    image: cinakey-server:${RELEASE_VERSION:-local}
+    image: dirrio-server:${RELEASE_VERSION:-local}
     build:
       context: .
       dockerfile: deployments/api/Dockerfile
@@ -53,7 +53,7 @@ services:
         bind: { create_host_path: false }
     environment:
       PORT: "3001"
-      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+      WORKER_HEALTH_FILE: /tmp/dirrio-worker-health.json
     stop_grace_period: 150s
     restart: unless-stopped
     init: true
@@ -80,7 +80,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
   web:
-    image: cinakey-web:${RELEASE_VERSION:-local}
+    image: dirrio-web:${RELEASE_VERSION:-local}
     build:
       context: .
       dockerfile: deployments/web/Dockerfile
@@ -95,7 +95,7 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
   admin:
-    image: cinakey-admin:${RELEASE_VERSION:-local}
+    image: dirrio-admin:${RELEASE_VERSION:-local}
     build:
       context: .
       dockerfile: deployments/admin/Dockerfile

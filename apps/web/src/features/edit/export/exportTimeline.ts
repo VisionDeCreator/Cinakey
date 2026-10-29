@@ -9,7 +9,7 @@ import {
   TIMELINE_EXPORT_MAX_LONG_EDGE,
   type TimelineClip,
   type TimelineDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   AudioBufferSource,
   BufferTarget,

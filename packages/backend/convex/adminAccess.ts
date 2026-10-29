@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
-import { adminRoles } from "@cinakey/shared";
+import { adminRoles } from "@dirrio/shared";
 import { mutation, query } from "./_generated/server";
 import { requireAdminPermission } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";

@@ -1,6 +1,6 @@
-import { t } from "@cinakey/ui/i18n";
+import { t } from "@dirrio/ui/i18n";
 import JSZip from "jszip";
-import type { BlockoutDocument } from "@cinakey/shared";
+import type { BlockoutDocument } from "@dirrio/shared";
 import { encodePartToMp4, type VideoProgress } from "./videoExport";
 
 export type ExportOptions = {
@@ -54,7 +54,7 @@ export async function runExport(input: {
 
   if (options.json) {
     files.push({
-      name: `${base}.cinakey.blockout.json`,
+      name: `${base}.dirrio.blockout.json`,
       blob: documentToJsonBlob(doc),
     });
   }

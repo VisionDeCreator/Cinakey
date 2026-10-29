@@ -1,1 +1,1 @@
-export * from "@cinakey/api-client/email-otp";
+export * from "@dirrio/api-client/email-otp";

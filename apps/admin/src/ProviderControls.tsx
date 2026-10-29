@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
-import { parseUsdToMicros, usdInputValue } from "@cinakey/shared";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
-import { getLocale, formatUsd, I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
+import { parseUsdToMicros, usdInputValue } from "@dirrio/shared";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
+import { getLocale, formatUsd, I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Search,
   Wallet,
@@ -19,7 +19,7 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@cinakey/ui/select";
+} from "@dirrio/ui/select";
 import { Permission } from "./Permissions";
 const money = (n: number) => formatUsd(n);
 function Action({

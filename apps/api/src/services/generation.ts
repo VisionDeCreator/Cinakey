@@ -1,11 +1,11 @@
-import { applyUsageMarkup } from "@cinakey/shared";
-import type { BuildRequestInput, GenerationAdapter } from "@cinakey/shared";
+import { applyUsageMarkup } from "@dirrio/shared";
+import type { BuildRequestInput, GenerationAdapter } from "@dirrio/shared";
 import {
   chargeForUnits,
   validateVideoInput,
   validateVideoReference,
   validateRemixInput,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import type {
@@ -475,7 +475,7 @@ export const submitAndTrack = internalAction({
         (request as Record<string, unknown>)._attempt = attempt;
       const result = await adapter.submit({
         ...request,
-        _idempotencyKey: `cinakey:${job._id}:${attempt}`,
+        _idempotencyKey: `dirrio:${job._id}:${attempt}`,
         _maximumRetailUsdMicros: job.estimatedCostUsdMicros,
         _usageMarkupBps: job.usageMarkupBps,
       });
@@ -741,7 +741,7 @@ async function finishSuccess(
     throw new Error("Missing providerJobId");
   }
   const collected = job.providerResultFileId
-    ? await loadJson<import("@cinakey/shared").CollectResult>(
+    ? await loadJson<import("@dirrio/shared").CollectResult>(
         ctx,
         job.providerResultFileId,
       )
@@ -927,7 +927,7 @@ export const generationWebhook = httpAction(async (ctx, request) => {
   const secret = serverEnv("GENERATION_WEBHOOK_SECRET");
   const body = await request.text();
   const signature =
-    request.headers.get("x-cinakey-signature") ??
+    request.headers.get("x-dirrio-signature") ??
     request.headers.get("x-signature") ??
     "";
 

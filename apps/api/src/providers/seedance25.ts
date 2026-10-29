@@ -1,6 +1,6 @@
-import { videoPrice, videoRate } from "@cinakey/shared";
-import type { GenerationAdapter } from "@cinakey/shared";
-import { validateVideoInput } from "@cinakey/shared";
+import { videoPrice, videoRate } from "@dirrio/shared";
+import type { GenerationAdapter } from "@dirrio/shared";
+import { validateVideoInput } from "@dirrio/shared";
 import { sumeLifecycle } from "./sume";
 const COST = {
   unit: "per_second",

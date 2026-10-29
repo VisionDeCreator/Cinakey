@@ -5,4 +5,4 @@ export {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@cinakey/ui/select";
+} from "@dirrio/ui/select";

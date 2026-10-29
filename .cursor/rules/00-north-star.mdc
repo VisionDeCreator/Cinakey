@@ -1,10 +1,10 @@
 ---
-description: "Cinakey north star: follow the source of truth and keep it current"
+description: "Dirrio north star: follow the source of truth and keep it current"
 alwaysApply: true
 ---
 
-# Cinakey north star
-- Cinakey is a browser-based AI video production pipeline: script -> assets -> blockout (incl. 3D) -> video generation -> edit -> export, with every asset versioned and linked to its shot, and an AI copilot throughout.
+# Dirrio north star
+- Dirrio is a browser-based AI video production pipeline: script -> assets -> blockout (incl. 3D) -> video generation -> edit -> export, with every asset versioned and linked to its shot, and an AI copilot throughout.
 - The full product description is in .cursor/rules/source-of-truth.mdc. Read it before planning or building any feature. Never contradict it silently.
 - If a request conflicts with the source of truth, stop and ask which should win.
 - Stack: React + TypeScript (Vite) front end; Convex for database, functions, scheduled jobs, file storage and search; Convex Auth for sign-in. Monorepo with apps/* and packages/*; web app in apps/web, Convex in packages/backend.

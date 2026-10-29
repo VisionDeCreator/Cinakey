@@ -1,1 +1,1 @@
-export { cn } from "@cinakey/ui/utils";
+export { cn } from "@dirrio/ui/utils";

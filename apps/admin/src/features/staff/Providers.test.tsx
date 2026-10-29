@@ -1,4 +1,4 @@
-import { setLocale } from "@cinakey/ui/i18n";
+import { setLocale } from "@dirrio/ui/i18n";
 import {
   act,
   cleanup,
@@ -19,7 +19,7 @@ const state = vi.hoisted(() => ({
         latencyP95Ms: number | null;
       }>,
 }));
-vi.mock("@cinakey/api-client", () => ({ useQuery: () => state.rows }));
+vi.mock("@dirrio/api-client", () => ({ useQuery: () => state.rows }));
 afterEach(cleanup);
 it("renders metrics, missing data, and model search", () => {
   state.rows = [

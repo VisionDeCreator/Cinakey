@@ -123,7 +123,7 @@ it("recompiles a saved staging plan from plain text with no production records o
   });
   await t.run(async (ctx) => {
     const plan = {
-      schema: "cinakey.staging/1.0",
+      schema: "dirrio.staging/1.0",
       set: { terrain: "open", timeOfDay: "day", features: [] },
       cast: [
         {

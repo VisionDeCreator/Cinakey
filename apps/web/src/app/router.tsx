@@ -1,5 +1,5 @@
 import { LandingPage } from "@/features/marketing/LandingPage";
-import { I18nText, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, useLocale } from "@dirrio/ui/i18n";
 import { ShareWatchPage } from "@/features/sharing/ShareWatchPage";
 import { authDestination } from "@/features/auth/auth-errors";
 import { AppShell } from "@/app/AppShell";

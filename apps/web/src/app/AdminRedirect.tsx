@@ -1,4 +1,4 @@
-import { I18nText, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, useLocale } from "@dirrio/ui/i18n";
 import { useParams } from "react-router-dom";
 export function AdminRedirect() {
   useLocale();

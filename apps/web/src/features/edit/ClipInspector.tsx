@@ -1,4 +1,4 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,14 +12,14 @@ import { Film, SlidersHorizontal, Trash2, Type } from "lucide-react";
 import { MediaThumbnail } from "../studio/ReferenceMedia";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import {
   newTimelineId,
   TITLE_STYLE_IDS,
   type CaptionLine,
   type TimelineClip,
   type TitleStyleId,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { resolveMediaDuration } from "./insertMedia";
 

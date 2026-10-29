@@ -1,6 +1,6 @@
 import type { Id } from "./_generated/dataModel";
 import { describe, expect, it, vi } from "vitest";
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { api, internal } from "../../../apps/api/src/operations";
 import { uploadPublication } from "../../../apps/api/src/services/publishedExports";
 import {
@@ -238,7 +238,7 @@ describe("stored exports and sharing", () => {
     const request = (download = false) =>
       new Request(`http://localhost/media${download ? "?download=1" : ""}`, {
         headers: {
-          Cookie: `cinakey_share=${session.token}`,
+          Cookie: `dirrio_share=${session.token}`,
           Range: "bytes=0-9",
         },
       });

@@ -17,7 +17,7 @@ import {
   type CameraMovePresetId,
   type CameraPose,
   type Vec3,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { LIGHT_DEFAULTS } from "./runtime/objects";
 
 let uid = 100;

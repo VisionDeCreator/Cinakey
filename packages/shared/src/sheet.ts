@@ -1,6 +1,7 @@
-/** Versioned look-dev sheet document (cinakey.sheet/1.0). */
+import { documentSchemaMatches } from "./document-schema";
+/** Versioned look-dev sheet document (dirrio.sheet/1.0). */
 
-export const SHEET_SCHEMA_ID = "cinakey.sheet/1.0" as const;
+export const SHEET_SCHEMA_ID = "dirrio.sheet/1.0" as const;
 
 export type EntityKind =
   "character" | "creature" | "location" | "prop" | "style";
@@ -89,7 +90,7 @@ export function isSheetDocument(value: unknown): value is SheetDocument {
   if (value === null || typeof value !== "object") return false;
   const doc = value as Record<string, unknown>;
   return (
-    doc.schema === SHEET_SCHEMA_ID &&
+    documentSchemaMatches(doc.schema, SHEET_SCHEMA_ID) &&
     typeof doc.entityKind === "string" &&
     typeof doc.version === "number"
   );
@@ -97,9 +98,9 @@ export function isSheetDocument(value: unknown): value is SheetDocument {
 
 export function assertSheetDocument(value: unknown): SheetDocument {
   if (!isSheetDocument(value)) {
-    throw new Error("Invalid cinakey.sheet/1.0 document");
+    throw new Error("Invalid dirrio.sheet/1.0 document");
   }
-  return value;
+  return { ...value, schema: SHEET_SCHEMA_ID };
 }
 
 /** Collect currently locked asset ids from sheet slots. */

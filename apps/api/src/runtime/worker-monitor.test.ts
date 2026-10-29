@@ -79,7 +79,7 @@ it("writes container health only after successful monitoring and marks graceful 
   const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  const dir = mkdtempSync(join(tmpdir(), "cinakey-monitor-"));
+  const dir = mkdtempSync(join(tmpdir(), "dirrio-monitor-"));
   const path = join(dir, "health.json");
   vi.stubEnv("WORKER_HEALTH_FILE", path);
   vi.useFakeTimers();

@@ -1,13 +1,13 @@
 /**
- * 3D blockout document (cinakey.blockout/2.0).
+ * 3D blockout document (dirrio.blockout/2.0).
  *
  * One part-scoped document per sequence (script part ≤ Seedance max duration).
  * Animation is evaluated by the pure blockout engine (no Theatre.js).
- * Readers still accept cinakey.blockout/1.0 via migrateToV2.
+ * Readers still accept dirrio.blockout/1.0 via migrateToV2.
  */
 
-export const BLOCKOUT_SCHEMA_V1 = "cinakey.blockout/1.0" as const;
-export const BLOCKOUT_SCHEMA_ID = "cinakey.blockout/2.0" as const;
+export const BLOCKOUT_SCHEMA_V1 = "dirrio.blockout/1.0" as const;
+export const BLOCKOUT_SCHEMA_ID = "dirrio.blockout/2.0" as const;
 
 /** Schema ids this build can read. */
 export const BLOCKOUT_READABLE_SCHEMAS: readonly string[] = [

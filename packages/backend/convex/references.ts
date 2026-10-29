@@ -5,7 +5,7 @@ import {
   replacementReferenceAlias,
   renameReferenceMentions,
   scriptMentions,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { mutation, query } from "./_generated/server";
 import { projectCanUseAsset, requireProjectAccess } from "./lib/access";
 

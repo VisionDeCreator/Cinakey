@@ -1,5 +1,5 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import "./export-sharing.css";
 import { useEffect, useState } from "react";
-import { api, type Id } from "@cinakey/backend";
+import { api, type Id } from "@dirrio/backend";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
 import { useClient } from "@/lib/api/context";
 import { useConfirm } from "@/components/use-confirm";

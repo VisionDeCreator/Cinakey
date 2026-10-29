@@ -1,4 +1,4 @@
-import type { GenerationAdapter } from "@cinakey/shared";
+import type { GenerationAdapter } from "@dirrio/shared";
 import { SubmissionUncertainError } from "./errors";
 
 const unavailable = async (): Promise<never> => {

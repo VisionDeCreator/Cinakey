@@ -1,5 +1,9 @@
+import {
+  documentSchemaMatches,
+  normalizeDocumentNamespace,
+} from "../document-schema";
 /**
- * Migrate cinakey.blockout/1.0 (per-shot Theatre docs) → 2.0 part document.
+ * Migrate dirrio.blockout/1.0 (per-shot Theatre docs) → 2.0 part document.
  */
 
 import { BLOCKOUT_SCHEMA_ID, BLOCKOUT_SCHEMA_V1 } from "./types";
@@ -257,10 +261,10 @@ export function migrateToV2(
   if (!isRecord(value)) {
     return emptyPartDocument(opts?.project, opts?.sequenceId);
   }
-  if (value.schema === BLOCKOUT_SCHEMA_ID) {
-    return value as BlockoutDocument;
+  if (documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_ID)) {
+    return normalizeDocumentNamespace(value) as BlockoutDocument;
   }
-  if (value.schema !== BLOCKOUT_SCHEMA_V1) {
+  if (!documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_V1)) {
     return emptyPartDocument(opts?.project, opts?.sequenceId);
   }
   const doc = value as BlockoutDocumentV1;
@@ -284,5 +288,7 @@ export function migrateToV2(
 }
 
 export function isV1Document(value: unknown): value is BlockoutDocumentV1 {
-  return isRecord(value) && value.schema === BLOCKOUT_SCHEMA_V1;
+  return (
+    isRecord(value) && documentSchemaMatches(value.schema, BLOCKOUT_SCHEMA_V1)
+  );
 }

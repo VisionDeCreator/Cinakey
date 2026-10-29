@@ -1,6 +1,6 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useRef, useState } from "react";
 import {
@@ -25,7 +25,7 @@ import {
   Palette,
   Mountain,
 } from "lucide-react";
-import { api, type Doc } from "@cinakey/backend";
+import { api, type Doc } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import {
@@ -539,7 +539,7 @@ function TransformationWorkspace({
                       draggable={!uploading && !preparing}
                       onDragStart={(event) => {
                         event.dataTransfer.setData(
-                          "application/x-cinakey-asset",
+                          "application/x-dirrio-asset",
                           JSON.stringify({ assetId: asset._id }),
                         );
                         event.dataTransfer.effectAllowed = "copy";

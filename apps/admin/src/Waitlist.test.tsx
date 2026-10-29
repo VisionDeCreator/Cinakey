@@ -1,4 +1,4 @@
-import { setLocale } from "@cinakey/ui/i18n";
+import { setLocale } from "@dirrio/ui/i18n";
 import {
   render,
   screen,
@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 const review = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-vi.mock("@cinakey/api-client", () => ({
+vi.mock("@dirrio/api-client", () => ({
   useMutation: () => review,
   useQueryStatus: () => ({ retry: vi.fn() }),
   useQuery: (ref: never) => {

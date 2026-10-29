@@ -50,7 +50,7 @@ function cli(args: string[]) {
   return result.stdout.trim();
 }
 function setVariables(entries: Record<string, string>) {
-  const dir = mkdtempSync(resolve(tmpdir(), "cinakey-convex-"));
+  const dir = mkdtempSync(resolve(tmpdir(), "dirrio-convex-"));
   try {
     const file = resolve(dir, "runtime.env");
     writeFileSync(

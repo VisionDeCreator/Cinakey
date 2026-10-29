@@ -13,7 +13,7 @@ async function fixture() {
   const staff = t.withIdentity(authIdentity(staffId));
   const workspaceId = await staff.mutation(api.staff.createInternalWorkspace, {
     ownerEmail: "company-owner@test.com",
-    name: "Cinakey Internal",
+    name: "Dirrio Internal",
     monthlyCapUsdMicros: 2_000_000,
     reason: "Company testing",
   });

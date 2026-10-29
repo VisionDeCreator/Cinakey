@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getFunctionName } from "convex/server";
-import type { Id } from "@cinakey/backend";
+import type { Id } from "@dirrio/backend";
 import { SeriesIndexPage } from "./SeriesIndexPage";
 import { ResourceLibrary } from "./ResourceLibrary";
 const state = vi.hoisted(() => ({ query: vi.fn(), write: vi.fn() }));

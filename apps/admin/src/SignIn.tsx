@@ -1,19 +1,19 @@
-import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, LanguageSelector, t, useLocale } from "@dirrio/ui/i18n";
 import { Clapperboard, ShieldCheck, Mail, ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth } from "@cinakey/api-client";
+import { useConvexAuth } from "@dirrio/api-client";
 import {
   requestEmailCode,
   restoreChallenge,
   persistChallenge,
   OtpRequestError,
-} from "@cinakey/api-client/email-otp";
-import { authErrorMessage } from "@cinakey/api-client/auth-errors";
+} from "@dirrio/api-client/email-otp";
+import { authErrorMessage } from "@dirrio/api-client/auth-errors";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
-import { Label } from "@cinakey/ui/label";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
+import { Label } from "@dirrio/ui/label";
 import { adminDestination } from "./routing";
 export function SignIn() {
   useLocale();
@@ -39,7 +39,7 @@ export function SignIn() {
       <div className="admin-auth-brand">
         <Clapperboard size={34} />
         <div>
-          Cinakey
+          Dirrio
           <small>
             <I18nText text="ADMIN" />
           </small>
@@ -58,7 +58,7 @@ export function SignIn() {
                 <strong>{challenge.email}</strong>
               </>
             ) : (
-              t("Use your existing account to access Cinakey administration.")
+              t("Use your existing account to access Dirrio administration.")
             )}
           </p>
         </header>
@@ -194,7 +194,7 @@ export function SignIn() {
       </section>
       <footer className="admin-auth-footer flex flex-col items-center gap-3">
         <span>
-          <I18nText text="Cinakey administration" />
+          <I18nText text="Dirrio administration" />
         </span>
         <LanguageSelector className="h-9 border-transparent bg-transparent text-zinc-400 hover:border-zinc-700 hover:text-zinc-100" />
       </footer>

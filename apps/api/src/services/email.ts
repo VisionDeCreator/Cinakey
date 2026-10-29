@@ -28,8 +28,8 @@ export const maybeSendForNotification = internalAction({
     });
     if (!recipient || serverEnv("EMAIL_NOTIFICATIONS_ENABLED") !== "true")
       return;
-    const site = serverEnv("SITE_URL") ?? "https://app.cinakey.com";
-    const text = `${args.title}${args.body ? `\n\n${args.body}` : ""}${args.href ? `\n\nOpen: ${site}${args.href}` : ""}\n\n— Cinakey`;
+    const site = serverEnv("SITE_URL") ?? "https://app.dirrio.com";
+    const text = `${args.title}${args.body ? `\n\n${args.body}` : ""}${args.href ? `\n\nOpen: ${site}${args.href}` : ""}\n\n— Dirrio`;
     return await ctx.runAction(internal.email.sendNotificationEmail, {
       to: recipient,
       subject: args.title,

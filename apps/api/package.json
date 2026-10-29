@@ -1,5 +1,5 @@
 {
-  "name": "@cinakey/api",
+  "name": "@dirrio/api",
   "private": true,
   "type": "module",
   "exports": {
@@ -21,8 +21,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1158.0",
     "@aws-sdk/s3-request-presigner": "^3.1158.0",
-    "@cinakey/backend": "*",
-    "@cinakey/shared": "*",
+    "@dirrio/backend": "*",
+    "@dirrio/shared": "*",
     "@convex-dev/auth": "^0.0.95",
     "@elysiajs/cors": "^1.4.2",
     "@polar-sh/sdk": "^1.0.2",

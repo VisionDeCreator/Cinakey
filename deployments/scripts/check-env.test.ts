@@ -95,7 +95,7 @@ describe("deployment environment validation", () => {
     );
   });
   test("worker health detects stale polling, supports long jobs and fails after shutdown", () => {
-    const dir = mkdtempSync(resolve(tmpdir(), "cinakey-health-test-"));
+    const dir = mkdtempSync(resolve(tmpdir(), "dirrio-health-test-"));
     try {
       const file = resolve(dir, "health.json");
       const probe = (state: unknown) => {
@@ -146,7 +146,7 @@ describe("root production configuration", () => {
 
 describe("direct Compose configuration", () => {
   test("root and per-service files parse directly without generated variables or a wrapper", () => {
-    const dir = mkdtempSync(resolve(tmpdir(), "cinakey-direct-compose-"));
+    const dir = mkdtempSync(resolve(tmpdir(), "dirrio-direct-compose-"));
     const paths = [
       "docker-compose.yml",
       "deployments/docker-compose.yml",

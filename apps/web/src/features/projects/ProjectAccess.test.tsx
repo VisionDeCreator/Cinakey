@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import type { Doc } from "@cinakey/backend";
+import type { Doc } from "@dirrio/backend";
 import { getFunctionName } from "convex/server";
 import { ProjectSettings } from "./ProjectSettings";
 const state = vi.hoisted(() => ({ assign: vi.fn(), queries: vi.fn() }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createEmptyTimeline } from "@cinakey/shared";
+import { createEmptyTimeline } from "@dirrio/shared";
 import { api } from "../../../apps/api/src/operations";
 import { makeTest, createTestUser, authIdentity } from "../test/helpers";
 

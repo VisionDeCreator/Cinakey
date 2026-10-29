@@ -5,11 +5,11 @@ import { SupportPage, SupportTargetPage } from "./Support";
 import { BillingPage, BillingWorkspacePage } from "./Billing";
 import { JobsPage, JobDetailPage } from "./Jobs";
 import { OperationsPage } from "./Operations";
-import { hasAdminPermission } from "@cinakey/shared";
+import { hasAdminPermission } from "@dirrio/shared";
 import { PermissionRoute } from "./Permissions";
 import { AdministrationPage } from "./Administration";
 import { AuditPage } from "./Audit";
-import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, LanguageSelector, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Clapperboard,
   Users,
@@ -40,9 +40,9 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { api } from "@cinakey/backend";
-import { useConvexAuth, useQuery, useQueryStatus } from "@cinakey/api-client";
-import { Button } from "@cinakey/ui/button";
+import { api } from "@dirrio/backend";
+import { useConvexAuth, useQuery, useQueryStatus } from "@dirrio/api-client";
+import { Button } from "@dirrio/ui/button";
 import { SignIn } from "./SignIn";
 import { UserDetail, WorkspaceDetail } from "./Directory";
 
@@ -148,7 +148,7 @@ function Layout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem("cinakey.admin.sidebar.collapsed") === "true";
+      return localStorage.getItem("dirrio.admin.sidebar.collapsed") === "true";
     } catch {
       return false;
     }
@@ -183,7 +183,7 @@ function Layout() {
             }
             className="admin-brand"
           >
-            <Clapperboard size={30} /> <span>Cinakey</span>
+            <Clapperboard size={30} /> <span>Dirrio</span>
             <small>
               <I18nText text="ADMIN" />
             </small>
@@ -198,7 +198,7 @@ function Layout() {
                 const next = !value;
                 try {
                   localStorage.setItem(
-                    "cinakey.admin.sidebar.collapsed",
+                    "dirrio.admin.sidebar.collapsed",
                     String(next),
                   );
                 } catch {

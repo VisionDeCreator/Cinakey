@@ -1,7 +1,7 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { UploadProgress } from "@/components/UploadProgress";
 import { WorkspaceSelector } from "@/features/workspaces/WorkspaceSelector";
-import { formatUsd } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
 import { WorkspaceProvider } from "@/features/workspaces/WorkspaceContext";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -30,7 +30,7 @@ import {
   useMatch,
   useSearchParams,
 } from "react-router-dom";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ function WorkspaceShell() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useLocalStorageBool(
-    "cinakey.sidebarCollapsed",
+    "dirrio.sidebarCollapsed",
     false,
   );
 
@@ -244,7 +244,7 @@ function WorkspaceShell() {
                 aria-hidden
               />
               <span className="truncate text-xl font-semibold tracking-tight">
-                Cinakey
+                Dirrio
               </span>
             </div>
           ) : null}
@@ -279,7 +279,7 @@ function WorkspaceShell() {
           className="flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-2 sm:px-3"
         >
           {compact ? (
-            <div className="mb-1 flex justify-center py-1" title="Cinakey">
+            <div className="mb-1 flex justify-center py-1" title="Dirrio">
               <Clapperboard
                 className="size-5 text-[var(--color-studio-accent)]"
                 aria-hidden

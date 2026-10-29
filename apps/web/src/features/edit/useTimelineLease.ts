@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { useMutation } from "@/lib/api/hooks";
 
 /** Each mounted editor has its own session, including separate tabs. */

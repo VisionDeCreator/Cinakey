@@ -1,5 +1,5 @@
 vi.mock("./StoredExports", () => ({ StoredExports: () => null }));
-import { type TimelineDocument } from "@cinakey/shared";
+import { type TimelineDocument } from "@dirrio/shared";
 import {
   act,
   cleanup,
@@ -214,7 +214,7 @@ describe("safe editor persistence", () => {
     expect(
       screen.getByRole("button", { name: "Retry save" }),
     ).toBeInTheDocument();
-    expect(localStorage.getItem("cinakey.timelineRecovery.p")).toContain(
+    expect(localStorage.getItem("dirrio.timelineRecovery.p")).toContain(
       '"startSec":1',
     );
     view.unmount();

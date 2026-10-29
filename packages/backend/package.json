@@ -1,5 +1,5 @@
 {
-  "name": "@cinakey/backend",
+  "name": "@dirrio/backend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -16,12 +16,12 @@
   },
   "dependencies": {
     "@auth/core": "^0.41.1",
-    "@cinakey/shared": "*",
+    "@dirrio/shared": "*",
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.46.0"
   },
   "devDependencies": {
-    "@cinakey/config": "*",
+    "@dirrio/config": "*",
     "@edge-runtime/vm": "^5.0.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.13.3",

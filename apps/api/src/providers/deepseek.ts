@@ -5,12 +5,12 @@ import {
   normalizeTokenUsage,
   verifiedDeepseekPeriod,
   type TokenUsageBatch,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import type {
   BuildRequestInput,
   GenerationAdapter,
   ProviderRequest,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { requireProviderKey } from "../config/env";
 import { providerFetch } from "./transport";
 import { estimateTokenCost, isDefaultTransientError } from "./cost";

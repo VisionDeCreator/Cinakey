@@ -1,1 +1,1 @@
-export { Avatar, AvatarImage, AvatarFallback } from "@cinakey/ui/avatar";
+export { Avatar, AvatarImage, AvatarFallback } from "@dirrio/ui/avatar";

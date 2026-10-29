@@ -161,7 +161,7 @@ describe("connected script references and safe autosave", () => {
     expect(input).toHaveValue("Second edit");
     expect(await saveRef.current?.()).toBe(true);
     expect(
-      localStorage.getItem("cinakey.scriptDraft.project.plain"),
+      localStorage.getItem("dirrio.scriptDraft.project.plain"),
     ).toBeNull();
   });
 });

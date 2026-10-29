@@ -8,4 +8,4 @@ export {
   SheetPortal,
   SheetTitle,
   SheetTrigger,
-} from "@cinakey/ui/sheet";
+} from "@dirrio/ui/sheet";

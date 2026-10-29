@@ -1,5 +1,5 @@
-import { stagingPrice } from "@cinakey/shared";
-import { type StagingPlan } from "@cinakey/shared";
+import { stagingPrice } from "@dirrio/shared";
+import { type StagingPlan } from "@dirrio/shared";
 import type { Id } from "./_generated/dataModel";
 import { convexEnv } from "./lib/env";
 

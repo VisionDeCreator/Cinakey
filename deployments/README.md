@@ -1,6 +1,6 @@
-# Cinakey deployment
+# Dirrio deployment
 
-Cinakey uses ordinary Docker Compose files, with per-service deployment folders following Galliun's structure. No Bun wrapper or generated interpolation variables are needed. Images build from the repository checkout using Bun 1.3.14 and the committed lockfile. Convex and private R2 storage remain external managed services.
+Dirrio uses ordinary Docker Compose files, with per-service deployment folders following Galliun's structure. No Bun wrapper or generated interpolation variables are needed. Images build from the repository checkout using Bun 1.3.14 and the committed lockfile. Convex and private R2 storage remain external managed services.
 
 ## Dokploy and root Compose
 
@@ -65,7 +65,7 @@ Shared `VITE_CONVEX_URL` and `VITE_API_URL` must match across those files. For o
 6. Back up Convex and run `bun run deploy:convex` before starting updated API/worker releases. The script checks the production key's target, syncs an allowlist of runtime flags, and deploys from `packages/backend`. Flag updates take effect before code deployment; coordinate changes. CLI diagnostics are suppressed to protect secrets; investigate failures in the dashboard. Review regenerated bindings afterward.
 7. Build/start with standard Compose or Dokploy. Configure generation callbacks at `https://<api-host>/webhooks/generation`. If enabling Polar payments, configure `/webhooks/polar`, distinct product IDs, production credentials, and matching API/worker/Convex flags. Sandbox balances cannot fund live providers. Payments and paywall default to disabled.
 8. Run `bun run deploy:smoke`, then verify login, project access, uploads, media range playback, SPA deep links, worker heartbeat/restart recovery and browser export. The smoke command sends read-only HTTP probes and does not start paid work.
-9. After the intended administrator signs in once, run `bash deployments/scripts/bootstrap-admin.sh you@yourdomain.com --reason "Initial platform administrator"`. This runs Cinakey's audited verified-account promotion inside the running root API container. For a standalone API stack set `COMPOSE_FILE=deployments/api/docker-compose.yml`; set `CONTAINER_ENGINE=podman` if using Podman.
+9. After the intended administrator signs in once, run `bash deployments/scripts/bootstrap-admin.sh you@yourdomain.com --reason "Initial platform administrator"`. This runs Dirrio's audited verified-account promotion inside the running root API container. For a standalone API stack set `COMPOSE_FILE=deployments/api/docker-compose.yml`; set `CONTAINER_ENGINE=podman` if using Podman.
 
 Convex runtime receives only auth/OAuth configuration, `SITE_URL`, and the staging/payment flags. Provider, SMTP, R2, deployment and webhook credentials belong to API/worker only. Blank optional OAuth values do not delete remote credentials; remove retired secrets explicitly after verification.
 

@@ -1,4 +1,4 @@
-import { INCLUDED_MONTHLY_USAGE_USD_MICROS } from "@cinakey/shared";
+import { INCLUDED_MONTHLY_USAGE_USD_MICROS } from "@dirrio/shared";
 import { convexEnv } from "./lib/env";
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";

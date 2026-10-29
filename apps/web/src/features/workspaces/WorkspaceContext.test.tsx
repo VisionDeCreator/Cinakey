@@ -10,7 +10,7 @@ import {
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Id } from "@cinakey/backend";
+import type { Id } from "@dirrio/backend";
 import { ConfirmContext } from "@/components/use-confirm";
 import { NewProjectDialog } from "@/features/projects/NewProjectDialog";
 import { WorkspaceProvider } from "./WorkspaceContext";
@@ -125,8 +125,8 @@ function view(path = "/projects") {
 }
 
 it("isolates workspace selection per account and ignores invalid stored memberships", () => {
-  localStorage.setItem("cinakey.workspace:another-user", "two");
-  localStorage.setItem("cinakey.workspace:user-one", "not-a-member");
+  localStorage.setItem("dirrio.workspace:another-user", "two");
+  localStorage.setItem("dirrio.workspace:user-one", "not-a-member");
   render(view());
   expect(screen.getByTestId("active")).toHaveTextContent("one");
 });
@@ -140,7 +140,7 @@ it("switches scope, persists it, and resets the previous workspace's component s
     expect(screen.getByTestId("active")).toHaveTextContent("two"),
   );
   expect(screen.getByLabelText("Local draft")).toHaveValue("");
-  expect(localStorage.getItem("cinakey.workspace:user-one")).toBe("two");
+  expect(localStorage.getItem("dirrio.workspace:user-one")).toBe("two");
   expect(screen.getByTestId("rights")).toHaveTextContent("true:false");
   expect(screen.getByTestId("draft-scope")).toHaveTextContent("user-one.two.");
 });
@@ -163,7 +163,7 @@ it("keeps the production and draft open when workspace switching is canceled", a
   expect(screen.getByLabelText("Local draft")).toHaveValue("Keep this");
 });
 it("hides creation and financial administration for a reviewer workspace", () => {
-  localStorage.setItem("cinakey.workspace:user-one", "two");
+  localStorage.setItem("dirrio.workspace:user-one", "two");
   state.role = "reviewer";
   render(view());
   expect(screen.getByTestId("rights")).toHaveTextContent("false:false");
@@ -238,7 +238,7 @@ it("expires write access at the paid deadline and restores it without discarding
 });
 
 it("binds billing returns to their workspace despite a different saved selection", () => {
-  localStorage.setItem("cinakey.workspace:user-one", "one");
+  localStorage.setItem("dirrio.workspace:user-one", "one");
   render(view("/billing/two?billing=returned"));
   expect(screen.getByTestId("active")).toHaveTextContent("two");
   expect(screen.getByTestId("rights")).toHaveTextContent("true:false");

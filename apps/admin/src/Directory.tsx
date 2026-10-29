@@ -1,7 +1,7 @@
 import { Permission } from "./Permissions";
-import { formatUsd } from "@cinakey/ui/i18n";
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { formatUsd } from "@dirrio/ui/i18n";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import {
   Search,
   ChevronRight,
@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api, type Id } from "@cinakey/backend";
-import { useMutation, useQuery } from "@cinakey/api-client";
-import { parseUsdToMicros } from "@cinakey/shared";
-import { Button } from "@cinakey/ui/button";
-import { Input } from "@cinakey/ui/input";
-import { Label } from "@cinakey/ui/label";
+import { api, type Id } from "@dirrio/backend";
+import { useMutation, useQuery } from "@dirrio/api-client";
+import { parseUsdToMicros } from "@dirrio/shared";
+import { Button } from "@dirrio/ui/button";
+import { Input } from "@dirrio/ui/input";
+import { Label } from "@dirrio/ui/label";
 import {
   InternalWorkspaceForm,
   StaffUsersPage,

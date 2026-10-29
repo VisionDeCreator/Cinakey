@@ -1,6 +1,6 @@
-import { getLocale } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { api } from "@cinakey/backend";
+import { getLocale } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { api } from "@dirrio/backend";
 import { useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import {

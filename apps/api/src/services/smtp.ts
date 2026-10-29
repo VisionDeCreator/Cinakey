@@ -49,7 +49,7 @@ export function smtpConfiguration() {
       disableFileAccess: true,
       disableUrlAccess: true,
     },
-    from: { name: serverEnv("SMTP_FROM_NAME")?.trim() || "Cinakey", address },
+    from: { name: serverEnv("SMTP_FROM_NAME")?.trim() || "Dirrio", address },
     replyTo,
   };
 }

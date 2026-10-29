@@ -3,7 +3,7 @@ import {
   normalizeTokenUsage,
   type TokenUsage,
   type TokenUsageBatch,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import {
   compileVideoTransform,
   resolveTransformPrompt,
@@ -14,7 +14,7 @@ import {
   validateVideoReference,
   videoTransformSchema,
   type TransformAnalysis,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";

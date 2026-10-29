@@ -1,8 +1,8 @@
-import { t } from "@cinakey/ui/i18n";
-import { I18nText, useLocale } from "@cinakey/ui/i18n";
+import { t } from "@dirrio/ui/i18n";
+import { I18nText, useLocale } from "@dirrio/ui/i18n";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
-import { api } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
 import { useAction, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

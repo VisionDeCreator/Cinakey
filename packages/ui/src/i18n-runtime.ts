@@ -1,3 +1,4 @@
+import { migrateBrandStorage } from "./brand-storage";
 import { useSyncExternalStore } from "react";
 import en from "./locales/en.json";
 import fr from "./locales/fr.json";
@@ -23,7 +24,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
   ja,
   zh,
 };
-export const localeStorageKey = "cinakey.locale";
+export const localeStorageKey = "dirrio.locale";
 
 export function resolveLocale(
   value: string | null | undefined,
@@ -34,6 +35,7 @@ export function resolveLocale(
 function initialLocale(): Locale {
   if (typeof window === "undefined") return "en";
   try {
+    migrateBrandStorage(window.localStorage);
     const saved = resolveLocale(window.localStorage.getItem(localeStorageKey));
     if (saved) return saved;
   } catch {

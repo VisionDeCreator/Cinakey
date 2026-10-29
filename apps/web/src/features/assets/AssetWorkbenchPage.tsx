@@ -1,9 +1,9 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { Input } from "@/components/ui/input";
 import { PromptWorkbench } from "@/features/prompt-workbench/PromptWorkbench";
 import { useMutation, useQuery } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
-import type { AssetSheetType } from "@cinakey/shared";
+import { api } from "@dirrio/backend";
+import type { AssetSheetType } from "@dirrio/shared";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 

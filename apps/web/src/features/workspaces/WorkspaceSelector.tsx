@@ -1,5 +1,5 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
-import type { Id } from "@cinakey/backend";
+import { t, useLocale } from "@dirrio/ui/i18n";
+import type { Id } from "@dirrio/backend";
 import { useState } from "react";
 import {
   Select,

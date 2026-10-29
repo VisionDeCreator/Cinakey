@@ -1,6 +1,6 @@
 # Video provider contract
 
-Cinakey uses Sume for video generation. Configure `SUME_API_KEY` in the ignored
+Dirrio uses Sume for video generation. Configure `SUME_API_KEY` in the ignored
 root `.env`, set `ENABLED_PROVIDERS=deepseek,sume`.
 While the USD rate card is provisional, real provider access also requires the explicit
 `ALLOW_DEVELOPMENT_PRICES=true` development opt-in.
@@ -35,13 +35,13 @@ payload in `data`.
 Both adapters poll `GET /v1/jobs/{id}/status` and collect
 `GET /v1/jobs/{id}/result`. Canonical `sume_status`/`job.status` take precedence;
 transport states such as `IN_PROGRESS` and `COMPLETED` are also recognized.
-Failed/canceled/expired jobs release reserved Cinakey USD. Unknown states or ambiguous
+Failed/canceled/expired jobs release reserved Dirrio USD. Unknown states or ambiguous
 submissions require review and retain reservations instead of resubmitting blindly.
 Only video artifacts are collected; poster images do not become duplicate outputs.
-Cinakey downloads outputs into its own storage and reads MP4 metadata independently
+Dirrio downloads outputs into its own storage and reads MP4 metadata independently
 because Sume artifact dimensions/duration can be null.
 
-Each submission sends a stable `Idempotency-Key` derived from the Cinakey job ID
+Each submission sends a stable `Idempotency-Key` derived from the Dirrio job ID
 and attempt. Paid POSTs are never automatically retried on ambiguous transport
 failure. Polling and collection share the existing bounded GET retries,
 timeouts, cancellation, origin checks and secret redaction. Pre-migration Ark jobs
@@ -67,10 +67,10 @@ amounts below record that run and are not current prices or converted balances.
 No new paid verification was performed for the USD batch.
 
 Three 720p jobs completed against the configured Sume account using authenticated
-Cinakey service actions, the real Convex job/credit records, worker polling,
+Dirrio service actions, the real Convex job/credit records, worker polling,
 media collection and permanent asset storage:
 
-| Flow                   | Provider job                               | Stored output                       | Cinakey rendering credits |
+| Flow                   | Provider job                               | Stored output                       | Dirrio rendering credits |
 | ---------------------- | ------------------------------------------ | ----------------------------------- | ------------------------- |
 | Genjutsu / Remix Lite  | `job_34ff6fd5-861f-42f3-b3f7-8cf18f52e283` | 718×1280, 9.034 s, 15,409,311 bytes | 20                        |
 | Project / Seedance 2.5 | `job_93b2f817-d649-4d8d-9fec-caa2d043816b` | 1280×720, 5.056 s, 5,920,773 bytes  | 10                        |
@@ -85,9 +85,9 @@ Sume model versions and reference/source lineage.
 
 The test harness was interrupted while coordinating with the already-running
 worker. The original idempotency keys recovered the two interrupted submissions;
-provider job listing confirmed one provider job per Cinakey job. Normal worker
+provider job listing confirmed one provider job per Dirrio job. Normal worker
 poll/collection operations completed all three, without additional generation.
-Browser playback was checked against the files read back from Cinakey storage.
+Browser playback was checked against the files read back from Dirrio storage.
 This verifies the backend pipeline and stored-video playback; the live jobs were
 initiated through service actions rather than clicking Generate in the browser.
 

@@ -28,7 +28,7 @@ const state = vi.hoisted(() => ({
       },
   mutation: vi.fn(),
 }));
-vi.mock("@cinakey/api-client", () => ({
+vi.mock("@dirrio/api-client", () => ({
   useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
     getFunctionName(ref) === "users:viewer"
       ? { _id: "moderator-1", isStaff: true, adminRoles: ["moderation"] }

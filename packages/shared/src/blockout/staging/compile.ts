@@ -1,5 +1,5 @@
 /**
- * Compile a `cinakey.staging/1.0` plan into a part-scoped blockout document.
+ * Compile a `dirrio.staging/1.0` plan into a part-scoped blockout document.
  *
  * Deterministic: the same plan + script always gives the same document. The
  * plan says *what* happens (who is where, who moves along which path, what
@@ -2426,7 +2426,7 @@ export function compileStagingPlanWithInfo(
     env: { sky: skyFor(plan.set.timeOfDay), ground: false, fog: false },
     shots: cuts,
     notes:
-      "Staged from a cinakey.staging/1.0 plan. Hard cuts are camera keys with ease hold.",
+      "Staged from a dirrio.staging/1.0 plan. Hard cuts are camera keys with ease hold.",
   };
   return { document: doc, riding };
 }

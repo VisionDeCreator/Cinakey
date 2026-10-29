@@ -1,5 +1,5 @@
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import type { BlockoutDocument } from "@cinakey/shared";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import type { BlockoutDocument } from "@dirrio/shared";
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";

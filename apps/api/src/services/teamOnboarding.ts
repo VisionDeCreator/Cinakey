@@ -36,8 +36,8 @@ export const startVerification = action({
     });
     const result = await ctx.runAction(internal.email.sendNotificationEmail, {
       to: email,
-      subject: "Verify your Cinakey email",
-      text: `Your Cinakey verification code is ${code}.\n\nIt expires in 10 minutes. Enter it in Settings to verify your email and accept team invitations.\n\nIf you did not request this code, you can ignore this email.`,
+      subject: "Verify your Dirrio email",
+      text: `Your Dirrio verification code is ${code}.\n\nIt expires in 10 minutes. Enter it in Settings to verify your email and accept team invitations.\n\nIf you did not request this code, you can ignore this email.`,
     });
     if (!result.sent)
       throw new Error(
@@ -78,12 +78,12 @@ export const sendInvitation = internalAction({
       args,
     );
     if (!invitation) return;
-    const site = new URL(serverEnv("SITE_URL") ?? "https://app.cinakey.com");
+    const site = new URL(serverEnv("SITE_URL") ?? "https://app.dirrio.com");
     const link = new URL("/settings", site).toString();
     try {
       const result = await ctx.runAction(internal.email.sendNotificationEmail, {
         to: invitation.email,
-        subject: `Join ${invitation.workspaceName} on Cinakey`,
+        subject: `Join ${invitation.workspaceName} on Dirrio`,
         text: `You have been invited to ${invitation.workspaceName} as ${invitation.role}.\n\nOpen ${link}\n\nSign in or create an account using this email address, verify your email in Settings, then accept the invitation. It expires at ${new Date(invitation.expiresAt).toUTCString()}.`,
         idempotencyKey: `team-invitation:${args.invitationId}:${args.generation}`,
       });

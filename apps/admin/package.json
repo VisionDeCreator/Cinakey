@@ -1,5 +1,5 @@
 {
-  "name": "@cinakey/admin",
+  "name": "@dirrio/admin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,19 +13,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@cinakey/backend": "*",
-    "@cinakey/shared": "*",
+    "@dirrio/backend": "*",
+    "@dirrio/shared": "*",
     "@convex-dev/auth": "^0.0.95",
     "convex": "^1.46.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
     "lucide-react": "^1.48.0",
-    "@cinakey/ui": "*",
-    "@cinakey/api-client": "*"
+    "@dirrio/ui": "*",
+    "@dirrio/api-client": "*"
   },
   "devDependencies": {
-    "@cinakey/config": "*",
+    "@dirrio/config": "*",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",

@@ -4,4 +4,4 @@
  */
 export { api } from "../../../apps/api/src/operations";
 export type { DataModel, Doc, Id } from "../convex/_generated/dataModel";
-export type { GenerationAdapter, ModelCapabilities } from "@cinakey/shared";
+export type { GenerationAdapter, ModelCapabilities } from "@dirrio/shared";

@@ -406,7 +406,7 @@ export function createApp() {
             { expiresAt: result.expiresAt },
             {
               headers: {
-                "Set-Cookie": `cinakey_share=${result.token}; Path=/public/shares/${params.linkId}/; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Math.floor((result.expiresAt - Date.now()) / 1000))}${secure ? "; Secure" : ""}`,
+                "Set-Cookie": `dirrio_share=${result.token}; Path=/public/shares/${params.linkId}/; HttpOnly; SameSite=Lax; Max-Age=${Math.max(0, Math.floor((result.expiresAt - Date.now()) / 1000))}${secure ? "; Secure" : ""}`,
                 "Cache-Control": "no-store",
                 "Referrer-Policy": "no-referrer",
               },
@@ -479,11 +479,11 @@ export function createApp() {
         });
       }
     })
-    .get("/health", () => ({ ok: true, service: "cinakey-api" }))
+    .get("/health", () => ({ ok: true, service: "dirrio-api" }))
     .get("/ready", async ({ set }) => {
       const result = await checkReadiness();
       set.status = result.ok ? 200 : 503;
-      return { ...result, service: "cinakey-api", dependency: "convex" };
+      return { ...result, service: "dirrio-api", dependency: "convex" };
     })
     .post("/webhooks/generation", async ({ request }) => {
       const operation = generationWebhook as unknown as {

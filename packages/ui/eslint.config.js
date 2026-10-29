@@ -1,4 +1,4 @@
-import { baseConfigs, baseIgnores } from "@cinakey/config/eslint/base.js";
+import { baseConfigs, baseIgnores } from "@dirrio/config/eslint/base.js";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";

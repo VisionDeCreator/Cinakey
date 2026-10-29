@@ -1,9 +1,9 @@
 import { uploadMedia } from "../../lib/api/uploadMedia";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { useMutation } from "@/lib/api/hooks";
-import { api } from "@cinakey/backend";
-import type { AssetType } from "@cinakey/shared";
-import { ASSET_ALLOWED_MIME, ASSET_MAX_BYTES } from "@cinakey/shared";
+import { api } from "@dirrio/backend";
+import type { AssetType } from "@dirrio/shared";
+import { ASSET_ALLOWED_MIME, ASSET_MAX_BYTES } from "@dirrio/shared";
 import { useCallback, useState } from "react";
 
 export type UploadItem = {

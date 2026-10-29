@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { api } from "@cinakey/backend";
-import { useQuery } from "@cinakey/api-client";
-import { Input } from "@cinakey/ui/input";
-import { Button } from "@cinakey/ui/button";
-import { getLocale, I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { api } from "@dirrio/backend";
+import { useQuery } from "@dirrio/api-client";
+import { Input } from "@dirrio/ui/input";
+import { Button } from "@dirrio/ui/button";
+import { getLocale, I18nText, t, useLocale } from "@dirrio/ui/i18n";
 export function AuditPage() {
   useLocale();
   const [cursor, setCursor] = useState<string | null>(null);

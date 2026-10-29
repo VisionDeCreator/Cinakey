@@ -25,7 +25,7 @@ Open **Billing** in the sidebar, account menu or USD balance display. Settings a
 
 - **Subscription:** status, current period, cancellation and pending seat notices, paid/occupied seats, the $29 + $15/seat plan and monthly $5 included allowance. Owners can subscribe, resume an interrupted checkout, refresh payment state and change seat quantity. Invalid seat counts cannot be submitted.
 - **Usage balance:** separate included and purchased amounts, with $10/$25/$50 owner top-ups after subscription payment. All payment actions remain unavailable while Polar is disabled; financial history remains visible.
-- **Invoices and payment methods:** owners open a short-lived authenticated Polar portal to access invoices/receipts, billing details, payment methods and subscription cancellation/resumption. Cinakey does not store cards or expose portal URLs to other members. Recent 20 recorded orders display pre-tax amounts and refunds; older history and invoice totals are in the portal.
+- **Invoices and payment methods:** owners open a short-lived authenticated Polar portal to access invoices/receipts, billing details, payment methods and subscription cancellation/resumption. Dirrio does not store cards or expose portal URLs to other members. Recent 20 recorded orders display pre-tax amounts and refunds; older history and invoice totals are in the portal.
 - **Members and seats:** reuse the existing team controls for invitations, roles, removal, production assignments and invitation delivery/resend/revocation. Invitations do not reserve seats. Removing members does not reduce paid capacity automatically; owners schedule the paid quantity reduction separately. Existing billing-linked ownership-transfer restrictions still apply.
 - **Spending:** workspace monthly caps, project/series/episode lifetime caps, reserved/spent totals and latest 100 balance ledger entries. Ledger entries are not invoices.
 
@@ -47,7 +47,7 @@ POLAR_TOPUP_25_PRODUCT_ID=
 POLAR_TOPUP_50_PRODUCT_ID=
 ```
 
-`POLAR_ACCESS_TOKEN` is an organization access token from the intended Cinakey organization. `POLAR_WEBHOOK_SECRET` is the endpoint signing secret supplied by Polar. No separate private/public key pair is needed for this integration. Use scopes for customers read/write, products read, checkouts read/write, subscriptions read/write, orders read and customer sessions write. Product creation, refunds, payouts and organization administration do not need write permissions in this application.
+`POLAR_ACCESS_TOKEN` is an organization access token from the intended Dirrio organization. `POLAR_WEBHOOK_SECRET` is the endpoint signing secret supplied by Polar. No separate private/public key pair is needed for this integration. Use scopes for customers read/write, products read, checkouts read/write, subscriptions read/write, orders read and customer sessions write. Product creation, refunds, payouts and organization administration do not need write permissions in this application.
 
 The existing `SITE_URL` is the web origin; `WEB_ORIGINS` controls API CORS. Production activation requires an HTTPS `SITE_URL`. Both SDK API calls and webhook verification fail closed when configuration is incomplete.
 
@@ -73,9 +73,9 @@ Create four products in the intended **sandbox** organization first:
 | `POLAR_TOPUP_25_PRODUCT_ID`  | One-time usage top-up          | USD fixed price, 2,500 cents                                                                                                        |
 | `POLAR_TOPUP_50_PRODUCT_ID`  | One-time usage top-up          | USD fixed price, 5,000 cents                                                                                                        |
 
-Set explicit **exclusive tax** on each price, exactly one active price per product, and no trials or discounts for this initial integration. Checkout checks the configured product's price shape before proceeding. Do not attach Polar usage-credit benefits, usage meters or another monthly allowance: Cinakey's ledger owns usage funding. Cinakey owns application membership and assignments; Polar member/seat roles never grant application access.
+Set explicit **exclusive tax** on each price, exactly one active price per product, and no trials or discounts for this initial integration. Checkout checks the configured product's price shape before proceeding. Do not attach Polar usage-credit benefits, usage meters or another monthly allowance: Dirrio's ledger owns usage funding. Dirrio owns application membership and assignments; Polar member/seat roles never grant application access.
 
-Configure the customer portal for payment methods, invoices and cancellation. Keep product switching, alternate price plans, seat changes and team/member administration disabled there where configurable; Cinakey exposes the intended seat policies. Any external subscription change still goes through local paid-capacity checks and cannot bypass Cinakey membership. Portal-issued seat/member benefits are not consumed by this application.
+Configure the customer portal for payment methods, invoices and cancellation. Keep product switching, alternate price plans, seat changes and team/member administration disabled there where configurable; Dirrio exposes the intended seat policies. Any external subscription change still goes through local paid-capacity checks and cannot bypass Dirrio membership. Portal-issued seat/member benefits are not consumed by this application.
 
 Register the API URL `https://<api-host>/webhooks/polar`, using the matching API version. Subscribe to `order.created`, `order.updated`, `order.paid`, `order.refunded`, and subscription lifecycle events (created, updated, active, canceled, uncanceled, past_due, revoked, paused/resumed and cycled where offered). `subscription.cycled` never directly grants allowance. Store the displayed endpoint secret in the root environment. Preserve the raw request body through the proxy; do not log signatures, authorization, payloads, checkout URLs or portal sessions.
 
@@ -91,7 +91,7 @@ The webhook returns 202 only after durable admission; database failures return 5
 - [ ] Confirm checkout/invoice totals: $29 for one seat, $44 for two and $59 for three, plus tax. Only one $5 allowance per workspace period.
 - [ ] Verify two workspaces owned by the same email create distinct team customers and separate balances/invoices.
 - [ ] Confirm real portal settings and any Polar team/member behavior do not bypass the chosen application billing policies. In particular prove pending decreases and failed seat upgrades in the actual sandbox account.
-- [ ] Verify product/seller approval for Cinakey's actual functionality and finish the provider rate card before collecting real customer money.
+- [ ] Verify product/seller approval for Dirrio's actual functionality and finish the provider rate card before collecting real customer money.
 - [ ] Create separate production products/token/webhook and use a separate production Convex deployment. Set `POLAR_ENVIRONMENT=production` consistently, disable development funding/mock providers, configure HTTPS and repeat the deployment checks before live activation.
 
 No production migration, credit conversion or compatibility billing layer is introduced.

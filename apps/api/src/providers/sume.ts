@@ -3,9 +3,9 @@ import {
   videoRate,
   applyUsageMarkup,
   supplierVideoMaximum,
-} from "@cinakey/shared";
-import { validateRemixInput } from "@cinakey/shared";
-import type { GenerationAdapter, ProviderRequest } from "@cinakey/shared";
+} from "@dirrio/shared";
+import { validateRemixInput } from "@dirrio/shared";
+import type { GenerationAdapter, ProviderRequest } from "@dirrio/shared";
 import { providerConfig, requireProviderKey } from "../config/env";
 import { isDefaultTransientError } from "./cost";
 import { ProviderError } from "./errors";

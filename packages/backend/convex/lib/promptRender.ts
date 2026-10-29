@@ -10,7 +10,7 @@ import {
   renderEnvironmentSheet,
   renderProductSheet,
   type AssetSheetType,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 
 export { PROMPT_TEMPLATE_VERSION };
 

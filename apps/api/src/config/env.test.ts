@@ -20,7 +20,7 @@ describe("server configuration and credential boundaries", () => {
     expect(providerConfig().seedanceModel).toBe("sume/seedance-2.5");
   });
   it("loads provider keys from the root file rather than inherited values", () => {
-    const directory = mkdtempSync(join(tmpdir(), "cinakey-env-test-"));
+    const directory = mkdtempSync(join(tmpdir(), "dirrio-env-test-"));
     try {
       const path = join(directory, ".env");
       writeFileSync(

@@ -3,7 +3,7 @@ import {
   camAt,
   objAt,
   type BlockoutDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import * as THREE from "three";
 import { buildObjectMesh } from "./runtime/objects";
 import { LAYER_CONTENT } from "./runtime/layers";

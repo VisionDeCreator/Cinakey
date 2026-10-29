@@ -1,4 +1,4 @@
-# Cinakey worker deployment
+# Dirrio worker deployment
 
 See the [deployment runbook](../README.md) for environment ownership, setup, rollout and rollback.
 

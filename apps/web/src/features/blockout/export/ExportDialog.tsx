@@ -1,5 +1,5 @@
-import { I18nText, t, tn, useLocale } from "@cinakey/ui/i18n";
-import type { BlockoutDocument } from "@cinakey/shared";
+import { I18nText, t, tn, useLocale } from "@dirrio/ui/i18n";
+import type { BlockoutDocument } from "@dirrio/shared";
 import { useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {

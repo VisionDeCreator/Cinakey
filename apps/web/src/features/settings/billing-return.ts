@@ -1,5 +1,5 @@
 /** Polar appends a portal bearer token to successful checkout return URLs.
- * Cinakey creates owner-authorized portal sessions itself, so discard the token
+ * Dirrio creates owner-authorized portal sessions itself, so discard the token
  * before auth/router initialization can preserve it in redirects or history.
  */
 export function cleanBillingReturnUrl(href: string): string | null {

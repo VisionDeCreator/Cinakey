@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Id } from "@cinakey/backend";
+import type { Id } from "@dirrio/backend";
 type Role = "owner" | "admin" | "creator" | "reviewer";
 type WorkspaceState = {
   userId?: string;

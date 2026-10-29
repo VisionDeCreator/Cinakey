@@ -117,7 +117,7 @@ const MESSY_SCRIPT = shotsText(
 );
 
 const MESSY_PLAN = {
-  schema: "cinakey.staging/1.0",
+  schema: "dirrio.staging/1.0",
   set: {
     terrain: "forest",
     timeOfDay: "night",
@@ -419,7 +419,7 @@ describe("camera never inside anything (randomized plans)", () => {
       };
     });
     return {
-      schema: "cinakey.staging/1.0",
+      schema: "dirrio.staging/1.0",
       set: {
         terrain: "open",
         timeOfDay: "day",

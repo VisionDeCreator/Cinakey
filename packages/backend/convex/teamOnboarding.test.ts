@@ -109,7 +109,7 @@ describe("team onboarding", () => {
       SMTP_HOST: "smtp.example.com",
       SMTP_USER: "fixture",
       SMTP_PASSWORD: "fixture",
-      SMTP_FROM_EMAIL: "cinakey@example.com",
+      SMTP_FROM_EMAIL: "dirrio@example.com",
     }))
       vi.stubEnv(key, value);
     const send = vi
@@ -215,7 +215,7 @@ describe("team onboarding", () => {
       SMTP_HOST: "smtp.example.com",
       SMTP_USER: "fixture",
       SMTP_PASSWORD: "fixture",
-      SMTP_FROM_EMAIL: "cinakey@example.com",
+      SMTP_FROM_EMAIL: "dirrio@example.com",
     }))
       vi.stubEnv(key, value);
     const send = vi

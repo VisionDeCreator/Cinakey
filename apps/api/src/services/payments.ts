@@ -1,7 +1,8 @@
+import { paymentMetadata } from "./paymentMetadata";
 import {
   WORKSPACE_MONTHLY_USD_MICROS,
   ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { webhooks, type models } from "@polar-sh/sdk/2026-10";
 import { v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
@@ -198,8 +199,8 @@ export const checkout = action({
         allow_trial: false,
         allow_discount_codes: false,
         metadata: {
-          cinakey_workspace: args.workspaceId,
-          cinakey_intent: intent._id,
+          dirrio_workspace: args.workspaceId,
+          dirrio_intent: intent._id,
         },
         success_url: `${config.siteUrl}/billing/${args.workspaceId}?billing=returned`,
         return_url: `${config.siteUrl}/billing/${args.workspaceId}`,
@@ -240,7 +241,7 @@ export const resumeCheckout = action({
       sorting: ["-created_at"],
     });
     const matches = list.items.filter(
-      (c) => c.metadata.cinakey_intent === intent._id,
+      (c) => paymentMetadata(c.metadata, "intent") === intent._id,
     );
     if (matches.length !== 1)
       throw new Error(
@@ -326,10 +327,8 @@ async function resolveBinding(
   },
 ) {
   const config = polarConfiguration();
-  const intentId =
-    typeof data.metadata.cinakey_intent === "string"
-      ? (data.metadata.cinakey_intent as Id<"paymentCheckouts">)
-      : undefined;
+  const intentId = paymentMetadata(data.metadata, "intent") as
+    Id<"paymentCheckouts"> | undefined;
   if (!data.customer.external_id) return null;
   return ctx.runQuery(internal.payments.binding, {
     environment: config.environment,
@@ -394,10 +393,8 @@ export async function syncOrder(
   }
   const bound = await resolveBinding(ctx, order);
   if (!bound) return;
-  const intentId =
-    typeof order.metadata.cinakey_intent === "string"
-      ? (order.metadata.cinakey_intent as Id<"paymentCheckouts">)
-      : undefined;
+  const intentId = paymentMetadata(order.metadata, "intent") as
+    Id<"paymentCheckouts"> | undefined;
   const topup =
     product === config.products.topup10
       ? 10_000_000

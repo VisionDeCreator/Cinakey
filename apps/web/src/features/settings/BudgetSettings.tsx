@@ -1,9 +1,9 @@
-import { formatUsd } from "@cinakey/ui/i18n";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
-import { parseUsdToMicros, usdInputValue } from "@cinakey/shared";
+import { formatUsd } from "@dirrio/ui/i18n";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import { parseUsdToMicros, usdInputValue } from "@dirrio/shared";
 import { useState } from "react";
-import { api } from "@cinakey/backend";
-import type { Id } from "@cinakey/backend";
+import { api } from "@dirrio/backend";
+import type { Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { Button } from "@/components/ui/button";

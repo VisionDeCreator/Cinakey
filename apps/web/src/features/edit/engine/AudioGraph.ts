@@ -6,7 +6,7 @@ import type {
   TimelineClip,
   TimelineDocument,
   TimelineTrack,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { audioUrlForClip, type MediaUrlMap } from "../mediaUrls";
 import type { MediaCache } from "./MediaCache";
 

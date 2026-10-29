@@ -42,7 +42,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useMutation: () => vi.fn(),
 }));
 // API references are objects in Convex; use stable string refs to route the mocked queries.
-vi.mock("@cinakey/backend", () => ({
+vi.mock("@dirrio/backend", () => ({
   api: {
     adminProviders: { availability: "availability" },
     users: { viewer: "viewer" },

@@ -1,4 +1,4 @@
-@import "@cinakey/ui/styles.css";
+@import "@dirrio/ui/styles.css";
 @source "../../../packages/ui/src";
 
 .admin-shell { min-height:100dvh; display:grid; grid-template-columns:240px minmax(0,1fr); background:#0a0a0a; color:#f5f5f5; }

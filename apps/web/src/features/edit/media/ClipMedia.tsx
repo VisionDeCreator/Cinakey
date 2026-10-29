@@ -1,5 +1,5 @@
-import { t, useLocale } from "@cinakey/ui/i18n";
-import type { TimelineClip } from "@cinakey/shared";
+import { t, useLocale } from "@dirrio/ui/i18n";
+import type { TimelineClip } from "@dirrio/shared";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { MediaUrlMap } from "../mediaUrls";
 import type { EditorMedia } from "./EditorMedia";

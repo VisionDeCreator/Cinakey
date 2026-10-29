@@ -1,1 +1,1 @@
-export { Progress } from "@cinakey/ui/progress";
+export { Progress } from "@dirrio/ui/progress";

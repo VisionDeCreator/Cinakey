@@ -1,4 +1,4 @@
-import { I18nText, t } from "@cinakey/ui/i18n";
+import { I18nText, t } from "@dirrio/ui/i18n";
 import {
   forwardRef,
   useEffect,
@@ -17,7 +17,7 @@ import {
   scriptMentions,
   scriptMentionRanges,
   type ReferenceBinding,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import { PlainScriptEditor } from "../studio/PlainScriptEditor";
 import { MediaThumbnail, ReferenceMedia } from "../studio/ReferenceMedia";
 import {

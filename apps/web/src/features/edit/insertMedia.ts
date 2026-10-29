@@ -3,7 +3,7 @@ import {
   recomputeTimelineDuration,
   type TimelineClip,
   type TimelineDocument,
-} from "@cinakey/shared";
+} from "@dirrio/shared";
 import type { StudioInsert } from "../studio/StudioWorkspace";
 
 /** Insert on one lane, preserving both sides of any clip under the drop point. */

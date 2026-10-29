@@ -1,6 +1,6 @@
-import { chargeForUnits } from "@cinakey/shared";
+import { chargeForUnits } from "@dirrio/shared";
 import { ProviderError } from "./errors";
-import type { BuildRequestInput, CostModel } from "@cinakey/shared";
+import type { BuildRequestInput, CostModel } from "@dirrio/shared";
 
 /** Multiply units × usdMicrosPerUnit; ceil to whole micro-USD. */
 export function usdMicrosFromUnits(

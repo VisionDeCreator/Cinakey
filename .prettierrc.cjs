@@ -1,1 +1,1 @@
-module.exports = require("@cinakey/config/prettier");
+module.exports = require("@dirrio/config/prettier");

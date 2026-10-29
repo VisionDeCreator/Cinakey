@@ -39,7 +39,7 @@ the commercial targets. Development credit replacement needs no migration suppor
 | DeepSeek billing          | Current Flash rates checked; code lacks complete cost accounting                   | Final analysis/staging quotes and settlement            |
 | Polar technical fit       | Documented seat tiers, immediate paid upgrades, next-period changes, grace         | Sandbox proof still required                            |
 | Polar product eligibility | Material Genjutsu policy conflict identified                                       | Live Polar launch for full product scope                |
-| Seller eligibility        | Likely Hong Kong; organization name Cinakey supplied; account verification pending | Account eligibility and payout verification             |
+| Seller eligibility        | Likely Hong Kong; organization name Dirrio supplied; account verification pending | Account eligibility and payout verification             |
 | Sandbox access            | Opened sandbox; login screen, no authenticated organization available              | Account-level test execution                            |
 | Repository baseline       | Typecheck/lint/test/build passed using Turbo cached results                        | Does not prove new feature acceptance                   |
 
@@ -59,14 +59,14 @@ key. Only read operations were performed; credentials are not included here.
 Prior documented 5-second Seedance 720p captures were $1.156 each, consistent with
 the current rate. Prior Remix capture of $1 for a roughly 9-second source does not
 settle the general charging rule. The router entry is
-`higgsfield-genjutsu-light-object-swap`, whereas Cinakey invokes the dedicated
+`higgsfield-genjutsu-light-object-swap`, whereas Dirrio invokes the dedicated
 `/v1/sume/remix-lite/object-swap/v1.0` route. Do not assume both routes price identical
 billable quantities solely because their per-second rates match.
 
 The router constraints say source plus output seconds; the public table describes
 source seconds. Confirm the dedicated route's exact charging basis, rounding,
 minimums, and cancellation behavior before setting its retail price. Do not change
-the existing 4–15-second Cinakey limit based on the router's wider advertised range.
+the existing 4–15-second Dirrio limit based on the router's wider advertised range.
 
 Extension, first/last-frame generation, and reference-video billing also require
 operation-specific quote confirmation. The old two-credits-per-second implementation
@@ -133,21 +133,21 @@ Code discovery:
 
 [Polar's acceptable-use policy](https://polar.sh/legal/acceptable-use-policy) lists AI
 generation tools for closer review and prohibits generation enabling face swaps or
-deepfakes. Cinakey's current character-recasting/real-person transformation scope may
+deepfakes. Dirrio's current character-recasting/real-person transformation scope may
 conflict. General SaaS support and a successful sandbox purchase would not establish
 approval for that scope. Preserve the selected provider, but require an explicit scope
 resolution before live checkout; do not quietly remove Genjutsu or call it approved.
 
-- [x] Record user-supplied likely jurisdiction (Hong Kong) and Polar organization name (Cinakey).
+- [x] Record user-supplied likely jurisdiction (Hong Kong) and Polar organization name (Dirrio).
 - [x] Check published payout coverage: Hong Kong is listed.
-- [ ] Confirm final incorporation jurisdiction and authenticate the intended Cinakey
+- [ ] Confirm final incorporation jurisdiction and authenticate the intended Dirrio
       organization; verify sandbox and live organization identities separately.
-- [ ] Obtain Polar's determination for Cinakey's actual generation/transformation scope,
+- [ ] Obtain Polar's determination for Dirrio's actual generation/transformation scope,
       including character recasting and consent-based real-person inputs.
 - [ ] If not accepted, decide whether to change product scope or reassess the provider.
       Do not implement both providers in anticipation.
 
-The user identified Hong Kong as the likely incorporation jurisdiction and Cinakey
+The user identified Hong Kong as the likely incorporation jurisdiction and Dirrio
 as the Polar organization name. This is not evidence of completed incorporation,
 organization authentication, KYC, or product approval. Hong Kong is listed in Polar’s
 [supported payout countries](https://polar.sh/docs/merchant-of-record/supported-countries);
@@ -163,8 +163,8 @@ provided by the account owner, not inferred from the user's timezone.
 | $29 first creator, $15 subsequent creators | Graduated seat tiers                                  | Prototype first-seat tier then remaining-seat tier; prove exact invoices      |
 | Paid mid-period increases                  | `invoice` proration                                   | Do not activate capacity until authoritative payment confirmation             |
 | Lower capacity at renewal                  | `next_period` scheduled updates                       | Reconcile pending changes; later updates supersede earlier ones               |
-| Seven-day grace                            | Organization benefit-revocation grace supports 7 days | Match Cinakey's own entitlement rules; do not grant unpaid allowance          |
-| Prepaid top-ups                            | One-time products/credit benefits                     | Fund Cinakey ledger once; no second metered usage invoice                     |
+| Seven-day grace                            | Organization benefit-revocation grace supports 7 days | Match Dirrio's own entitlement rules; do not grant unpaid allowance          |
+| Prepaid top-ups                            | One-time products/credit benefits                     | Fund Dirrio ledger once; no second metered usage invoice                     |
 | Monthly included $5                        | Paid order events                                     | Do not grant from `subscription.cycled`, which can precede successful payment |
 | Bun/Elysia API                             | TypeScript SDK                                        | Use SDK directly; Polar's Elysia adapter is deprecated                        |
 
@@ -175,8 +175,8 @@ Sources: [seats](https://polar.sh/docs/features/seat-based-pricing),
 [prepaid credits](https://polar.sh/features/credits),
 [Elysia adapter status](https://polar.sh/docs/integrate/sdk/adapters/elysia).
 
-Keep Cinakey workspace roles and invitations authoritative. Polar billing-manager/member
-roles must not grant Cinakey Admin/payment access. Restrict customer-portal actions so
+Keep Dirrio workspace roles and invitations authoritative. Polar billing-manager/member
+roles must not grant Dirrio Admin/payment access. Restrict customer-portal actions so
 they cannot bypass Owner-only seat/payment decisions. A customer account must map to a
 workspace, not merely the owner's personal user, including multi-workspace ownership.
 
@@ -193,7 +193,7 @@ This is a concrete access blocker, not a passed integration test.
 - [ ] Purchase $10/$25/$50 test top-ups and process partial/full refunds.
 - [ ] Deliver duplicate and out-of-order events; grant allowance once per paid period.
 - [ ] Verify prorated seat invoices do not refill allowance or reset its expiry.
-- [ ] Verify portal actions cannot escape Cinakey's accepted policies.
+- [ ] Verify portal actions cannot escape Dirrio's accepted policies.
 - [ ] Save non-secret evidence IDs and expected/actual results in this document.
 
 Checkout evidence can precede application integration; end-to-end webhook/ledger proofs

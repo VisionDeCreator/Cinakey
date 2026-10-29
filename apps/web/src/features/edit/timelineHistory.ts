@@ -1,4 +1,4 @@
-import type { TimelineDocument } from "@cinakey/shared";
+import type { TimelineDocument } from "@dirrio/shared";
 
 const MAX_UNDO = 50;
 

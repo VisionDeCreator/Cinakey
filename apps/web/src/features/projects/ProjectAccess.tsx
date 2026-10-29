@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type Doc } from "@cinakey/backend";
-import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import { api, type Doc } from "@dirrio/backend";
+import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useMutation, useQuery } from "@/lib/api/hooks";
 import { Button } from "@/components/ui/button";
 

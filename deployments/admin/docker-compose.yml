@@ -1,7 +1,7 @@
-name: cinakey-admin
+name: dirrio-admin
 services:
   admin:
-    image: cinakey-admin:${RELEASE_VERSION:-local}
+    image: dirrio-admin:${RELEASE_VERSION:-local}
     build:
       context: ../..
       dockerfile: deployments/admin/Dockerfile
