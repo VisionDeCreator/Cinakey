@@ -50,6 +50,11 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     }),
   ],
   callbacks: {
+    async beforeSessionCreation(ctx, { userId }) {
+      const user = await ctx.db.get(userId);
+      if (!user || user.suspendedAt !== undefined)
+        throw new Error("This account is suspended. Contact support.");
+    },
     async createOrUpdateUser(ctx, args) {
       if (args.provider.id !== "google" || args.profile.emailVerified !== true)
         throw new Error("Verified Google sign-in is required");

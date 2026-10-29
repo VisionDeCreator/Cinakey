@@ -1,3 +1,5 @@
+import { assertProviderAdmission, syncProviderJob } from "./providerControls";
+import { assertGenerationAllowed } from "./restrictions";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
@@ -89,6 +91,8 @@ export async function appendLedgerEntry(
           throw new Error("Reservation mismatch");
         return { balanceAfter: reserve.balanceAfter, entryId: reserve._id };
       }
+      await assertGenerationAllowed(ctx, args.userId, args.workspaceId);
+      await assertProviderAdmission(ctx, job.model, -args.delta);
       companyFunded =
         (await ctx.db.get(args.workspaceId))?.billingMode === "internal";
       await assertPaymentProduction(ctx, args.workspaceId);
@@ -255,6 +259,7 @@ export async function appendLedgerEntry(
     balanceAfter,
     createdAt: Date.now(),
   });
+  if (args.jobId) await syncProviderJob(ctx, args.jobId);
   if (args.reason === "settle" || args.reason === "refund")
     await expireFunding(ctx, args.workspaceId, args.userId);
   return {

@@ -1,4 +1,76 @@
 {
+  "adminJobs:list": {
+    "kind": "query",
+    "public": true
+  },
+  "adminJobs:detail": {
+    "kind": "query",
+    "public": true
+  },
+  "adminJobs:readContent": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminJobs:recover": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminJobs:checkProvider": {
+    "kind": "action",
+    "public": true
+  },
+  "adminJobs:loadStatusContext": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminJobs:recordObservation": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminJobs:backfillWorkspace": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminOperations:overview": {
+    "kind": "query",
+    "public": true
+  },
+  "adminOperations:listIncidents": {
+    "kind": "query",
+    "public": true
+  },
+  "adminOperations:acknowledge": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminOperations:configure": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminOperations:heartbeat": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminOperations:evaluate": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminOperations:readiness": {
+    "kind": "query",
+    "public": false
+  },
+  "adminAccess:listAdministrators": {
+    "kind": "query",
+    "public": true
+  },
+  "adminAccess:setRoles": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAccess:listAudit": {
+    "kind": "query",
+    "public": true
+  },
   "genjutsu:removeInput": {
     "kind": "mutation",
     "public": true
@@ -1035,10 +1107,6 @@
     "kind": "mutation",
     "public": false
   },
-  "payments:clearReview": {
-    "kind": "mutation",
-    "public": false
-  },
   "payments:expireAllowances": {
     "kind": "mutation",
     "public": false
@@ -1094,5 +1162,209 @@
   "resources:referenceCandidates": {
     "kind": "query",
     "public": true
+  },
+  "adminBilling:events": {
+    "kind": "query",
+    "public": true
+  },
+  "adminBilling:workspace": {
+    "kind": "query",
+    "public": true
+  },
+  "adminBilling:history": {
+    "kind": "query",
+    "public": true
+  },
+  "adminBilling:audit": {
+    "kind": "query",
+    "public": true
+  },
+  "adminBilling:reprocess": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminBilling:repair": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminBilling:refundContext": {
+    "kind": "query",
+    "public": false
+  },
+  "adminBilling:prepareRefund": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminBilling:recordRefund": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminBilling:refund": {
+    "kind": "action",
+    "public": true
+  },
+  "adminBilling:reconcileRefunds": {
+    "kind": "action",
+    "public": true
+  },
+  "adminBilling:refundIntents": {
+    "kind": "query",
+    "public": false
+  },
+  "adminBilling:resolveReview": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminBilling:reviews": {
+    "kind": "query",
+    "public": true
+  },
+  "adminBilling:credit": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminSupport:detail": {
+    "kind": "query",
+    "public": true
+  },
+  "adminSupport:cases": {
+    "kind": "query",
+    "public": true
+  },
+  "adminSupport:notes": {
+    "kind": "query",
+    "public": true
+  },
+  "adminSupport:addNote": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminSupport:createCase": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminSupport:updateCase": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminSupport:restrict": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminSupport:expireSessions": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminMedia:flags": {
+    "kind": "query",
+    "public": true
+  },
+  "adminMedia:decide": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminMedia:evidence": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminMedia:inventory": {
+    "kind": "query",
+    "public": true
+  },
+  "adminMedia:detail": {
+    "kind": "query",
+    "public": true
+  },
+  "adminMedia:control": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminMedia:cleanup": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminMedia:deletionContext": {
+    "kind": "query",
+    "public": false
+  },
+  "adminMedia:previewContext": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminMedia:preview": {
+    "kind": "action",
+    "public": true
+  },
+  "adminMedia:retryCleanup": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminProviders:overview": {
+    "kind": "query",
+    "public": true
+  },
+  "adminProviders:availability": {
+    "kind": "query",
+    "public": true
+  },
+  "adminProviders:configure": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminProviders:pause": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminProviders:initialize": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminProviders:backfill": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminAnalytics:request": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAnalytics:list": {
+    "kind": "query",
+    "public": true
+  },
+  "adminAnalytics:detail": {
+    "kind": "query",
+    "public": true
+  },
+  "adminAnalytics:rows": {
+    "kind": "query",
+    "public": true
+  },
+  "adminAnalytics:resume": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAnalytics:cancel": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAnalytics:exportCsv": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAnalytics:remove": {
+    "kind": "mutation",
+    "public": true
+  },
+  "adminAnalytics:build": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminAnalytics:clean": {
+    "kind": "mutation",
+    "public": false
+  },
+  "adminAnalytics:expire": {
+    "kind": "mutation",
+    "public": false
   }
 }

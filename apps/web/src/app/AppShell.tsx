@@ -92,6 +92,39 @@ const navItems = [
 
 export function AppShell() {
   useLocale();
+  const user = useQuery(api.users.viewer);
+  const { signOut } = useAuthActions();
+  if (user === undefined)
+    return (
+      <p role="status" className="p-8">
+        <I18nText text="Checking account access…" />
+      </p>
+    );
+  if (user === null)
+    return (
+      <main className="mx-auto max-w-lg space-y-4 p-10">
+        <p role="alert">
+          <I18nText text="Account access is unavailable. Sign out and sign in again." />
+        </p>
+        <Button onClick={() => void signOut()}>
+          <I18nText text="Sign out" />
+        </Button>
+      </main>
+    );
+  if (user?.suspendedAt !== undefined)
+    return (
+      <main className="mx-auto max-w-lg space-y-4 p-10">
+        <h1>
+          <I18nText text="Account suspended" />
+        </h1>
+        <p role="alert">
+          <I18nText text="This account is suspended. Contact support." />
+        </p>
+        <Button onClick={() => void signOut()}>
+          <I18nText text="Sign out" />
+        </Button>
+      </main>
+    );
   return (
     <WorkspaceProvider>
       <WorkspaceShell />
@@ -114,6 +147,7 @@ function WorkspaceShell() {
     workspaces.find((w) => w.workspace._id === workspaceId)?.workspace
       .billingMode === "internal";
   const user = useQuery(api.users.viewer);
+  const providerAvailability = useQuery(api.adminProviders.availability, {});
   const balance = useQuery(
     api.billing.getBalance,
     canManage ? { workspaceId } : "skip",
@@ -493,6 +527,20 @@ function WorkspaceShell() {
               : "flex-1 overflow-auto px-4 pb-8 pt-2 sm:px-8"
           }
         >
+          {user?.generationPausedAt !== undefined && (
+            <p role="alert" className="m-4 rounded border p-3">
+              <I18nText text="Generation is paused for this account. Contact support." />
+            </p>
+          )}
+          {providerAvailability?.models.some((model) => !model.available) && (
+            <p role="status" className="m-4 rounded border p-3">
+              <I18nText text="Some generation services are temporarily paused:" />{" "}
+              {providerAvailability.models
+                .filter((model) => !model.available)
+                .map((model) => model.id)
+                .join(", ")}
+            </p>
+          )}
           <Outlet />
         </main>
       </div>

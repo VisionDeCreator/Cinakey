@@ -1,10 +1,140 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { StaffModerationPage } from "./StaffPages";
-const state = vi.hoisted(() => ({ queue: undefined as undefined | Array<{_id:string;verdict:string;stage:string;ruleId:string;snippet?:string}>, resolve:vi.fn() }));
-vi.mock("@cinakey/api-client", () => ({useQuery:()=>state.queue,useMutation:()=>state.resolve}));
+import { MemoryRouter } from "react-router-dom";
+import { getFunctionName } from "convex/server";
+import { ModerationPage } from "../../Media";
+const state = vi.hoisted(() => ({
+  queue: undefined as
+    | undefined
+    | {
+        page: Array<{
+          _id: string;
+          verdict: string;
+          stage: string;
+          ruleId: string;
+          status: string;
+          revision: number;
+          createdAt: number;
+          userId: string;
+        }>;
+        isDone: boolean;
+        continueCursor: string;
+      },
+  mutation: vi.fn(),
+}));
+vi.mock("@cinakey/api-client", () => ({
+  useQuery: (ref: Parameters<typeof getFunctionName>[0]) =>
+    getFunctionName(ref) === "users:viewer"
+      ? { _id: "moderator-1", isStaff: true, adminRoles: ["moderation"] }
+      : state.queue,
+  useMutation: () => state.mutation,
+  useAction: () => state.mutation,
+}));
 afterEach(cleanup);
-beforeEach(()=>{state.queue=[{_id:"flag-1",verdict:"review",stage:"script",ruleId:"rule-1",snippet:"Test excerpt"}];state.resolve.mockReset().mockResolvedValue(null);});
-it("shows loading and clear queue states without example flags",()=>{state.queue=undefined;const view=render(<StaffModerationPage/>);expect(screen.getByRole("status")).toHaveTextContent("Loading queue");state.queue=[];view.rerender(<StaffModerationPage/>);expect(screen.getByText("No open flags")).toBeInTheDocument();expect(screen.queryByRole("button",{name:"Resolve"})).not.toBeInTheDocument();});
-it("requires a reason and submits the selected decision",async()=>{render(<StaffModerationPage/>);fireEvent.change(screen.getByLabelText("Resolution reason"),{target:{value:" "}});expect(screen.getByRole("button",{name:"Resolve"})).toBeDisabled();fireEvent.change(screen.getByLabelText("Resolution reason"),{target:{value:" Reviewed context "}});fireEvent.click(screen.getByRole("button",{name:"Dismiss"}));await waitFor(()=>expect(state.resolve).toHaveBeenCalledWith({flagId:"flag-1",status:"dismissed",reason:"Reviewed context"}));expect(await screen.findByRole("status")).toHaveTextContent("Flag dismissed.");});
-it("shows an action failure and allows retry",async()=>{state.resolve.mockRejectedValueOnce(new Error("Temporary failure"));render(<StaffModerationPage/>);fireEvent.click(screen.getByRole("button",{name:"Resolve"}));expect(await screen.findByRole("alert")).toHaveTextContent("Temporary failure");expect(screen.getByRole("button",{name:"Resolve"})).toBeEnabled();fireEvent.click(screen.getByRole("button",{name:"Resolve"}));await waitFor(()=>expect(state.resolve).toHaveBeenCalledTimes(2));expect(await screen.findByRole("status")).toHaveTextContent("Flag resolved.");});
+beforeEach(() => {
+  state.queue = {
+    page: [
+      {
+        _id: "flag-1",
+        userId: "user-1",
+        verdict: "flagged",
+        stage: "prompt",
+        ruleId: "rule-1",
+        status: "open",
+        revision: 0,
+        createdAt: Date.now(),
+      },
+    ],
+    isDone: true,
+    continueCursor: "",
+  };
+  state.mutation.mockReset().mockResolvedValue(null);
+});
+function view() {
+  return render(
+    <MemoryRouter>
+      <ModerationPage />
+    </MemoryRouter>,
+  );
+}
+it("shows loading and empty queue states without invented flags", () => {
+  state.queue = undefined;
+  const rendered = view();
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Loading moderation queue",
+  );
+  state.queue = { page: [], isDone: true, continueCursor: "" };
+  rendered.rerender(
+    <MemoryRouter>
+      <ModerationPage />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByText("No matching moderation flags on this page."),
+  ).toBeInTheDocument();
+});
+it("requires an explicit reason and records the selected decision with its revision", async () => {
+  view();
+  fireEvent.change(screen.getByLabelText("Moderation decision"), {
+    target: { value: "dismissed" },
+  });
+  fireEvent.change(screen.getByLabelText("Record moderation decision reason"), {
+    target: { value: "Reviewed full customer context" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record moderation decision" }),
+  );
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flagId: "flag-1",
+        status: "dismissed",
+        expectedRevision: 0,
+        reason: "Reviewed full customer context",
+        assignedTo: null,
+        requestId: expect.any(String),
+      }),
+    ),
+  );
+});
+it("preserves the same request ID for an unchanged failed action retry", async () => {
+  state.mutation.mockRejectedValueOnce(new Error("Temporary failure"));
+  view();
+  fireEvent.change(screen.getByLabelText("Record moderation decision reason"), {
+    target: { value: "Investigated provider policy result" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record moderation decision" }),
+  );
+  expect(await screen.findByText("Temporary failure")).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Record moderation decision" }),
+  );
+  await waitFor(() => expect(state.mutation).toHaveBeenCalledTimes(2));
+  expect(state.mutation.mock.calls[0]?.[0].requestId).toBe(
+    state.mutation.mock.calls[1]?.[0].requestId,
+  );
+});
+it("does not expose private prompt evidence until an audited read is requested", async () => {
+  state.mutation.mockResolvedValue({
+    prompt: "Private flagged prompt",
+    asset: null,
+  });
+  view();
+  expect(screen.queryByText("Private flagged prompt")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Read moderation evidence reason"), {
+    target: { value: "Inspect this reported policy violation" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Read moderation evidence" }),
+  );
+  expect(await screen.findByText("Private flagged prompt")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Hide evidence" }));
+  expect(screen.queryByText("Private flagged prompt")).not.toBeInTheDocument();
+});

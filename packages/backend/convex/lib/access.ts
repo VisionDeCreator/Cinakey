@@ -1,5 +1,7 @@
+import { mediaUnavailable } from "./mediaControls";
+import { hasAdminPermission, type AdminPermission } from "@cinakey/shared";
 import { assertPaymentProduction } from "./paymentAccess";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
@@ -8,7 +10,10 @@ type Ctx = QueryCtx | MutationCtx;
 /**
  * Require an authenticated user. Throws if not signed in.
  */
-export async function requireUser(ctx: Ctx): Promise<Doc<"users">> {
+export async function requireUser(
+  ctx: Ctx,
+  allowSuspended = false,
+): Promise<Doc<"users">> {
   const userId = await getAuthUserId(ctx);
   if (userId === null) {
     throw new Error("Not authenticated");
@@ -17,6 +22,22 @@ export async function requireUser(ctx: Ctx): Promise<Doc<"users">> {
   if (user === null) {
     throw new Error("User not found");
   }
+  if (user.sessionsRevokedAt !== undefined) {
+    const rawSessionId = await getAuthSessionId(ctx);
+    const sessionId = rawSessionId
+      ? ctx.db.normalizeId("authSessions", rawSessionId)
+      : null;
+    const session = sessionId ? await ctx.db.get(sessionId) : null;
+    if (
+      !session ||
+      session.userId !== user._id ||
+      Math.floor(session._creationTime) <= user.sessionsRevokedAt ||
+      session.expirationTime <= Date.now()
+    )
+      throw new Error("Session revoked. Sign in again.");
+  }
+  if (!allowSuspended && user.suspendedAt !== undefined)
+    throw new Error("This account is suspended. Contact support.");
   return user;
 }
 
@@ -28,6 +49,16 @@ export async function requireStaff(ctx: Ctx): Promise<Doc<"users">> {
   if (user.isStaff !== true) {
     throw new Error("Staff access required");
   }
+  return user;
+}
+
+export async function requireAdminPermission(
+  ctx: Ctx,
+  permission: AdminPermission,
+) {
+  const user = await requireStaff(ctx);
+  if (!hasAdminPermission(user, permission))
+    throw new Error("Staff access denied: permission required");
   return user;
 }
 
@@ -79,7 +110,11 @@ export async function requireProjectAccessForUser(
   const project = await ctx.db.get(projectId);
   const user = await ctx.db.get(userId);
   if (!project) throw new Error("Project not found");
-  if (!user || !(await canAccessProject(ctx, project, user)))
+  if (
+    !user ||
+    user.suspendedAt !== undefined ||
+    !(await canAccessProject(ctx, project, user))
+  )
     throw new Error("Project access denied");
   return project;
 }
@@ -156,7 +191,7 @@ export async function projectCanUseAsset(
   assetId: Id<"assets">,
 ) {
   const asset = await ctx.db.get(assetId);
-  if (!asset) return false;
+  if (!asset || (await mediaUnavailable(ctx, asset.storageId))) return false;
   if (asset.projectId === projectId) return true;
   return !!(await ctx.db
     .query("projectAssetLinks")
@@ -204,4 +239,30 @@ export async function requireSeriesWrite(ctx: Ctx, seriesId: Id<"series">) {
   const series = await requireSeriesAccess(ctx, seriesId);
   await assertPaymentProduction(ctx, series.workspaceId);
   return series;
+}
+/** Administrative production freezes also cover edits allowed after subscription expiry. */
+export async function requireProjectUnpausedAccess(
+  ctx: Ctx,
+  projectId: Id<"projects">,
+) {
+  const project = await requireProjectAccess(ctx, projectId);
+  await assertWorkspaceUnpaused(ctx, project.workspaceId);
+  return project;
+}
+export async function requireSeriesUnpausedAccess(
+  ctx: Ctx,
+  seriesId: Id<"series">,
+) {
+  const series = await requireSeriesAccess(ctx, seriesId);
+  await assertWorkspaceUnpaused(ctx, series.workspaceId);
+  return series;
+}
+export async function assertWorkspaceUnpaused(
+  ctx: Ctx,
+  workspaceId: Id<"workspaces">,
+) {
+  if ((await ctx.db.get(workspaceId))?.productionPausedAt !== undefined)
+    throw new Error(
+      "Production is paused for this workspace. Contact support.",
+    );
 }

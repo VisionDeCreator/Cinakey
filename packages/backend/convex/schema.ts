@@ -15,7 +15,104 @@ const lineage = v.object({
 const schema = defineSchema(
   {
     ...authTables,
+    earlyAccessRequests: defineTable({
+      email: v.string(),
+      name: v.string(),
+      idea: v.string(),
+      status: v.literal("pending"),
+      createdAt: v.number(),
+    }).index("by_email", ["email"]),
+    analyticsReports: defineTable({
+      actorUserId: v.id("users"),
+      requestId: v.string(),
+      reason: v.string(),
+      from: v.number(),
+      to: v.number(),
+      priorFrom: v.number(),
+      workspaceId: v.optional(v.id("workspaces")),
+      cutoff: v.number(),
+      createdAt: v.number(),
+      completedAt: v.optional(v.number()),
+      status: v.union(
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("canceled"),
+        v.literal("deleting"),
+      ),
+      stage: v.number(),
+      cursor: v.union(v.string(), v.null()),
+      processed: v.number(),
+      taskId: v.optional(v.id("apiTasks")),
+      version: v.literal(1),
+    })
+      .index("by_actor_request", ["actorUserId", "requestId"])
+      .index("by_status_created", ["status", "createdAt"]),
+    analyticsReportRows: defineTable({
+      reportId: v.id("analyticsReports"),
+      dimension: v.string(),
+      key: v.string(),
+      metrics: v.record(v.string(), v.number()),
+    }).index("by_report_dimension_key", ["reportId", "dimension", "key"]),
+    analyticsReportSeen: defineTable({
+      reportId: v.id("analyticsReports"),
+      scope: v.string(),
+      identity: v.string(),
+    }).index("by_report_scope_identity", ["reportId", "scope", "identity"]),
+    providerPolicies: defineTable({
+      key: v.string(),
+      paused: v.boolean(),
+      maxRequest: v.optional(v.number()),
+      dailyCap: v.optional(v.number()),
+      monthlyCap: v.optional(v.number()),
+      maxOutstanding: v.optional(v.number()),
+      revision: v.number(),
+      updatedAt: v.number(),
+      updatedBy: v.id("users"),
+      reason: v.string(),
+    }).index("by_key", ["key"]),
+    providerTotals: defineTable({
+      scope: v.string(),
+      period: v.string(),
+      reserved: v.number(),
+      spent: v.number(),
+      active: v.number(),
+    }).index("by_scope_period", ["scope", "period"]),
+    providerJobAccounting: defineTable({
+      jobId: v.id("generationJobs"),
+      model: v.string(),
+      reserved: v.number(),
+      spent: v.number(),
+      settledAt: v.optional(v.number()),
+    }).index("by_job", ["jobId"]),
+    providerAccountingState: defineTable({
+      ready: v.boolean(),
+      running: v.boolean(),
+      cursor: v.union(v.string(), v.null()),
+      processed: v.number(),
+      startedAt: v.number(),
+      completedAt: v.optional(v.number()),
+      taskId: v.optional(v.id("apiTasks")),
+    }),
+    mediaControls: defineTable({
+      storageId: v.string(),
+      quarantined: v.boolean(),
+      retentionHold: v.boolean(),
+      revision: v.number(),
+      updatedAt: v.number(),
+      updatedBy: v.id("users"),
+    }).index("by_storage", ["storageId"]),
+    storageCleanupRequests: defineTable({
+      taskId: v.optional(v.id("apiTasks")),
+      fileId: v.id("r2Files"),
+      actorUserId: v.id("users"),
+      requestId: v.string(),
+      reason: v.string(),
+      state: v.union(v.literal("pending"), v.literal("completed")),
+      createdAt: v.number(),
+      completedAt: v.optional(v.number()),
+    }).index("by_file", ["fileId"]),
     r2Files: defineTable({
+      retentionProtected: v.optional(v.boolean()),
       key: v.string(),
       bucket: v.string(),
       size: v.number(),
@@ -25,9 +122,17 @@ const schema = defineSchema(
       createdAt: v.number(),
       deletedAt: v.optional(v.number()),
     })
+      .index("by_cleanup", [
+        "workspaceId",
+        "retentionProtected",
+        "deletedAt",
+        "createdAt",
+      ])
+      .index("by_created", ["createdAt"])
       .index("by_key", ["key"])
       .index("by_workspace_created", ["workspaceId", "createdAt"]),
     r2Uploads: defineTable({
+      retentionProtected: v.optional(v.boolean()),
       token: v.string(),
       key: v.string(),
       workspaceId: v.id("workspaces"),
@@ -38,6 +143,8 @@ const schema = defineSchema(
       fileId: v.optional(v.id("r2Files")),
       completing: v.optional(v.boolean()),
     })
+      .index("by_retention_expiry", ["retentionProtected", "expiresAt"])
+      .index("by_file", ["fileId"])
       .index("by_token", ["token"])
       .index("by_expiry", ["expiresAt"]),
     publishedExports: defineTable({
@@ -103,7 +210,73 @@ const schema = defineSchema(
       fence: v.number(),
       expiresAt: v.number(),
     }).index("by_project", ["projectId"]),
+    workerInstances: defineTable({
+      instanceId: v.string(),
+      version: v.string(),
+      startedAt: v.number(),
+      lastSeenAt: v.number(),
+      lastPollAt: v.optional(v.number()),
+      activeTasks: v.number(),
+      stopping: v.boolean(),
+    })
+      .index("by_instance", ["instanceId"])
+      .index("by_seen", ["lastSeenAt"]),
+    operationsSettings: defineTable({
+      lastEvaluatedAt: v.optional(v.number()),
+      key: v.literal("default"),
+      enabled: v.boolean(),
+      expectedWorkers: v.number(),
+      staleAfterSec: v.number(),
+      generationFailureThreshold: v.optional(v.number()),
+      backlogThreshold: v.number(),
+      overdueSec: v.number(),
+      createdAt: v.number(),
+    }).index("by_key", ["key"]),
+    operationsIncidents: defineTable({
+      key: v.string(),
+      summary: v.string(),
+      severity: v.union(v.literal("warning"), v.literal("critical")),
+      status: v.union(
+        v.literal("open"),
+        v.literal("acknowledged"),
+        v.literal("resolved"),
+      ),
+      openedAt: v.number(),
+      observedAt: v.number(),
+      resolvedAt: v.optional(v.number()),
+      acknowledgedBy: v.optional(v.id("users")),
+      acknowledgedAt: v.optional(v.number()),
+      note: v.optional(v.string()),
+    })
+      .index("by_key_opened", ["key", "openedAt"])
+      .index("by_status_opened", ["status", "openedAt"]),
+    supportCases: defineTable({
+      targetType: v.union(v.literal("user"), v.literal("workspace")),
+      targetId: v.string(),
+      subject: v.string(),
+      status: v.union(
+        v.literal("open"),
+        v.literal("investigating"),
+        v.literal("waiting"),
+        v.literal("resolved"),
+      ),
+      assignedTo: v.optional(v.id("users")),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_status_updated", ["status", "updatedAt"])
+      .index("by_target_updated", ["targetType", "targetId", "updatedAt"]),
+    supportNotes: defineTable({
+      targetType: v.union(v.literal("user"), v.literal("workspace")),
+      targetId: v.string(),
+      caseId: v.optional(v.id("supportCases")),
+      text: v.string(),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+    }).index("by_target_created", ["targetType", "targetId", "createdAt"]),
     apiTasks: defineTable({
+      failedAt: v.optional(v.number()),
       operation: v.string(),
       args: v.any(),
       dedupeKey: v.optional(v.string()),
@@ -121,11 +294,16 @@ const schema = defineSchema(
       createdAt: v.number(),
     })
       .index("by_dedupe", ["dedupeKey"])
+      .index("by_state_failed", ["state", "failedAt"])
       .index("by_state_due", ["state", "dueAt"])
       .index("by_state_lease", ["state", "leaseUntil"]),
 
     // Extend Convex Auth users with staff flag and personal workspace link.
     users: defineTable({
+      supportRevision: v.optional(v.number()),
+      suspendedAt: v.optional(v.number()),
+      generationPausedAt: v.optional(v.number()),
+      sessionsRevokedAt: v.optional(v.number()),
       name: v.optional(v.string()),
       image: v.optional(v.string()),
       email: v.optional(v.string()),
@@ -134,11 +312,23 @@ const schema = defineSchema(
       phoneVerificationTime: v.optional(v.number()),
       isAnonymous: v.optional(v.boolean()),
       isStaff: v.optional(v.boolean()),
+      adminRoles: v.optional(
+        v.array(
+          v.union(
+            v.literal("platform_admin"),
+            v.literal("support"),
+            v.literal("billing"),
+            v.literal("moderation"),
+            v.literal("operations"),
+          ),
+        ),
+      ),
       personalWorkspaceId: v.optional(v.id("workspaces")),
       /** When false, skip outbound email for jobs/exports. Default true when unset. */
       notificationEmailEnabled: v.optional(v.boolean()),
       onboardingDismissedAt: v.optional(v.number()),
     })
+      .index("by_staff", ["isStaff"])
       .index("email", ["email"])
       .index("phone", ["phone"]),
 
@@ -164,6 +354,8 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_user", ["userId"]),
     workspaces: defineTable({
+      supportRevision: v.optional(v.number()),
+      productionPausedAt: v.optional(v.number()),
       billingMode: v.optional(v.literal("internal")),
       name: v.string(),
       ownerUserId: v.id("users"),
@@ -490,7 +682,36 @@ const schema = defineSchema(
         filterFields: ["projectId", "type", "starred"],
       }),
 
+    jobEvents: defineTable({
+      jobId: v.id("generationJobs"),
+      event: v.string(),
+      createdAt: v.number(),
+    }).index("by_job_time", ["jobId", "createdAt"]),
+    jobObservations: defineTable({
+      jobVersion: v.optional(v.string()),
+      jobId: v.id("generationJobs"),
+      providerJobId: v.string(),
+      modelVersion: v.optional(v.string()),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("running"),
+        v.literal("succeeded"),
+        v.literal("failed"),
+        v.literal("unavailable"),
+      ),
+      observedAt: v.number(),
+      checkedBy: v.id("users"),
+    }).index("by_job_time", ["jobId", "observedAt"]),
+    jobReviews: defineTable({
+      jobId: v.id("generationJobs"),
+      authorId: v.id("users"),
+      note: v.string(),
+      createdAt: v.number(),
+    }).index("by_job_time", ["jobId", "createdAt"]),
     generationJobs: defineTable({
+      workspaceId: v.optional(v.id("workspaces")),
+      preventAutomaticResubmission: v.optional(v.boolean()),
+      submissionFenced: v.optional(v.boolean()),
       projectId: v.id("projects"),
       entityId: v.optional(v.id("entities")),
       promptSheetId: v.optional(v.id("promptSheets")),
@@ -502,6 +723,7 @@ const schema = defineSchema(
       kind: v.string(),
       prompt: v.string(),
       seed: v.optional(v.number()),
+      inputAssetIds: v.optional(v.array(v.id("assets"))),
       inputsFileId: v.optional(v.id("_storage")),
       estimatedCostUsdMicros: v.number(),
       priceVersion: v.optional(v.string()),
@@ -575,6 +797,16 @@ const schema = defineSchema(
     })
       .index("by_project", ["projectId"])
       .index("by_status", ["status"])
+      .index("by_submission", ["submissionState"])
+      .index("by_billing_review", ["billingNeedsReview"])
+      .index("by_status_completed", ["status", "completedAt"])
+      .index("by_updated", ["updatedAt"])
+      .index("by_created", ["createdAt"])
+      .index("by_status_created", ["status", "createdAt"])
+      .index("by_workspace_created", ["workspaceId", "createdAt"])
+      .index("by_creator_created", ["createdBy", "createdAt"])
+      .index("by_project_created", ["projectId", "createdAt"])
+      .index("by_model_created", ["model", "createdAt"])
       .index("by_provider_job", ["providerJobId"])
       .index("by_entity", ["entityId"])
 
@@ -636,6 +868,7 @@ const schema = defineSchema(
       reviewReason: v.optional(v.string()),
     })
       .index("by_workspace", ["workspaceId"])
+      .index("by_review", ["reviewReason"])
       .index("by_customer", ["environment", "customerId"])
       .index("by_subscription", ["environment", "subscriptionId"]),
     paymentCheckouts: defineTable({
@@ -671,7 +904,27 @@ const schema = defineSchema(
       objectId: v.string(),
       receivedAt: v.number(),
       processedAt: v.optional(v.number()),
-    }).index("by_event", ["environment", "eventId"]),
+    })
+      .index("by_event", ["environment", "eventId"])
+      .index("by_received", ["receivedAt"])
+      .index("by_processed_received", ["processedAt", "receivedAt"]),
+    adminRefunds: defineTable({
+      expectedRefundedCents: v.number(),
+      orderId: v.id("paymentOrders"),
+      workspaceId: v.id("workspaces"),
+      environment: v.union(v.literal("sandbox"), v.literal("production")),
+      actorUserId: v.id("users"),
+      requestId: v.string(),
+      amountCents: v.number(),
+      reason: v.string(),
+      status: v.string(),
+      providerRefundId: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_actor_request", ["actorUserId", "requestId"])
+      .index("by_order", ["orderId"])
+      .index("by_workspace", ["workspaceId"]),
     paymentOrders: defineTable({
       workspaceId: v.id("workspaces"),
       environment: v.union(v.literal("sandbox"), v.literal("production")),
@@ -685,6 +938,7 @@ const schema = defineSchema(
       poolId: v.optional(v.id("fundingPools")),
       createdAt: v.number(),
     })
+      .index("by_time", ["createdAt"])
       .index("by_order", ["environment", "orderId"])
       .index("by_workspace", ["workspaceId"]),
     fundingPools: defineTable({
@@ -748,6 +1002,7 @@ const schema = defineSchema(
       balanceAfter: v.number(),
       createdAt: v.number(),
     })
+      .index("by_time", ["createdAt"])
       .index("by_workspace", ["workspaceId"])
       .index("by_job", ["jobId"])
       .index("by_workspace_time", ["workspaceId", "createdAt"])
@@ -775,18 +1030,36 @@ const schema = defineSchema(
       .index("by_user_unread", ["userId", "read"]),
 
     /** Append-only staff and deployment operator action log. */
+    adminActionRequests: defineTable({
+      actorUserId: v.id("users"),
+      requestId: v.string(),
+      fingerprint: v.string(),
+      createdAt: v.number(),
+    }).index("by_actor_request", ["actorUserId", "requestId"]),
+
     auditLog: defineTable({
       actorUserId: v.optional(v.id("users")),
       actorType: v.optional(v.union(v.literal("user"), v.literal("operator"))),
+      requestId: v.optional(v.string()),
+      outcome: v.optional(v.literal("succeeded")),
+      before: v.optional(v.string()),
+      after: v.optional(v.string()),
       action: v.string(),
       targetType: v.optional(v.string()),
       targetId: v.optional(v.string()),
       reason: v.optional(v.string()),
       meta: v.optional(v.string()),
       createdAt: v.number(),
-    }).index("by_time", ["createdAt"]),
+    })
+      .index("by_time", ["createdAt"])
+      .index("by_actor_time", ["actorUserId", "createdAt"])
+      .index("by_action_time", ["action", "createdAt"])
+      .index("by_target_time", ["targetId", "createdAt"]),
 
     moderationFlags: defineTable({
+      revision: v.optional(v.number()),
+      assignedTo: v.optional(v.id("users")),
+      lastDecisionReason: v.optional(v.string()),
       projectId: v.optional(v.id("projects")),
       jobId: v.optional(v.id("generationJobs")),
       assetId: v.optional(v.id("assets")),
@@ -821,6 +1094,7 @@ const schema = defineSchema(
       ),
       createdAt: v.number(),
     })
+      .index("by_time", ["createdAt"])
       .index("by_user_time", ["userId", "createdAt"])
       .index("by_project_time", ["projectId", "createdAt"])
       .index("by_workspace_time", ["workspaceId", "createdAt"]),
@@ -832,7 +1106,9 @@ const schema = defineSchema(
       name: v.string(),
       value: v.optional(v.number()),
       createdAt: v.number(),
-    }).index("by_name_time", ["name", "createdAt"]),
+    })
+      .index("by_time", ["createdAt"])
+      .index("by_name_time", ["name", "createdAt"]),
 
     exports: defineTable({
       projectId: v.id("projects"),

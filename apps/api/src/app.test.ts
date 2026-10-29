@@ -412,3 +412,75 @@ it("routes project access and generation preferences through authenticated HTTP 
     ),
   ).toBe(true);
 });
+
+it("separates liveness from readiness and caches dependency probes", async () => {
+  const probe = vi
+    .spyOn(ConvexHttpClient.prototype, "query")
+    .mockResolvedValue({ ok: true });
+  const app = createApp();
+  expect(
+    (await app.handle(new Request("http://localhost/health"))).status,
+  ).toBe(200);
+  expect(probe).not.toHaveBeenCalled();
+  expect((await app.handle(new Request("http://localhost/ready"))).status).toBe(
+    200,
+  );
+  expect((await app.handle(new Request("http://localhost/ready"))).status).toBe(
+    200,
+  );
+  expect(probe).toHaveBeenCalledOnce();
+});
+it("keeps liveness available and returns a safe unavailable readiness result when Convex fails", async () => {
+  vi.spyOn(ConvexHttpClient.prototype, "query").mockRejectedValue(
+    new Error("private dependency credential detail"),
+  );
+  const app = createApp();
+  const response = await app.handle(new Request("http://localhost/ready"));
+  expect(response.status).toBe(503);
+  expect(await response.text()).not.toContain("private");
+  expect(
+    (await app.handle(new Request("http://localhost/health"))).status,
+  ).toBe(200);
+});
+it.each(["heartbeat", "evaluate", "readiness"])(
+  "keeps operational internal function %s off HTTP",
+  async (operation) => {
+    expect(
+      (
+        await createApp().handle(
+          request(
+            `/v1/adminOperations/${operation}`,
+            { args: {} },
+            "staff-token",
+          ),
+        )
+      ).status,
+    ).toBe(404);
+  },
+);
+it("bounds readiness checks when the dependency does not respond", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.spyOn(ConvexHttpClient.prototype, "query").mockImplementation(
+      () => new Promise(() => {}),
+    );
+    const pending = createApp().handle(new Request("http://localhost/ready"));
+    await vi.advanceTimersByTimeAsync(2100);
+    expect((await pending).status).toBe(503);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(["loadStatusContext", "recordObservation", "backfillWorkspace"])(
+  "does not expose internal job operation %s over HTTP",
+  async (operation) => {
+    expect(
+      (
+        await createApp().handle(
+          request(`/v1/adminJobs/${operation}`, { args: {} }, "staff-token"),
+        )
+      ).status,
+    ).toBe(404);
+  },
+);

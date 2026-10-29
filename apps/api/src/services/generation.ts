@@ -311,7 +311,7 @@ export const startGeneration = action({
         durationSec: pricedDuration,
         resolution: pricedResolution,
         createdBy: user._id,
-        referenceAssetIds,
+        referenceAssetIds: allRefIds,
         requestKey: args.requestId
           ? `${user._id}:${args.requestId}`
           : undefined,
@@ -377,6 +377,9 @@ export const submitAndTrack = internalAction({
       });
       throw new SubmissionUncertainError();
     }
+
+    if (args.retry && job.preventAutomaticResubmission)
+      throw new SubmissionUncertainError();
 
     // A reclaimed worker task resumes the persisted provider job instead of submitting again.
     if (job.providerJobId && !args.retry) {
@@ -642,6 +645,12 @@ export const pollJob = internalAction({
       }
 
       if (poll.status === "failed") {
+        if (job.preventAutomaticResubmission) {
+          await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+            jobId: job._id,
+          });
+          throw new SubmissionUncertainError();
+        }
         const transient =
           poll.error !== undefined &&
           (adapter.isTransientError?.(new Error(poll.error)) ??
@@ -668,6 +677,12 @@ export const pollJob = internalAction({
       );
     } catch (err) {
       if (err instanceof SubmissionUncertainError) throw err;
+      if (job.preventAutomaticResubmission) {
+        await ctx.runMutation(internal.generation.markSubmissionUncertain, {
+          jobId: job._id,
+        });
+        throw new SubmissionUncertainError();
+      }
       if (currentProviderSignal()?.aborted) throw workerCancellationError(err);
       if (!useMockProviders()) {
         if (

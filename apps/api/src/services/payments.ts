@@ -1,3 +1,7 @@
+import {
+  WORKSPACE_MONTHLY_USD_MICROS,
+  ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
+} from "@cinakey/shared";
 import { webhooks, type models } from "@polar-sh/sdk/2026-10";
 import { v } from "convex/values";
 import type { Id } from "../../../../packages/backend/convex/_generated/dataModel";
@@ -56,10 +60,12 @@ export function validatePolarProduct(
       tiers.tiers.length !== 2 ||
       tiers.tiers[0]?.min_seats !== 1 ||
       tiers.tiers[0]?.max_seats !== 1 ||
-      tiers.tiers[0]?.price_per_seat !== 2900 ||
+      tiers.tiers[0]?.price_per_seat !==
+        WORKSPACE_MONTHLY_USD_MICROS / 10_000 ||
       tiers.tiers[1]?.min_seats !== 2 ||
       tiers.tiers[1]?.max_seats != null ||
-      tiers.tiers[1]?.price_per_seat !== 1500
+      tiers.tiers[1]?.price_per_seat !==
+        ADDITIONAL_SEAT_MONTHLY_USD_MICROS / 10_000
     )
       throw new Error(
         "Configure graduated seats: first seat $29, remaining seats $15",
@@ -101,7 +107,8 @@ export const checkout = action({
     const amountCents =
       args.kind === "topup"
         ? (args.amountUsd ?? 0) * 100
-        : 2900 + 1500 * (seats - 1);
+        : WORKSPACE_MONTHLY_USD_MICROS / 10_000 +
+          (ADDITIONAL_SEAT_MONTHLY_USD_MICROS / 10_000) * (seats - 1);
     const productId =
       args.kind === "subscription"
         ? config.products.subscription
@@ -364,7 +371,7 @@ async function syncSubscription(ctx: ActionCtx, sub: models.Subscription) {
     providerUpdatedAt: validTime(sub.modified_at ?? sub.created_at),
   });
 }
-async function syncOrder(
+export async function syncOrder(
   ctx: ActionCtx,
   order: models.Order,
   receiptSeats?: number,
@@ -414,7 +421,10 @@ async function syncOrder(
     throw new Error("Ambiguous order billing period");
   // Full monthly invoices encode the graduated quantity in their pre-discount subtotal.
   // A proration does not: only its signed order.paid receipt can authorize more seats.
-  const inferredSeats = 1 + (order.subtotal_amount - 2900) / 1500;
+  const inferredSeats =
+    1 +
+    (order.subtotal_amount - WORKSPACE_MONTHLY_USD_MICROS / 10_000) /
+      (ADDITIONAL_SEAT_MONTHLY_USD_MICROS / 10_000);
   const seats =
     isCycle &&
     Number.isSafeInteger(inferredSeats) &&

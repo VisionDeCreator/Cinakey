@@ -1,3 +1,14 @@
+import { AnalyticsPage } from "./Analytics";
+import { ProviderControlsPage } from "./ProviderControls";
+import { ModerationPage, StoragePage, MediaDetailPage } from "./Media";
+import { SupportPage, SupportTargetPage } from "./Support";
+import { BillingPage, BillingWorkspacePage } from "./Billing";
+import { JobsPage, JobDetailPage } from "./Jobs";
+import { OperationsPage } from "./Operations";
+import { hasAdminPermission } from "@cinakey/shared";
+import { PermissionRoute } from "./Permissions";
+import { AdministrationPage } from "./Administration";
+import { AuditPage } from "./Audit";
 import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Clapperboard,
@@ -32,9 +43,7 @@ import {
   WorkspaceDetail,
 } from "./Directory";
 import {
-  StaffAuditPage,
   StaffEgressPage,
-  StaffModerationPage,
   StaffProvidersPage,
 } from "./features/staff/StaffPages";
 
@@ -96,12 +105,20 @@ export function AdminGate({ children }: { children: ReactNode }) {
   return children;
 }
 const sections = [
-  ["/users", "Users"],
-  ["/workspaces", "Workspaces"],
-  ["/moderation", "Moderation"],
-  ["/providers", "Provider health"],
-  ["/egress", "Egress"],
-  ["/audit", "Audit log"],
+  ["/analytics", "Analytics", "analytics.read", Activity],
+  ["/provider-controls", "Provider controls", "providers.read", Activity],
+  ["/storage", "Storage", "storage.read", CloudUpload],
+  ["/support", "Support", "support.read", Users],
+  ["/billing", "Billing", "billing.read", ScrollText],
+  ["/jobs", "Jobs", "jobs.read", Clapperboard],
+  ["/operations", "Overview", "operations.read", Activity],
+  ["/users", "Users", "directory.read", Users],
+  ["/workspaces", "Workspaces", "directory.read", Folder],
+  ["/moderation", "Moderation", "moderation.manage", ShieldCheck],
+  ["/providers", "Provider health", "operations.read", Activity],
+  ["/egress", "Egress", "operations.read", CloudUpload],
+  ["/audit", "Audit log", "audit.read", ScrollText],
+  ["/administration", "Administration", "administrators.manage", ShieldCheck],
 ] as const;
 function Layout() {
   useLocale();
@@ -111,7 +128,6 @@ function Layout() {
   const title =
     sections.find(([path]) => location.pathname.startsWith(path))?.[1] ||
     "Administration";
-  const icons = [Users, Folder, ShieldCheck, Activity, CloudUpload, ScrollText];
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
@@ -128,8 +144,8 @@ function Layout() {
           aria-label={t("Administration")}
           className="flex flex-wrap gap-2 md:flex-col"
         >
-          {sections.map(([path, label], index) => {
-            const Icon = icons[index]!;
+          {sections.map(([path, label, permission, Icon]) => {
+            if (!hasAdminPermission(me, permission)) return null;
             return (
               <NavLink
                 key={path}
@@ -230,16 +246,142 @@ export function App() {
             </AdminGate>
           }
         >
+          <Route
+            path="operations"
+            element={
+              <PermissionRoute permission="operations.read">
+                <OperationsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="jobs"
+            element={
+              <PermissionRoute permission="jobs.read">
+                <JobsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="jobs/:jobId"
+            element={
+              <PermissionRoute permission="jobs.read">
+                <JobDetailPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="billing"
+            element={
+              <PermissionRoute permission="billing.read">
+                <BillingPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="billing/:workspaceId"
+            element={
+              <PermissionRoute permission="billing.read">
+                <BillingWorkspacePage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="support"
+            element={
+              <PermissionRoute permission="support.read">
+                <SupportPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="support/:targetType/:targetId"
+            element={
+              <PermissionRoute permission="support.read">
+                <SupportTargetPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="storage"
+            element={
+              <PermissionRoute permission="storage.read">
+                <StoragePage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="storage/files/:storageId"
+            element={
+              <PermissionRoute permission="storage.read">
+                <MediaDetailPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="provider-controls"
+            element={
+              <PermissionRoute permission="providers.read">
+                <ProviderControlsPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="analytics"
+            element={
+              <PermissionRoute permission="analytics.read">
+                <AnalyticsPage />
+              </PermissionRoute>
+            }
+          />
           <Route index element={<Navigate to="/users" replace />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="users/:userId" element={<UserDetail />} />
-          <Route path="workspaces" element={<WorkspacesPage />} />
-          <Route path="workspaces/:workspaceId" element={<WorkspaceDetail />} />
+          <Route
+            path="administration"
+            element={
+              <PermissionRoute permission="administrators.manage">
+                <AdministrationPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="users"
+            element={
+              <PermissionRoute permission="directory.read">
+                <UsersPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="users/:userId"
+            element={
+              <PermissionRoute permission="directory.read">
+                <UserDetail />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="workspaces"
+            element={
+              <PermissionRoute permission="directory.read">
+                <WorkspacesPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="workspaces/:workspaceId"
+            element={
+              <PermissionRoute permission="billing.read">
+                <WorkspaceDetail />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="moderation"
             element={
               <>
-                <StaffModerationPage />
+                <PermissionRoute permission="moderation.manage">
+                  <ModerationPage />
+                </PermissionRoute>
               </>
             }
           />
@@ -247,7 +389,9 @@ export function App() {
             path="providers"
             element={
               <>
-                <StaffProvidersPage />
+                <PermissionRoute permission="operations.read">
+                  <StaffProvidersPage />
+                </PermissionRoute>
               </>
             }
           />
@@ -255,7 +399,9 @@ export function App() {
             path="egress"
             element={
               <>
-                <StaffEgressPage />
+                <PermissionRoute permission="operations.read">
+                  <StaffEgressPage />
+                </PermissionRoute>
               </>
             }
           />
@@ -263,7 +409,9 @@ export function App() {
             path="audit"
             element={
               <>
-                <StaffAuditPage />
+                <PermissionRoute permission="audit.read">
+                  <AuditPage />
+                </PermissionRoute>
               </>
             }
           />

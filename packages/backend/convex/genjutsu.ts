@@ -1,3 +1,4 @@
+import { requireProjectUnpausedAccess } from "./lib/access";
 import { requireProjectWrite } from "./lib/access";
 import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
@@ -138,7 +139,7 @@ export const removeInput = mutation({
   handler: async (ctx, { sessionId, assetId }) => {
     const session = await ctx.db.get(sessionId);
     if (!session) throw new Error("Transformation session not found");
-    await requireProjectAccess(ctx, session.storageScopeId);
+    await requireProjectUnpausedAccess(ctx, session.storageScopeId);
     const asset = await ctx.db.get(assetId);
     if (
       !asset ||

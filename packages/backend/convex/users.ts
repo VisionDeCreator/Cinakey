@@ -1,3 +1,4 @@
+import { assertWorkspaceNoMediaHolds } from "./lib/mediaControls";
 import { paymentState } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -18,7 +19,7 @@ export const viewer = query({
   args: {},
   handler: async (ctx) => {
     try {
-      return await requireUser(ctx);
+      return await requireUser(ctx, true);
     } catch {
       return null;
     }
@@ -83,6 +84,15 @@ export const deleteAccount = mutation({
       .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
       .collect();
     for (const workspace of owned) {
+      await assertWorkspaceNoMediaHolds(ctx, workspace._id);
+      const account = await ctx.db
+        .query("billingAccounts")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspace._id))
+        .unique();
+      if ((account?.reserved ?? 0) > 0)
+        throw new Error(
+          "Reconcile outstanding usage before deleting this account",
+        );
       const billing = await paymentState(ctx, workspace._id);
       if (
         billing?.subscriptionId &&
@@ -142,6 +152,15 @@ export const purgeUserData = internalMutation({
       .withIndex("by_owner", (q) => q.eq("ownerUserId", user._id))
       .collect();
     for (const workspace of ownedWorkspaces) {
+      await assertWorkspaceNoMediaHolds(ctx, workspace._id);
+      const account = await ctx.db
+        .query("billingAccounts")
+        .withIndex("by_workspace", (q) => q.eq("workspaceId", workspace._id))
+        .unique();
+      if ((account?.reserved ?? 0) > 0)
+        throw new Error(
+          "Reconcile outstanding usage before deleting this account",
+        );
       const billing = await paymentState(ctx, workspace._id);
       if (
         billing?.subscriptionId &&

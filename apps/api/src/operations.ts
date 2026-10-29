@@ -5,6 +5,19 @@ import {
   type FunctionReference,
 } from "convex/server";
 type Operations = ApiFromModules<{
+  earlyAccess: typeof import("../../../packages/backend/convex/earlyAccess");
+  adminAnalytics: typeof import("../../../packages/backend/convex/adminAnalytics");
+  adminProviders: typeof import("../../../packages/backend/convex/adminProviders");
+  adminMedia: typeof import("../../../packages/backend/convex/adminMedia") &
+    typeof import("./services/adminMedia");
+  adminSupport: typeof import("../../../packages/backend/convex/adminSupport");
+  adminBilling: typeof import("../../../packages/backend/convex/adminBilling") &
+    typeof import("./services/adminBilling");
+  tasks: typeof import("../../../packages/backend/convex/tasks");
+  adminJobs: typeof import("../../../packages/backend/convex/adminJobs") &
+    typeof import("./services/adminJobs");
+  adminOperations: typeof import("../../../packages/backend/convex/adminOperations");
+  adminAccess: typeof import("../../../packages/backend/convex/adminAccess");
   r2Storage: typeof import("./services/r2Storage");
   authOtp: typeof import("../../../packages/backend/convex/authOtp");
   payments: typeof import("../../../packages/backend/convex/payments") &

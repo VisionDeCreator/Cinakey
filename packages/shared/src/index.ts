@@ -289,3 +289,30 @@ export {
   type TokenRates,
   type TokenUsage,
 } from "./pricing";
+export {
+  ADMIN_ROLES,
+  ADMIN_ROLE_LABELS,
+  adminRoles,
+  hasAdminPermission,
+  type AdminRole,
+  type AdminPermission,
+} from "./admin-permissions";
+
+export {
+  WORKSPACE_MONTHLY_USD_MICROS,
+  ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
+  INCLUDED_MONTHLY_USAGE_USD_MICROS,
+} from "./pricing";
+export {
+  ADMIN_MODELS,
+  PROVIDER_CONTROL_KEYS,
+  providerForModel,
+  providerScopes,
+} from "./provider-controls";
+export {
+  ANALYTICS_METRICS,
+  ANALYTICS_FINANCIAL_METRICS,
+  ANALYTICS_DIMENSIONS,
+  type AnalyticsMetric,
+  type AnalyticsDimension,
+} from "./admin-analytics";

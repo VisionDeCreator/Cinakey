@@ -153,7 +153,12 @@ export class ApiClient {
             ["queued", "submitted", "running"].includes(job.status),
           ) || Date.now() - e.loadedAt >= 30_000
         );
-      if (/^staff:/.test(e.name)) return Date.now() - e.loadedAt >= 30_000;
+      if (
+        /^(?:staff:|adminAccess:|adminOperations:|adminJobs:|adminBilling:|adminSupport:|adminMedia:|adminProviders:|adminAnalytics:|users:viewer$)/.test(
+          e.name,
+        )
+      )
+        return Date.now() - e.loadedAt >= 30_000;
       if (/listActiveJobsForProject/.test(e.name))
         return e.data?.length > 0 || Date.now() - e.loadedAt >= 30_000;
       if (/getJob$/.test(e.name))

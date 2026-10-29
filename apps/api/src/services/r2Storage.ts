@@ -1,3 +1,4 @@
+import { internal } from "../operations";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic storage references bridge query and mutation contracts. */
 import { randomUUID } from "node:crypto";
 import { v } from "convex/values";
@@ -102,7 +103,13 @@ export async function completeUpload(ctx: ActionCtx, token: string) {
 export const deleteObject = internalAction({
   args: { id: v.id("r2Files"), key: v.string(), bucket: v.string() },
   handler: async (ctx, args) => {
-    await removeObject(args.key, args.bucket);
+    const file = await ctx.runQuery(internal.adminMedia.deletionContext, {
+      fileId: args.id,
+    });
+    if (!file) return;
+    if (file.key !== args.key || file.bucket !== args.bucket)
+      throw new Error("Storage deletion identity mismatch");
+    await removeObject(file.key, file.bucket);
     await ctx.runMutation(ref("forgetR2File"), { id: args.id });
   },
 });

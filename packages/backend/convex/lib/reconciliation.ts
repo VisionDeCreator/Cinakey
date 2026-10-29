@@ -5,12 +5,21 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 export async function auditAccounting(
   ctx: QueryCtx | MutationCtx,
   workspaceId: Id<"workspaces">,
+  limit?: number,
 ) {
   if (!(await ctx.db.get(workspaceId))) throw new Error("Workspace not found");
-  const ledger = await ctx.db
+  const ledgerQuery = ctx.db
     .query("usageLedger")
-    .withIndex("by_workspace_sequence", (q) => q.eq("workspaceId", workspaceId))
-    .collect();
+    .withIndex("by_workspace_sequence", (q) =>
+      q.eq("workspaceId", workspaceId),
+    );
+  const ledger = limit
+    ? await ledgerQuery.take(limit + 1)
+    : await ledgerQuery.collect();
+  if (limit && ledger.length > limit)
+    throw new Error(
+      "Ledger exceeds interactive audit limit; use an offline operator audit",
+    );
   const account = {
     available: 0,
     funded: 0,
@@ -108,10 +117,14 @@ export async function auditAccounting(
     .query("billingAccounts")
     .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
     .unique();
-  const storedTotals = await ctx.db
+  const storedTotalsQuery = ctx.db
     .query("spendTotals")
-    .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
-    .collect();
+    .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId));
+  const storedTotals = limit
+    ? await storedTotalsQuery.take(limit * 3 + 1)
+    : await storedTotalsQuery.collect();
+  if (limit && storedTotals.length > limit * 3)
+    throw new Error("Too many scopes for interactive audit");
   const differences: string[] = [];
   for (const key of Object.keys(account) as Array<keyof typeof account>)
     if ((storedAccount?.[key] ?? 0) !== account[key])

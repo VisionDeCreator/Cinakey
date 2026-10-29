@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-29",
+  "environment": {
+    "web": "http://localhost:5173",
+    "admin": "http://localhost:5174",
+    "api": "http://localhost:3001",
+    "paymentEnvironment": "sandbox",
+    "actorRole": "platform administrator"
+  },
+  "localization": {
+    "sourceMessages": 2143,
+    "languages": ["en", "fr", "es", "ko", "ja", "zh"],
+    "newMessages": 613,
+    "addedTranslationsAuthoredLocally": true,
+    "externalTranslationRequestsCompleted": 0,
+    "checkCommand": "bun run check:i18n",
+    "result": "passed"
+  },
+  "automated": {
+    "admin": {
+      "command": "bun run --cwd apps/admin test",
+      "tests": 38,
+      "result": "passed"
+    },
+    "web": {
+      "command": "bun run --cwd apps/web test src/lib/i18n.test.tsx src/app/AppShell.test.tsx src/features/settings/BillingSettings.test.tsx src/features/marketing/LandingPage.test.tsx",
+      "tests": 34,
+      "result": "passed"
+    },
+    "adminBuild": "passed (bundle-size warning)",
+    "webBuild": "passed (bundle-size warning)",
+    "credentialCheck": "passed",
+    "diffWhitespaceCheck": "passed"
+  },
+  "browserChecks": [
+    {
+      "check": "Authenticated Admin session and role-management form",
+      "result": "passed",
+      "observed": "Admin pages load; Save roles is disabled without reviewed input. No access changes submitted."
+    },
+    {
+      "check": "Analytics across six locales",
+      "result": "passed",
+      "observed": "Headings, navigation, report controls, metric labels, statuses, and date-range placeholders update; unsaved report reason remains intact."
+    },
+    {
+      "check": "Report request and worker completion",
+      "result": "passed",
+      "observed": "One 30-day report created and completed by local API/worker; completed status and aggregates visible."
+    },
+    {
+      "check": "Workspace grouping and storage metric",
+      "result": "passed",
+      "observed": "Group and metric selection load completed workspace rows."
+    },
+    {
+      "check": "Audited CSV export",
+      "result": "passed",
+      "observed": "CSV downloaded; report request, completion and export success entries appear in audit history.",
+      "dataRows": 3,
+      "columns": 57
+    },
+    {
+      "check": "Operations overview",
+      "result": "passed",
+      "observed": "API/database reachable, healthy worker present, queue counters and monitoring settings load."
+    },
+    {
+      "check": "Provider controls",
+      "result": "passed",
+      "observed": "Policies, limits, model catalog and deployed pricing render in Korean; settings remain untouched."
+    },
+    {
+      "check": "Storage inventory",
+      "result": "passed",
+      "observed": "Registered files, reference summaries, size and localized timestamps load."
+    },
+    {
+      "check": "Support",
+      "result": "passed",
+      "observed": "Lookup and translated status filters render; no cases match the initial filter."
+    },
+    {
+      "check": "Billing",
+      "result": "passed",
+      "observed": "Sandbox payment state, review/event lists and workspace finance detail load. No funds or refunds changed."
+    },
+    {
+      "check": "Jobs",
+      "result": "passed",
+      "observed": "Translated filters and job table load. Current database contains no matching jobs."
+    },
+    {
+      "check": "Moderation",
+      "result": "passed",
+      "observed": "Translated stage/verdict/status filters load; no matching flags."
+    },
+    {
+      "check": "Landing page across six locales",
+      "result": "passed",
+      "observed": "Public copy, labels, navigation and USD formatting translate; unsaved form draft survives switching. No waitlist submission performed."
+    },
+    {
+      "check": "Navigation overflow",
+      "result": "passed at observed width",
+      "observed": "French landing page document scrollWidth equals clientWidth (667px) after wrapping translated navigation."
+    },
+    {
+      "check": "Removed developer route",
+      "result": "passed",
+      "observed": "/dev resolves to Page not found; no developer functionality is rendered."
+    }
+  ],
+  "coverageLimits": [
+    "Live role switching was not performed; role and financial permission filtering use automated tests.",
+    "No paid generation, credits, refunds, irreversible deletion, account restriction, or provider-policy mutation was performed.",
+    "No job or moderation evidence detail could be exercised with the empty matching live queues.",
+    "Browser viewport override did not provide a verified 375px layout; measurements cover the observed 667px page, with Admin evidence also captured at 1280px.",
+    "This is local development acceptance, not production deployment verification."
+  ],
+  "serviceRecovery": "The original web Vite process stopped responding to HTTP. Restarting it stopped sibling tasks in the shared runner. The normal bun run dev stack was restored, and Admin access plus /dev were retested successfully.",
+  "screenshots": ["analytics-en.jpg", "analytics-ko.jpg", "landing-fr.jpg"],
+  "existingUncommittedChanges": "Preserved; no commits, resets, stashes or branch changes."
+}

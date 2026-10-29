@@ -111,6 +111,7 @@ export const retry = internalMutation({
     const exhausted = args.permanent === true || task.attempts >= 6;
     await ctx.db.patch(task._id, {
       state: exhausted ? "failed" : "pending",
+      failedAt: exhausted ? Date.now() : undefined,
       error: args.error.slice(0, 1000),
       dueAt: Date.now() + Math.min(300_000, 1000 * 2 ** task.attempts),
       leaseOwner: undefined,

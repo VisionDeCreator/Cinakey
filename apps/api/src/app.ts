@@ -86,6 +86,38 @@ async function parseBoundedJson({ request }: { request: Request }) {
 }
 
 export function createApp() {
+  let readyCache: { ok: boolean; checkedAt: number } | undefined;
+  let readyPending: Promise<{ ok: boolean; checkedAt: number }> | undefined;
+  const checkReadiness = async () => {
+    if (readyCache && Date.now() - readyCache.checkedAt < 5000)
+      return readyCache;
+    if (readyPending) return readyPending;
+    readyPending = (async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const probeClient = adminClient(null, 2000);
+        const dependency = await Promise.race([
+          probeClient.query(ref("adminOperations:readiness"), {}),
+          new Promise((_, reject) => {
+            timer = setTimeout(
+              () => reject(new Error("Readiness timeout")),
+              2000,
+            );
+          }),
+        ]);
+        if (!(dependency as { ok?: boolean })?.ok)
+          throw new Error("Dependency not ready");
+        return (readyCache = { ok: true, checkedAt: Date.now() });
+      } catch {
+        return (readyCache = { ok: false, checkedAt: Date.now() });
+      } finally {
+        clearTimeout(timer);
+      }
+    })().finally(() => {
+      readyPending = undefined;
+    });
+    return readyPending;
+  };
   const origins = (
     process.env.WEB_ORIGINS ?? "http://localhost:5173,http://localhost:5174"
   )
@@ -99,6 +131,54 @@ export function createApp() {
         methods: ["POST", "GET", "HEAD", "OPTIONS"],
         credentials: true,
       }),
+    )
+    .post(
+      "/early-access",
+      async ({ request, server }) => {
+        if (!origins.includes(request.headers.get("origin") ?? ""))
+          return new Response("Origin not allowed", { status: 403 });
+        try {
+          const body = JSON.parse(
+            new TextDecoder().decode(await boundedBody(request, 4096)),
+          );
+          if (
+            !body ||
+            typeof body !== "object" ||
+            Object.keys(body).some(
+              (k) => !["email", "name", "idea", "website"].includes(k),
+            ) ||
+            typeof body.email !== "string" ||
+            typeof body.name !== "string" ||
+            typeof body.idea !== "string" ||
+            typeof body.website !== "string"
+          )
+            return new Response("Invalid request", { status: 400 });
+          if (body.website) return Response.json({ ok: true });
+          const address = authClientAddress(
+            request,
+            server?.requestIP(request)?.address ?? "unknown",
+          );
+          const digest = await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(address),
+          );
+          const clientKey = Array.from(new Uint8Array(digest))
+            .map((n) => n.toString(16).padStart(2, "0"))
+            .join("");
+          await createContext(registry).runMutation(
+            internal.earlyAccess.request,
+            { email: body.email, name: body.name, idea: body.idea, clientKey },
+          );
+          return Response.json({ ok: true });
+        } catch (error) {
+          const limited = String(error).includes("Rate limit");
+          return Response.json(
+            { message: limited ? "Please try later." : "Request unavailable." },
+            { status: limited ? 429 : 400 },
+          );
+        }
+      },
+      { parse: "none" },
     )
     .post(
       "/storage/uploads/:token",
@@ -374,6 +454,11 @@ export function createApp() {
       }
     })
     .get("/health", () => ({ ok: true, service: "cinakey-api" }))
+    .get("/ready", async ({ set }) => {
+      const result = await checkReadiness();
+      set.status = result.ok ? 200 : 503;
+      return { ...result, service: "cinakey-api", dependency: "convex" };
+    })
     .post("/webhooks/generation", async ({ request }) => {
       const operation = generationWebhook as unknown as {
         handler: (ctx: unknown, request: Request) => Promise<Response>;

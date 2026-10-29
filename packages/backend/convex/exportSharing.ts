@@ -1,3 +1,4 @@
+import { mediaUnavailable } from "./lib/mediaControls";
 import { v } from "convex/values";
 import {
   internalMutation,
@@ -31,6 +32,8 @@ async function activeLink(
     !project ||
     project.archivedAt !== undefined
   )
+    throw new Error("Share unavailable");
+  if (await mediaUnavailable(ctx, publication.storageId))
     throw new Error("Share unavailable");
   return { link, publication };
 }

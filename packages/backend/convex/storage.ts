@@ -1,3 +1,4 @@
+import { mediaUnavailable, assertMediaNotHeld } from "./lib/mediaControls";
 import { makeFunctionReference } from "convex/server";
 import { enqueueTask } from "./tasks";
 import { requireProjectWrite } from "./lib/access";
@@ -92,6 +93,7 @@ export async function getFileUrl(
   storageId: Id<"_storage" | "r2Files">,
 ): Promise<string | null> {
   if ("db" in ctx) {
+    if (await mediaUnavailable(ctx, storageId)) return null;
     const id = ctx.db.normalizeId("r2Files", storageId);
     if (id) {
       const file = await ctx.db.get(id);
@@ -109,6 +111,8 @@ export async function registerMediaFile(
   format: string,
   sizeBytes: number,
 ) {
+  if (await mediaUnavailable(ctx, storageId))
+    throw new Error("Media is quarantined");
   const r2Id = ctx.db.normalizeId("r2Files", storageId);
   if (r2Id) {
     const file = await ctx.db.get(r2Id);
@@ -154,6 +158,7 @@ export async function deleteFile(
   storageId: Id<"_storage" | "r2Files">,
 ): Promise<void> {
   if ("db" in ctx) {
+    await assertMediaNotHeld(ctx, storageId);
     if (
       await ctx.db
         .query("publishedExports")
@@ -206,14 +211,15 @@ export async function deleteFile(
 export async function deleteStoredFile(
   ctx: StorageCtx,
   storageId: Id<"_storage" | "r2Files">,
-): Promise<void> {
+): Promise<Id<"apiTasks"> | void> {
   if ("db" in ctx) {
+    await assertMediaNotHeld(ctx, storageId);
     const id = ctx.db.normalizeId("r2Files", storageId);
     if (id) {
       const file = await ctx.db.get(id);
       if (file && !file.deletedAt) {
         await ctx.db.patch(id, { deletedAt: Date.now() });
-        await enqueueTask(ctx, 0, "r2Storage:deleteObject", {
+        return await enqueueTask(ctx, 0, "r2Storage:deleteObject", {
           id,
           key: file.key,
           bucket: file.bucket,

@@ -1,3 +1,6 @@
+import { appendAuditLog } from "./lib/audit";
+import { mediaUnavailable, mediaControl } from "./lib/mediaControls";
+import { assertUploadAllowed } from "./lib/restrictions";
 import { assertRateLimit } from "./lib/rateLimit";
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
@@ -67,6 +70,7 @@ export const prepareR2Upload = internalMutation({
       .unique();
     if (!row || row.expiresAt < Date.now() || row.fileId || row.completing)
       throw new Error("Upload session expired or completed");
+    await assertUploadAllowed(ctx, row);
     if (
       row.contentType &&
       (row.contentType !== args.contentType || row.size !== args.size)
@@ -88,6 +92,7 @@ export const claimR2Upload = internalMutation({
       .unique();
     if (!row || row.expiresAt < Date.now() || !row.contentType || !row.size)
       throw new Error("Upload session unavailable");
+    await assertUploadAllowed(ctx, row);
     if (!row.fileId) {
       if (row.completing)
         throw new Error("Upload completion already in progress");
@@ -122,6 +127,7 @@ export const completeR2Upload = internalMutation({
     if (!row || !row.completing || row.expiresAt < Date.now())
       throw new Error("Upload session unavailable");
     if (row.fileId) return row.fileId;
+    await assertUploadAllowed(ctx, row);
     if (row.size !== args.size || row.contentType !== args.contentType)
       throw new Error("Uploaded file does not match the upload session");
     const id = await ctx.db.insert("r2Files", {
@@ -163,6 +169,25 @@ export const forgetR2File = internalMutation({
   args: { id: v.id("r2Files") },
   handler: async (ctx, { id }) => {
     if (await ctx.db.get(id)) await ctx.db.delete(id);
+    const requests = await ctx.db
+      .query("storageCleanupRequests")
+      .withIndex("by_file", (q) => q.eq("fileId", id))
+      .take(100);
+    for (const request of requests) {
+      if (request.state === "completed") continue;
+      await ctx.db.patch(request._id, {
+        state: "completed",
+        completedAt: Date.now(),
+      });
+      await appendAuditLog(ctx, {
+        actorType: "operator",
+        action: "storage.cleanup.completed",
+        targetType: "media",
+        targetId: id,
+        requestId: request.requestId,
+        after: { state: "completed" },
+      });
+    }
   },
 });
 export const cleanupR2Uploads = internalMutation({
@@ -170,17 +195,33 @@ export const cleanupR2Uploads = internalMutation({
   handler: async (ctx) => {
     const abandoned = await ctx.db
       .query("r2Files")
-      .withIndex("by_workspace_created", (q) =>
-        q.eq("workspaceId", undefined).lt("createdAt", Date.now() - 86400_000),
+      .withIndex("by_cleanup", (q) =>
+        q
+          .eq("workspaceId", undefined)
+          .eq("retentionProtected", undefined)
+          .eq("deletedAt", undefined)
+          .lt("createdAt", Date.now() - 86400_000),
       )
       .take(50);
     for (const file of abandoned)
-      if (!file.deletedAt) await deleteFile(ctx, file._id);
+      if (!file.deletedAt) {
+        const control = await mediaControl(ctx, file._id);
+        if (!control?.quarantined && !control?.retentionHold)
+          await deleteFile(ctx, file._id);
+      }
     const expired = await ctx.db
       .query("r2Uploads")
-      .withIndex("by_expiry", (q) => q.lt("expiresAt", Date.now() - 86400_000))
+      .withIndex("by_retention_expiry", (q) =>
+        q
+          .eq("retentionProtected", undefined)
+          .lt("expiresAt", Date.now() - 86400_000),
+      )
       .take(50);
     for (const row of expired) {
+      if (row.fileId) {
+        const control = await mediaControl(ctx, row.fileId);
+        if (control?.quarantined || control?.retentionHold) continue;
+      }
       await enqueueTask(ctx, 0, "r2Storage:removeAbandonedUpload", {
         key: row.key,
         finalKey: row.fileId
@@ -202,7 +243,9 @@ export const lookupR2File = internalQuery({
   args: { id: v.string() },
   handler: async (ctx, { id }) => {
     const normalized = ctx.db.normalizeId("r2Files", id);
-    return normalized ? ctx.db.get(normalized) : null;
+    return normalized && !(await mediaUnavailable(ctx, normalized))
+      ? ctx.db.get(normalized)
+      : null;
   },
 });
 
@@ -213,7 +256,8 @@ export const authorizeR2File = internalQuery({
   handler: async (ctx, { id }) => {
     const normalized = ctx.db.normalizeId("r2Files", id);
     const file = normalized ? await ctx.db.get(normalized) : null;
-    if (!file || file.deletedAt) return null;
+    if (!file || file.deletedAt || (await mediaUnavailable(ctx, file._id)))
+      return null;
     const assets = await ctx.db
       .query("assets")
       .withIndex("by_storage", (q) => q.eq("storageId", file._id))

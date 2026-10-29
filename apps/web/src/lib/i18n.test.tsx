@@ -114,3 +114,33 @@ describe("shared web/admin localization", () => {
     expect(formatUsd(1_000_000)).toBe("$1.00");
   });
 });
+
+// Keep new Admin messages covered even when their keys come from role/metric maps.
+it.each(languages.filter(({ code }) => code !== "en"))(
+  "localizes Admin/report messages and preserves interpolation in $name",
+  ({ code }) => {
+    setLocale(code);
+    for (const key of [
+      "Analytics",
+      "Provider controls",
+      "Build report",
+      "Active accounts",
+      "Maximum request USD",
+      "Fewer healthy workers than expected",
+      "You do not have permission to view this section.",
+    ])
+      expect(t(key)).not.toBe(key);
+    const message = t(
+      "Status: {status}; scanned records: {count}; stage: {stage}; worker: {worker}.",
+      {
+        status: t("completed"),
+        count: 123,
+        stage: t("finished"),
+        worker: "fixture-worker",
+      },
+    );
+    expect(message).toContain("123");
+    expect(message).toContain("fixture-worker");
+    expect(message).not.toMatch(/\{\w+\}/);
+  },
+);

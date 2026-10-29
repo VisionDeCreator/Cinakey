@@ -5,7 +5,7 @@ import {
   mutation,
   type MutationCtx,
 } from "./_generated/server";
-import { requireStaff } from "./lib/access";
+import { requireAdminPermission } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
 
 export type ModerationVerdict = "allow" | "flagged" | "blocked";
@@ -117,15 +117,22 @@ export const resolveFlag = mutation({
     reason: v.string(),
   },
   handler: async (ctx, args) => {
-    const staff = await requireStaff(ctx);
+    const staff = await requireAdminPermission(ctx, "moderation.manage");
     const reason = args.reason.trim();
     if (reason.length < 3) {
       throw new Error("A reason of at least 3 characters is required");
     }
     const flag = await ctx.db.get(args.flagId);
     if (flag === null) throw new Error("Flag not found");
+    if (flag.status === args.status) return;
+    if (flag.status !== "open")
+      throw new Error(
+        "Flag already reviewed; use the Admin review workflow to reopen it",
+      );
     const now = Date.now();
     await ctx.db.patch(args.flagId, {
+      revision: (flag.revision ?? 0) + 1,
+      lastDecisionReason: reason,
       status: args.status,
       resolvedBy: staff._id,
       resolvedAt: now,

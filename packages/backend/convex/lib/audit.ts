@@ -5,6 +5,9 @@ export async function appendAuditLog(
   ctx: MutationCtx,
   args: {
     action: string;
+    requestId?: string;
+    before?: Record<string, unknown>;
+    after?: Record<string, unknown>;
     targetType?: string;
     targetId?: string;
     reason?: string;
@@ -18,6 +21,10 @@ export async function appendAuditLog(
     actorUserId: args.actorUserId,
     actorType: args.actorType,
     action: args.action,
+    requestId: args.requestId,
+    outcome: "succeeded",
+    before: args.before ? JSON.stringify(args.before) : undefined,
+    after: args.after ? JSON.stringify(args.after) : undefined,
     targetType: args.targetType,
     targetId: args.targetId,
     reason: args.reason,

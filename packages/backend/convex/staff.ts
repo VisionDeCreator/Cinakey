@@ -9,7 +9,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { requireStaff } from "./lib/access";
+import { requireAdminPermission } from "./lib/access";
 import { appendAuditLog } from "./lib/audit";
 import { appendLedgerEntry, getWorkspaceBalance } from "./billing";
 import { ensurePersonalWorkspaceForUser } from "./lib/workspaces";
@@ -48,10 +48,19 @@ export const promoteAdmin = internalMutation({
       throw new ConvexError(
         "This account must verify its email by signing in before it can become an administrator.",
       );
-    if (target.isStaff === true)
+    if (
+      target.isStaff === true &&
+      (target.adminRoles === undefined ||
+        target.adminRoles.includes("platform_admin"))
+    )
       return { userId: target._id, email, isStaff: true, alreadyAdmin: true };
 
-    await ctx.db.patch(target._id, { isStaff: true });
+    await ctx.db.patch(target._id, {
+      isStaff: true,
+      ...(target.adminRoles !== undefined
+        ? { adminRoles: ["platform_admin" as const] }
+        : {}),
+    });
     await appendAuditLog(ctx, {
       actorType: "operator",
       action: "platform.admin.promote",
@@ -77,7 +86,7 @@ async function findUserByEmail(
 export const lookupUser = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "billing.read");
     const email = args.email.trim().toLowerCase();
     if (email.length === 0) return null;
 
@@ -131,7 +140,7 @@ export const grantUsd = mutation({
     reason: v.string(),
   },
   handler: async (ctx, args) => {
-    const staff = await requireStaff(ctx);
+    const staff = await requireAdminPermission(ctx, "billing.write");
     await assertRateLimit(
       ctx,
       `staffGrant:${staff._id}`,
@@ -189,7 +198,7 @@ export const adjustUsd = mutation({
     reason: v.string(),
   },
   handler: async (ctx, args) => {
-    const staff = await requireStaff(ctx);
+    const staff = await requireAdminPermission(ctx, "billing.write");
     await assertRateLimit(
       ctx,
       `staffGrant:${staff._id}`,
@@ -237,20 +246,21 @@ export const adjustUsd = mutation({
 export const listModerationQueue = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "moderation.manage");
     const limit = Math.min(args.limit ?? 50, 200);
-    return await ctx.db
+    const flags = await ctx.db
       .query("moderationFlags")
       .withIndex("by_status", (q) => q.eq("status", "open"))
       .order("desc")
       .take(limit);
+    return flags.map(({ snippet: _, ...flag }) => flag);
   },
 });
 
 export const providerHealth = query({
   args: { limitPerModel: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "operations.read");
     const limit = Math.min(args.limitPerModel ?? 100, 500);
     const models = [
       "seedance-2.5",
@@ -310,7 +320,7 @@ export const monthlyEgress = query({
     month: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "operations.read");
     if (args.month < 1 || args.month > 12) {
       throw new Error("month must be 1-12");
     }
@@ -359,7 +369,7 @@ export const monthlyEgress = query({
 export const listAuditLog = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "audit.read");
     const limit = Math.min(args.limit ?? 100, 500);
     return await ctx.db
       .query("auditLog")
@@ -377,7 +387,7 @@ export const enableInternalWorkspace = mutation({
     reason: v.string(),
   },
   handler: async (ctx, args) => {
-    const actor = await requireStaff(ctx);
+    const actor = await requireAdminPermission(ctx, "workspaces.manage");
     const workspace = await ctx.db.get(args.workspaceId);
     if (!workspace) throw new Error("Workspace not found");
     await enableInternal(
@@ -399,7 +409,7 @@ export const createInternalWorkspace = mutation({
     reason: v.string(),
   },
   handler: async (ctx, args) => {
-    const actor = await requireStaff(ctx);
+    const actor = await requireAdminPermission(ctx, "workspaces.manage");
     const target = await findUserByEmail(
       ctx,
       args.ownerEmail.trim().toLowerCase(),
@@ -475,7 +485,7 @@ async function enableInternal(
 export const listUsers = query({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, { cursor }) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "directory.read");
     const result = await ctx.db
       .query("users")
       .order("desc")
@@ -495,7 +505,7 @@ export const listUsers = query({
 export const userDetail = query({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "directory.read");
     const user = await ctx.db.get(userId);
     if (!user) return null;
     const owned = await ctx.db
@@ -538,7 +548,7 @@ export const userDetail = query({
 export const listWorkspaces = query({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, { cursor }) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "directory.read");
     const result = await ctx.db
       .query("workspaces")
       .order("desc")
@@ -560,7 +570,7 @@ export const listWorkspaces = query({
 export const workspaceDetail = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, { workspaceId }) => {
-    await requireStaff(ctx);
+    await requireAdminPermission(ctx, "billing.read");
     const workspace = await ctx.db.get(workspaceId);
     if (!workspace) return null;
     const owner = await ctx.db.get(workspace.ownerUserId);

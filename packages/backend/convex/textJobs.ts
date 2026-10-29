@@ -1,3 +1,4 @@
+import { recordJobEvent } from "./lib/jobEvents";
 import {
   chargeForUnits,
   TOKEN_RATES,
@@ -41,6 +42,7 @@ export const createChatJob = internalMutation({
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
+      workspaceId: args.workspaceId,
       model: "deepseek",
       modelVersion: args.modelVersion ?? DEEPSEEK_MODEL,
       kind: args.kind ?? "chat",
@@ -82,6 +84,7 @@ export const createChatJob = internalMutation({
       }
       throw err;
     }
+    await recordJobEvent(ctx, jobId, "running");
     return jobId;
   },
 });
@@ -146,6 +149,7 @@ export const settleChatJob = internalMutation({
     ) {
       if (job.projectId !== args.projectId || job.createdBy !== args.userId)
         throw new Error("Usage scope mismatch");
+      await recordJobEvent(ctx, job._id, "completed_billing_review_required");
       await ctx.db.patch(job._id, {
         status: "succeeded",
         billingNeedsReview: true,
@@ -206,6 +210,7 @@ export const settleChatJob = internalMutation({
         delta: job.estimatedCostUsdMicros - actual,
         reason: "settle",
       });
+      await recordJobEvent(ctx, args.jobId, "succeeded");
       await ctx.db.patch(args.jobId, {
         status: "succeeded",
         actualCostUsdMicros: actual,
@@ -239,6 +244,7 @@ export const settleChatJob = internalMutation({
         delta: job.estimatedCostUsdMicros,
         reason: "refund",
       });
+      await recordJobEvent(ctx, args.jobId, "refunded");
       await ctx.db.patch(args.jobId, {
         status: "refunded",
         errorMessage: args.errorMessage,

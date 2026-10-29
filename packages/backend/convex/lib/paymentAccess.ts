@@ -43,6 +43,13 @@ export async function productionEntitlement(
   ctx: QueryCtx | MutationCtx,
   workspaceId: Id<"workspaces">,
 ) {
+  if ((await ctx.db.get(workspaceId))?.productionPausedAt !== undefined)
+    return {
+      canWrite: false,
+      code: "WORKSPACE_RESTRICTED",
+      message: "Production is paused for this workspace. Contact support.",
+      validUntil: null,
+    };
   if ((await ctx.db.get(workspaceId))?.billingMode === "internal")
     return { canWrite: true, code: null, message: null, validUntil: null };
   const state = await paymentState(ctx, workspaceId);

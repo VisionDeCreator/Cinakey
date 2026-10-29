@@ -42,6 +42,8 @@ export async function verifiedEmailUser(
     : matches[0];
   if (existingUserId && !existing) throw new Error("Account is unavailable");
   if (existing) {
+    if (existing.suspendedAt !== undefined)
+      throw new Error("This account is suspended. Contact support.");
     // Never replace the user record or touch roles, ownership, balances or preferences.
     await ctx.db.patch(existing._id, {
       email,

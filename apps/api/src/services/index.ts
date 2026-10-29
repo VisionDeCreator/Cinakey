@@ -1,3 +1,6 @@
+import * as adminMedia from "./adminMedia";
+import * as adminBilling from "./adminBilling";
+import * as adminJobs from "./adminJobs";
 import { deleteObject, removeAbandonedUpload } from "./r2Storage";
 import * as payments from "./payments";
 import * as publishedExports from "./publishedExports";
@@ -14,6 +17,9 @@ import * as staging from "./staging";
 import * as storage from "./storage";
 import * as timelineVersions from "./timelineVersions";
 export const services = {
+  adminMedia,
+  adminJobs,
+  adminBilling,
   r2Storage: { deleteObject, removeAbandonedUpload },
   payments,
   publishedExports,

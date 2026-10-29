@@ -1,3 +1,4 @@
+import { Permission } from "./Permissions";
 import { formatUsd } from "@cinakey/ui/i18n";
 import { getLocale } from "@cinakey/ui/i18n";
 import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
@@ -187,7 +188,9 @@ export function UsersPage() {
           </>
         )}
       </section>
-      <StaffUsersPage />
+      <Permission permission="billing.read">
+        <StaffUsersPage />
+      </Permission>
     </>
   );
 }
@@ -221,6 +224,11 @@ export function UserDetail() {
         </span>
         <div>
           <h1>{user.name || user.email || t("User account")}</h1>
+          <Permission permission="support.read">
+            <Link className="underline" to={`/support/user/${userId}`}>
+              <I18nText text="Support history and account controls" />
+            </Link>
+          </Permission>
           <p>{user.email || t("No email provided")}</p>
           <div className="admin-platform-access">
             <span
@@ -508,7 +516,9 @@ export function WorkspacesPage() {
           </>
         )}
       </section>
-      <InternalWorkspaceForm />
+      <Permission permission="workspaces.manage">
+        <InternalWorkspaceForm />
+      </Permission>
     </>
   );
 }
@@ -561,6 +571,25 @@ function WorkspaceRecord({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
         <div>
           <div className="admin-workspace-title">
             <h1>{workspace.name}</h1>
+            <Permission permission="storage.read">
+              <Link
+                className="underline"
+                to={`/storage?workspace=${workspaceId}`}
+              >
+                <I18nText text="Storage inventory" />
+              </Link>
+            </Permission>
+            <Permission permission="support.read">
+              <Link
+                className="underline"
+                to={`/support/workspace/${workspaceId}`}
+              >
+                <I18nText text="Support history and account controls" />
+              </Link>
+            </Permission>
+            <Link className="underline" to={`/billing/${workspaceId}`}>
+              <I18nText text="Billing and reconciliation" />
+            </Link>
             <span
               className={`admin-role ${internal ? "admin-role-staff" : ""}`}
             >
@@ -778,61 +807,63 @@ function WorkspaceRecord({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
         </footer>
       </section>
       {!internal && (
-        <form
-          className="admin-card admin-funding-form space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setBusy(true);
-            setMessage("");
-            void (async () => {
-              try {
-                await enable({
-                  workspaceId,
-                  monthlyCapUsdMicros: parseUsdToMicros(cap),
-                  reason,
-                });
-                setMessage("Company funding enabled.");
-              } catch (error) {
-                setMessage(
-                  error instanceof Error ? error.message : "Request failed",
-                );
-              } finally {
-                setBusy(false);
-              }
-            })();
-          }}
-        >
-          <h2 className="text-lg">
-            <I18nText text="Enable company funding" />
-          </h2>
-          <p className="text-sm text-zinc-400">
-            <I18nText text="Only unused workspaces without payment or checkout history can be converted. Otherwise create a dedicated internal workspace. This grants free seats and company-funded usage." />
-          </p>
-          <Label htmlFor="cap">
-            <I18nText text="Monthly budget (USD)" />
-          </Label>
-          <Input
-            id="cap"
-            value={cap}
-            onChange={(e) => setCap(e.target.value)}
-            inputMode="decimal"
-            required
-          />
-          <Label htmlFor="reason">
-            <I18nText text="Audit reason" />
-          </Label>
-          <Input
-            id="reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            required
-            minLength={3}
-          />
-          <Button disabled={busy || reason.trim().length < 3 || !cap.trim()}>
-            {busy ? t("Enabling…") : t("Enable company funding")}
-          </Button>
-          {message && <p role="status">{t(message ?? "")}</p>}
-        </form>
+        <Permission permission="workspaces.manage">
+          <form
+            className="admin-card admin-funding-form space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setBusy(true);
+              setMessage("");
+              void (async () => {
+                try {
+                  await enable({
+                    workspaceId,
+                    monthlyCapUsdMicros: parseUsdToMicros(cap),
+                    reason,
+                  });
+                  setMessage("Company funding enabled.");
+                } catch (error) {
+                  setMessage(
+                    error instanceof Error ? error.message : "Request failed",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+          >
+            <h2 className="text-lg">
+              <I18nText text="Enable company funding" />
+            </h2>
+            <p className="text-sm text-zinc-400">
+              <I18nText text="Only unused workspaces without payment or checkout history can be converted. Otherwise create a dedicated internal workspace. This grants free seats and company-funded usage." />
+            </p>
+            <Label htmlFor="cap">
+              <I18nText text="Monthly budget (USD)" />
+            </Label>
+            <Input
+              id="cap"
+              value={cap}
+              onChange={(e) => setCap(e.target.value)}
+              inputMode="decimal"
+              required
+            />
+            <Label htmlFor="reason">
+              <I18nText text="Audit reason" />
+            </Label>
+            <Input
+              id="reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+              minLength={3}
+            />
+            <Button disabled={busy || reason.trim().length < 3 || !cap.trim()}>
+              {busy ? t("Enabling…") : t("Enable company funding")}
+            </Button>
+            {message && <p role="status">{t(message ?? "")}</p>}
+          </form>
+        </Permission>
       )}
     </>
   );

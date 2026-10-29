@@ -1,3 +1,7 @@
+import { paidWorkPause } from "./lib/providerControls";
+import { mediaUnavailable } from "./lib/mediaControls";
+import { generationRestriction } from "./lib/restrictions";
+import { recordJobEvent } from "./lib/jobEvents";
 import {
   PRICE_VERSION,
   USAGE_MARKUP_BPS,
@@ -232,6 +236,10 @@ export const createQueuedJob = internalMutation({
         return existing._id;
       }
     }
+    for (const assetId of args.referenceAssetIds ?? []) {
+      if (!(await projectCanUseAsset(ctx, args.projectId, assetId)))
+        throw new Error("Input media is unavailable for moderation review");
+    }
     const quote = args.quoteId ? await ctx.db.get(args.quoteId) : null;
     if (
       args.quoteId &&
@@ -251,6 +259,7 @@ export const createQueuedJob = internalMutation({
     const now = Date.now();
     const jobId = await ctx.db.insert("generationJobs", {
       projectId: args.projectId,
+      workspaceId: args.workspaceId,
 
       entityId: args.entityId,
       promptSheetId: args.promptSheetId,
@@ -261,6 +270,7 @@ export const createQueuedJob = internalMutation({
       kind: args.kind,
       prompt: args.prompt,
       seed: args.seed,
+      inputAssetIds: args.referenceAssetIds ?? [],
       inputsFileId: args.inputsFileId,
       estimatedCostUsdMicros: args.estimatedCostUsdMicros,
       quoteId: args.quoteId,
@@ -268,6 +278,7 @@ export const createQueuedJob = internalMutation({
       unitUsdMicros: quote?.unitUsdMicros ?? args.estimatedCostUsdMicros,
       usageMarkupBps: quote?.usageMarkupBps,
       status: "queued",
+      submissionFenced: true,
       outputAssetIds: [],
       attempts: 0,
       createdBy: args.createdBy,
@@ -298,6 +309,7 @@ export const createQueuedJob = internalMutation({
       throw err;
     }
 
+    await recordJobEvent(ctx, jobId, "queued");
     // Request-bound text jobs share the ledger but execute in their API request.
     if (args.inputsFileId)
       await enqueueTask(ctx, 0, "generation:submitAndTrack", { jobId });
@@ -315,6 +327,7 @@ export const markSubmitted = internalMutation({
     supplierCostUpperBoundUsdMicros: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await recordJobEvent(ctx, args.jobId, "submitted");
     await ctx.db.patch(args.jobId, {
       status: "submitted",
       providerJobId: args.providerJobId,
@@ -332,6 +345,7 @@ export const markSubmitted = internalMutation({
 export const markRunning = internalMutation({
   args: { jobId: v.id("generationJobs") },
   handler: async (ctx, args) => {
+    await recordJobEvent(ctx, args.jobId, "running");
     await ctx.db.patch(args.jobId, {
       status: "running",
       updatedAt: Date.now(),
@@ -379,6 +393,7 @@ export const markSucceeded = internalMutation({
     if (job.providerResultFileId)
       await deleteFile(ctx, job.providerResultFileId);
     const now = Date.now();
+    await recordJobEvent(ctx, args.jobId, "succeeded");
     await ctx.db.patch(args.jobId, {
       status: "succeeded",
       outputAssetIds: args.outputAssetIds,
@@ -430,6 +445,7 @@ export const markFailed = internalMutation({
     const job = await ctx.db.get(args.jobId);
     if (!job || job.status === "succeeded" || job.status === "refunded") return;
     const now = Date.now();
+    await recordJobEvent(ctx, args.jobId, "failed");
     await ctx.db.patch(args.jobId, {
       status: "failed",
       errorMessage: args.errorMessage,
@@ -461,6 +477,7 @@ export const markRefunded = internalMutation({
     if (job.providerResultFileId)
       await deleteFile(ctx, job.providerResultFileId);
     const now = Date.now();
+    await recordJobEvent(ctx, args.jobId, "refunded");
     await ctx.db.patch(args.jobId, {
       status: "refunded",
       errorMessage: args.errorMessage,
@@ -619,7 +636,49 @@ export const beginSubmission = internalMutation({
       job.submissionState === "in_flight"
     )
       return "review" as const;
+    if (job.preventAutomaticResubmission && job.attempts > 0)
+      return "review" as const;
     if (job.providerJobId) return "resume" as const;
+    const project = await ctx.db.get(job.projectId);
+    let blocked = project
+      ? await generationRestriction(ctx, job.createdBy, project.workspaceId)
+      : "Project is unavailable";
+    blocked ??= await paidWorkPause(ctx, job.model);
+    for (const assetId of job.inputAssetIds ?? []) {
+      const asset = await ctx.db.get(assetId);
+      if (!asset || (await mediaUnavailable(ctx, asset.storageId))) {
+        blocked = "Input media is unavailable for moderation review";
+        break;
+      }
+    }
+    if (blocked) {
+      if (
+        job.submissionFenced !== true ||
+        !project ||
+        job.status !== "queued" ||
+        job.attempts !== 0 ||
+        job.submissionState
+      )
+        return "review" as const;
+      await appendLedgerEntry(ctx, {
+        workspaceId: project.workspaceId,
+        userId: job.createdBy,
+        projectId: project._id,
+        jobId: job._id,
+        delta: job.estimatedCostUsdMicros,
+        reason: "refund",
+      });
+      await ctx.db.patch(job._id, {
+        status: "refunded",
+        errorMessage: blocked,
+        updatedAt: Date.now(),
+        completedAt: Date.now(),
+      });
+      await recordJobEvent(ctx, job._id, "restriction_canceled");
+      return "terminal" as const;
+    }
+
+    await recordJobEvent(ctx, job._id, "submission_started");
     await ctx.db.patch(job._id, {
       submissionState: "in_flight",
       attempts: args.attempt,
@@ -633,6 +692,7 @@ export const markSubmissionUncertain = internalMutation({
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || job.status === "succeeded" || job.status === "refunded") return;
+    await recordJobEvent(ctx, job._id, "submission_uncertain");
     await ctx.db.patch(job._id, {
       submissionState: "uncertain",
       errorMessage:
@@ -644,6 +704,7 @@ export const markSubmissionUncertain = internalMutation({
 export const markSubmissionRejected = internalMutation({
   args: { jobId: v.id("generationJobs") },
   handler: async (ctx, args) => {
+    await recordJobEvent(ctx, args.jobId, "submission_rejected");
     await ctx.db.patch(args.jobId, {
       submissionState: "rejected",
       updatedAt: Date.now(),

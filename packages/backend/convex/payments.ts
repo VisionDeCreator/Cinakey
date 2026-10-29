@@ -1,3 +1,4 @@
+import { INCLUDED_MONTHLY_USAGE_USD_MICROS } from "@cinakey/shared";
 import { convexEnv } from "./lib/env";
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
@@ -17,7 +18,6 @@ import {
 } from "./lib/paymentAccess";
 import { appendLedgerEntry } from "./lib/ledger";
 import { expireFunding } from "./lib/funding";
-import { appendAuditLog } from "./lib/audit";
 import { assertRateLimit } from "./lib/rateLimit";
 import { enqueueTask } from "./tasks";
 const environment = v.union(v.literal("sandbox"), v.literal("production"));
@@ -502,11 +502,11 @@ export const applyOrder = internalMutation({
             ctx,
             args.workspaceId,
             key,
-            5_000_000,
+            INCLUDED_MONTHLY_USAGE_USD_MICROS,
             "included",
             args.periodEnd,
           ));
-        granted = existing ? 0 : 5_000_000;
+        granted = existing ? 0 : INCLUDED_MONTHLY_USAGE_USD_MICROS;
       }
       const id = await ctx.db.insert("paymentOrders", {
         workspaceId: args.workspaceId,
@@ -596,24 +596,6 @@ export const applyOrder = internalMutation({
       reversedUsdMicros: reversed,
     });
     await expireFunding(ctx, args.workspaceId, workspace.ownerUserId);
-  },
-});
-export const clearReview = internalMutation({
-  args: { ...workspaceArgs, note: v.string() },
-  handler: async (ctx, { workspaceId, note }) => {
-    if (note.trim().length < 10)
-      throw new Error("Record the reconciliation decision");
-    const state = await paymentState(ctx, workspaceId);
-    if (!state) return;
-    const workspace = await ctx.db.get(workspaceId);
-    if (!workspace) throw new Error("Workspace missing");
-    await ctx.db.patch(state._id, { reviewReason: undefined });
-    await appendAuditLog(ctx, {
-      actorUserId: workspace.ownerUserId,
-      action: "billing.review_resolved",
-      targetId: workspaceId,
-      meta: { note },
-    });
   },
 });
 export const expireAllowances = internalMutation({

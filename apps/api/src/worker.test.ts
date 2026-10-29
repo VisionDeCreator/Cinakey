@@ -67,8 +67,9 @@ describe("worker startup", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(ConvexHttpClient.prototype, "mutation").mockImplementation(
-      async () => {
-        controller.abort();
+      async (...[reference]) => {
+        if (getFunctionName(reference as never) !== "adminOperations:heartbeat")
+          controller.abort();
         throw new Error("Invalid deployment credential");
       },
     );

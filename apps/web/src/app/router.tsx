@@ -1,3 +1,4 @@
+import { LandingPage } from "@/features/marketing/LandingPage";
 import { I18nText, useLocale } from "@cinakey/ui/i18n";
 import { ShareWatchPage } from "@/features/sharing/ShareWatchPage";
 import { authDestination } from "@/features/auth/auth-errors";
@@ -87,6 +88,7 @@ export function AppRouter() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/share/:linkId" element={<ShareWatchPage />} />
         <Route
           path="/sign-in"
@@ -106,7 +108,6 @@ export function AppRouter() {
         />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
-            <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="/series" element={<SeriesIndexPage />} />
             <Route path="/series/:seriesId" element={<SeriesPage />} />
             <Route path="/remix" element={<GenjutsuPage />} />

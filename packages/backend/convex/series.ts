@@ -1,3 +1,4 @@
+import { requireSeriesUnpausedAccess } from "./lib/access";
 import { requireProjectWrite, requireSeriesWrite } from "./lib/access";
 import { assertPaymentProduction } from "./lib/paymentAccess";
 import { v } from "convex/values";
@@ -127,7 +128,7 @@ export const update = mutation({
 export const setArchived = mutation({
   args: { seriesId: v.id("series"), archived: v.boolean() },
   handler: async (ctx, args) => {
-    await requireSeriesAccess(ctx, args.seriesId);
+    await requireSeriesUnpausedAccess(ctx, args.seriesId);
     await ctx.db.patch(args.seriesId, {
       archivedAt: args.archived ? Date.now() : undefined,
       updatedAt: Date.now(),

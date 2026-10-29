@@ -237,3 +237,28 @@ it("refreshes only the requested active query names", async () => {
   expect(billing.data).toEqual([]);
   expect(projects.data).toBeUndefined();
 });
+
+it("refreshes administrator permissions and Admin lists during polling", async () => {
+  const client = new ApiClient("http://api.test", "token");
+  const send = vi
+    .fn()
+    .mockImplementation(
+      async () => new Response(JSON.stringify({ value: null })),
+    );
+  vi.stubGlobal("fetch", send);
+  for (const name of [
+    "users:viewer",
+    "adminAccess:listAdministrators",
+    "adminAccess:listAudit",
+    "adminOperations:overview",
+    "adminJobs:detail",
+  ]) {
+    const entry = client.entry(name, {});
+    entry.loadedAt = Date.now() - 31_000;
+    entry.data = null;
+    entry.listeners.add(() => {});
+  }
+  await client.poll();
+  expect(send).toHaveBeenCalledTimes(5);
+  client.close();
+});

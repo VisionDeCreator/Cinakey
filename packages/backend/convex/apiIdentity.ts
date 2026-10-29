@@ -4,7 +4,7 @@ import { requireUser } from "./lib/access";
 export const current = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireUser(ctx);
+    const user = await requireUser(ctx, true);
     return { identity: await ctx.auth.getUserIdentity(), userId: user._id };
   },
 });

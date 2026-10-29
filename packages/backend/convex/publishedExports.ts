@@ -1,3 +1,5 @@
+import { mediaUnavailable } from "./lib/mediaControls";
+import { requireProjectUnpausedAccess } from "./lib/access";
 import { deleteStoredFile, getStorageMeta } from "./storage";
 import { requireProjectWrite } from "./lib/access";
 import { v, ConvexError } from "convex/values";
@@ -257,6 +259,8 @@ export const getForDelivery = internalQuery({
     if (!row || row.state !== "ready" || !row.storageId)
       throw new Error("Stored export not found");
     await requireProjectAccess(ctx, row.projectId);
+    if (await mediaUnavailable(ctx, row.storageId))
+      throw new Error("Stored export is quarantined");
     return row;
   },
 });
@@ -285,7 +289,7 @@ export const remove = mutation({
     const user = await requireUser(ctx);
     const row = await ctx.db.get(publicationId);
     if (!row) return;
-    await requireProjectAccess(ctx, row.projectId);
+    await requireProjectUnpausedAccess(ctx, row.projectId);
     if (row.state === "uploading" && (row.leaseUntil ?? 0) > Date.now())
       throw new Error("Wait for the upload to finish before deleting");
     const links = await ctx.db

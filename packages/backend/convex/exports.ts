@@ -1,3 +1,4 @@
+import { requireProjectUnpausedAccess } from "./lib/access";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireProjectAccess, requireUser } from "./lib/access";
@@ -17,7 +18,7 @@ export const record = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectUnpausedAccess(ctx, args.projectId);
     await assertRateLimit(
       ctx,
       `recordExport:${user._id}`,

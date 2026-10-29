@@ -19,12 +19,26 @@ export type ServiceOperation = {
   handler: (ctx: ActionCtx, args: any) => Promise<any>;
 };
 export type Registry = Map<string, ServiceOperation>;
-export function adminClient(identity?: UserIdentity | null) {
+export function adminClient(
+  identity?: UserIdentity | null,
+  timeoutMs?: number,
+) {
   const url = process.env.CONVEX_URL;
   const key = process.env.CONVEX_DEPLOY_KEY;
   if (!url || !key)
     throw new Error("CONVEX_URL and CONVEX_DEPLOY_KEY are required");
-  const client = new ConvexHttpClient(url);
+  const client = new ConvexHttpClient(
+    url,
+    timeoutMs
+      ? {
+          fetch: ((...[input, init]: Parameters<typeof globalThis.fetch>) =>
+            globalThis.fetch(input, {
+              ...init,
+              signal: AbortSignal.timeout(timeoutMs),
+            })) as typeof globalThis.fetch,
+        }
+      : undefined,
+  );
   (
     client as unknown as {
       setAdminAuth: (key: string, identity?: UserIdentity) => void;

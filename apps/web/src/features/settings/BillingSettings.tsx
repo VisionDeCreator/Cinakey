@@ -1,3 +1,8 @@
+import {
+  WORKSPACE_MONTHLY_USD_MICROS,
+  ADDITIONAL_SEAT_MONTHLY_USD_MICROS,
+  INCLUDED_MONTHLY_USAGE_USD_MICROS,
+} from "@cinakey/shared";
 import { getLocale } from "@cinakey/ui/i18n";
 import { I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Wallet, Clock3, Users } from "lucide-react";
@@ -113,7 +118,16 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
           </p>
         )}
         <p className="text-sm text-zinc-400">
-          <I18nText text="$29/month includes the owner. Additional Admin/Creator seats are $15/month each, plus applicable tax. Each paid monthly period includes $5 of workspace usage, with no rollover or extra allowance per seat." />
+          <span>
+            {t(
+              "{subscription}/month includes the owner. Additional Admin/Creator seats are {seat}/month each, plus applicable tax. Each paid monthly period includes {usage} of workspace usage, with no rollover or extra allowance per seat.",
+              {
+                subscription: formatUsd(WORKSPACE_MONTHLY_USD_MICROS),
+                seat: formatUsd(ADDITIONAL_SEAT_MONTHLY_USD_MICROS),
+                usage: formatUsd(INCLUDED_MONTHLY_USAGE_USD_MICROS),
+              },
+            )}
+          </span>
         </p>
         <p className="text-sm">
           <I18nText text="Subscription:" />{" "}
@@ -200,7 +214,10 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
             <p className="text-xs text-zinc-500">
               <I18nText text="Selected monthly total:" />{" "}
               {Number.isSafeInteger(seats) && seats >= 1
-                ? formatUsd((2900 + 1500 * (seats - 1)) * 10_000)
+                ? formatUsd(
+                    WORKSPACE_MONTHLY_USD_MICROS +
+                      ADDITIONAL_SEAT_MONTHLY_USD_MICROS * (seats - 1),
+                  )
                 : t("Choose a seat quantity")}
               <I18nText text=". Increases are invoiced now; decreases apply at renewal. Remove unused members before reducing seats." />
             </p>

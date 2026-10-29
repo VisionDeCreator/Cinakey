@@ -56,6 +56,16 @@ function scan(directory) {
           `${file}:${ast.getLineAndCharacterOfPosition(node.getStart(ast)).line + 1}: unknown translation key ${JSON.stringify(value)}`,
         );
     }
+    // Literal alternatives must be covered even when t() selects them at runtime.
+    function checkMessageExpression(node) {
+      if (ts.isStringLiteral(node)) check(node.text, node);
+      else if (ts.isConditionalExpression(node)) {
+        checkMessageExpression(node.whenTrue);
+        checkMessageExpression(node.whenFalse);
+      } else if (ts.isParenthesizedExpression(node)) {
+        checkMessageExpression(node.expression);
+      }
+    }
     function visit(node) {
       if (
         ts.isCallExpression(node) &&
@@ -65,7 +75,7 @@ function scan(directory) {
           0,
           node.expression.getText(ast) === "tn" ? 2 : 1,
         ))
-          if (ts.isStringLiteral(argument)) check(argument.text, argument);
+          checkMessageExpression(argument);
       }
       if (
         (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
@@ -80,6 +90,13 @@ function scan(directory) {
           )
             check(attribute.initializer.text, attribute);
       }
+      if (
+        ts.isJsxAttribute(node) &&
+        node.name.getText(ast) === "label" &&
+        node.initializer &&
+        ts.isStringLiteral(node.initializer)
+      )
+        check(node.initializer.text, node.initializer);
       if (
         ts.isJsxAttribute(node) &&
         ["title", "placeholder", "aria-label", "alt"].includes(
@@ -108,6 +125,58 @@ function scan(directory) {
 }
 for (const directory of ["apps/web/src", "apps/admin/src", "packages/ui/src"])
   scan(directory);
+// Display catalogs and navigation use dynamic lookups: validate their source values too.
+for (const [file, declarations] of [
+  [
+    "packages/shared/src/admin-analytics.ts",
+    ["ANALYTICS_METRICS", "ANALYTICS_DIMENSIONS"],
+  ],
+  ["packages/shared/src/admin-permissions.ts", ["ADMIN_ROLE_LABELS"]],
+  ["apps/admin/src/App.tsx", ["sections"]],
+]) {
+  const ast = ts.createSourceFile(
+    file,
+    fs.readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  function message(value) {
+    const key = value.replace(" (USD micros)", " (USD)");
+    if (!Object.hasOwn(catalogs.en, key))
+      errors.push(
+        `${file}: unknown dynamic translation key ${JSON.stringify(key)}`,
+      );
+  }
+  function visit(node) {
+    if (
+      ts.isVariableDeclaration(node) &&
+      declarations.includes(node.name.getText(ast)) &&
+      node.initializer
+    ) {
+      let value = node.initializer;
+      if (ts.isAsExpression(value)) value = value.expression;
+      if (ts.isObjectLiteralExpression(value))
+        for (const property of value.properties) {
+          if (
+            ts.isPropertyAssignment(property) &&
+            ts.isStringLiteral(property.initializer)
+          )
+            message(property.initializer.text);
+        }
+      if (ts.isArrayLiteralExpression(value))
+        for (const item of value.elements) {
+          if (ts.isStringLiteral(item)) message(item.text);
+          if (
+            ts.isArrayLiteralExpression(item) &&
+            ts.isStringLiteral(item.elements[1])
+          )
+            message(item.elements[1].text);
+        }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+}
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exitCode = 1;

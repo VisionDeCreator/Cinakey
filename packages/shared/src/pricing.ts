@@ -234,3 +234,8 @@ export function verifiedDeepseekPeriod(
     if (deepseekBillingPeriod(t) !== period) return null;
   return deepseekBillingPeriod(high) === period ? period : null;
 }
+
+/** Public and in-app subscription presentation, USD micros. Keep checkout catalog aligned. */
+export const WORKSPACE_MONTHLY_USD_MICROS = 29_000_000;
+export const ADDITIONAL_SEAT_MONTHLY_USD_MICROS = 15_000_000;
+export const INCLUDED_MONTHLY_USAGE_USD_MICROS = 5_000_000;

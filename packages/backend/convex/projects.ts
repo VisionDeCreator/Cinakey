@@ -1,3 +1,4 @@
+import { requireProjectUnpausedAccess } from "./lib/access";
 import {
   generationDefaults,
   generationResolution,
@@ -288,7 +289,7 @@ export const update = mutation({
 export const archive = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectUnpausedAccess(ctx, args.projectId);
     const now = Date.now();
     await ctx.db.patch(args.projectId, {
       archivedAt: now,
@@ -300,7 +301,7 @@ export const archive = mutation({
 export const unarchive = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    await requireProjectAccess(ctx, args.projectId);
+    await requireProjectUnpausedAccess(ctx, args.projectId);
     await ctx.db.patch(args.projectId, {
       archivedAt: undefined,
       updatedAt: Date.now(),
