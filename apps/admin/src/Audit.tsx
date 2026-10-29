@@ -105,7 +105,7 @@ export function AuditPage() {
             <article key={entry._id} className="border-b border-zinc-700 pb-3">
               <p>
                 {new Date(entry.createdAt).toLocaleString(getLocale())} ·{" "}
-                {entry.action} · {entry.outcome || t("Recorded")}
+                {entry.action} · {t(entry.outcome || "Recorded")}
               </p>
               <p>
                 {t("Actor")}:{" "}

@@ -117,10 +117,10 @@ it("renders the user directory and migrated staff navigation for administrators"
     "/users/user-1",
   );
   for (const name of [
-    "Workspaces",
+    "Directory",
     "Moderation",
-    "Provider health",
-    "Egress",
+    "Providers",
+    "Analytics",
     "Audit log",
   ])
     expect(screen.getByRole("link", { name })).toBeInTheDocument();
@@ -197,7 +197,7 @@ it("shows an API outage and retries instead of waiting indefinitely for administ
 it("hides privileged navigation and funding forms from support accounts", () => {
   state.roles = ["support"];
   page();
-  expect(screen.getByRole("link", { name: "Users" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Directory" })).toBeInTheDocument();
   expect(
     screen.queryByRole("link", { name: "Administration" }),
   ).not.toBeInTheDocument();
@@ -239,7 +239,7 @@ it("requires review and a reason, then preserves the role change request ID acro
   fireEvent.change(screen.getByLabelText("Account email"), {
     target: { value: "support@test.com" },
   });
-  fireEvent.click(screen.getByLabelText("Support"));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Support" }));
   fireEvent.change(screen.getByLabelText("Reason"), {
     target: { value: "Support team access" },
   });
@@ -321,7 +321,8 @@ it("shows the operations overview without platform-only configuration to operati
   expect(
     screen.getByRole("heading", { name: "Operations overview" }),
   ).toBeInTheDocument();
-  expect(screen.getByText("1000+")).toBeInTheDocument();
+  expect(screen.getAllByText("1,000+").length).toBeGreaterThan(0);
+  fireEvent.click(screen.getByRole("button", { name: "Worker instances" }));
   expect(screen.getByText(/No worker heartbeat observed/)).toBeInTheDocument();
   expect(
     screen.queryByRole("heading", { name: "Monitoring settings" }),
@@ -696,6 +697,7 @@ it("lets operations pause work without exposing limit edits or resume controls",
   expect(
     screen.queryByText("Edit limits and pause state"),
   ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("Quick pause"));
   fireEvent.change(screen.getByLabelText("Pause new paid work reason"), {
     target: { value: "Stop provider requests during the incident" },
   });
@@ -722,7 +724,6 @@ it("converts provider limit form dollars to integer micros and preserves zero ca
       <App />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByText("Edit limits and pause state"));
   fireEvent.change(screen.getByLabelText("global Maximum request USD"), {
     target: { value: "0.250001" },
   });
@@ -816,9 +817,382 @@ it("translates the report form immediately without losing its unsaved reason", a
       screen.getByRole("button", { name: t("Build report") }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: t("Provider controls") }),
+      screen.getByRole("link", { name: t("Providers") }),
     ).toBeInTheDocument();
   } finally {
     act(() => setLocale("en"));
   }
+});
+
+it("collapses the navigation while keeping account controls and link labels", () => {
+  const stored = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+  });
+  page("/directory");
+  fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+  expect(document.querySelector(".admin-shell")).toHaveClass(
+    "admin-shell-collapsed",
+  );
+  expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Directory" })).toBeInTheDocument();
+  expect(localStorage.getItem("cinakey.admin.sidebar.collapsed")).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+  expect(document.querySelector(".admin-shell")).not.toHaveClass(
+    "admin-shell-collapsed",
+  );
+  vi.unstubAllGlobals();
+});
+it("switches directory tabs and preserves the legacy workspaces route", () => {
+  page("/workspaces");
+  expect(screen.getByRole("table", { name: "Workspaces" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Users" }));
+  expect(
+    screen.getByRole("table", { name: "User accounts" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("table", { name: "Workspaces" }),
+  ).not.toBeInTheDocument();
+});
+it("does not mount financial reports for a role lacking analytics permission", () => {
+  state.roles = ["support"];
+  page("/analytics?tab=transfers");
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "You do not have permission",
+  );
+  expect(
+    state.query.mock.calls.some(
+      ([name]) =>
+        name.startsWith("adminAnalytics:") || name === "staff:monthlyEgress",
+    ),
+  ).toBe(false);
+});
+
+it("selects a provider scope without mixing its limits or global totals", async () => {
+  const data = providerOverview();
+  data.scopes.push({
+    key: "provider:deepseek",
+    policy: null,
+    all: { reserved: 500000, spent: 0, active: 1 },
+    day: { spent: 0 },
+    month: { spent: 0 },
+  });
+  const previous = state.query.getMockImplementation()!;
+  state.query.mockImplementation((name: string, args: unknown) =>
+    name === "adminProviders:overview" ? data : previous(name, args),
+  );
+  render(
+    <MemoryRouter initialEntries={["/providers?tab=controls"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  // Summary comes from the global ledger, not a double-counted sum of child scopes.
+  expect(screen.getAllByText("$3.00")).toHaveLength(3);
+  fireEvent.change(screen.getByLabelText("global Maximum request USD"), {
+    target: { value: "12" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Review provider:deepseek" }),
+  );
+  expect(
+    screen.getByLabelText("provider:deepseek Maximum request USD"),
+  ).toHaveValue(null);
+  fireEvent.change(
+    screen.getByLabelText("provider:deepseek Maximum request USD"),
+    { target: { value: "0" } },
+  );
+  fireEvent.change(screen.getByLabelText("Save provider controls reason"), {
+    target: { value: "Reviewed provider scope limit" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Save provider controls" }),
+  );
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "provider:deepseek",
+        maxRequest: 0,
+        expectedRevision: 0,
+      }),
+    ),
+  );
+  fireEvent.change(screen.getByLabelText("Search scopes"), {
+    target: { value: "missing" },
+  });
+  expect(screen.getByText("No scopes match your search.")).toHaveAttribute(
+    "role",
+    "status",
+  );
+});
+
+it("selects report history and preserves completed and running report actions", () => {
+  const previous = state.query.getMockImplementation()!;
+  const reports = [
+    {
+      _id: "report-1",
+      from: Date.UTC(2026, 9, 1),
+      to: Date.UTC(2026, 9, 28),
+      status: "completed",
+    },
+    {
+      _id: "report-2",
+      from: Date.UTC(2026, 8, 1),
+      to: Date.UTC(2026, 8, 30),
+      status: "running",
+    },
+  ];
+  state.query.mockImplementation((name: string, args: unknown) => {
+    if (name === "adminAnalytics:list")
+      return { page: reports, isDone: true, continueCursor: "" };
+    if (name === "adminAnalytics:detail")
+      return {
+        ...reports.find(
+          (r) => r._id === (args as { reportId: string }).reportId,
+        ),
+        createdAt: Date.UTC(2026, 9, 29),
+        processed: 12,
+        stageName: "finished",
+        taskState: null,
+        financial: false,
+        metrics: {
+          jobs: 12,
+          activeAccounts: 3,
+          jobsSucceeded: 10,
+          jobsFailed: 2,
+        },
+      };
+    if (name === "adminAnalytics:rows")
+      return {
+        page: [{ key: "2026-10-27", metrics: { jobs: 12 } }],
+        isDone: true,
+        continueCursor: "",
+      };
+    return previous(name, args);
+  });
+  page("/analytics");
+  expect(
+    screen.getByRole("table", { name: "Report breakdown" }),
+  ).toHaveTextContent("2026-10-27");
+  expect(
+    screen.getByRole("button", { name: "Export grouping CSV" }),
+  ).toBeDisabled();
+  expect(
+    screen.queryByText("Known supplier cost (USD)"),
+  ).not.toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: /2026-09-01 → 2026-09-30/ }),
+  );
+  expect(
+    screen.queryByRole("table", { name: "Report breakdown" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText("Manage report"));
+  expect(screen.getByRole("button", { name: "Cancel report" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Report action reason"), {
+    target: { value: "Reviewed report worker recovery" },
+  });
+  expect(
+    screen.getByRole("button", { name: "Resume failed report" }),
+  ).toBeEnabled();
+  expect(state.mutation).not.toHaveBeenCalled();
+});
+
+it("builds analytics reports with inclusive and exclusive UTC boundaries", async () => {
+  page("/analytics");
+  fireEvent.change(screen.getByLabelText("From (inclusive)"), {
+    target: { value: "2026-10-01" },
+  });
+  fireEvent.change(screen.getByLabelText("To (exclusive)"), {
+    target: { value: "2026-10-28" },
+  });
+  fireEvent.change(screen.getByLabelText("Workspace ID"), {
+    target: { value: " workspace-1 " },
+  });
+  fireEvent.change(screen.getByLabelText("Report reason"), {
+    target: { value: "Verify recorded usage for October" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Build report" }));
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: Date.UTC(2026, 9, 1),
+        to: Date.UTC(2026, 9, 28),
+        workspaceId: "workspace-1",
+        reason: "Verify recorded usage for October",
+        requestId: expect.any(String),
+      }),
+    ),
+  );
+});
+
+it("searches administrators and resets review when switching accounts", () => {
+  const previous = state.query.getMockImplementation()!;
+  state.query.mockImplementation((name: string, args: unknown) =>
+    name === "adminAccess:listAdministrators"
+      ? {
+          page: [
+            { userId: "staff-1", email: "alex@test.com", roles: ["support"] },
+            {
+              userId: "staff-2",
+              email: "taylor@test.com",
+              roles: ["operations"],
+            },
+          ],
+          isDone: true,
+          continueCursor: "",
+        }
+      : previous(name, args),
+  );
+  page("/administration");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit roles for alex@test.com" }),
+  );
+  expect(screen.getByRole("checkbox", { name: "Support" })).toBeChecked();
+  fireEvent.change(screen.getByLabelText("Reason"), {
+    target: { value: "Reviewed support access" },
+  });
+  fireEvent.click(screen.getByLabelText("I have reviewed this access change."));
+  expect(screen.getByRole("button", { name: "Save roles" })).toBeEnabled();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Edit roles for taylor@test.com" }),
+  );
+  expect(screen.getByLabelText("Account email")).toHaveValue("taylor@test.com");
+  expect(screen.getByRole("checkbox", { name: "Operations" })).toBeChecked();
+  expect(screen.getByLabelText("Reason")).toHaveValue("");
+  expect(
+    screen.getByLabelText("I have reviewed this access change."),
+  ).not.toBeChecked();
+  expect(screen.getByRole("button", { name: "Save roles" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Search accounts on this page"), {
+    target: { value: "ALEX" },
+  });
+  expect(
+    screen.queryByRole("button", { name: "Edit roles for taylor@test.com" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Edit roles for alex@test.com" }),
+  ).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Search accounts on this page"), {
+    target: { value: "missing" },
+  });
+  expect(
+    screen.getByText("No accounts match your search."),
+  ).toBeInTheDocument();
+  expect(state.mutation).not.toHaveBeenCalled();
+});
+
+it("localizes billing environments, payment states and USD amounts while preserving operator notes", () => {
+  state.roles = ["billing"];
+  const previous = state.query.getMockImplementation()!;
+  state.query.mockImplementation((name: string, args: unknown) => {
+    if (name === "adminBilling:workspace")
+      return {
+        workspace: {
+          id: "workspace-review",
+          name: "Review workspace",
+          billingMode: "internal",
+        },
+        account: { available: 0, reserved: 0, spent: 0, funded: 0 },
+        payment: null,
+        environment: "sandbox",
+      };
+    if (name === "adminBilling:history")
+      return {
+        page:
+          (args as { kind: string }).kind === "orders"
+            ? [
+                {
+                  _id: "order-review",
+                  kind: "topup",
+                  environment: "sandbox",
+                  netCents: 12345,
+                  refundedCents: 345,
+                  grantedUsdMicros: 123450000,
+                  reversedUsdMicros: 3450000,
+                },
+              ]
+            : (args as { kind: string }).kind === "refunds"
+              ? [
+                  {
+                    _id: "refund-review",
+                    status: "uncertain",
+                    environment: "sandbox",
+                    amountCents: 678,
+                    requestId: "review-request",
+                    reason: "Operator evidence stays verbatim",
+                  },
+                ]
+              : [],
+        isDone: true,
+        continueCursor: "",
+      };
+    return previous(name, args);
+  });
+  render(
+    <MemoryRouter initialEntries={["/billing/workspace-review"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  act(() => setLocale("fr"));
+  try {
+    fireEvent.click(screen.getByRole("button", { name: t("orders") }));
+    expect(screen.getByRole("table")).toHaveTextContent(t("Net amount"));
+    expect(
+      screen.getByRole("button", { name: t("First page") }),
+    ).toBeDisabled();
+    expect(screen.getAllByText(/123,45/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3,45/).length).toBeGreaterThan(0);
+    expect(screen.getByText(t("topup"), { exact: false })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: t("refunds") }));
+    expect(screen.getByText(/6,78/)).toBeInTheDocument();
+    expect(
+      screen.getByText(t("Request: {id}", { id: "review-request" }), {
+        exact: false,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Operator evidence stays verbatim", { exact: false }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(t("uncertain"), { exact: false }),
+    ).toBeInTheDocument();
+  } finally {
+    act(() => setLocale("en"));
+  }
+});
+
+it("shows zero for absent additive metrics in a completed report consistently with its breakdown", () => {
+  state.roles = ["operations"];
+  const previous = state.query.getMockImplementation()!;
+  const report = {
+    _id: "report-review",
+    from: Date.UTC(2026, 9, 27),
+    to: Date.UTC(2026, 9, 28),
+    createdAt: Date.UTC(2026, 9, 29),
+    completedAt: Date.UTC(2026, 9, 29),
+    status: "completed",
+    stageName: "finished",
+    processed: 1,
+    financial: false,
+    taskState: null,
+    metrics: { activeAccounts: 1 },
+  };
+  state.query.mockImplementation((name: string, args: unknown) => {
+    if (name === "adminAnalytics:list")
+      return { page: [report], isDone: true, continueCursor: "" };
+    if (name === "adminAnalytics:detail") return report;
+    if (name === "adminAnalytics:rows")
+      return {
+        page: [{ key: "2026-10-27", metrics: { activeAccounts: 1 } }],
+        isDone: true,
+        continueCursor: "",
+      };
+    return previous(name, args);
+  });
+  page("/analytics");
+  const label = screen.getByText("Jobs created", { selector: "dt" });
+  expect(label.parentElement?.querySelector("dd")).toHaveTextContent("0");
+  expect(
+    screen.getByRole("table", { name: "Report breakdown" }),
+  ).toHaveTextContent("0");
 });

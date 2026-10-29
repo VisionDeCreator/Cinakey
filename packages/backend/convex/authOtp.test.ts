@@ -6,6 +6,17 @@ import type { MutationCtx } from "./_generated/server";
 const email = "creator@example.com";
 const token = "a".repeat(64);
 const code = "004921";
+async function approve(t: ReturnType<typeof makeTest>) {
+  await t.run((ctx) =>
+    ctx.db.insert("earlyAccessRequests", {
+      email,
+      name: "",
+      idea: "",
+      status: "approved",
+      createdAt: Date.now(),
+    }),
+  );
+}
 async function challenge(t: ReturnType<typeof makeTest>, suffix = "") {
   const challengeHash = await authDigest(token + suffix);
   const codeHash = await authDigest(`${token + suffix}:${email}:${code}`);
@@ -20,6 +31,7 @@ async function challenge(t: ReturnType<typeof makeTest>, suffix = "") {
 afterEach(() => vi.useRealTimers());
 it("creates an account only after delivered, verified code; consumes it once", async () => {
   const t = makeTest();
+  await approve(t);
   const c = await challenge(t);
   const args = { email, challengeHash: c.challengeHash, codeHash: c.codeHash };
   expect(await t.mutation(internal.authOtp.consume, args)).toEqual({
@@ -198,6 +210,7 @@ it("normalizes legacy email keys without replacing users; retires only password 
 });
 it("verified Google resolution reuses OTP identity; ambiguous matches fail closed", async () => {
   const t = makeTest();
+  await approve(t);
   const id = await t.run((ctx) => verifiedEmailUser(ctx as MutationCtx, email));
   expect(
     await t.run((ctx) =>
@@ -235,6 +248,7 @@ it("issues real Convex Auth sessions via OTP and rejects the removed password pr
   );
   vi.stubEnv("CONVEX_SITE_URL", "https://example.convex.site");
   const t = makeTest();
+  await approve(t);
   const c = await challenge(t);
   await t.mutation(internal.authOtp.delivered, { id: c.id });
   const result = await t.action(api.auth.signIn, {
@@ -258,6 +272,7 @@ it("issues real Convex Auth sessions via OTP and rejects the removed password pr
 });
 it("links a verified Google callback to the existing OTP user and rejects unverified profiles", async () => {
   const t = makeTest();
+  await approve(t);
   const id = await t.run((ctx) => verifiedEmailUser(ctx as MutationCtx, email));
   await t.run((ctx) =>
     ctx.db.insert("authVerifiers", { signature: "google-callback-fixture" }),
@@ -288,4 +303,37 @@ it("links a verified Google callback to the existing OTP user and rejects unveri
       },
     }),
   ).rejects.toThrow(/Verified Google/);
+});
+
+it("rechecks approval when consuming an earlier OTP and denies a new Google callback", async () => {
+  const t = makeTest();
+  await approve(t);
+  const c = await challenge(t);
+  await t.mutation(internal.authOtp.delivered, { id: c.id });
+  await t.run(async (ctx) => {
+    const r = await ctx.db.query("earlyAccessRequests").first();
+    await ctx.db.patch(r!._id, { status: "pending" });
+  });
+  await expect(
+    t.mutation(internal.authOtp.consume, {
+      email,
+      challengeHash: c.challengeHash,
+      codeHash: c.codeHash,
+    }),
+  ).rejects.toThrow("Waitlist approval");
+  await t.run((ctx) =>
+    ctx.db.insert("authVerifiers", { signature: "unapproved-google" }),
+  );
+  await expect(
+    t.mutation(internal.auth.store, {
+      args: {
+        type: "userOAuth",
+        provider: "google",
+        providerAccountId: "new-google",
+        profile: { email, emailVerified: true },
+        signature: "unapproved-google",
+      },
+    }),
+  ).rejects.toThrow("Waitlist approval");
+  expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(0);
 });

@@ -1,5 +1,5 @@
-import { AnalyticsPage } from "./Analytics";
-import { ProviderControlsPage } from "./ProviderControls";
+import { WaitlistPage } from "./Waitlist";
+import { AnalyticsHub, DirectoryHub, ProvidersHub } from "./SectionHubs";
 import { ModerationPage, StoragePage, MediaDetailPage } from "./Media";
 import { SupportPage, SupportTargetPage } from "./Support";
 import { BillingPage, BillingWorkspacePage } from "./Billing";
@@ -13,18 +13,26 @@ import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import {
   Clapperboard,
   Users,
-  Folder,
   ShieldCheck,
   Activity,
-  CloudUpload,
   ScrollText,
   ExternalLink,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
+  X,
+  BarChart3,
+  BriefcaseBusiness,
+  LayoutDashboard,
+  HardDrive,
+  LifeBuoy,
+  CreditCard,
+  Settings,
 } from "lucide-react";
-import { Component, type ReactNode } from "react";
+import { Component, useState, type ReactNode } from "react";
 import {
   Link,
-  NavLink,
   Navigate,
   Outlet,
   Route,
@@ -36,16 +44,7 @@ import { api } from "@cinakey/backend";
 import { useConvexAuth, useQuery, useQueryStatus } from "@cinakey/api-client";
 import { Button } from "@cinakey/ui/button";
 import { SignIn } from "./SignIn";
-import {
-  UsersPage,
-  UserDetail,
-  WorkspacesPage,
-  WorkspaceDetail,
-} from "./Directory";
-import {
-  StaffEgressPage,
-  StaffProvidersPage,
-} from "./features/staff/StaffPages";
+import { UserDetail, WorkspaceDetail } from "./Directory";
 
 export function AdminGate({ children }: { children: ReactNode }) {
   useLocale();
@@ -105,38 +104,125 @@ export function AdminGate({ children }: { children: ReactNode }) {
   return children;
 }
 const sections = [
-  ["/analytics", "Analytics", "analytics.read", Activity],
-  ["/provider-controls", "Provider controls", "providers.read", Activity],
-  ["/storage", "Storage", "storage.read", CloudUpload],
-  ["/support", "Support", "support.read", Users],
-  ["/billing", "Billing", "billing.read", ScrollText],
-  ["/jobs", "Jobs", "jobs.read", Clapperboard],
-  ["/operations", "Overview", "operations.read", Activity],
-  ["/users", "Users", "directory.read", Users],
-  ["/workspaces", "Workspaces", "directory.read", Folder],
-  ["/moderation", "Moderation", "moderation.manage", ShieldCheck],
-  ["/providers", "Provider health", "operations.read", Activity],
-  ["/egress", "Egress", "operations.read", CloudUpload],
-  ["/audit", "Audit log", "audit.read", ScrollText],
-  ["/administration", "Administration", "administrators.manage", ShieldCheck],
+  [
+    "/operations",
+    "Overview",
+    ["operations.read"],
+    LayoutDashboard,
+    "Operations",
+  ],
+  ["/jobs", "Jobs", ["jobs.read"], BriefcaseBusiness, "Operations"],
+  [
+    "/providers",
+    "Providers",
+    ["operations.read", "providers.read"],
+    Activity,
+    "Operations",
+  ],
+  ["/waitlist", "Waitlist", ["waitlist.read"], Users, "Accounts"],
+  ["/directory", "Directory", ["directory.read"], Users, "Accounts"],
+  ["/support", "Support", ["support.read"], LifeBuoy, "Accounts"],
+  ["/billing", "Billing", ["billing.read"], CreditCard, "Accounts"],
+  ["/moderation", "Moderation", ["moderation.manage"], ShieldCheck, "Content"],
+  ["/storage", "Storage", ["storage.read"], HardDrive, "Content"],
+  [
+    "/analytics",
+    "Analytics",
+    ["analytics.read", "operations.read"],
+    BarChart3,
+    "Reporting",
+  ],
+  ["/audit", "Audit log", ["audit.read"], ScrollText, "Reporting"],
+  [
+    "/administration",
+    "Administration",
+    ["administrators.manage"],
+    Settings,
+    "Access",
+  ],
 ] as const;
 function Layout() {
   useLocale();
   const { signOut } = useAuthActions();
   const me = useQuery(api.users.viewer, {});
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("cinakey.admin.sidebar.collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const navPath = /^\/(users|workspaces)(?:\/|$)/.test(location.pathname)
+    ? "/directory"
+    : location.pathname;
   const title =
-    sections.find(([path]) => location.pathname.startsWith(path))?.[1] ||
+    sections.find(([path]) => navPath.startsWith(path))?.[1] ||
     "Administration";
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <Link to="/users" className="admin-brand">
-          <Clapperboard size={30} /> <span>Cinakey</span>
-          <small>
-            <I18nText text="ADMIN" />
-          </small>
-        </Link>
+    <div
+      className={`admin-shell ${collapsed ? "admin-shell-collapsed" : ""} ${mobileOpen ? "admin-mobile-open" : ""}`}
+    >
+      {mobileOpen && (
+        <button
+          className="admin-sidebar-backdrop"
+          aria-label={t("Close navigation")}
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      <aside className="admin-sidebar" aria-label={t("Administration")}>
+        <div className="admin-sidebar-heading">
+          <Link
+            to={
+              sections.find(([, , permissions]) =>
+                permissions.some((permission) =>
+                  hasAdminPermission(me, permission),
+                ),
+              )?.[0] || "/users"
+            }
+            className="admin-brand"
+          >
+            <Clapperboard size={30} /> <span>Cinakey</span>
+            <small>
+              <I18nText text="ADMIN" />
+            </small>
+          </Link>
+          <Button
+            className="admin-collapse-toggle"
+            variant="ghost"
+            aria-label={t(collapsed ? "Expand sidebar" : "Collapse sidebar")}
+            aria-expanded={!collapsed}
+            onClick={() =>
+              setCollapsed((value) => {
+                const next = !value;
+                try {
+                  localStorage.setItem(
+                    "cinakey.admin.sidebar.collapsed",
+                    String(next),
+                  );
+                } catch {
+                  /* Session preference remains usable. */
+                }
+                return next;
+              })
+            }
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={18} />
+            ) : (
+              <PanelLeftClose size={18} />
+            )}
+          </Button>
+          <Button
+            className="admin-mobile-close"
+            variant="ghost"
+            aria-label={t("Close navigation")}
+            onClick={() => setMobileOpen(false)}
+          >
+            <X size={18} />
+          </Button>
+        </div>
         <p className="rounded border border-amber-900 px-2 py-1 text-xs text-amber-200">
           {import.meta.env.VITE_APP_ENV || t("Environment not labeled")}
         </p>
@@ -144,50 +230,84 @@ function Layout() {
           aria-label={t("Administration")}
           className="flex flex-wrap gap-2 md:flex-col"
         >
-          {sections.map(([path, label, permission, Icon]) => {
-            if (!hasAdminPermission(me, permission)) return null;
-            return (
-              <NavLink
-                key={path}
-                to={path}
-                className={({ isActive }) =>
-                  `rounded-xl border-l-2 px-3 py-2 text-sm ${isActive ? "border-[var(--color-studio-accent)] bg-zinc-800 text-zinc-100" : "border-transparent text-zinc-400 hover:bg-zinc-900"}`
-                }
-              >
-                <Icon size={20} />
-                {t(label)}
-              </NavLink>
-            );
-          })}
+          {["Operations", "Accounts", "Content", "Reporting", "Access"].map(
+            (group) => {
+              const visible = sections.filter(
+                ([, , permissions, , sectionGroup]) =>
+                  sectionGroup === group &&
+                  permissions.some((permission) =>
+                    hasAdminPermission(me, permission),
+                  ),
+              );
+              if (!visible.length) return null;
+              return (
+                <div className="admin-nav-group" key={group}>
+                  <h2>{t(group)}</h2>
+                  {visible.map(([path, label, , Icon]) => (
+                    <Link
+                      key={path}
+                      to={path}
+                      title={t(label)}
+                      aria-label={t(label)}
+                      onClick={() => setMobileOpen(false)}
+                      className={`admin-nav-link ${navPath.startsWith(path) ? "admin-nav-selected" : ""}`}
+                      aria-current={
+                        navPath.startsWith(path) ? "page" : undefined
+                      }
+                    >
+                      <Icon size={20} />
+                      <span>{t(label)}</span>
+                    </Link>
+                  ))}
+                </div>
+              );
+            },
+          )}
         </nav>
-        <a
-          className="admin-web-link"
-          href={import.meta.env.VITE_WEB_URL || "http://localhost:5173"}
-        >
-          <ExternalLink size={18} /> <I18nText text="Open web app" />
-        </a>
-        <div className="admin-account">
-          <span className="admin-avatar">
-            {(me?.name || me?.email || "A").slice(0, 2).toUpperCase()}
-          </span>
-          <div>
-            <strong>{me?.name || me?.email || t("Administrator")}</strong>
-            <small>
-              <I18nText text="Administrator" />
-            </small>
-          </div>
-          <Button
-            aria-label={t("Sign out")}
-            title={t("Sign out")}
-            variant="ghost"
-            onClick={() => void signOut()}
+        <div className="admin-sidebar-footer">
+          <a
+            className="admin-web-link"
+            title={t("Open web app")}
+            aria-label={t("Open web app")}
+            href={import.meta.env.VITE_WEB_URL || "http://localhost:5173"}
           >
-            <LogOut size={18} />
-          </Button>
+            <ExternalLink size={18} />{" "}
+            <span>
+              <I18nText text="Open web app" />
+            </span>
+          </a>
+          <div className="admin-account">
+            <span className="admin-avatar">
+              {(me?.name || me?.email || "A").slice(0, 2).toUpperCase()}
+            </span>
+            <div>
+              <strong>{me?.name || me?.email || t("Administrator")}</strong>
+              <small>
+                <I18nText text="Administrator" />
+              </small>
+            </div>
+            <Button
+              aria-label={t("Sign out")}
+              title={t("Sign out")}
+              variant="ghost"
+              onClick={() => void signOut()}
+            >
+              <LogOut size={18} />
+            </Button>
+          </div>
         </div>
       </aside>
       <main className="admin-main">
         <header className="admin-topbar">
+          <Button
+            className="admin-mobile-menu"
+            variant="ghost"
+            aria-label={t("Open navigation")}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu size={20} />
+          </Button>
           <span>
             <I18nText text="Administration" /> <span className="mx-3">/</span>{" "}
             <strong>{t(title)}</strong>
@@ -246,6 +366,7 @@ export function App() {
             </AdminGate>
           }
         >
+          <Route path="directory" element={<DirectoryHub />} />
           <Route
             path="operations"
             element={
@@ -322,18 +443,11 @@ export function App() {
             path="provider-controls"
             element={
               <PermissionRoute permission="providers.read">
-                <ProviderControlsPage />
+                <Navigate replace to="/providers?tab=controls" />
               </PermissionRoute>
             }
           />
-          <Route
-            path="analytics"
-            element={
-              <PermissionRoute permission="analytics.read">
-                <AnalyticsPage />
-              </PermissionRoute>
-            }
-          />
+          <Route path="analytics" element={<AnalyticsHub />} />
           <Route index element={<Navigate to="/users" replace />} />
           <Route
             path="administration"
@@ -344,10 +458,18 @@ export function App() {
             }
           />
           <Route
+            path="waitlist"
+            element={
+              <PermissionRoute permission="waitlist.read">
+                <WaitlistPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="users"
             element={
               <PermissionRoute permission="directory.read">
-                <UsersPage />
+                <Navigate replace to="/directory?tab=users" />
               </PermissionRoute>
             }
           />
@@ -363,7 +485,7 @@ export function App() {
             path="workspaces"
             element={
               <PermissionRoute permission="directory.read">
-                <WorkspacesPage />
+                <Navigate replace to="/directory?tab=workspaces" />
               </PermissionRoute>
             }
           />
@@ -389,9 +511,7 @@ export function App() {
             path="providers"
             element={
               <>
-                <PermissionRoute permission="operations.read">
-                  <StaffProvidersPage />
-                </PermissionRoute>
+                <ProvidersHub />
               </>
             }
           />
@@ -400,7 +520,7 @@ export function App() {
             element={
               <>
                 <PermissionRoute permission="operations.read">
-                  <StaffEgressPage />
+                  <Navigate replace to="/analytics?tab=transfers" />
                 </PermissionRoute>
               </>
             }

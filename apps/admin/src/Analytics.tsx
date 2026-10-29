@@ -11,6 +11,14 @@ import {
 } from "@cinakey/shared";
 import { Button } from "@cinakey/ui/button";
 import { Input } from "@cinakey/ui/input";
+import { BarChart3, ChevronRight } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@cinakey/ui/select";
 import { Permission } from "./Permissions";
 const day = 86400000;
 const date = (time: number) => new Date(time).toISOString().slice(0, 10);
@@ -63,13 +71,18 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
   const args = { reportId, reason, requestId: crypto.randomUUID() };
   const m = report.metrics ?? {};
   return (
-    <section className="space-y-4 rounded border border-zinc-700 p-4">
-      <h2 className="text-xl">
-        {t("{from} to {to} (end exclusive, UTC)", {
-          from: date(report.from),
-          to: date(report.to),
-        })}
-      </h2>
+    <section className="admin-card analytics-report space-y-4">
+      <header className="analytics-report-heading">
+        <h2 className="text-xl">
+          {t("{from} to {to} (end exclusive, UTC)", {
+            from: date(report.from),
+            to: date(report.to),
+          })}
+        </h2>
+        <span className="analytics-status" data-status={report.status}>
+          {t(report.status)}
+        </span>
+      </header>
       <p>
         {t(
           "Status: {status}; scanned records: {count}; stage: {stage}; worker: {worker}.",
@@ -84,30 +97,57 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
       <p>
         {t("Scope: {scope}. Requested {requested}.", {
           scope: report.workspaceId ?? t("All workspaces"),
-          requested: new Date(report.createdAt).toISOString(),
+          requested:
+            new Date(report.createdAt).toLocaleString(getLocale(), {
+              timeZone: "UTC",
+            }) + " UTC",
         })}{" "}
         {report.completedAt &&
           t("Completed {completed}.", {
-            completed: new Date(report.completedAt).toISOString(),
+            completed:
+              new Date(report.completedAt).toLocaleString(getLocale(), {
+                timeZone: "UTC",
+              }) + " UTC",
           })}
       </p>
       {report.status === "completed" && (
         <>
-          <dl className="grid gap-3 sm:grid-cols-3">
-            {Object.entries(m).map(([key, value]) => (
+          <dl className="analytics-summary">
+            {(
+              [
+                "jobs",
+                "activeAccounts",
+                ...(report.financial
+                  ? ["usageCustomerMicros", "supplierKnownMicros"]
+                  : ["jobsSucceeded", "jobsFailed"]),
+              ] as AnalyticsMetric[]
+            ).map((key) => (
               <div key={key}>
-                <dt className="text-sm text-zinc-400">
-                  {t(
-                    ANALYTICS_METRICS[key as AnalyticsMetric].replace(
-                      " (USD micros)",
-                      " (USD)",
-                    ),
-                  )}
+                <dt>
+                  {t(ANALYTICS_METRICS[key].replace(" (USD micros)", " (USD)"))}
                 </dt>
-                <dd>{display(key, value)}</dd>
+                <dd>{display(key, m[key] ?? 0)}</dd>
               </div>
             ))}
           </dl>
+          <details className="analytics-disclosure">
+            <summary>{t("All report metrics")}</summary>
+            <dl className="analytics-all-metrics grid gap-3 sm:grid-cols-3">
+              {Object.entries(m).map(([key, value]) => (
+                <div key={key}>
+                  <dt className="text-sm text-zinc-400">
+                    {t(
+                      ANALYTICS_METRICS[key as AnalyticsMetric].replace(
+                        " (USD micros)",
+                        " (USD)",
+                      ),
+                    )}
+                  </dt>
+                  <dd>{display(key, value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
           <p>
             {m.priorActiveAccounts
               ? t(
@@ -116,7 +156,7 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
                     percent: (
                       ((m.returningAccounts ?? 0) / m.priorActiveAccounts) *
                       100
-                    ).toFixed(1),
+                    ).toLocaleString(getLocale(), { maximumFractionDigits: 1 }),
                   },
                 )
               : t("No previous-window baseline")}
@@ -126,8 +166,10 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
               {t(
                 "Supplier cost evidence: {known} known / {total} settlements. Matched customer charge less matched supplier cost: {spread}. This excludes missing costs and operating expenses.",
                 {
-                  known: m.supplierKnownSettlements ?? 0,
-                  total: m.usageSettlements ?? 0,
+                  known: (m.supplierKnownSettlements ?? 0).toLocaleString(
+                    getLocale(),
+                  ),
+                  total: (m.usageSettlements ?? 0).toLocaleString(getLocale()),
                   spread: display(
                     "spreadMicros",
                     (m.matchedCustomerMicros ?? 0) -
@@ -140,72 +182,93 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
           <div className="flex flex-wrap gap-3">
             <label>
               <I18nText text="Group" />{" "}
-              <select
+              <Select
                 value={dimension}
-                onChange={(e) => {
-                  setDimension(e.target.value as AnalyticsDimension);
+                onValueChange={(value) => {
+                  setDimension(value as AnalyticsDimension);
                   setCursor(null);
                 }}
               >
-                {ANALYTICS_DIMENSIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {t(d)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-label={t("Group")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANALYTICS_DIMENSIONS.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {t(d)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
             <label>
               <I18nText text="Metric" />{" "}
-              <select
+              <Select
                 value={metric}
-                onChange={(e) => setMetric(e.target.value as AnalyticsMetric)}
+                onValueChange={(value) => setMetric(value as AnalyticsMetric)}
               >
-                {Object.entries(ANALYTICS_METRICS)
-                  .filter(
-                    ([key]) =>
-                      report.financial ||
-                      !ANALYTICS_FINANCIAL_METRICS.has(key as AnalyticsMetric),
-                  )
-                  .map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {t(label.replace(" (USD micros)", " (USD)"))}
-                    </option>
-                  ))}
-              </select>
+                <SelectTrigger aria-label={t("Metric")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ANALYTICS_METRICS)
+                    .filter(
+                      ([key]) =>
+                        report.financial ||
+                        !ANALYTICS_FINANCIAL_METRICS.has(
+                          key as AnalyticsMetric,
+                        ),
+                    )
+                    .map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {t(label.replace(" (USD micros)", " (USD)"))}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr>
-                <th>{t(dimension)}</th>
-                <th>
-                  {t(
-                    ANALYTICS_METRICS[metric].replace(
-                      " (USD micros)",
-                      " (USD)",
-                    ),
-                  )}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows?.page.map((row) => (
-                <tr key={row.key}>
-                  <td>{row.key}</td>
-                  <td>{display(metric, row.metrics[metric] ?? 0)}</td>
+          <div className="overflow-auto">
+            <table className="w-full text-left">
+              <caption className="sr-only">{t("Report breakdown")}</caption>
+              <thead>
+                <tr>
+                  <th>{t(dimension)}</th>
+                  <th>
+                    {t(
+                      ANALYTICS_METRICS[metric].replace(
+                        " (USD micros)",
+                        " (USD)",
+                      ),
+                    )}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows?.page.map((row) => (
+                  <tr key={row.key}>
+                    <td>{row.key}</td>
+                    <td>{display(metric, row.metrics[metric] ?? 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows === undefined && <p role="status">{t("Loading report…")}</p>}
           {rows?.page.length === 0 && (
             <p>
               <I18nText text="No recorded data for this grouping." />
             </p>
           )}
-          <Button disabled={!cursor} onClick={() => setCursor(null)}>
+          <Button
+            variant="outline"
+            disabled={!cursor}
+            onClick={() => setCursor(null)}
+          >
             <I18nText text="First page" />
           </Button>{" "}
           <Button
+            variant="outline"
             disabled={!rows || rows.isDone}
             onClick={() => rows && setCursor(rows.continueCursor)}
           >
@@ -223,38 +286,44 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
       />
       <div className="flex flex-wrap gap-3">
         <Permission permission="analytics.run">
-          {report.status === "running" && (
-            <>
-              <Button
-                disabled={busy || reason.trim().length < 10}
-                onClick={() => void action(() => cancel(args))}
-              >
-                <I18nText text="Cancel report" />
-              </Button>
-              <Button
-                disabled={
-                  busy ||
-                  reason.trim().length < 10 ||
-                  (report.taskState !== "failed" && report.taskState !== null)
-                }
-                onClick={() => void action(() => resume(args))}
-              >
-                <I18nText text="Resume failed report" />
-              </Button>
-            </>
-          )}
-          <Button
-            disabled={
-              busy || reason.trim().length < 10 || report.status === "deleting"
-            }
-            onClick={() => void action(() => remove(args))}
-          >
-            <I18nText text="Delete report (owner or platform administrator)" />
-          </Button>
+          <details className="analytics-disclosure analytics-manage">
+            <summary>{t("Manage report")}</summary>
+            {report.status === "running" && (
+              <>
+                <Button
+                  disabled={busy || reason.trim().length < 10}
+                  onClick={() => void action(() => cancel(args))}
+                >
+                  <I18nText text="Cancel report" />
+                </Button>
+                <Button
+                  disabled={
+                    busy ||
+                    reason.trim().length < 10 ||
+                    (report.taskState !== "failed" && report.taskState !== null)
+                  }
+                  onClick={() => void action(() => resume(args))}
+                >
+                  <I18nText text="Resume failed report" />
+                </Button>
+              </>
+            )}
+            <Button
+              disabled={
+                busy ||
+                reason.trim().length < 10 ||
+                report.status === "deleting"
+              }
+              onClick={() => void action(() => remove(args))}
+            >
+              <I18nText text="Delete report (owner or platform administrator)" />
+            </Button>
+          </details>
         </Permission>
         <Permission permission="analytics.export">
           {report.status === "completed" && (
             <Button
+              variant="outline"
               disabled={busy || reason.trim().length < 10}
               onClick={() =>
                 void action(async () => {
@@ -281,7 +350,7 @@ function Report({ reportId }: { reportId: Id<"analyticsReports"> }) {
 }
 export function AnalyticsPage() {
   useLocale();
-  const today = Math.floor(Date.now() / day) * day;
+  const [today] = useState(() => Math.floor(Date.now() / day) * day);
   const [from, setFrom] = useState(date(today - 30 * day)),
     [to, setTo] = useState(date(today)),
     [workspace, setWorkspace] = useState(""),
@@ -296,38 +365,13 @@ export function AnalyticsPage() {
   });
   const request = useMutation(api.adminAnalytics.request);
   return (
-    <main className="space-y-6">
-      <h1 className="text-2xl">
+    <div className="analytics-reports space-y-6">
+      <h2 className="sr-only">
         <I18nText text="Analytics and reporting" />
-      </h1>
-      <p>
-        <I18nText text="Reports use 1–90 completed UTC days. Activity means generation jobs or recorded starter/export activity, excluding accounts currently marked staff or anonymous. Returning accounts compare equal-length activity windows; this is not signup cohort retention. New accounts count surviving account records globally; workspace reports omit that denominator." />
-      </p>
-      <details>
-        <summary>
-          <I18nText text="Definitions and data coverage" />
-        </summary>
-        <div className="space-y-2 p-3">
-          <p>
-            <I18nText text="Job results and durations describe jobs created in the selected window, observed during the report build. Missing completion timestamps are counted separately. Starter/export events depend on recorded telemetry; they do not establish a complete conversion funnel." />
-          </p>
-          <p>
-            <I18nText text="Usage comes from ledger settlements in the selected window. Manual credits are excluded. Company-funded usage is separate. Supplier costs include only recorded evidence; missing evidence is counted. Financial figures are USD and do not represent gross profit." />
-          </p>
-          <p>
-            <I18nText text="Payment metrics group orders created in the window, with cumulative refunds observed during the build. Production and sandbox remain separate. These are not cash-period revenue, recognized revenue, MRR, or ARR." />
-          </p>
-          <p>
-            <I18nText text="Storage is surviving registered bytes observed during the build, regardless of the selected date range. Egress is recorded estimates, with storage writes and local exports separate from transfers. It is not a provider invoice." />
-          </p>
-          <p>
-            <I18nText text="Sources created after the report cutoff are excluded. Mutable states are observed between request and completion; this is not a transactionally consistent historical snapshot. Only completed aggregates are shown. Reports expire after 30 days. CSV exports are audited and limited to 1,000 rows and 1 MB; larger groups must be narrowed by date or workspace." />
-          </p>
-        </div>
-      </details>
+      </h2>
       <Permission permission="analytics.run">
         <form
-          className="flex flex-wrap items-end gap-3"
+          className="admin-card analytics-builder"
           onSubmit={async (e) => {
             e.preventDefault();
             if (busy) return;
@@ -356,6 +400,10 @@ export function AnalyticsPage() {
             requestId.current = null;
           }}
         >
+          <h2>{t("Build report")}</h2>
+          <p className="analytics-builder-hint">
+            {t("1–90 completed UTC days. The end date is exclusive.")}
+          </p>
           <label>
             <I18nText text="From (inclusive)" />
             <Input
@@ -376,53 +424,126 @@ export function AnalyticsPage() {
               onChange={(e) => setTo(e.target.value)}
             />
           </label>
-          <Input
-            aria-label={t("Workspace ID")}
-            placeholder={t("Workspace ID (optional)")}
-            value={workspace}
-            onChange={(e) => setWorkspace(e.target.value)}
-          />
-          <Input
-            required
-            aria-label={t("Report reason")}
-            placeholder={t("Reason for report (10–500 characters)")}
-            minLength={10}
-            maxLength={500}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
+          <label>
+            {t("Workspace ID (optional)")}
+            <Input
+              aria-label={t("Workspace ID")}
+              placeholder={t("Workspace ID (optional)")}
+              value={workspace}
+              onChange={(e) => setWorkspace(e.target.value)}
+            />
+          </label>
+          <label className="analytics-builder-reason">
+            {t("Reason")}
+            <Input
+              required
+              aria-label={t("Report reason")}
+              placeholder={t("Reason for report (10–500 characters)")}
+              minLength={10}
+              maxLength={500}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </label>
           <Button disabled={busy}>
             <I18nText text="Build report" />
           </Button>
         </form>
       </Permission>
       {error && <p role="alert">{error}</p>}
-      <section className="space-y-2">
-        <h2>
-          <I18nText text="Report history" />
-        </h2>
-        {reports?.page.map((report) => (
-          <div key={report._id}>
-            <button
-              className="underline"
-              onClick={() => setSelected(report._id)}
-            >
-              {date(report.from)} → {date(report.to)} ·{" "}
-              {report.workspaceId ?? t("All workspaces")} · {t(report.status)}
-            </button>
-          </div>
-        ))}
-        <Button disabled={!cursor} onClick={() => setCursor(null)}>
-          <I18nText text="First page" />
-        </Button>{" "}
-        <Button
-          disabled={!reports || reports.isDone}
-          onClick={() => reports && setCursor(reports.continueCursor)}
-        >
-          <I18nText text="Older reports" />
-        </Button>
-      </section>
-      {selected && <Report key={selected} reportId={selected} />}
-    </main>
+      <div className="analytics-report-layout">
+        <section className="admin-card analytics-history space-y-2">
+          <h2>
+            <I18nText text="Report history" />
+          </h2>
+          {reports === undefined && <p role="status">{t("Loading report…")}</p>}
+          {reports?.page.length === 0 && (
+            <p>
+              {t(
+                "No reports yet. Build a report to explore recorded activity.",
+              )}
+            </p>
+          )}
+          {reports?.page.map((report) => (
+            <div className="analytics-history-item" key={report._id}>
+              <button
+                className="analytics-history-select"
+                aria-current={
+                  (selected ?? reports?.page[0]?._id) === report._id
+                    ? "true"
+                    : undefined
+                }
+                onClick={() => setSelected(report._id)}
+              >
+                <span>
+                  <strong>
+                    {date(report.from)} → {date(report.to)}
+                  </strong>
+                  <small>{report.workspaceId ?? t("All workspaces")}</small>
+                  <span
+                    className="analytics-status"
+                    data-status={report.status}
+                  >
+                    {t(report.status)}
+                  </span>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            disabled={!cursor}
+            onClick={() => setCursor(null)}
+          >
+            <I18nText text="First page" />
+          </Button>{" "}
+          <Button
+            disabled={!reports || reports.isDone}
+            onClick={() => reports && setCursor(reports.continueCursor)}
+          >
+            <I18nText text="Older reports" />
+          </Button>
+        </section>
+        {(selected ?? reports?.page[0]?._id) ? (
+          <Report
+            key={selected ?? reports?.page[0]?._id}
+            reportId={selected ?? reports!.page[0]!._id}
+          />
+        ) : (
+          <section className="admin-card analytics-empty">
+            <BarChart3 size={32} />
+            <h2>{t("Report results")}</h2>
+            <p>{t("Select a report from history to view its results.")}</p>
+          </section>
+        )}
+      </div>
+      <details className="admin-card analytics-disclosure p-5">
+        <summary>
+          <I18nText text="Definitions and data coverage" />
+        </summary>
+        <div className="space-y-2 p-3">
+          {" "}
+          <p>
+            <I18nText text="Reports use 1–90 completed UTC days. Activity means generation jobs or recorded starter/export activity, excluding accounts currently marked staff or anonymous. Returning accounts compare equal-length activity windows; this is not signup cohort retention. New accounts count surviving account records globally; workspace reports omit that denominator." />
+          </p>
+          <p>
+            <I18nText text="Job results and durations describe jobs created in the selected window, observed during the report build. Missing completion timestamps are counted separately. Starter/export events depend on recorded telemetry; they do not establish a complete conversion funnel." />
+          </p>
+          <p>
+            <I18nText text="Usage comes from ledger settlements in the selected window. Manual credits are excluded. Company-funded usage is separate. Supplier costs include only recorded evidence; missing evidence is counted. Financial figures are USD and do not represent gross profit." />
+          </p>
+          <p>
+            <I18nText text="Payment metrics group orders created in the window, with cumulative refunds observed during the build. Production and sandbox remain separate. These are not cash-period revenue, recognized revenue, MRR, or ARR." />
+          </p>
+          <p>
+            <I18nText text="Storage is surviving registered bytes observed during the build, regardless of the selected date range. Egress is recorded estimates, with storage writes and local exports separate from transfers. It is not a provider invoice." />
+          </p>
+          <p>
+            <I18nText text="Sources created after the report cutoff are excluded. Mutable states are observed between request and completion; this is not a transactionally consistent historical snapshot. Only completed aggregates are shown. Reports expire after 30 days. CSV exports are audited and limited to 1,000 rows and 1 MB; larger groups must be narrowed by date or workspace." />
+          </p>
+        </div>
+      </details>
+    </div>
   );
 }

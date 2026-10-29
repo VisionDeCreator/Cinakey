@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-29",
+  "environment": "Configured development backend, existing localhost Admin, and isolated QA web/API with local SMTP capture",
+  "finalRequireApproval": true,
+  "browser": "Internal browser",
+  "checks": {
+    "defaultApprovalRequired": true,
+    "validOtpDeniedWhileApprovalRequired": true,
+    "reasonAndConfirmationRequired": true,
+    "cancelDoesNotSave": true,
+    "modeChangedThroughAuthenticatedAdmin": true,
+    "publicPageAutomaticallyChangedToDirectSignup": true,
+    "rejectedApplicantRegisteredWithoutApprovalWhileOpen": true,
+    "originalRejectionPreservedWithRegistrationTracked": true,
+    "approvalRequiredRestored": true,
+    "modePersistsAfterAdminReload": true,
+    "openModeAccountSessionSurvivedReloadAfterClosing": true,
+    "openModeAccountLoggedOutAndSignedBackInAfterClosing": true,
+    "freshApplicantDeniedAfterClosing": true,
+    "publicPageAutomaticallyReturnedToWaitlist": true,
+    "bothModeChangesVisibleInAudit": true,
+    "existingStaffSessionRetained": true,
+    "sixLocalesReviewed": ["en", "fr", "es", "ko", "ja", "zh"]
+  },
+  "automated": {
+    "backend": "315 tests passed",
+    "admin": "50 tests passed",
+    "webLandingAndAuth": "10 tests passed",
+    "webPolicyRefresh": "2 tests passed",
+    "apiBoundary": "29 tests passed",
+    "productionBuilds": ["admin", "web"],
+    "typechecks": ["admin", "api", "web", "backend"],
+    "lint": "API and changed Admin/web files passed",
+    "localization": "2273 messages validated across six catalogs",
+    "credentials": "Secret checks passed"
+  },
+  "notes": [
+    "Google callback tests cover open/closed registration and verified-email enforcement; no live third-party Google login was performed.",
+    "Automated tests also cover pending applicants, new applicants without waitlist records, stale configuration revisions, idempotency, permission denial, suspension checks and a code issued while open but consumed after closing.",
+    "One synthetic request/account (registration-toggle-20261029@example.com) remains in development. No real applicant decisions or existing roles were changed.",
+    "QA OTP delivery was captured locally for synthetic recipients only. Existing SMTP settings and environment files were not changed.",
+    "Existing uncommitted work was preserved. No reset, stash or commit was performed."
+  ]
+}

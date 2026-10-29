@@ -25,6 +25,13 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@cinakey/ui/button";
 import { Input } from "@cinakey/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@cinakey/ui/select";
 import { Label } from "@cinakey/ui/label";
 
 export function StaffUsersPage() {
@@ -71,7 +78,7 @@ export function StaffUsersPage() {
       setLookupEmail(email.trim());
       setReason("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t("Request failed"));
     } finally {
       setBusy(false);
     }
@@ -243,18 +250,48 @@ export function StaffProvidersPage() {
   useLocale();
   const health = useQuery(api.staff.providerHealth, {});
   const [search, setSearch] = useState("");
-  const rows = health?.filter((row) =>
-    row.model.toLowerCase().includes(search.trim().toLowerCase()),
+  const [filter, setFilter] = useState("all");
+  const rows = health?.filter(
+    (row) =>
+      row.model.toLowerCase().includes(search.trim().toLowerCase()) &&
+      (filter === "all" ||
+        (filter === "samples" ? row.sampleSize > 0 : row.sampleSize === 0)),
   );
+  const samples = health?.reduce((total, row) => total + row.sampleSize, 0);
   return (
-    <>
-      <div className="admin-page-heading">
-        <h1>
-          <I18nText text="Provider health" />
-        </h1>
-        <p>
-          <I18nText text="Compare generation outcomes and response times by model." />
-        </p>
+    <div className="provider-health space-y-6">
+      <h2 className="sr-only">{t("Provider health")}</h2>
+      <div className="provider-summary">
+        {[
+          {
+            Icon: Box,
+            label: "Models tracked",
+            value: health?.length.toLocaleString(getLocale()) ?? "—",
+          },
+          {
+            Icon: BarChart3,
+            label: "Job samples",
+            value: samples?.toLocaleString(getLocale()) ?? "—",
+          },
+          {
+            Icon: Activity,
+            label: "Performance status",
+            value:
+              health === undefined
+                ? "—"
+                : samples
+                  ? t("Samples available")
+                  : t("No data"),
+          },
+        ].map(({ Icon, label, value }) => (
+          <section className="admin-card provider-summary-card" key={label}>
+            <Icon size={24} />
+            <div>
+              <span>{t(label)}</span>
+              <strong>{value}</strong>
+            </div>
+          </section>
+        ))}
       </div>
       <section className="admin-card admin-users-table admin-provider-table">
         <header>
@@ -264,15 +301,33 @@ export function StaffProvidersPage() {
               <I18nText text="Model performance" />
             </h2>
           </div>
-          <label className="admin-search">
-            <Search size={18} />
-            <Input
-              aria-label={t("Search models")}
-              placeholder={t("Search models…")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
+          <div className="provider-filters">
+            <label className="admin-search">
+              <Search size={18} />
+              <Input
+                aria-label={t("Search models")}
+                placeholder={t("Search models…")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger aria-label={t("Filter models")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  ["all", "All models"],
+                  ["samples", "With samples"],
+                  ["empty", "No data"],
+                ].map(([value, label]) => (
+                  <SelectItem key={value} value={value!}>
+                    {t(label!)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
         {health === undefined ? (
           <p role="status" className="p-6 text-zinc-400">
@@ -313,13 +368,20 @@ export function StaffProvidersPage() {
                           {row.model}
                         </span>
                       </td>
-                      <td>{row.sampleSize}</td>
+                      <td>{row.sampleSize.toLocaleString(getLocale())}</td>
                       <td>
                         {row.successRate === null ? (
-                          "—"
+                          <span className="provider-status">
+                            {t("No data")}
+                          </span>
                         ) : (
                           <span className="admin-provider-success">
-                            <span>{Math.round(row.successRate * 100)}%</span>
+                            <span>
+                              {row.successRate.toLocaleString(getLocale(), {
+                                style: "percent",
+                                maximumFractionDigits: 0,
+                              })}
+                            </span>
                             <span
                               aria-hidden="true"
                               className="admin-provider-meter"
@@ -336,12 +398,26 @@ export function StaffProvidersPage() {
                       <td>
                         {row.latencyP50Ms === null
                           ? "—"
-                          : `${Math.round(row.latencyP50Ms / 1000)}s`}
+                          : Math.round(row.latencyP50Ms / 1000).toLocaleString(
+                              getLocale(),
+                              {
+                                style: "unit",
+                                unit: "second",
+                                unitDisplay: "short",
+                              },
+                            )}
                       </td>
                       <td>
                         {row.latencyP95Ms === null
                           ? "—"
-                          : `${Math.round(row.latencyP95Ms / 1000)}s`}
+                          : Math.round(row.latencyP95Ms / 1000).toLocaleString(
+                              getLocale(),
+                              {
+                                style: "unit",
+                                unit: "second",
+                                unitDisplay: "short",
+                              },
+                            )}
                       </td>
                     </tr>
                   ))}
@@ -351,12 +427,15 @@ export function StaffProvidersPage() {
                 <p role="status" className="p-6 text-zinc-400">
                   {search.trim()
                     ? t("No models match your search.")
-                    : t("No provider metrics available yet.")}
+                    : filter !== "all"
+                      ? t("No models match your filters.")
+                      : t("No provider metrics available yet.")}
                 </p>
               )}
             </div>
             <footer>
-              <I18nText text="Metrics reflect available job samples." />
+              <I18nText text="Metrics reflect available job samples." />{" "}
+              {t("No samples does not indicate a healthy provider.")}
             </footer>
           </>
         )}
@@ -404,7 +483,7 @@ export function StaffProvidersPage() {
         <Info size={20} />
         <I18nText text="A dash means there is not enough data for that metric." />
       </p>
-    </>
+    </div>
   );
 }
 
@@ -418,6 +497,10 @@ function EgressRanking({
   rows: Array<{ id: string; bytes: number }>;
 }) {
   useLocale();
+  const [search, setSearch] = useState("");
+  const filtered = rows.filter((row) =>
+    row.id.toLowerCase().includes(search.trim().toLowerCase()),
+  );
   const max = Math.max(0, ...rows.map((row) => row.bytes));
   const Icon = kind === "user" ? Users : Folder;
   return (
@@ -425,6 +508,19 @@ function EgressRanking({
       <header>
         <Icon size={26} />
         <h2>{title}</h2>
+        <label className="admin-search">
+          <Search size={16} />
+          <Input
+            aria-label={
+              kind === "user" ? t("Search users") : t("Search projects")
+            }
+            placeholder={
+              kind === "user" ? t("Search users") : t("Search projects")
+            }
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
       </header>
       {rows.length === 0 ? (
         <p className="admin-egress-empty">
@@ -449,9 +545,9 @@ function EgressRanking({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, index) => (
+              {filtered.map((row) => (
                 <tr key={row.id}>
-                  <td>{String(index + 1).padStart(2, "0")}</td>
+                  <td>{(rows.indexOf(row) + 1).toLocaleString(getLocale())}</td>
                   <td className="admin-egress-id">{row.id}</td>
                   <td>
                     <div className="admin-egress-amount">
@@ -462,13 +558,27 @@ function EgressRanking({
                           }}
                         />
                       </span>
-                      <span>{(row.bytes / (1024 * 1024)).toFixed(1)} MB</span>
+                      <span>
+                        {(row.bytes / (1024 * 1024)).toLocaleString(
+                          getLocale(),
+                          {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          },
+                        )}{" "}
+                        MB
+                      </span>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {filtered.length === 0 && (
+            <p role="status" className="p-5">
+              {t("No transfers match your search.")}
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -494,12 +604,12 @@ export function StaffEgressPage() {
     timeZone: "UTC",
   });
   return (
-    <>
+    <div className="analytics-egress space-y-6">
       <div className="admin-egress-heading">
         <div className="admin-page-heading">
-          <h1>
+          <h2>
             <I18nText text="Egress" />
-          </h1>
+          </h2>
           <p>
             <I18nText text="Monitor outbound data transfer for the current month." />
           </p>
@@ -523,7 +633,13 @@ export function StaffEgressPage() {
               <h2>
                 <I18nText text="Monthly transfer" />
               </h2>
-              <strong>{(data.totalBytes / (1024 * 1024)).toFixed(1)} MB</strong>
+              <strong>
+                {(data.totalBytes / (1024 * 1024)).toLocaleString(getLocale(), {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}{" "}
+                MB
+              </strong>
               <p>
                 <I18nText text="Total outbound data ·" /> {month}
               </p>
@@ -551,9 +667,14 @@ export function StaffEgressPage() {
       )}
       <p className="admin-provider-note">
         <Info size={20} />
-        <I18nText text="Rankings show the largest transfers recorded this month. Amounts are displayed in MB." />
+        <span>
+          <I18nText text="Rankings show the largest transfers recorded this month. Amounts are displayed in MB." />{" "}
+          {t(
+            "Recorded estimates, not a provider invoice. Storage writes and local exports are separate from transfers.",
+          )}
+        </span>
       </p>
-    </>
+    </div>
   );
 }
 
@@ -589,7 +710,7 @@ export function InternalWorkspaceForm() {
               setMessage(
                 error instanceof Error
                   ? error.message
-                  : "Could not create workspace",
+                  : t("Could not create workspace"),
               );
             } finally {
               setBusy(false);

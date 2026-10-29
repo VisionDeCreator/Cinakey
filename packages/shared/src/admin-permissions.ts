@@ -7,6 +7,9 @@ export const ADMIN_ROLES = [
 ] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 export type AdminPermission =
+  | "waitlist.read"
+  | "waitlist.manage"
+  | "waitlist.configure"
   | "analytics.read"
   | "analytics.run"
   | "analytics.export"
@@ -35,6 +38,9 @@ export type AdminPermission =
   | "administrators.manage";
 const permissions: Record<AdminRole, readonly AdminPermission[]> = {
   platform_admin: [
+    "waitlist.read",
+    "waitlist.manage",
+    "waitlist.configure",
     "analytics.read",
     "analytics.run",
     "analytics.export",

@@ -59,16 +59,18 @@ function ReasonForm({
 }
 function Pages({
   result,
+  cursor,
   next,
   reset,
 }: {
+  cursor: string | null;
   result: { isDone: boolean; continueCursor: string } | undefined;
   next: (value: string) => void;
   reset: () => void;
 }) {
   return (
     <div className="flex gap-3">
-      <Button onClick={reset}>
+      <Button onClick={reset} disabled={!cursor}>
         <I18nText text="First page" />
       </Button>
       <Button
@@ -269,7 +271,12 @@ export function ModerationPage() {
           <I18nText text="No matching moderation flags on this page." />
         </p>
       )}
-      <Pages result={result} next={setCursor} reset={() => setCursor(null)} />
+      <Pages
+        cursor={cursor}
+        result={result}
+        next={setCursor}
+        reset={() => setCursor(null)}
+      />
     </div>
   );
 }
@@ -429,7 +436,12 @@ export function StoragePage() {
             </tbody>
           </table>
         </div>
-        <Pages result={result} next={setCursor} reset={() => setCursor(null)} />
+        <Pages
+          cursor={cursor}
+          result={result}
+          next={setCursor}
+          reset={() => setCursor(null)}
+        />
       </section>
       <Permission permission="storage.manage">
         {retryFile && (
@@ -540,7 +552,7 @@ function MediaDetail({ storageId }: { storageId: string }) {
         <p>{detail.workspaceId ?? t("Unassigned workspace")}</p>
         {detail.aliases.map((a) => (
           <p key={a.id}>
-            {a.id} · {a.type} · {a.projectId ?? a.workspaceId}
+            {a.id} · {t(a.type)} · {a.projectId ?? a.workspaceId}
             <Permission permission="jobs.read">
               {a.jobId && (
                 <Link className="underline ml-3" to={`/jobs/${a.jobId}`}>
@@ -552,7 +564,7 @@ function MediaDetail({ storageId }: { storageId: string }) {
         ))}
         {detail.publications.map((p) => (
           <p key={p.id}>
-            {p.id} · {p.state} · {p.projectId}
+            {p.id} · {t(p.state)} · {p.projectId}
           </p>
         ))}
         {detail.truncated && (

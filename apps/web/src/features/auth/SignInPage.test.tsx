@@ -1,3 +1,6 @@
+vi.mock("./useRegistrationPolicy", () => ({
+  useRegistrationPolicy: () => true,
+}));
 import {
   act,
   cleanup,

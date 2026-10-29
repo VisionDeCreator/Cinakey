@@ -1366,5 +1366,41 @@
   "adminAnalytics:expire": {
     "kind": "mutation",
     "public": false
+  },
+  "earlyAccess:list": {
+    "kind": "query",
+    "public": true
+  },
+  "earlyAccess:counts": {
+    "kind": "query",
+    "public": true
+  },
+  "earlyAccess:review": {
+    "kind": "mutation",
+    "public": true
+  },
+  "earlyAccess:delivery": {
+    "kind": "query",
+    "public": false
+  },
+  "earlyAccess:recordDelivery": {
+    "kind": "mutation",
+    "public": false
+  },
+  "earlyAccess:sendApproval": {
+    "kind": "action",
+    "public": false
+  },
+  "earlyAccess:publicPolicy": {
+    "kind": "query",
+    "public": false
+  },
+  "earlyAccess:settings": {
+    "kind": "query",
+    "public": true
+  },
+  "earlyAccess:configure": {
+    "kind": "mutation",
+    "public": true
   }
 }

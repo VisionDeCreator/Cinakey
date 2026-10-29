@@ -1,5 +1,7 @@
 export function authErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "";
+  if (/Waitlist approval/i.test(message))
+    return "Waitlist approval is required. Join the waitlist or wait for your approval email.";
   if (/incorrect or expired|Could not verify code/i.test(message))
     return "That code is incorrect or has expired. Try again or request a new code.";
   if (/Rate limit|Too many/i.test(message))

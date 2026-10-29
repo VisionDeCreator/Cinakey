@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-29",
+  "scope": "Final consistency and localization review of the Admin panel; existing uncommitted work preserved.",
+  "fixed": [
+    "Localized payment environments, financial-history kinds/statuses, media publication/alias states and provider model kinds.",
+    "Added the missing Reports tab translation and changed French/Spanish Record headings to nouns.",
+    "Replaced hard-coded dollar/decimal formatting for order and refund amounts with locale-aware USD formatting, preserving cents-to-micros conversion.",
+    "Localized percentages, markup and provider latency units; localized the No cap fallback and remaining fixed success/failure messages.",
+    "Kept operator-entered notes and financial request IDs unchanged; translated their surrounding labels.",
+    "Displayed zero for absent additive metrics in completed report summaries, consistent with the breakdown and CSV.",
+    "Disabled First page consistently on the initial billing, storage, moderation and support pages.",
+    "Expanded source validation to include dynamic Admin label/description/title/text properties and balance labels."
+  ],
+  "browser": {
+    "tool": "Internal browser",
+    "environment": "Local development, authenticated platform administrator",
+    "mainSectionsReviewedInFrench": [
+      "Overview",
+      "Jobs",
+      "Providers",
+      "Directory",
+      "Support",
+      "Billing",
+      "Moderation",
+      "Storage",
+      "Analytics",
+      "Audit log",
+      "Administration"
+    ],
+    "additionalViews": [
+      "Directory workspace tab and workspace detail",
+      "Workspace billing detail",
+      "Provider controls tab",
+      "Analytics Egress tab",
+      "Completed report summary and breakdown"
+    ],
+    "reportLanguages": [
+      "en",
+      "fr",
+      "es",
+      "ko",
+      "ja",
+      "zh"
+    ],
+    "horizontalOverflow": {
+      "testedCssWidth": 1280,
+      "allSixReportLocales": false
+    },
+    "sidebarCollapseAndRestore": "passed",
+    "initialBillingFirstPageButtons": "both disabled",
+    "pageAlertsDuringMainSectionReview": [],
+    "session": "An expired session refreshed successfully using Reload.",
+    "restoredPreferences": {
+      "language": "English",
+      "sidebar": "expanded"
+    },
+    "mutations": "No funds, refunds, roles, restrictions, provider policies, or deletions changed."
+  },
+  "validation": {
+    "adminTests": {
+      "passed": 48
+    },
+    "adminProductionBuild": "passed; existing bundle-size warning",
+    "catalogs": {
+      "messages": 2235,
+      "languages": 6,
+      "passed": true
+    },
+    "credentialCheck": "passed",
+    "diffWhitespaceCheck": "passed",
+    "sharedLocalizationTests": {
+      "passed": 15
+    }
+  },
+  "limitations": [
+    "Role switching and consequential operations were not performed against live accounts.",
+    "No payment-order/refund records were added for browser checks; currency and state cases use controlled UI fixtures.",
+    "No matching live jobs or moderation flags were available for populated detail/recovery checks.",
+    "Layout measurements here cover 1280px; this is not a mobile-device or production acceptance run."
+  ],
+  "screenshot": "analytics-fr.jpg"
+}

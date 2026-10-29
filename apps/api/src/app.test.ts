@@ -484,3 +484,93 @@ it.each(["loadStatusContext", "recordObservation", "backfillWorkspace"])(
     ).toBe(404);
   },
 );
+
+it("keeps waitlist administration authenticated and delivery operations internal", async () => {
+  const app = createApp();
+  for (const name of ["list", "counts", "review"]) {
+    expect((await app.handle(request(`/v1/earlyAccess/${name}`))).status).toBe(
+      401,
+    );
+  }
+  for (const name of [
+    "request",
+    "delivery",
+    "recordDelivery",
+    "sendApproval",
+  ]) {
+    expect(
+      (
+        await app.handle(
+          request(`/v1/earlyAccess/${name}`, { args: {} }, "token"),
+        )
+      ).status,
+    ).toBe(404);
+  }
+});
+it("accepts waitlist locale through the bounded public route without disclosing duplicate state", async () => {
+  const mutation = vi
+    .spyOn(ConvexHttpClient.prototype, "mutation")
+    .mockResolvedValue({ ok: true });
+  const app = createApp();
+  const submit = (body: unknown) =>
+    new Request("http://localhost/early-access", {
+      method: "POST",
+      headers: {
+        Origin: "http://localhost:5173",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const body = {
+    email: "qa@example.com",
+    name: "QA",
+    idea: "Film",
+    website: "",
+    locale: "ko",
+  };
+  expect((await app.handle(submit(body))).status).toBe(200);
+  expect(mutation.mock.calls[0]![1]).toMatchObject({
+    email: body.email,
+    locale: "ko",
+    clientKey: expect.stringMatching(/^[a-f0-9]{64}$/),
+  });
+  expect(
+    (await app.handle(submit({ ...body, locale: "unsupported" }))).status,
+  ).toBe(400);
+  const response = await app.handle(submit({ ...body, website: "spam" }));
+  expect(await response.json()).toEqual({ ok: true });
+  expect(mutation).toHaveBeenCalledOnce();
+});
+
+it("exposes only the public registration mode without a session and fails closed on backend errors", async () => {
+  const query = vi
+    .spyOn(ConvexHttpClient.prototype, "query")
+    .mockResolvedValue({ requireApproval: false });
+  const app = createApp();
+  const response = await app.handle(
+    new Request("http://localhost/registration-policy"),
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(await response.json()).toEqual({ requireApproval: false });
+  expect(getFunctionName(query.mock.calls[0]![0] as never)).toBe(
+    "earlyAccess:publicPolicy",
+  );
+  query.mockRejectedValue(new Error("backend down"));
+  const unavailable = await app.handle(
+    new Request("http://localhost/registration-policy"),
+  );
+  expect(unavailable.status).toBe(503);
+  expect(await unavailable.json()).toEqual({ requireApproval: true });
+  for (const name of ["settings", "configure"])
+    expect((await app.handle(request(`/v1/earlyAccess/${name}`))).status).toBe(
+      401,
+    );
+  expect(
+    (
+      await app.handle(
+        request("/v1/earlyAccess/publicPolicy", { args: {} }, "token"),
+      )
+    ).status,
+  ).toBe(404);
+});

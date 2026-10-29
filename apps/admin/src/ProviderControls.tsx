@@ -6,6 +6,20 @@ import { parseUsdToMicros, usdInputValue } from "@cinakey/shared";
 import { Button } from "@cinakey/ui/button";
 import { Input } from "@cinakey/ui/input";
 import { getLocale, formatUsd, I18nText, t, useLocale } from "@cinakey/ui/i18n";
+import {
+  Search,
+  Wallet,
+  CalendarDays,
+  ListTodo,
+  TriangleAlert,
+} from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@cinakey/ui/select";
 import { Permission } from "./Permissions";
 const money = (n: number) => formatUsd(n);
 function Action({
@@ -21,7 +35,7 @@ function Action({
   const request = useRef<string | null>(null);
   return (
     <form
-      className="space-y-3"
+      className="provider-action space-y-3"
       onSubmit={async (e) => {
         e.preventDefault();
         if (busy) return;
@@ -39,7 +53,8 @@ function Action({
         }
       }}
     >
-      <Input
+      <textarea
+        className="provider-reason"
         aria-label={t("{action} reason", { action: t(label) })}
         placeholder={t("Reason and evidence (at least 10 characters)")}
         minLength={10}
@@ -77,10 +92,11 @@ function LimitForm({ scope }: { scope: Scope }) {
         p?.maxOutstanding === undefined ? "" : String(p.maxOutstanding),
     });
   return (
-    <div className="space-y-3">
-      <label>
+    <div className="provider-limit-form space-y-3">
+      <label className="provider-pause-toggle">
         <input
           type="checkbox"
+          role="switch"
           checked={paused}
           onChange={(e) => setPaused(e.target.checked)}
         />
@@ -152,75 +168,82 @@ function ScopeCard({
     p = scope.policy,
     reserved = scope.all?.reserved ?? 0;
   return (
-    <section className="admin-card p-5 space-y-4">
-      <h2>{scope.key}</h2>
+    <section
+      className="admin-card provider-policy-editor p-5 space-y-4"
+      aria-label={t("Edit limits and pause state")}
+    >
+      <h2>{scope.key === "global" ? t("Global policy") : scope.key}</h2>
       <p>
         {t("Scope pause:")} {p?.paused ? t("Paused") : t("Off")} ·{" "}
         {t("Revision:")} {p?.revision ?? 0}
       </p>
-      <div className="grid gap-3 sm:grid-cols-4">
+      <Permission permission="providers.configure">
+        <LimitForm key={`${scope.key}:${p?.revision ?? 0}`} scope={scope} />
+      </Permission>
+      <details className="provider-disclosure">
+        <summary>{t("Usage and current limits")}</summary>{" "}
+        <div className="grid gap-3 sm:grid-cols-4">
+          <p>
+            <I18nText text="Outstanding reservations" />
+            <br />
+            {scope.all?.active ?? 0} · {money(reserved)}
+          </p>
+          <p>
+            {day}
+            <br />
+            {money(scope.day?.spent ?? 0)} {t("settled")}
+            <br />
+            {t("Committed:")} {money((scope.day?.spent ?? 0) + reserved)}
+          </p>
+          <p>
+            {month}
+            <br />
+            {money(scope.month?.spent ?? 0)} {t("settled")}
+            <br />
+            {t("Committed:")} {money((scope.month?.spent ?? 0) + reserved)}
+          </p>
+          <p>
+            <I18nText text="All-time settled" />
+            <br />
+            {money(scope.all?.spent ?? 0)}
+          </p>
+        </div>
         <p>
-          <I18nText text="Outstanding reservations" />
-          <br />
-          {scope.all?.active ?? 0} · {money(reserved)}
+          {t("Current limits:")} {t("Request")}{" "}
+          {p?.maxRequest === undefined ? t("Unlimited") : money(p.maxRequest)} ·{" "}
+          {t("Daily")}{" "}
+          {p?.dailyCap === undefined ? t("Unlimited") : money(p.dailyCap)} ·{" "}
+          {t("Monthly")}{" "}
+          {p?.monthlyCap === undefined ? t("Unlimited") : money(p.monthlyCap)} ·{" "}
+          {t("Outstanding")} {p?.maxOutstanding ?? t("Unlimited")}
         </p>
-        <p>
-          {day}
-          <br />
-          {money(scope.day?.spent ?? 0)} {t("settled")}
-          <br />
-          {t("Committed:")} {money((scope.day?.spent ?? 0) + reserved)}
-        </p>
-        <p>
-          {month}
-          <br />
-          {money(scope.month?.spent ?? 0)} {t("settled")}
-          <br />
-          {t("Committed:")} {money((scope.month?.spent ?? 0) + reserved)}
-        </p>
-        <p>
-          <I18nText text="All-time settled" />
-          <br />
-          {money(scope.all?.spent ?? 0)}
-        </p>
-      </div>
-      <p>
-        {t("Current limits:")} {t("Request")}{" "}
-        {p?.maxRequest === undefined ? t("Unlimited") : money(p.maxRequest)} ·{" "}
-        {t("Daily")}{" "}
-        {p?.dailyCap === undefined ? t("Unlimited") : money(p.dailyCap)} ·{" "}
-        {t("Monthly")}{" "}
-        {p?.monthlyCap === undefined ? t("Unlimited") : money(p.monthlyCap)} ·{" "}
-        {t("Outstanding")} {p?.maxOutstanding ?? t("Unlimited")}
-      </p>
-      {p && (
-        <p>
-          {p.reason} · {new Date(p.updatedAt).toLocaleString(getLocale())}
-        </p>
-      )}
+        {p && (
+          <p>
+            {p.reason} · {new Date(p.updatedAt).toLocaleString(getLocale())}
+          </p>
+        )}
+      </details>
       <Permission permission="providers.pause">
         {!p?.paused && (
-          <Action
-            label="Pause new paid work"
-            run={(reason, requestId) =>
-              pause({ key: scope.key, reason, requestId })
-            }
-          />
+          <details className="provider-disclosure">
+            <summary>{t("Quick pause")}</summary>
+            <Action
+              label="Pause new paid work"
+              run={(reason, requestId) =>
+                pause({ key: scope.key, reason, requestId })
+              }
+            />
+          </details>
         )}
-      </Permission>
-      <Permission permission="providers.configure">
-        <details>
-          <summary>
-            <I18nText text="Edit limits and pause state" />
-          </summary>
-          <LimitForm key={p?.revision ?? 0} scope={scope} />
-        </details>
       </Permission>
     </section>
   );
 }
 export function ProviderControlsPage() {
   useLocale();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [selectedKey, setSelectedKey] = useState("global");
   const data = useOverview(),
     initialize = useMutation(api.adminProviders.initialize);
   if (!data)
@@ -229,23 +252,68 @@ export function ProviderControlsPage() {
         <I18nText text="Loading provider controls…" />
       </p>
     );
+  const global = data.scopes.find((scope) => scope.key === "global");
+  const selected =
+    data.scopes.find((scope) => scope.key === selectedKey) ?? data.scopes[0];
+  const rows = data.scopes.filter(
+    (scope) =>
+      scope.key.toLowerCase().includes(search.trim().toLowerCase()) &&
+      (filter === "all" ||
+        (filter === "global"
+          ? scope.key === "global"
+          : scope.key.startsWith(`${filter}:`))),
+  );
   return (
-    <div className="space-y-6">
-      <div className="admin-page-heading">
-        <h1>
-          <I18nText text="Provider and spend controls" />
-        </h1>
-        <p>
-          <I18nText text="Global, provider, and model policies apply together. A parent pause cannot be overridden by a model setting. Operations may pause work; platform administrators manage limits and resumption." />
-        </p>
-        <Link className="underline" to="/providers">
-          <I18nText text="Provider health and failures" />
-        </Link>
+    <div className="provider-controls space-y-6">
+      <h2 className="sr-only">{t("Provider and spend controls")}</h2>
+      <div className="provider-summary">
+        {[
+          {
+            Icon: Wallet,
+            label: "Daily committed",
+            value: money(
+              (global?.day?.spent ?? 0) + (global?.all?.reserved ?? 0),
+            ),
+          },
+          {
+            Icon: CalendarDays,
+            label: "Monthly committed",
+            value: money(
+              (global?.month?.spent ?? 0) + (global?.all?.reserved ?? 0),
+            ),
+          },
+          {
+            Icon: ListTodo,
+            label: "Outstanding reservations",
+            value: (global?.all?.active ?? 0).toLocaleString(getLocale()),
+          },
+        ].map(({ Icon, label, value }) => (
+          <section className="admin-card provider-summary-card" key={label}>
+            <Icon size={24} />
+            <div>
+              <span>{t(label)}</span>
+              <strong>{value}</strong>
+            </div>
+          </section>
+        ))}
       </div>
-      <section className="admin-card p-5 space-y-3">
-        <h2>
-          <I18nText text="Accounting readiness" />
-        </h2>
+      <p className="provider-policy-note">
+        {t(
+          "Global, provider, and model policies apply together. A parent pause cannot be overridden by a model setting. Operations may pause work; platform administrators manage limits and resumption.",
+        )}
+      </p>
+      <details
+        className="admin-card provider-accounting p-5 space-y-3"
+        open={data.accounting?.problemJobId ? true : undefined}
+      >
+        <summary>
+          <TriangleAlert size={20} />
+          <span>
+            {t("Accounting readiness")} ·{" "}
+            {data.accounting?.ready ? t("Ready") : t("Initialization required")}
+          </span>
+          <span className="provider-review-setup">{t("Review setup")}</span>
+        </summary>
         <p>
           {data.accounting?.ready ? t("Ready") : t("Initialization required")} ·{" "}
           {t("Jobs examined:")} {data.accounting?.processed ?? 0} ·{" "}
@@ -271,11 +339,116 @@ export function ProviderControlsPage() {
             run={(reason, requestId) => initialize({ reason, requestId })}
           />
         </Permission>
-      </section>
-      <section className="admin-card p-5 space-y-3">
-        <h2>
-          <I18nText text="Limit semantics" />
-        </h2>
+      </details>
+      <div className="provider-policy-layout">
+        <section className="admin-card admin-users-table provider-scope-table">
+          <header>
+            <h2>{t("Scope policies")}</h2>
+            <div className="provider-filters">
+              <label className="admin-search">
+                <Search size={18} />
+                <Input
+                  aria-label={t("Search scopes")}
+                  placeholder={t("Search scopes")}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </label>
+              <Select value={filter} onValueChange={setFilter}>
+                <SelectTrigger aria-label={t("Filter scopes")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    ["all", "All scopes"],
+                    ["global", "Global"],
+                    ["provider", "Providers"],
+                    ["model", "Models"],
+                  ].map(([value, label]) => (
+                    <SelectItem key={value} value={value!}>
+                      {t(label!)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </header>
+          <div className="overflow-auto">
+            <table>
+              <caption className="sr-only">{t("Scope policies")}</caption>
+              <thead>
+                <tr>
+                  {[
+                    "Scope",
+                    "Scope pause:",
+                    "Daily committed",
+                    "Monthly limit",
+                    "Actions",
+                  ].map((label) => (
+                    <th key={label} scope="col">
+                      {t(label)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((scope) => (
+                  <tr
+                    key={scope.key}
+                    className={
+                      selected?.key === scope.key
+                        ? "provider-scope-selected"
+                        : undefined
+                    }
+                  >
+                    <td>{scope.key === "global" ? t("Global") : scope.key}</td>
+                    <td>
+                      <span className="provider-status">
+                        {scope.policy?.paused ? t("Paused") : t("Off")}
+                      </span>
+                    </td>
+                    <td>
+                      {money(
+                        (scope.day?.spent ?? 0) + (scope.all?.reserved ?? 0),
+                      )}
+                    </td>
+                    <td>
+                      {scope.policy?.monthlyCap === undefined
+                        ? t("Unlimited")
+                        : money(scope.policy.monthlyCap)}
+                    </td>
+                    <td>
+                      <button
+                        className="provider-edit-button"
+                        aria-label={t("Review {scope}", { scope: scope.key })}
+                        aria-pressed={selected?.key === scope.key}
+                        onClick={() => setSelectedKey(scope.key)}
+                      >
+                        {t("Edit")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!rows.length && (
+            <p role="status" className="p-5">
+              {t("No scopes match your search.")}
+            </p>
+          )}
+        </section>
+        {selected && (
+          <ScopeCard
+            key={selected.key}
+            scope={selected}
+            day={data.day}
+            month={data.month}
+          />
+        )}
+      </div>
+      <details className="admin-card provider-disclosure p-5 space-y-3">
+        <summary>{t("Limit semantics")}</summary>
         <p>
           <I18nText text="USD limits use ledger retail amounts, including standard prices for company-funded work. Daily and monthly usage follows UTC settlement dates and includes all unresolved reservations, even from earlier periods. These are application admission limits; provider invoices may use different dates and amounts." />
         </p>
@@ -285,19 +458,9 @@ export function ProviderControlsPage() {
         <p>
           <I18nText text="Blank means unlimited. Zero blocks new admission. Settings do not rotate credentials, change provider routing, or rewrite purchased price snapshots." />
         </p>
-      </section>
-      {data.scopes.map((scope) => (
-        <ScopeCard
-          key={scope.key}
-          scope={scope}
-          day={data.day}
-          month={data.month}
-        />
-      ))}
-      <section className="admin-card p-5 space-y-3">
-        <h2>
-          <I18nText text="Active model catalog" />
-        </h2>
+      </details>
+      <details className="admin-card provider-disclosure p-5 space-y-3">
+        <summary>{t("Active model catalog")}</summary>
         {data.models.map((model) => {
           const keys = [
             "global",
@@ -306,20 +469,22 @@ export function ProviderControlsPage() {
           ];
           return (
             <p key={model.id}>
-              {model.id} · {model.provider} · {model.kind} ·{" "}
+              {model.id} · {model.provider} · {t(model.kind)} ·{" "}
               {data.scopes.some((s) => keys.includes(s.key) && s.policy?.paused)
                 ? t("Paused by policy")
                 : t("No pause policy")}
             </p>
           );
         })}
-      </section>
-      <section className="admin-card p-5 space-y-3">
-        <h2>
-          <I18nText text="Deployed pricing snapshots" />
-        </h2>
+      </details>
+      <details className="admin-card provider-disclosure p-5 space-y-3">
+        <summary>{t("Deployed pricing snapshots")}</summary>
         <p>
-          {data.pricing.priceVersion} · {data.pricing.markupBps / 100}%{" "}
+          {data.pricing.priceVersion} ·{" "}
+          {(data.pricing.markupBps / 10000).toLocaleString(getLocale(), {
+            style: "percent",
+            maximumFractionDigits: 2,
+          })}{" "}
           {t("markup")}
         </p>
         <p>
@@ -337,7 +502,7 @@ export function ProviderControlsPage() {
           {money(data.pricing.tokens.cachedInput)} · {t("Output")}{" "}
           {money(data.pricing.tokens.output)}
         </p>
-      </section>
+      </details>
     </div>
   );
 }

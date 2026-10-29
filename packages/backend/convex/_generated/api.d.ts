@@ -55,6 +55,7 @@ import type * as lib_promptSheetDeps from "../lib/promptSheetDeps.js";
 import type * as lib_providerControls from "../lib/providerControls.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_reconciliation from "../lib/reconciliation.js";
+import type * as lib_registrationPolicy from "../lib/registrationPolicy.js";
 import type * as lib_restrictions from "../lib/restrictions.js";
 import type * as lib_versioning from "../lib/versioning.js";
 import type * as lib_workspaces from "../lib/workspaces.js";
@@ -135,6 +136,7 @@ declare const fullApi: ApiFromModules<{
   "lib/providerControls": typeof lib_providerControls;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/reconciliation": typeof lib_reconciliation;
+  "lib/registrationPolicy": typeof lib_registrationPolicy;
   "lib/restrictions": typeof lib_restrictions;
   "lib/versioning": typeof lib_versioning;
   "lib/workspaces": typeof lib_workspaces;

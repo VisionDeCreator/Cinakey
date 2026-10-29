@@ -1,3 +1,4 @@
+import { useRegistrationPolicy } from "../auth/useRegistrationPolicy";
 import {
   I18nText,
   t,
@@ -189,8 +190,8 @@ function FeaturePreview({ title }: { title: string }) {
   );
 }
 
-function Waitlist() {
-  useLocale();
+function Waitlist({ requireApproval }: { requireApproval: boolean }) {
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [idea, setIdea] = useState("");
@@ -198,6 +199,22 @@ function Waitlist() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  if (!requireApproval)
+    return (
+      <section id="early-access" className="marketing-waitlist">
+        <div className="marketing-waitlist-story">
+          <h2>
+            <I18nText text="Create account" />
+          </h2>
+          <p>
+            <I18nText text="Registration is open. Sign up with a verified email to get started." />
+          </p>
+          <Link className="marketing-primary" to="/sign-up">
+            <I18nText text="Create account" />
+          </Link>
+        </div>
+      </section>
+    );
   return (
     <section id="early-access" className="marketing-waitlist">
       <div className="marketing-waitlist-story">
@@ -243,7 +260,7 @@ function Waitlist() {
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email, name, idea, website }),
+                  body: JSON.stringify({ email, name, idea, website, locale }),
                 },
               );
               if (!res.ok)
@@ -298,11 +315,18 @@ function Waitlist() {
             <textarea
               rows={3}
               maxLength={1000}
+              aria-describedby="waitlist-idea-count"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               disabled={busy}
             />
           </label>
+          <p id="waitlist-idea-count" className="marketing-form-note">
+            {t("{0} / {1} characters", {
+              0: idea.length.toLocaleString(locale),
+              1: (1000).toLocaleString(locale),
+            })}
+          </p>
           <label className="marketing-honeypot" aria-hidden="true">
             <I18nText text="Website" />
             <input
@@ -332,6 +356,7 @@ function Waitlist() {
 }
 export function LandingPage() {
   useLocale();
+  const requireApproval = useRegistrationPolicy();
   const { isAuthenticated } = useConvexAuth();
   return (
     <div className="marketing-page">
@@ -341,7 +366,6 @@ export function LandingPage() {
           Cinakey
         </Link>
         <nav aria-label={t("Public navigation")}>
-          <LanguageSelector />
           <a href="#workflow">
             <I18nText text="Workflow" />
           </a>
@@ -356,15 +380,26 @@ export function LandingPage() {
           <Link to={isAuthenticated ? "/projects" : "/sign-in"}>
             {t(isAuthenticated ? "Open app" : "Sign in")}
           </Link>
-          <a className="marketing-primary" href="#early-access">
-            <I18nText text="Request early access" />
+          <a
+            className="marketing-primary"
+            href={requireApproval ? "#early-access" : "/sign-up"}
+          >
+            {requireApproval ? (
+              <I18nText text="Request early access" />
+            ) : (
+              <I18nText text="Create account" />
+            )}
           </a>
         </div>
       </header>
       <main>
         <section className="marketing-hero">
           <span className="marketing-eyebrow">
-            <I18nText text="INVITE-ONLY EARLY ACCESS" />
+            {requireApproval ? (
+              <I18nText text="INVITE-ONLY EARLY ACCESS" />
+            ) : (
+              <I18nText text="OPEN REGISTRATION" />
+            )}
           </span>
           <h1>
             <I18nText text="Your story. One creative workspace." />
@@ -373,8 +408,15 @@ export function LandingPage() {
             <I18nText text="Write, generate, edit, and share videos—with the tools to keep every scene connected." />
           </p>
           <div className="marketing-hero-actions">
-            <a className="marketing-primary" href="#early-access">
-              <I18nText text="Request early access" />
+            <a
+              className="marketing-primary"
+              href={requireApproval ? "#early-access" : "/sign-up"}
+            >
+              {requireApproval ? (
+                <I18nText text="Request early access" />
+              ) : (
+                <I18nText text="Create account" />
+              )}
               <ArrowRight size={18} />
             </a>
             <a className="marketing-secondary" href="#workflow">
@@ -382,7 +424,11 @@ export function LandingPage() {
             </a>
           </div>
           <small>
-            <I18nText text="For creators and small production teams. Access is approved manually." />
+            {requireApproval ? (
+              <I18nText text="For creators and small production teams. Access is approved manually." />
+            ) : (
+              <I18nText text="Registration is open. Sign up with a verified email to get started." />
+            )}
           </small>
         </section>
         <section
@@ -624,12 +670,19 @@ export function LandingPage() {
           <p className="marketing-form-note">
             <I18nText text="USD, plus applicable tax. Generation estimates may reserve a rounded maximum; final charges follow the app’s usage settlement." />
           </p>
-          <a className="marketing-secondary" href="#early-access">
-            <I18nText text="Request early access" />
+          <a
+            className="marketing-secondary"
+            href={requireApproval ? "#early-access" : "/sign-up"}
+          >
+            {requireApproval ? (
+              <I18nText text="Request early access" />
+            ) : (
+              <I18nText text="Create account" />
+            )}
             <ArrowRight size={18} />
           </a>
         </section>
-        <Waitlist />
+        <Waitlist requireApproval={requireApproval} />
       </main>
       <footer className="marketing-footer">
         <Link className="marketing-brand" to="/">
@@ -643,9 +696,14 @@ export function LandingPage() {
         <Link to="/sign-in">
           <I18nText text="Sign in" />
         </Link>
-        <a href="#early-access">
-          <I18nText text="Request early access" />
+        <a href={requireApproval ? "#early-access" : "/sign-up"}>
+          {requireApproval ? (
+            <I18nText text="Request early access" />
+          ) : (
+            <I18nText text="Create account" />
+          )}
         </a>
+        <LanguageSelector />
       </footer>
     </div>
   );

@@ -653,7 +653,7 @@ function WorkspaceRecord({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
               get label() {
                 return t("Monthly cap");
               },
-              value: limit === null ? "No cap" : formatUsd(limit),
+              value: limit === null ? t("No cap") : formatUsd(limit),
               Icon: ShieldCheck,
             },
           ].map(({ label, value, Icon }) => (
@@ -686,7 +686,12 @@ function WorkspaceRecord({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
                 {formatUsd(committed)} <I18nText text="of" />{" "}
                 {formatUsd(limit!)} <I18nText text="committed" />
               </span>
-              <span>{Math.round(percent)}%</span>
+              <span>
+                {(percent / 100).toLocaleString(getLocale(), {
+                  style: "percent",
+                  maximumFractionDigits: 0,
+                })}
+              </span>
             </p>
           </div>
         )}
@@ -824,7 +829,9 @@ function WorkspaceRecord({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
                   setMessage("Company funding enabled.");
                 } catch (error) {
                   setMessage(
-                    error instanceof Error ? error.message : "Request failed",
+                    error instanceof Error
+                      ? error.message
+                      : t("Request failed"),
                   );
                 } finally {
                   setBusy(false);

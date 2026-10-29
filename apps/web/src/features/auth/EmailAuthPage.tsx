@@ -1,3 +1,4 @@
+import { useRegistrationPolicy } from "./useRegistrationPolicy";
 import { I18nText, LanguageSelector, t, useLocale } from "@cinakey/ui/i18n";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -16,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 
 export function EmailAuthPage({ mode }: { mode: "signIn" | "signUp" }) {
   useLocale();
+  const requireApproval = useRegistrationPolicy();
   const { signIn } = useAuthActions();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -129,6 +131,13 @@ export function EmailAuthPage({ mode }: { mode: "signIn" | "signUp" }) {
                 )}
           </p>
         </header>
+        {requireApproval && (
+          <p className="mb-4 text-sm">
+            <Link to="/#early-access">
+              {t("Waitlist approval is required for new accounts.")}
+            </Link>
+          </p>
+        )}
         {!challenge ? (
           <form className="space-y-4" onSubmit={(e) => void sendCode(e)}>
             <div className="space-y-2">

@@ -132,6 +132,22 @@ export function createApp() {
         credentials: true,
       }),
     )
+    .get("/registration-policy", async () => {
+      try {
+        const policy = await createContext(registry).runQuery(
+          internal.earlyAccess.publicPolicy,
+          {},
+        );
+        return Response.json(policy, {
+          headers: { "Cache-Control": "no-store" },
+        });
+      } catch {
+        return Response.json(
+          { requireApproval: true },
+          { status: 503, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    })
     .post(
       "/early-access",
       async ({ request, server }) => {
@@ -145,8 +161,12 @@ export function createApp() {
             !body ||
             typeof body !== "object" ||
             Object.keys(body).some(
-              (k) => !["email", "name", "idea", "website"].includes(k),
+              (k) =>
+                !["email", "name", "idea", "website", "locale"].includes(k),
             ) ||
+            (body.locale !== undefined &&
+              (typeof body.locale !== "string" ||
+                !["en", "fr", "es", "ko", "ja", "zh"].includes(body.locale))) ||
             typeof body.email !== "string" ||
             typeof body.name !== "string" ||
             typeof body.idea !== "string" ||
@@ -167,7 +187,13 @@ export function createApp() {
             .join("");
           await createContext(registry).runMutation(
             internal.earlyAccess.request,
-            { email: body.email, name: body.name, idea: body.idea, clientKey },
+            {
+              email: body.email,
+              name: body.name,
+              idea: body.idea,
+              clientKey,
+              locale: body.locale,
+            },
           );
           return Response.json({ ok: true });
         } catch (error) {

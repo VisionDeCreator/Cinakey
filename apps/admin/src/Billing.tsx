@@ -6,6 +6,12 @@ import { getLocale, formatUsd, I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Button } from "@cinakey/ui/button";
 import { Input } from "@cinakey/ui/input";
 import { Permission } from "./Permissions";
+const balanceLabels = {
+  available: "Available",
+  reserved: "Reserved",
+  spent: "Spent",
+  funded: "Funded",
+} as const;
 function usd(value: number) {
   return `${value < 0 ? "−" : ""}${formatUsd(Math.abs(value))}`;
 }
@@ -64,22 +70,24 @@ function ActionForm({
       <Button disabled={busy} type="submit">
         <I18nText text={label} />
       </Button>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{t(message)}</p>}
     </form>
   );
 }
 function Pager({
   result,
+  cursor,
   next,
   reset,
 }: {
+  cursor: string | null;
   result: { isDone: boolean; continueCursor: string } | undefined;
   next: (cursor: string) => void;
   reset: () => void;
 }) {
   return (
     <div className="flex gap-3 mt-3">
-      <Button onClick={reset}>
+      <Button onClick={reset} disabled={!cursor}>
         <I18nText text="First page" />
       </Button>
       <Button
@@ -117,7 +125,7 @@ export function BillingPage() {
         <p>
           {" "}
           <I18nText text="Payment environment:" />{" "}
-          <strong>{events?.environment ?? "Loading…"}</strong>
+          <strong>{t(events?.environment ?? "Loading…")}</strong>
           <I18nText text=". Amounts in USD." />{" "}
         </p>
       </div>
@@ -153,10 +161,11 @@ export function BillingPage() {
             <Link className="underline" to={`/billing/${row.workspaceId}`}>
               {row.workspaceId}
             </Link>{" "}
-            · {row.environment} · {row.reviewReason}
+            · {t(row.environment)} · {row.reviewReason}
           </div>
         ))}
         <Pager
+          cursor={reviewCursor}
           result={reviews}
           next={setReviewCursor}
           reset={() => setReviewCursor(null)}
@@ -203,7 +212,7 @@ export function BillingPage() {
                 <tr key={row._id}>
                   <td>{time(row.receivedAt)}</td>
                   <td>
-                    {row.environment}
+                    {t(row.environment)}
                     <br />
                     {row.eventType}
                     <br />
@@ -259,7 +268,12 @@ export function BillingPage() {
             </div>
           )}
         </Permission>
-        <Pager result={events} next={setCursor} reset={() => setCursor(null)} />
+        <Pager
+          cursor={cursor}
+          result={events}
+          next={setCursor}
+          reset={() => setCursor(null)}
+        />
       </section>
       <section className="admin-card p-5">
         <h2>
@@ -349,7 +363,7 @@ export function BillingWorkspacePage() {
       <section className="admin-card p-5 grid gap-3 sm:grid-cols-4">
         {(["available", "reserved", "spent", "funded"] as const).map((key) => (
           <div key={key}>
-            <h2>{t(key)}</h2>
+            <h2>{t(balanceLabels[key])}</h2>
             <p>{usd(detail.account?.[key] ?? 0)}</p>
           </div>
         ))}
@@ -521,17 +535,23 @@ export function BillingWorkspacePage() {
                     {"createdAt" in row ? time(row.createdAt) : ""}
                   </td>
                   <td>
-                    {"reason" in row ? row.reason : ""}
-                    {"kind" in row ? row.kind : ""}
+                    {"reason" in row
+                      ? kind === "ledger"
+                        ? t(row.reason)
+                        : row.reason
+                      : ""}
+                    {"kind" in row ? t(row.kind) : ""}
                     <br />
                     {"state" in row
-                      ? row.state
+                      ? t(row.state)
                       : "status" in row
-                        ? row.status
+                        ? t(row.status)
                         : ""}
-                    {"environment" in row ? ` · ${row.environment}` : ""}
+                    {"environment" in row ? ` · ${t(row.environment)}` : ""}
                     <br />
-                    {"requestId" in row ? `Request: ${row.requestId}` : ""}
+                    {"requestId" in row
+                      ? t("Request: {id}", { id: row.requestId })
+                      : ""}
                   </td>
                   <td>
                     {"delta" in row ? (
@@ -544,10 +564,10 @@ export function BillingWorkspacePage() {
                     ) : "netCents" in row ? (
                       <>
                         {" "}
-                        <I18nText text="Net $" />
-                        {(row.netCents / 100).toFixed(2)}
-                        <br /> <I18nText text="Refunded $" />
-                        {(row.refundedCents / 100).toFixed(2)}
+                        <I18nText text="Net amount" />{" "}
+                        {usd(row.netCents * 10000)}
+                        <br /> <I18nText text="Refunded amount" />{" "}
+                        {usd(row.refundedCents * 10000)}
                         <br /> <I18nText text="Granted" />{" "}
                         {usd(row.grantedUsdMicros)}{" "}
                         <I18nText text="· reversed" />{" "}
@@ -561,10 +581,10 @@ export function BillingWorkspacePage() {
                         {usd(row.remaining)} <I18nText text="· held" />{" "}
                         {usd(row.held)}
                         <br /> <I18nText text="Expires" /> {time(row.expiresAt)}
-                        {row.revoked ? " · revoked" : ""}
+                        {row.revoked ? ` · ${t("Revoked")}` : ""}
                       </>
                     ) : "amountCents" in row ? (
-                      `$${(row.amountCents / 100).toFixed(2)}`
+                      usd(row.amountCents * 10000)
                     ) : (
                       ""
                     )}
@@ -594,7 +614,15 @@ export function BillingWorkspacePage() {
                                 orderId: row._id as Id<"paymentOrders">,
                               });
                               setMessage(
-                                `Matched ${result.matched} refunds. Current order reconciled.`,
+                                t(
+                                  "Matched {count} refunds. Current order reconciled.",
+                                  {
+                                    count:
+                                      result.matched.toLocaleString(
+                                        getLocale(),
+                                      ),
+                                  },
+                                ),
                               );
                             } catch (e) {
                               setMessage(
@@ -625,11 +653,12 @@ export function BillingWorkspacePage() {
           </p>
         )}
         <Pager
+          cursor={cursor}
           result={history}
           next={setCursor}
           reset={() => setCursor(null)}
         />
-        {message && <p role="status">{message}</p>}
+        {message && <p role="status">{t(message)}</p>}
         <Permission permission="billing.write">
           {refundOrder && (
             <div className="space-y-3">

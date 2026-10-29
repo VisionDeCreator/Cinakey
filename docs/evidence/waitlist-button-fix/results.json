@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-29",
+  "cause": "Available review actions were silently disabled while the required reason was blank or shorter than ten trimmed characters.",
+  "fix": "Available actions now remain clickable and validate the reason on activation. Invalid reasons produce a translated inline alert, mark the field invalid and focus it. Existing status, registered-account and in-flight restrictions remain enforced.",
+  "internalBrowser": {
+    "emptyApproveFocusesReasonAndShowsError": true,
+    "emptyRejectFocusesReasonAndShowsError": true,
+    "validRejectPersisted": true,
+    "emptyReturnToPendingShowsError": true,
+    "validReturnToPendingPersisted": true,
+    "validApprovePersistedAndQueuedEmail": true,
+    "emptyResendShowsError": true,
+    "syntheticApplicant": "waitlist-buttons-20261029@example.com",
+    "userScreenshotApplicantUnchanged": "test@mail.com remains pending; no decision or email was submitted for it"
+  },
+  "checks": {
+    "adminTests": "53 passed",
+    "adminTypecheck": "passed",
+    "adminBuild": "passed with existing bundle-size warning",
+    "changedFileLint": "passed",
+    "localization": "2296 messages validated across six languages",
+    "diffWhitespace": "passed"
+  },
+  "existingUncommittedChangesPreserved": true
+}

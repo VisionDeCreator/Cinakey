@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import { hasAdminPermission } from "@cinakey/shared";
+import { Activity, Users, ListTodo, ShieldCheck } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useRef, useState } from "react";
 import { api, type Id } from "@cinakey/backend";
 import { useMutation, useQuery, useQueryStatus } from "@cinakey/api-client";
@@ -7,7 +9,7 @@ import { Input } from "@cinakey/ui/input";
 import { getLocale, I18nText, t, useLocale } from "@cinakey/ui/i18n";
 import { Permission } from "./Permissions";
 const amount = (count: { value: number; capped: boolean }) =>
-  `${count.value}${count.capped ? "+" : ""}`;
+  `${count.value.toLocaleString(getLocale())}${count.capped ? "+" : ""}`;
 function Acknowledge({
   incidentId,
 }: {
@@ -168,11 +170,18 @@ function ConfigurationForm({ initial }: { initial: Configuration }) {
 }
 export function OperationsPage() {
   useLocale();
+  const viewer = useQuery(api.users.viewer, {});
   const overview = useQuery(api.adminOperations.overview, {});
   const status = useQueryStatus(api.adminOperations.overview, {});
   const incidents = useQuery(api.adminOperations.listIncidents, {});
+  const [params, setParams] = useSearchParams();
+  const tab = ["service", "workers", "incidents", "monitoring"].includes(
+    params.get("tab") || "",
+  )
+    ? params.get("tab")!
+    : "service";
   return (
-    <>
+    <div className="admin-operations">
       <div className="admin-page-heading">
         <h1>
           <I18nText text="Operations overview" />
@@ -189,108 +198,198 @@ export function OperationsPage() {
           </Button>
         </p>
       )}
+      {incidents && (
+        <section className="admin-operations-banner">
+          <ShieldCheck size={30} />
+          <div>
+            <h2>
+              {incidents.active.length
+                ? t("Active incidents")
+                : t("No active incidents recorded.")}
+            </h2>
+            <p>
+              {status.isReconnecting
+                ? t("Operations data is unavailable or stale. Reconnecting…")
+                : t(
+                    "Service availability, background work, and incidents requiring attention.",
+                  )}
+            </p>
+          </div>
+          <button type="button" onClick={() => setParams({ tab: "incidents" })}>
+            {t("Active incidents")}
+            <span>
+              {" "}
+              · {incidents.active.length.toLocaleString(getLocale())}
+            </span>
+          </button>
+        </section>
+      )}
+      {overview && (
+        <div className="admin-operations-stats">
+          {[
+            {
+              Icon: Activity,
+              label: "API and database",
+              value: status.isReconnecting ? t("Unknown") : t("Reachable"),
+            },
+            {
+              Icon: Users,
+              label: "Healthy workers",
+              value: `${overview.healthyWorkers.toLocaleString(getLocale())} / ${overview.config.expectedWorkers.toLocaleString(getLocale())}`,
+            },
+            {
+              Icon: ListTodo,
+              label: "Ready to run",
+              value: amount(overview.queue.due),
+            },
+            {
+              Icon: ShieldCheck,
+              label: "Active incidents",
+              value: incidents
+                ? incidents.active.length.toLocaleString(getLocale())
+                : "—",
+            },
+          ].map(({ Icon, label, value }) => (
+            <div className="admin-card" key={label}>
+              <Icon size={28} />
+              <div>
+                <span>{t(label)}</span>
+                <strong>{value}</strong>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <nav className="admin-section-tabs" aria-label={t("Operations overview")}>
+        {[
+          ["service", "Service & queue"],
+          ["workers", "Worker instances"],
+          ["incidents", "Active incidents"],
+          ["monitoring", "Monitoring settings"],
+        ]
+          .filter(
+            ([id]) =>
+              id !== "monitoring" ||
+              hasAdminPermission(viewer, "operations.configure"),
+          )
+          .map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              aria-current={tab === id ? "page" : undefined}
+              onClick={() => setParams({ tab: id! })}
+            >
+              {t(label!)}
+            </button>
+          ))}
+      </nav>
       {!overview ? (
         <p role="status">
           <I18nText text="Loading operations…" />
         </p>
       ) : (
         <>
-          <section className="admin-card p-5 space-y-3">
-            <h2>
-              <I18nText text="Service status" />
-            </h2>
-            <p>
-              {t("API and database")}:{" "}
-              {status.isReconnecting ? t("Unknown") : t("Reachable")} ·{" "}
-              {t("Observed at")}:{" "}
-              {new Date(overview.observedAt).toLocaleString(getLocale())}
-            </p>
-            <p>
-              {t("Healthy workers")}: {overview.healthyWorkers} /{" "}
-              {overview.config.expectedWorkers} {t("expected")}
-            </p>
-            {!overview.monitorLastEvaluatedAt && (
+          <div hidden={tab !== "service"} className="admin-operations-service">
+            <section className="admin-card p-5 space-y-3">
+              <h2>
+                <I18nText text="Service status" />
+              </h2>
               <p>
-                <I18nText text="Monitoring is awaiting its first scheduled evaluation." />
+                {t("API and database")}:{" "}
+                {status.isReconnecting ? t("Unknown") : t("Reachable")} ·{" "}
+                {t("Observed at")}:{" "}
+                {new Date(overview.observedAt).toLocaleString(getLocale())}
               </p>
-            )}
-            {overview.monitorLastEvaluatedAt && (
               <p>
-                {t("Last monitoring evaluation")}:{" "}
-                {new Date(overview.monitorLastEvaluatedAt).toLocaleString(
-                  getLocale(),
-                )}
+                {t("Healthy workers")}: {overview.healthyWorkers} /{" "}
+                {overview.config.expectedWorkers} {t("expected")}
               </p>
-            )}
-            {overview.monitorLastEvaluatedAt &&
-              overview.observedAt - overview.monitorLastEvaluatedAt >
-                180_000 && (
-                <p role="alert">
-                  <I18nText text="Scheduled monitoring is stale. Incident status may be out of date." />
+              {!overview.monitorLastEvaluatedAt && (
+                <p>
+                  <I18nText text="Monitoring is awaiting its first scheduled evaluation." />
                 </p>
               )}
-            {!overview.config.enabled && (
-              <p role="status">
-                <I18nText text="Incident monitoring is paused." />
-              </p>
-            )}
-            <p>
-              <I18nText text="The API liveness endpoint is /health; dependency readiness is /ready. Provider connectivity is not probed by this view." />
-            </p>
-          </section>
-          <section className="admin-card p-5">
-            <h2>
-              <I18nText text="Work queue" />
-            </h2>
-            <p className="flex flex-wrap gap-3">
-              <Link className="underline" to="/jobs?attention=uncertain">
-                {t("Review provider submissions")}
-              </Link>
-              <Link className="underline" to="/jobs?attention=billing_review">
-                {t("Review generation billing")}
-              </Link>
-              <Link className="underline" to="/jobs?attention=stalled">
-                {t("Inspect stalled jobs")}
-              </Link>
-            </p>
-            <dl className="grid gap-4 sm:grid-cols-3">
-              {[
-                ["Scheduled tasks", amount(overview.queue.scheduled)],
-                ["Payment reviews", amount(overview.paymentReviews)],
-                ["Ready to run", amount(overview.queue.due)],
-                ["Running tasks", amount(overview.queue.running)],
-                ["Failed tasks", amount(overview.queue.failed)],
-                ["Expired leases", amount(overview.queue.expired)],
-                ["Uncertain submissions", amount(overview.uncertain)],
-                ["Billing reviews", amount(overview.billingReviews)],
-                [
-                  "Failed tasks in the last hour",
-                  amount(overview.recentFailedTasks),
-                ],
-                [
-                  "Failed generations in the last hour",
-                  amount(overview.recentFailedGenerations),
-                ],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt>{t(label!)}</dt>
-                  <dd className="text-2xl">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p>
-              {t("Oldest ready task due at")}:{" "}
-              {overview.queue.oldestDueAt === null
-                ? "—"
-                : new Date(overview.queue.oldestDueAt).toLocaleString(
+              {overview.monitorLastEvaluatedAt && (
+                <p>
+                  {t("Last monitoring evaluation")}:{" "}
+                  {new Date(overview.monitorLastEvaluatedAt).toLocaleString(
                     getLocale(),
                   )}
-            </p>
-            <p>
-              <I18nText text="Counts above 1,000 are marked with +. Older failures without recorded completion timestamps are excluded from hourly counts." />
-            </p>
-          </section>
-          <section className="admin-card p-5 overflow-auto">
+                </p>
+              )}
+              {overview.monitorLastEvaluatedAt &&
+                overview.observedAt - overview.monitorLastEvaluatedAt >
+                  180_000 && (
+                  <p role="alert">
+                    <I18nText text="Scheduled monitoring is stale. Incident status may be out of date." />
+                  </p>
+                )}
+              {!overview.config.enabled && (
+                <p role="status">
+                  <I18nText text="Incident monitoring is paused." />
+                </p>
+              )}
+              <p>
+                <I18nText text="The API liveness endpoint is /health; dependency readiness is /ready. Provider connectivity is not probed by this view." />
+              </p>
+            </section>
+            <section className="admin-card p-5">
+              <h2>
+                <I18nText text="Work queue" />
+              </h2>
+              <p className="flex flex-wrap gap-3">
+                <Link className="underline" to="/jobs?attention=uncertain">
+                  {t("Review provider submissions")}
+                </Link>
+                <Link className="underline" to="/jobs?attention=billing_review">
+                  {t("Review generation billing")}
+                </Link>
+                <Link className="underline" to="/jobs?attention=stalled">
+                  {t("Inspect stalled jobs")}
+                </Link>
+              </p>
+              <dl className="grid gap-4 sm:grid-cols-3">
+                {[
+                  ["Scheduled tasks", amount(overview.queue.scheduled)],
+                  ["Payment reviews", amount(overview.paymentReviews)],
+                  ["Ready to run", amount(overview.queue.due)],
+                  ["Running tasks", amount(overview.queue.running)],
+                  ["Failed tasks", amount(overview.queue.failed)],
+                  ["Expired leases", amount(overview.queue.expired)],
+                  ["Uncertain submissions", amount(overview.uncertain)],
+                  ["Billing reviews", amount(overview.billingReviews)],
+                  [
+                    "Failed tasks in the last hour",
+                    amount(overview.recentFailedTasks),
+                  ],
+                  [
+                    "Failed generations in the last hour",
+                    amount(overview.recentFailedGenerations),
+                  ],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{t(label!)}</dt>
+                    <dd className="text-2xl">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p>
+                {t("Oldest ready task due at")}:{" "}
+                {overview.queue.oldestDueAt === null
+                  ? "—"
+                  : new Date(overview.queue.oldestDueAt).toLocaleString(
+                      getLocale(),
+                    )}
+              </p>
+              <p>
+                <I18nText text="Counts above 1,000 are marked with +. Older failures without recorded completion timestamps are excluded from hourly counts." />
+              </p>
+            </section>
+          </div>
+          <section
+            hidden={tab !== "workers"}
+            className="admin-card p-5 overflow-auto admin-workers-table"
+          >
             <h2>
               <I18nText text="Worker instances" />
             </h2>
@@ -342,12 +441,22 @@ export function OperationsPage() {
               </p>
             )}
           </section>
-          <Permission permission="operations.configure">
-            <ConfigurationForm initial={overview.config} />
-          </Permission>
+          <div hidden={tab !== "monitoring"}>
+            {!hasAdminPermission(viewer, "operations.configure") && (
+              <p role="alert">
+                {t("You do not have permission to view this section.")}
+              </p>
+            )}
+            <Permission permission="operations.configure">
+              <ConfigurationForm initial={overview.config} />
+            </Permission>
+          </div>
         </>
       )}
-      <section className="admin-card p-5 space-y-4">
+      <section
+        hidden={tab !== "incidents"}
+        className="admin-card p-5 space-y-4"
+      >
         <h2>
           <I18nText text="Active incidents" />
         </h2>
@@ -399,6 +508,43 @@ export function OperationsPage() {
           </>
         )}
       </section>
-    </>
+      {tab === "service" && incidents && (
+        <section className="admin-card admin-recent-recoveries">
+          <h2>{t("Recent recoveries")}</h2>
+          {incidents.recentResolved.length ? (
+            <div className="overflow-auto">
+              <table>
+                <caption className="sr-only">{t("Recent recoveries")}</caption>
+                <thead>
+                  <tr>
+                    <th>{t("Active incidents")}</th>
+                    <th>{t("Observed at")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incidents.recentResolved.slice(0, 5).map((incident) => (
+                    <tr key={incident._id}>
+                      <td>{t(incident.summary)}</td>
+                      <td>
+                        {incident.resolvedAt
+                          ? new Date(incident.resolvedAt).toLocaleString(
+                              getLocale(),
+                            )
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>—</p>
+          )}
+          <button type="button" onClick={() => setParams({ tab: "incidents" })}>
+            {t("Recent recoveries")}
+          </button>
+        </section>
+      )}
+    </div>
   );
 }

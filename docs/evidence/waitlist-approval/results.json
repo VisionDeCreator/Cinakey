@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-29",
+  "environment": "Existing development Convex deployment; localhost Admin and isolated QA web/API",
+  "syntheticApplicant": "waitlist-approval-20261029@example.com",
+  "browser": "Internal browser",
+  "checks": {
+    "publicSubmissionStored": true,
+    "adminCountsAndApplicantDetails": true,
+    "exactEmailSearch": true,
+    "statusFiltersAndEmptyState": true,
+    "pendingValidOtpDenied": true,
+    "rejectedValidOtpDenied": true,
+    "rejectAndReturnToPending": true,
+    "adminApproval": true,
+    "approvedSignupReachedPersonalWorkspace": true,
+    "registrationTrackedInAdmin": true,
+    "approvalEmailSmtpAccepted": true,
+    "resendEmailSmtpAccepted": true,
+    "auditHistoryVisible": true,
+    "logoutAndSubsequentLogin": true,
+    "syntheticSessionSignedOutAfterTesting": true,
+    "existingAdminSessionRetained": true,
+    "sixLanguagesReviewed": ["en", "fr", "es", "ko", "ja", "zh"],
+    "existingUserRecordsCompared": 7,
+    "existingUserRecordsUnchanged": true,
+    "syntheticNewAccounts": 1
+  },
+  "automated": {
+    "backendFullSuite": "310 passed; subsequent waitlist suite 5 passed after adding pagination coverage",
+    "adminSuite": "49 passed; subsequent localization regression test passed",
+    "apiBoundaryAndApprovalDelivery": "31 passed",
+    "webLandingAndAuthentication": "9 passed",
+    "typechecks": ["backend", "api", "web", "admin"],
+    "adminProductionBuild": "passed; existing bundle-size warning",
+    "apiLint": "passed",
+    "newAdminFilesLint": "passed",
+    "adminFullLint": "two pre-existing Media.tsx React-hook warnings; max-warnings=0 fails",
+    "localization": "2259 messages across six catalogs"
+  },
+  "limits": [
+    "OTP SMTP was captured locally for the synthetic recipient; ordinary approval delivery used the normal worker and SMTP. Sent means SMTP accepted, not verified inbox placement.",
+    "Google approval denial and account linking were verified in automated callback tests; no interactive third-party Google login was performed.",
+    "One clearly marked synthetic applicant and its account/workspace remain in development. No real applicant decisions were changed.",
+    "Existing uncommitted source changes were retained; no commit or reset was performed."
+  ]
+}

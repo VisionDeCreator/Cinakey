@@ -1,3 +1,4 @@
+import { registrationPolicy } from "./registrationPolicy";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { ensurePersonalWorkspaceForUser } from "./workspaces";
@@ -41,6 +42,8 @@ export async function verifiedEmailUser(
     ? await ctx.db.get(existingUserId)
     : matches[0];
   if (existingUserId && !existing) throw new Error("Account is unavailable");
+  // Existing accounts (including staff) retain access at cutover. Every new
+  // account follows the current registration policy; verification never grants roles.
   if (existing) {
     if (existing.suspendedAt !== undefined)
       throw new Error("This account is suspended. Contact support.");
@@ -53,11 +56,27 @@ export async function verifiedEmailUser(
       await ensurePersonalWorkspaceForUser(ctx, existing._id);
     return existing._id;
   }
+  const approval = await ctx.db
+    .query("earlyAccessRequests")
+    .withIndex("by_email", (q) => q.eq("email", email))
+    .unique();
+  if (
+    (await registrationPolicy(ctx)).requireApproval &&
+    approval?.status !== "approved"
+  )
+    throw new Error(
+      "Waitlist approval is required. Join the waitlist or wait for your approval email.",
+    );
   const userId = await ctx.db.insert("users", {
     email,
     emailVerificationTime: Date.now(),
     ...profile,
   });
+  if (approval)
+    await ctx.db.patch(approval._id, {
+      registeredUserId: userId,
+      registeredAt: Date.now(),
+    });
   await ensurePersonalWorkspaceForUser(ctx, userId);
   return userId;
 }

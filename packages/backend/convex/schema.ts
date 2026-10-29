@@ -15,13 +15,38 @@ const lineage = v.object({
 const schema = defineSchema(
   {
     ...authTables,
+    registrationSettings: defineTable({
+      key: v.literal("platform"),
+      requireApproval: v.boolean(),
+      revision: v.number(),
+      updatedBy: v.id("users"),
+      updatedAt: v.number(),
+    }).index("by_key", ["key"]),
     earlyAccessRequests: defineTable({
+      locale: v.optional(v.string()),
       email: v.string(),
       name: v.string(),
       idea: v.string(),
-      status: v.literal("pending"),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("approved"),
+        v.literal("rejected"),
+      ),
+      revision: v.optional(v.number()),
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      reason: v.optional(v.string()),
+      registeredUserId: v.optional(v.id("users")),
+      registeredAt: v.optional(v.number()),
+      deliveryGeneration: v.optional(v.number()),
+      emailDelivery: v.optional(
+        v.union(v.literal("queued"), v.literal("sent"), v.literal("failed")),
+      ),
       createdAt: v.number(),
-    }).index("by_email", ["email"]),
+    })
+      .index("by_email", ["email"])
+      .index("by_status_created", ["status", "createdAt"])
+      .index("by_created", ["createdAt"]),
     analyticsReports: defineTable({
       actorUserId: v.id("users"),
       requestId: v.string(),

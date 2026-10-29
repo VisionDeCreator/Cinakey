@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-29",
+  "behavior": "Approve, Reject and Return to pending accept omitted, empty or short optional reasons; supplied notes are limited to 2000 characters.",
+  "browser": "Internal browser against the development backend",
+  "syntheticApplicant": "waitlist-buttons-20261029@example.com",
+  "emptyReasonActionsVerified": ["Reject", "Return to pending", "Approve"],
+  "safeguards": "Administrative permissions, registered-account protections, revisions, audit records and resend/configuration reason requirements retained.",
+  "checks": {"adminTargetedTests":6,"backendTargetedTests":6,"adminTypecheck":"passed","apiTypecheck":"passed","adminBuild":"passed","changedFileLint":"passed","localization":"2300 messages across six catalogs"},
+  "existingUncommittedChangesPreserved": true,
+  "realApplicantsChanged": false
+}

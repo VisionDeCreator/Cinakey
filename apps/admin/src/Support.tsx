@@ -63,16 +63,18 @@ function SupportAction({
 }
 function Pages({
   result,
+  cursor,
   next,
   reset,
 }: {
+  cursor: string | null;
   result: { isDone: boolean; continueCursor: string } | undefined;
   next: (value: string) => void;
   reset: () => void;
 }) {
   return (
     <div className="flex gap-3">
-      <Button onClick={reset}>
+      <Button onClick={reset} disabled={!cursor}>
         <I18nText text="First page" />
       </Button>
       <Button
@@ -223,7 +225,12 @@ export function SupportPage() {
             <I18nText text="No matching support cases." />
           </p>
         )}
-        <Pages result={result} next={setCursor} reset={() => setCursor(null)} />
+        <Pages
+          cursor={cursor}
+          result={result}
+          next={setCursor}
+          reset={() => setCursor(null)}
+        />
       </section>
     </div>
   );
@@ -431,6 +438,7 @@ function SupportTarget({
           <CaseCard key={`${record._id}:${record.updatedAt}`} record={record} />
         ))}
         <Pages
+          cursor={caseCursor}
           result={cases}
           next={setCaseCursor}
           reset={() => setCaseCursor(null)}
@@ -476,6 +484,7 @@ function SupportTarget({
           </article>
         ))}
         <Pages
+          cursor={noteCursor}
           result={notes}
           next={setNoteCursor}
           reset={() => setNoteCursor(null)}

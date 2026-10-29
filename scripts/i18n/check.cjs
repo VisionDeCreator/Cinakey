@@ -68,6 +68,15 @@ function scan(directory) {
     }
     function visit(node) {
       if (
+        file.startsWith("apps/admin/src/") &&
+        ts.isPropertyAssignment(node) &&
+        ["label", "description", "title", "text"].includes(
+          node.name.getText(ast),
+        ) &&
+        ts.isStringLiteral(node.initializer)
+      )
+        check(node.initializer.text, node.initializer);
+      if (
         ts.isCallExpression(node) &&
         ["t", "tn"].includes(node.expression.getText(ast))
       ) {
@@ -133,6 +142,7 @@ for (const [file, declarations] of [
   ],
   ["packages/shared/src/admin-permissions.ts", ["ADMIN_ROLE_LABELS"]],
   ["apps/admin/src/App.tsx", ["sections"]],
+  ["apps/admin/src/Billing.tsx", ["balanceLabels"]],
 ]) {
   const ast = ts.createSourceFile(
     file,

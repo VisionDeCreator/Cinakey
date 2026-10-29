@@ -1,3 +1,7 @@
+const policy = vi.hoisted(() => ({ required: true }));
+vi.mock("../auth/useRegistrationPolicy", () => ({
+  useRegistrationPolicy: () => policy.required,
+}));
 import { setLocale, t } from "@cinakey/ui/i18n";
 import {
   act,
@@ -14,6 +18,7 @@ vi.mock("@/lib/api/hooks", () => ({
   useConvexAuth: () => ({ isAuthenticated: false }),
 }));
 afterEach(() => {
+  policy.required = true;
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -91,4 +96,26 @@ it("localizes landing copy and form labels while preserving an unsubmitted draft
   } finally {
     act(() => setLocale("en"));
   }
+});
+
+it("replaces the waitlist and manual-approval copy with direct signup when registration is open", () => {
+  policy.required = false;
+  setLocale("en");
+  render(
+    <MemoryRouter>
+      <LandingPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText("OPEN REGISTRATION")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText("INVITE-ONLY EARLY ACCESS"),
+  ).not.toBeInTheDocument();
+  for (const link of screen.getAllByRole("link", { name: "Create account" }))
+    expect(link).toHaveAttribute("href", "/sign-up");
+  expect(
+    screen.queryByText(
+      "For creators and small production teams. Access is approved manually.",
+    ),
+  ).not.toBeInTheDocument();
 });
