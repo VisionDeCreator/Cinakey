@@ -1,0 +1,112 @@
+# Dokploy: select this file; configure .env through the Environment editor.
+name: cinakey
+services:
+  api:
+    image: cinakey-server:${RELEASE_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deployments/api/Dockerfile
+    command: ["bun", "--no-env-file", "apps/api/src/bootstrap.ts"]
+    env_file:
+      - ./.env
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        read_only: true
+        bind: { create_host_path: false }
+    environment:
+      PORT: "3001"
+      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+    stop_grace_period: 150s
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    expose: ["3001"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+  worker:
+    image: cinakey-server:${RELEASE_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deployments/api/Dockerfile
+    command: ["bun", "--no-env-file", "apps/worker/src/index.ts"]
+    env_file:
+      - ./.env
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        read_only: true
+        bind: { create_host_path: false }
+    environment:
+      PORT: "3001"
+      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+    stop_grace_period: 150s
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    healthcheck:
+      test:
+        ["CMD", "bun", "--no-env-file", "deployments/scripts/worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+  api-proxy:
+    build:
+      context: ./deployments/proxy
+      dockerfile: Dockerfile
+    ports: ["127.0.0.1:${API_PORT:-8082}:80"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+  web:
+    image: cinakey-web:${RELEASE_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deployments/web/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${VITE_CONVEX_URL:-${CONVEX_URL:-https://your-deployment.convex.cloud}}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
+        VITE_ADMIN_URL: ${VITE_ADMIN_URL:-http://localhost:8081}
+    ports: ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+  admin:
+    image: cinakey-admin:${RELEASE_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deployments/admin/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${VITE_CONVEX_URL:-${CONVEX_URL:-https://your-deployment.convex.cloud}}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
+        VITE_WEB_URL: ${VITE_WEB_URL:-http://localhost:8080}
+        VITE_APP_ENV: ${VITE_APP_ENV:-production}
+    ports: ["127.0.0.1:${ADMIN_PORT:-8081}:80"]
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

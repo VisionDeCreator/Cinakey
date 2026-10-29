@@ -1,0 +1,32 @@
+name: cinakey-worker
+services:
+  worker:
+    image: cinakey-server:${RELEASE_VERSION:-local}
+    build:
+      context: ../..
+      dockerfile: deployments/api/Dockerfile
+    command: ["bun", "--no-env-file", "apps/worker/src/index.ts"]
+    env_file:
+      - ./.env
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        read_only: true
+        bind: { create_host_path: false }
+    environment:
+      PORT: "3001"
+      WORKER_HEALTH_FILE: /tmp/cinakey-worker-health.json
+    stop_grace_period: 150s
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    healthcheck:
+      test:
+        ["CMD", "bun", "--no-env-file", "deployments/scripts/worker-health.ts"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3

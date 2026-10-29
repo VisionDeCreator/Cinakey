@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import type { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { safeErrorMessage } from "../providers/errors";
@@ -34,7 +35,25 @@ export function startWorkerMonitor(
       }),
     ])
       .then(
-        () => {},
+        () => {
+          // Optional container liveness marker: only update after Convex accepts a heartbeat.
+          if (process.env.WORKER_HEALTH_FILE) {
+            try {
+              writeFileSync(
+                process.env.WORKER_HEALTH_FILE,
+                JSON.stringify({
+                  at: Date.now(),
+                  lastPollAt,
+                  activeTasks,
+                  stopping,
+                }),
+                { mode: 0o600 },
+              );
+            } catch {
+              console.error("[worker] could not write local health marker");
+            }
+          }
+        },
         (error) =>
           console.error(
             "[worker] monitoring heartbeat failed",

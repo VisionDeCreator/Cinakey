@@ -74,3 +74,37 @@ it("bounds shutdown time when monitoring requests never return", async () => {
   await vi.advanceTimersByTimeAsync(11_000);
   await closing;
 });
+
+it("writes container health only after successful monitoring and marks graceful shutdown", async () => {
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "cinakey-monitor-"));
+  const path = join(dir, "health.json");
+  vi.stubEnv("WORKER_HEALTH_FILE", path);
+  vi.useFakeTimers();
+  const send = vi
+    .spyOn(ConvexHttpClient.prototype, "mutation")
+    .mockResolvedValue(null);
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const monitor = startWorkerMonitor(
+      new ConvexHttpClient("https://example.convex.cloud"),
+      "health-test",
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    const first = JSON.parse(readFileSync(path, "utf8"));
+    send.mockRejectedValue(new Error("offline"));
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(JSON.parse(readFileSync(path, "utf8")).at).toBe(first.at);
+    send.mockResolvedValue(null);
+    monitor.polled();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(JSON.parse(readFileSync(path, "utf8")).lastPollAt).toBe(Date.now());
+    await monitor.close();
+    expect(JSON.parse(readFileSync(path, "utf8")).stopping).toBe(true);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

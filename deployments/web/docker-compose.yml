@@ -1,0 +1,17 @@
+name: cinakey-web
+services:
+  web:
+    image: cinakey-web:${RELEASE_VERSION:-local}
+    build:
+      context: ../..
+      dockerfile: deployments/web/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${VITE_CONVEX_URL:-${CONVEX_URL:-https://your-deployment.convex.cloud}}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
+        VITE_ADMIN_URL: ${VITE_ADMIN_URL:-http://localhost:8081}
+    ports: ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

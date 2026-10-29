@@ -711,3 +711,5 @@ Page not found. Evidence and explicit coverage limits are recorded in
 [the acceptance results](docs/evidence/admin-localization/acceptance.json).
 Live roles, funds, refunds, media deletion, and provider controls were not changed.
 Role and financial-permission boundaries remain covered by automated tests.
+
+Docker deployment configuration, per-service environment templates, production Convex tooling, and rollout/rollback instructions are available in [the deployment runbook](deployments/README.md).

@@ -1,0 +1,22 @@
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 201m;
+    location / {
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $api_backend api:3001;
+        proxy_pass http://$api_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        # The external TLS ingress must overwrite this header and be the only
+        # caller of this loopback-bound listener.
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        # Overwrite client-supplied forwarding chains. See proxy/README.md.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+        proxy_read_timeout 650s;
+        proxy_send_timeout 650s;
+    }
+}

@@ -1,0 +1,18 @@
+name: cinakey-admin
+services:
+  admin:
+    image: cinakey-admin:${RELEASE_VERSION:-local}
+    build:
+      context: ../..
+      dockerfile: deployments/admin/Dockerfile
+      args:
+        VITE_CONVEX_URL: ${VITE_CONVEX_URL:-${CONVEX_URL:-https://your-deployment.convex.cloud}}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8082}
+        VITE_WEB_URL: ${VITE_WEB_URL:-http://localhost:8080}
+        VITE_APP_ENV: ${VITE_APP_ENV:-production}
+    ports: ["127.0.0.1:${ADMIN_PORT:-8081}:80"]
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
