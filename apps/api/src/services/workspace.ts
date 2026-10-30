@@ -47,22 +47,33 @@ export const script = action({
   args: {
     projectId: v.id("projects"),
     id: v.optional(v.id("workspaceScripts")),
+    segmentId: v.optional(v.id("scriptSegments")),
   },
   handler: async (
     ctx,
-    { projectId, id },
-  ): Promise<{ id: Id<"workspaceScripts">; text: string }> => {
+    { projectId, id, segmentId },
+  ): Promise<{
+    id: Id<"workspaceScripts">;
+    segmentId?: Id<"scriptSegments">;
+    text: string;
+  }> => {
     await access(ctx, projectId);
     await initializeProject(ctx, projectId);
-    const state = await ctx.runQuery(api.workspace.list, { projectId });
+    const state = await ctx.runQuery(api.workspace.list, {
+      projectId,
+      segmentId,
+    });
     const row = id
       ? await ctx.runQuery(api.workspace.scriptRecord, { id })
       : state.script;
     if (row && row.projectId !== projectId)
       throw new Error("Script belongs to another project");
     if (!row) throw new Error("Script not found");
+    if (segmentId && row.segmentId !== segmentId)
+      throw new Error("Script belongs to another segment");
     return {
       id: row._id,
+      segmentId: row.segmentId,
       text: row.contentFileId
         ? String(await loadJson(ctx, row.contentFileId))
         : (row.text ?? ""),
@@ -122,6 +133,7 @@ type StagingSave = {
   clearPlan?: boolean;
   clearScript?: boolean;
   projectId: Id<"projects">;
+  segmentId?: Id<"scriptSegments">;
   id?: Id<"workspaceStaging">;
   document: unknown;
   expectedFileId?: Id<"_storage">;
@@ -146,6 +158,19 @@ async function persistStaging(
     : null;
   if (args.id && (!row || row.projectId !== args.projectId))
     throw new Error("Staging not found");
+  const segmentId =
+    args.segmentId ??
+    row?.segmentId ??
+    (await ctx.runQuery(api.workspace.list, { projectId: args.projectId }))
+      .segments[0]?._id;
+  if (segmentId) {
+    await ctx.runQuery(api.workspace.list, {
+      projectId: args.projectId,
+      segmentId,
+    });
+    if (row?.segmentId && row.segmentId !== segmentId)
+      throw new Error("Staging belongs to another segment");
+  }
   const document = assertBlockoutDocument(args.document);
   if (document.project.id !== args.projectId)
     throw new Error("Staging belongs to another project");
@@ -174,6 +199,7 @@ async function persistStaging(
   const { storageId } = await saveJson(ctx, document);
   const id = await ctx.runMutation(internal.workspace.commitStaging, {
     mediaAssetIds,
+    segmentId,
     projectId: args.projectId,
     id: args.id,
     name: document.name || "Staging",
@@ -191,6 +217,7 @@ async function persistStaging(
 export const saveStaging = action({
   args: {
     projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
     id: v.optional(v.id("workspaceStaging")),
     document: v.any(),
     expectedFileId: v.optional(v.id("_storage")),
@@ -200,6 +227,8 @@ export const saveStaging = action({
 export const generateStaging = action({
   args: {
     projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
+    scriptVersionId: v.optional(v.id("workspaceScripts")),
     durationSec: v.number(),
     reuse: v.optional(v.boolean()),
     id: v.optional(v.id("workspaceStaging")),
@@ -222,12 +251,27 @@ export const generateStaging = action({
     if (!project) throw new Error("Project not found");
     const script = await ctx.runAction(api.workspace.script, {
       projectId: args.projectId,
+      segmentId: args.segmentId,
+      id: args.scriptVersionId,
     });
     if (!script.text.trim()) throw new Error("Write a script first");
     const existing = args.id
       ? await ctx.runQuery(api.workspace.stagingRecord, { id: args.id })
       : null;
-    if (existing && existing.projectId !== args.projectId)
+    if (
+      existing &&
+      (existing.projectId !== args.projectId ||
+        (args.segmentId &&
+          existing.segmentId &&
+          existing.segmentId !== args.segmentId) ||
+        (args.segmentId &&
+          existing.scriptVersionId &&
+          (
+            await ctx.runQuery(api.workspace.scriptRecord, {
+              id: existing.scriptVersionId,
+            })
+          )?.segmentId !== args.segmentId))
+    )
       throw new Error("Staging project mismatch");
     let plan: StagingPlan;
     let planFileId = existing?.planFileId;
@@ -265,12 +309,16 @@ export const generateStaging = action({
     });
     delete document.sequenceId;
     const saved = await persistStaging(ctx, {
+      segmentId: script.segmentId,
       projectId: args.projectId,
       id: args.id,
       document,
       expectedFileId: existing?.contentFileId,
       planFileId,
-      scriptVersionId: script.id,
+      scriptVersionId:
+        args.reuse && existing?.planFileId
+          ? existing.scriptVersionId
+          : script.id,
     });
     return { id: saved.id, usdMicros };
   },
@@ -278,6 +326,8 @@ export const generateStaging = action({
 export const generate = action({
   args: {
     projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
+    scriptVersionId: v.optional(v.id("workspaceScripts")),
     maxCostUsdMicros: v.optional(v.number()),
     quoteId: v.optional(v.id("usageQuotes")),
     prompt: v.optional(v.string()),
@@ -312,6 +362,8 @@ export const generate = action({
     if (!project) throw new Error("Project not found");
     const script = await ctx.runAction(api.workspace.script, {
       projectId: args.projectId,
+      segmentId: args.segmentId,
+      id: args.scriptVersionId,
     });
     const assets = await ctx.runQuery(api.assets.list, {
       projectId: args.projectId,
@@ -335,7 +387,17 @@ export const generate = action({
       if (
         !staging ||
         staging.projectId !== args.projectId ||
-        !staging.previzAssetId
+        !staging.previzAssetId ||
+        (args.segmentId &&
+          staging.segmentId &&
+          staging.segmentId !== args.segmentId) ||
+        (args.segmentId &&
+          staging.scriptVersionId &&
+          (
+            await ctx.runQuery(api.workspace.scriptRecord, {
+              id: staging.scriptVersionId,
+            })
+          )?.segmentId !== args.segmentId)
       )
         throw new Error("Export staging to a previsualization video first");
       if (referenceVideoAssetId)
@@ -346,6 +408,8 @@ export const generate = action({
       maxCostUsdMicros: args.maxCostUsdMicros,
       quoteId: args.quoteId,
       projectId: args.projectId,
+      segmentId: script.segmentId,
+      scriptVersionId: script.id,
       requestId: args.requestId,
       kind: args.kind ?? "text-to-video",
       adapterId: "seedance-2.5",
@@ -367,6 +431,7 @@ export const generate = action({
           args.aspectRatio ??
           project.generationSettings?.aspectRatio ??
           project.aspectRatio,
+        segmentId: args.segmentId,
         scriptVersionId: script.id,
         stagingId: args.stagingId,
       },

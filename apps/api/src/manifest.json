@@ -1526,5 +1526,17 @@
   "helpContent:apply": {
     "kind": "mutation",
     "public": false
+  },
+  "workspace:createSegment": {
+    "kind": "mutation",
+    "public": true
+  },
+  "workspace:updateSegment": {
+    "kind": "mutation",
+    "public": true
+  },
+  "workspace:reorderSegments": {
+    "kind": "mutation",
+    "public": true
   }
 }

@@ -2384,5 +2384,15 @@
   "Imported revision": "가져온 리비전",
   "Last content deployment": "최근 콘텐츠 배포",
   "Edited in Admin; deployment review required": "관리자 화면에서 수정됨; 배포 검토 필요",
-  "Approved database override": "승인된 데이터베이스 재정의"
+  "Approved database override": "승인된 데이터베이스 재정의",
+  "Archived segment": "보관된 구간",
+  "Script segment": "스크립트 구간",
+  "Add segment": "구간 추가",
+  "Segment title": "구간 제목",
+  "Planned seconds": "예상 시간(초)",
+  "Segment duration": "구간 길이",
+  "Move earlier": "앞으로 이동",
+  "Move later": "뒤로 이동",
+  "Archive segment": "구간 보관",
+  "Selected segment only": "선택한 구간만"
 }

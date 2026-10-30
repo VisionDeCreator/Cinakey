@@ -94,6 +94,7 @@ export const removeProjects = internalMutation({
       "productionAssignments",
       "projectResources",
       "projectAssetLinks",
+      "scriptSegments",
       "workspaceScripts",
       "workspaceStaging",
       "timelineVersions",
@@ -159,6 +160,7 @@ type CleanupTable =
   | "apiTasks"
   | "productionAssignments"
   | "projectResources"
+  | "scriptSegments"
   | "workspaceScripts"
   | "workspaceStaging"
   | "timelineVersions"

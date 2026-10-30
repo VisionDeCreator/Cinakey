@@ -2384,5 +2384,15 @@
   "Imported revision": "导入版本",
   "Last content deployment": "最近内容部署",
   "Edited in Admin; deployment review required": "已在管理界面编辑；部署时需审核",
-  "Approved database override": "已批准使用数据库版本"
+  "Approved database override": "已批准使用数据库版本",
+  "Archived segment": "已归档片段",
+  "Script segment": "脚本片段",
+  "Add segment": "添加片段",
+  "Segment title": "片段标题",
+  "Planned seconds": "计划秒数",
+  "Segment duration": "片段时长",
+  "Move earlier": "前移",
+  "Move later": "后移",
+  "Archive segment": "归档片段",
+  "Selected segment only": "仅所选片段"
 }

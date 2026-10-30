@@ -90,7 +90,7 @@ export const rename = mutation({
       .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    const tip = rows.find((row) => row.isTip);
+    const tip = rows.find((row) => row.isTip && row._id === args.expectedId);
     if (!tip || tip._id !== args.expectedId)
       throw new Error(
         "Script changed in another window. Reload before renaming.",
@@ -110,11 +110,35 @@ export const rename = mutation({
     const id = await ctx.db.insert("workspaceScripts", {
       projectId: args.projectId,
       text,
+      segmentId: tip.segmentId,
       parentId: tip._id,
       label: `Rename @${alias} to @${newAlias}`,
       isTip: true,
       createdAt: Date.now(),
     });
+    // Aliases are shared by all segments. Version every affected current script atomically.
+    for (const other of rows.filter(
+      (row) => row.isTip && row._id !== tip._id,
+    )) {
+      if (other.text === undefined)
+        throw new Error("Save all scripts before renaming a reference");
+      if (scriptMentions(other.text).includes(newAlias))
+        throw new Error("That name already appears in another segment");
+      const rewritten = renameReferenceMentions(other.text, alias, newAlias);
+      if (rewritten === other.text) continue;
+      if (rewritten.length > 200000)
+        throw new Error("Renaming would exceed the script length limit");
+      await ctx.db.patch(other._id, { isTip: false });
+      await ctx.db.insert("workspaceScripts", {
+        projectId: args.projectId,
+        segmentId: other.segmentId,
+        text: rewritten,
+        parentId: other._id,
+        label: `Rename @${alias} to @${newAlias}`,
+        isTip: true,
+        createdAt: Date.now(),
+      });
+    }
     await ctx.db.patch(args.projectId, {
       referenceBindings: bindings.map((b) =>
         b.alias === alias ? { ...b, alias: newAlias } : b,
@@ -153,7 +177,7 @@ export const replace = mutation({
       .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    const tip = rows.find((r) => r.isTip);
+    const tip = rows.find((r) => r.isTip && r._id === args.expectedId);
     if (!tip || tip._id !== args.expectedId)
       throw new Error(
         "Script changed in another window. Reload before replacing.",
@@ -173,6 +197,7 @@ export const replace = mutation({
     const id = await ctx.db.insert("workspaceScripts", {
       projectId: args.projectId,
       text,
+      segmentId: tip.segmentId,
       parentId: tip._id,
       label: `Replace @${alias} with @${newAlias}`,
       isTip: true,
@@ -180,7 +205,7 @@ export const replace = mutation({
     });
     await ctx.db.patch(args.projectId, {
       referenceBindings: [
-        ...bindings.filter((b) => b.alias !== alias),
+        ...bindings.filter((b) => b.alias !== newAlias),
         { alias: newAlias, assetId: args.assetId },
       ],
       updatedAt: Date.now(),
@@ -215,6 +240,7 @@ export const undoReplacement = mutation({
       current.projectId !== args.projectId ||
       current.parentId !== args.previousVersionId ||
       previous?.projectId !== args.projectId ||
+      previous?.segmentId !== current.segmentId ||
       previous.text === undefined
     )
       throw new Error(
@@ -224,7 +250,11 @@ export const undoReplacement = mutation({
     if (
       bindings.find((b) => b.alias === args.alias)?.assetId !== args.assetId ||
       (args.alias !== args.originalAlias &&
-        bindings.some((b) => b.alias === args.originalAlias))
+        bindings.some(
+          (b) =>
+            b.alias === args.originalAlias &&
+            b.assetId !== args.previousAssetId,
+        ))
     )
       throw new Error(
         "This reference changed in another window. Refresh before undoing.",
@@ -238,6 +268,7 @@ export const undoReplacement = mutation({
     const id = await ctx.db.insert("workspaceScripts", {
       projectId: args.projectId,
       text: previous.text,
+      segmentId: current.segmentId,
       parentId: current._id,
       label: "Undo reference replacement",
       isTip: true,
@@ -245,7 +276,9 @@ export const undoReplacement = mutation({
     });
     await ctx.db.patch(args.projectId, {
       referenceBindings: [
-        ...bindings.filter((b) => b.alias !== args.alias),
+        ...bindings.filter(
+          (b) => b.alias !== args.alias && b.alias !== args.originalAlias,
+        ),
         ...(args.previousAssetId
           ? [{ alias: args.originalAlias, assetId: args.previousAssetId }]
           : []),

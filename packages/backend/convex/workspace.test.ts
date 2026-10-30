@@ -422,3 +422,261 @@ it("converts mixed baked-in image mentions to an unused video alias and can undo
     }),
   ).rejects.toThrow("script has changed");
 });
+
+it("migrates a legacy script chain once without changing version IDs", async () => {
+  const { t, user, projectId } = await fixture();
+  const ids = await t.run(async (ctx) => {
+    const first = await ctx.db.insert("workspaceScripts", {
+      projectId,
+      text: "Original",
+      label: "v1",
+      isTip: false,
+      createdAt: 1,
+    });
+    const current = await ctx.db.insert("workspaceScripts", {
+      projectId,
+      text: "Current",
+      parentId: first,
+      label: "v2",
+      isTip: true,
+      createdAt: 2,
+    });
+    return [first, current];
+  });
+  await user.action(api.workspace.ensure, { projectId });
+  await user.action(api.workspace.ensure, { projectId });
+  const state = await user.query(api.workspace.list, { projectId });
+  expect(state.segments).toHaveLength(1);
+  expect(state.scripts.map((s) => s._id).sort()).toEqual([...ids].sort());
+  expect(state.script?._id).toBe(ids[1]);
+  expect(
+    (
+      await user.action(api.workspace.script, {
+        projectId,
+        id: ids[0],
+        segmentId: state.segments[0]!._id,
+      })
+    ).text,
+  ).toBe("Original");
+});
+
+it("keeps segment histories independent, validates membership, and preserves archived versions", async () => {
+  const { user, projectId } = await fixture();
+  await user.action(api.workspace.ensure, { projectId });
+  const first = (await user.query(api.workspace.list, { projectId }))
+    .segments[0]!._id;
+  const second = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  const a = await user.action(api.workspace.script, {
+    projectId,
+    segmentId: first,
+  });
+  const b = await user.action(api.workspace.script, {
+    projectId,
+    segmentId: second,
+  });
+  const nextA = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId: first,
+    expectedId: a.id,
+    text: "Opening",
+  });
+  const nextB = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId: second,
+    expectedId: b.id,
+    text: "Ending",
+  });
+  expect(
+    (
+      await user.query(api.workspace.list, { projectId, segmentId: first })
+    ).scripts.map((s) => s._id),
+  ).not.toContain(nextB);
+  expect(
+    (await user.action(api.workspace.script, { projectId, segmentId: first }))
+      .id,
+  ).toBe(nextA);
+  await expect(
+    user.action(api.workspace.script, {
+      projectId,
+      segmentId: first,
+      id: nextB,
+    }),
+  ).rejects.toThrow("another segment");
+  await expect(
+    user.mutation(api.workspace.saveScript, {
+      projectId,
+      segmentId: first,
+      expectedId: a.id,
+      text: "stale",
+    }),
+  ).rejects.toThrow("another window");
+  await user.mutation(api.workspace.reorderSegments, {
+    projectId,
+    segmentIds: [second, first],
+  });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).segments.map(
+      (s) => s._id,
+    ),
+  ).toEqual([second, first]);
+  await expect(
+    user.mutation(api.workspace.reorderSegments, {
+      projectId,
+      segmentIds: [first, first],
+    }),
+  ).rejects.toThrow("exactly once");
+  await user.mutation(api.workspace.updateSegment, {
+    projectId,
+    segmentId: second,
+    archive: true,
+  });
+  expect(
+    (await user.action(api.workspace.script, { projectId, id: nextB })).text,
+  ).toBe("Ending");
+  await expect(
+    user.mutation(api.workspace.updateSegment, {
+      projectId,
+      segmentId: first,
+      archive: true,
+    }),
+  ).rejects.toThrow("at least one");
+  const otherProject = await user.mutation(api.projects.create, {
+    title: "Other",
+  });
+  await expect(
+    user.query(api.workspace.list, {
+      projectId: otherProject,
+      segmentId: first,
+    }),
+  ).rejects.toThrow("not found");
+});
+
+it("generates from the exact selected segment version even after a newer edit", async () => {
+  setTestProviders(true);
+  const { t, user, projectId } = await fixture();
+  const segmentId = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  const original = await user.action(api.workspace.script, {
+    projectId,
+    segmentId,
+  });
+  const version = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId,
+    expectedId: original.id,
+    text: "Frozen segment",
+  });
+  await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId,
+    expectedId: version,
+    text: "Newer draft",
+  });
+  const started = await user.action(api.workspace.generate, {
+    projectId,
+    segmentId,
+    scriptVersionId: version,
+    durationSec: 5,
+    resolution: "720p",
+  });
+  await t.run(async (ctx) => {
+    const job = await ctx.db.get(started.jobId);
+    expect(job?.segmentId).toBe(segmentId);
+    expect(job?.scriptVersionId).toBe(version);
+    expect(job?.prompt).toBe("Frozen segment");
+  });
+});
+
+it("renames a shared reference in all current segment scripts while preserving old versions", async () => {
+  const { t, user, userId, projectId } = await fixture();
+  const second = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  const first = (await user.query(api.workspace.list, { projectId }))
+    .segments[0]!._id;
+  const assetId = await t.run(async (ctx) =>
+    ctx.db.insert("assets", {
+      projectId,
+      storageId: await ctx.storage.store(new Blob(["media"])),
+      searchText: "character",
+      sizeBytes: 5,
+      tags: [],
+      starred: false,
+      createdBy: userId,
+      createdAt: 1,
+      updatedAt: 1,
+      type: "image",
+      name: "Hero",
+      format: "image/png",
+    }),
+  );
+  await user.mutation(api.references.bind, {
+    projectId,
+    alias: "hero",
+    assetId,
+  });
+  const before = [];
+  for (const segmentId of [first, second]) {
+    const current = await user.action(api.workspace.script, {
+      projectId,
+      segmentId,
+    });
+    before.push(
+      await user.mutation(api.workspace.saveScript, {
+        projectId,
+        segmentId,
+        expectedId: current.id,
+        text: "@hero enters",
+      }),
+    );
+  }
+  await user.mutation(api.references.rename, {
+    projectId,
+    expectedId: before[1]!,
+    alias: "hero",
+    newAlias: "lead",
+  });
+  for (const segmentId of [first, second])
+    expect(
+      (await user.action(api.workspace.script, { projectId, segmentId })).text,
+    ).toBe("@lead enters");
+  for (const id of before)
+    expect(
+      (await user.action(api.workspace.script, { projectId, id })).text,
+    ).toBe("@hero enters");
+});
+
+it("keeps manually created staging in its segment and rejects moving it across segments", async () => {
+  const { user, projectId } = await fixture();
+  const segmentId = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  const state = await user.query(api.workspace.list, { projectId });
+  const first = state.segments[0]!._id;
+  const empty = await user.action(api.workspace.loadStaging, {
+    projectId,
+    newDocument: true,
+  });
+  const saved = await user.action(api.workspace.saveStaging, {
+    projectId,
+    segmentId,
+    document: empty.document,
+  });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).staging.find(
+      (s) => s._id === saved.id,
+    )?.segmentId,
+  ).toBe(segmentId);
+  await expect(
+    user.action(api.workspace.saveStaging, {
+      projectId,
+      segmentId: first,
+      id: saved.id,
+      expectedFileId: saved.fileId,
+      document: empty.document,
+    }),
+  ).rejects.toThrow("another segment");
+});

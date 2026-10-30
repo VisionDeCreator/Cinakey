@@ -60,12 +60,14 @@ vi.mock("@/lib/api/hooks", () => ({
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploadFiles: state.upload, uploads: [] }),
 }));
-function mount() {
+function mount(segmentId?: string, recoverLegacyDraft = false) {
   const saveRef = { current: null as (() => Promise<boolean>) | null };
   return {
     ...render(
       <StudioScript
         projectId="project"
+        segmentId={segmentId}
+        recoverLegacyDraft={recoverLegacyDraft}
         onDirty={state.dirty}
         saveRef={saveRef}
       />,
@@ -160,9 +162,7 @@ describe("connected script references and safe autosave", () => {
     expect(state.save.mock.calls[1]![0].text).toBe("Second edit");
     expect(input).toHaveValue("Second edit");
     expect(await saveRef.current?.()).toBe(true);
-    expect(
-      localStorage.getItem("dirrio.scriptDraft.project.plain"),
-    ).toBeNull();
+    expect(localStorage.getItem("dirrio.scriptDraft.project.plain")).toBeNull();
   });
 });
 
@@ -401,5 +401,43 @@ it("finds a series resource by its character name before adoption", async () => 
     projectId: "project",
     alias: "jess",
     assetId: "shared-jess",
+  });
+});
+
+it("recovers legacy drafts into only the first segment and saves to its own segment", async () => {
+  localStorage.setItem("dirrio.scriptDraft.project.plain", "Recovered opening");
+  const first = mount("opening", true);
+  await act(async () => {});
+  expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
+    "Recovered opening",
+  );
+  await act(async () => {
+    await first.saveRef.current?.();
+  });
+  expect(state.save).toHaveBeenCalledWith({
+    projectId: "project",
+    segmentId: "opening",
+    expectedId: "tip",
+    text: "Recovered opening",
+  });
+  expect(localStorage.getItem("dirrio.scriptDraft.project.plain")).toBeNull();
+  first.unmount();
+  localStorage.setItem(
+    "dirrio.scriptDraft.project.ending.plain",
+    "Recovered ending",
+  );
+  const second = mount("ending");
+  await act(async () => {});
+  expect(screen.getByRole("textbox", { name: "Script" })).toHaveValue(
+    "Recovered ending",
+  );
+  await act(async () => {
+    await second.saveRef.current?.();
+  });
+  expect(state.save).toHaveBeenLastCalledWith({
+    projectId: "project",
+    segmentId: "ending",
+    expectedId: "tip",
+    text: "Recovered ending",
   });
 });

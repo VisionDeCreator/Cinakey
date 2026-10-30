@@ -2384,5 +2384,15 @@
   "Imported revision": "Revisión importada",
   "Last content deployment": "Último despliegue del contenido",
   "Edited in Admin; deployment review required": "Editado en Admin; se requiere revisar el despliegue",
-  "Approved database override": "Versión de la base de datos aprobada"
+  "Approved database override": "Versión de la base de datos aprobada",
+  "Archived segment": "Segmento archivado",
+  "Script segment": "Segmento del guion",
+  "Add segment": "Añadir segmento",
+  "Segment title": "Título del segmento",
+  "Planned seconds": "Segundos previstos",
+  "Segment duration": "Duración del segmento",
+  "Move earlier": "Mover antes",
+  "Move later": "Mover después",
+  "Archive segment": "Archivar segmento",
+  "Selected segment only": "Solo el segmento seleccionado"
 }

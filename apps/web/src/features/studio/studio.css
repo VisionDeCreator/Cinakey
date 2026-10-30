@@ -1756,3 +1756,55 @@
 .studio-generation-controls .studio-duration-control {
   grid-column: 1 / -1;
 }
+
+.studio-segments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-studio-border, #333);
+}
+.studio-segments label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 8px;
+}
+.studio-segments input,
+.studio-segments select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: var(--color-studio-panel);
+  padding: 6px;
+}
+
+.studio-segment-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--color-studio-muted, #a1a1aa);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.studio-segment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.studio-segments button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.studio-segment-actions button {
+  flex: 1 1 120px;
+}

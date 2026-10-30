@@ -2384,5 +2384,15 @@
   "Imported revision": "Imported revision",
   "Last content deployment": "Last content deployment",
   "Edited in Admin; deployment review required": "Edited in Admin; deployment review required",
-  "Approved database override": "Approved database override"
+  "Approved database override": "Approved database override",
+  "Archived segment": "Archived segment",
+  "Script segment": "Script segment",
+  "Add segment": "Add segment",
+  "Segment title": "Segment title",
+  "Planned seconds": "Planned seconds",
+  "Segment duration": "Segment duration",
+  "Move earlier": "Move earlier",
+  "Move later": "Move later",
+  "Archive segment": "Archive segment",
+  "Selected segment only": "Selected segment only"
 }

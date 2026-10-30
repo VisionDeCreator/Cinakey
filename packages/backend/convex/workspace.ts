@@ -17,10 +17,80 @@ import {
   requireProjectAccess,
 } from "./lib/access";
 import { getFileUrl } from "./storage";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+
+async function projectSegments(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projects">,
+) {
+  return (
+    await ctx.db
+      .query("scriptSegments")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect()
+  ).sort((a, b) => a.order - b.order);
+}
+async function segmentFor(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projects">,
+  segmentId?: Id<"scriptSegments">,
+) {
+  const segment = segmentId
+    ? await ctx.db.get(segmentId)
+    : (await projectSegments(ctx, projectId)).find((s) => !s.archivedAt);
+  if (
+    segmentId &&
+    (!segment || segment.projectId !== projectId || segment.archivedAt)
+  )
+    throw new Error("Segment not found in project");
+  return segment;
+}
+async function initializeSegments(ctx: MutationCtx, projectId: Id<"projects">) {
+  const segments = await projectSegments(ctx, projectId);
+  const project = await ctx.db.get(projectId);
+  if (!project) throw new Error("Project not found");
+  const segmentId =
+    segments[0]?._id ??
+    (await ctx.db.insert("scriptSegments", {
+      projectId,
+      title: "Segment 1",
+      order: 0,
+      durationSec: 30,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }));
+  const scripts = await ctx.db
+    .query("workspaceScripts")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect();
+  for (const script of scripts)
+    if (!script.segmentId) await ctx.db.patch(script._id, { segmentId });
+  for (const staging of await ctx.db
+    .query("workspaceStaging")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect()) {
+    if (!staging.segmentId)
+      await ctx.db.patch(staging._id, {
+        segmentId:
+          scripts.find((s) => s._id === staging.scriptVersionId)?.segmentId ??
+          segmentId,
+      });
+  }
+  if (!scripts.some((s) => s.isTip))
+    await ctx.db.insert("workspaceScripts", {
+      projectId,
+      segmentId,
+      text: "",
+      label: "Project script",
+      isTip: true,
+      createdAt: Date.now(),
+    });
+}
 const projectArgs = { projectId: v.id("projects") };
 export const list = query({
-  args: projectArgs,
-  handler: async (ctx, { projectId }) => {
+  args: { ...projectArgs, segmentId: v.optional(v.id("scriptSegments")) },
+  handler: async (ctx, { projectId, segmentId }) => {
     await requireProjectAccess(ctx, projectId);
     const scripts = await ctx.db
       .query("workspaceScripts")
@@ -30,18 +100,39 @@ export const list = query({
       .query("workspaceStaging")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect();
+    const segments = await projectSegments(ctx, projectId);
+    const segment = await segmentFor(ctx, projectId, segmentId);
+    const selected = scripts.filter((s) => s.segmentId === segment?._id);
     return {
+      segments: segments
+        .filter((s) => !s.archivedAt)
+        .map((segment) => ({
+          ...segment,
+          versionCount: scripts.filter((s) => s.segmentId === segment._id)
+            .length,
+        })),
       migrated: scripts.some((script) => script.isTip),
-      script: scripts.find((s) => s.isTip) ?? null,
-      scripts: scripts
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .map((script) => ({
+      script: selected.find((s) => s.isTip) ?? null,
+      scripts: selected
+        .sort(
+          (a, b) =>
+            b.createdAt - a.createdAt || b._creationTime - a._creationTime,
+        )
+        .map((script, index) => ({
+          version: selected.length - index,
           _id: script._id,
           label: script.label,
           createdAt: script.createdAt,
           isTip: script.isTip,
         })),
-      staging: staging.sort((a, b) => b.updatedAt - a.updatedAt),
+      staging: staging
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((row) => ({
+          ...row,
+          segmentId:
+            row.segmentId ??
+            scripts.find((s) => s._id === row.scriptVersionId)?.segmentId,
+        })),
     };
   },
 });
@@ -49,6 +140,7 @@ export const list = query({
 export const saveScript = mutation({
   args: {
     ...projectArgs,
+    segmentId: v.optional(v.id("scriptSegments")),
     text: v.string(),
     expectedId: v.optional(v.id("workspaceScripts")),
   },
@@ -60,7 +152,8 @@ export const saveScript = mutation({
       .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    const tip = rows.find((r) => r.isTip);
+    const segment = await segmentFor(ctx, args.projectId, args.segmentId);
+    const tip = rows.find((r) => r.isTip && r.segmentId === segment?._id);
     if (tip?._id !== args.expectedId)
       throw new Error(
         "Script changed in another window. Your local draft is preserved; reload before saving.",
@@ -87,6 +180,7 @@ export const saveScript = mutation({
     if (tip) await ctx.db.patch(tip._id, { isTip: false });
     return ctx.db.insert("workspaceScripts", {
       projectId: args.projectId,
+      segmentId: segment?._id,
       text: args.text,
       parentId: tip?._id,
       label: "Script",
@@ -107,6 +201,7 @@ export const stagingRecord = query({
 export const commitStaging = internalMutation({
   args: {
     ...projectArgs,
+    segmentId: v.optional(v.id("scriptSegments")),
     id: v.optional(v.id("workspaceStaging")),
     name: v.string(),
     contentFileId: v.id("_storage"),
@@ -174,6 +269,19 @@ export const videos = query({
       .query("generationJobs")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect();
+    const scripts = await ctx.db
+      .query("workspaceScripts")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+    const versionNumbers = new Map<string, number>();
+    const counts = new Map<string | undefined, number>();
+    for (const script of scripts.sort(
+      (a, b) => a.createdAt - b.createdAt || a._creationTime - b._creationTime,
+    )) {
+      const version = (counts.get(script.segmentId) ?? 0) + 1;
+      counts.set(script.segmentId, version);
+      versionNumbers.set(script._id, version);
+    }
     return {
       videos: await Promise.all(
         assets
@@ -186,6 +294,20 @@ export const videos = query({
             durationSec: asset.durationSec ?? null,
             createdAt: asset.createdAt,
             starred: asset.starred,
+            segmentId: jobs.find(
+              (j) =>
+                j._id === asset.jobId || j.outputAssetIds.includes(asset._id),
+            )?.segmentId,
+            scriptVersionId: jobs.find(
+              (j) =>
+                j._id === asset.jobId || j.outputAssetIds.includes(asset._id),
+            )?.scriptVersionId,
+            scriptVersion: versionNumbers.get(
+              jobs.find(
+                (j) =>
+                  j._id === asset.jobId || j.outputAssetIds.includes(asset._id),
+              )?.scriptVersionId ?? "",
+            ),
             generated: Boolean(
               asset.jobId ||
               jobs.some((j) => j.outputAssetIds.includes(asset._id)),
@@ -196,6 +318,8 @@ export const videos = query({
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((j) => ({
           jobId: j._id,
+          segmentId: j.segmentId,
+          scriptVersionId: j.scriptVersionId,
           model: j.model,
           status: j.status,
           errorMessage: j.errorMessage,
@@ -207,14 +331,19 @@ export const videos = query({
   },
 });
 export const estimateStaging = query({
-  args: { ...projectArgs, durationSec: v.number() },
+  args: {
+    ...projectArgs,
+    segmentId: v.optional(v.id("scriptSegments")),
+    durationSec: v.number(),
+  },
   handler: async (ctx, args) => {
     await requireProjectAccess(ctx, args.projectId);
     const scripts = await ctx.db
       .query("workspaceScripts")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    const tip = scripts.find((s) => s.isTip);
+    const segment = await segmentFor(ctx, args.projectId, args.segmentId);
+    const tip = scripts.find((s) => s.isTip && s.segmentId === segment?._id);
     const tokens = estimateStagingTokens(
       tip?.text ?? " ".repeat(80000),
       Math.max(1, Math.ceil(args.durationSec / 5)),
@@ -255,21 +384,7 @@ export const assertAccess = internalQuery({
 export const initialize = internalMutation({
   args: projectArgs,
   handler: async (ctx, { projectId }) => {
-    const project = await ctx.db.get(projectId);
-    if (!project) throw new Error("Project not found");
-    const tip = await ctx.db
-      .query("workspaceScripts")
-      .withIndex("by_project", (q) => q.eq("projectId", projectId))
-      .filter((q) => q.eq(q.field("isTip"), true))
-      .first();
-    if (!tip)
-      await ctx.db.insert("workspaceScripts", {
-        projectId,
-        text: "",
-        label: "Project script",
-        isTip: true,
-        createdAt: Date.now(),
-      });
+    await initializeSegments(ctx, projectId);
   },
 });
 
@@ -284,4 +399,89 @@ export const auditAll = internalQuery({
     assets: await ctx.db.query("assets").collect(),
     jobs: await ctx.db.query("generationJobs").collect(),
   }),
+});
+
+export const createSegment = mutation({
+  args: { ...projectArgs, title: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireProjectWrite(ctx, args.projectId);
+    await initializeSegments(ctx, args.projectId);
+    const segments = await projectSegments(ctx, args.projectId);
+    const title = args.title?.trim() || `Segment ${segments.length + 1}`;
+    if (title.length > 120)
+      throw new Error("Segment title exceeds 120 characters");
+    const id = await ctx.db.insert("scriptSegments", {
+      projectId: args.projectId,
+      title,
+      order: Math.max(...segments.map((s) => s.order)) + 1,
+      durationSec: 30,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await ctx.db.insert("workspaceScripts", {
+      projectId: args.projectId,
+      segmentId: id,
+      text: "",
+      label: "Script",
+      isTip: true,
+      createdAt: Date.now(),
+    });
+    return id;
+  },
+});
+export const updateSegment = mutation({
+  args: {
+    ...projectArgs,
+    segmentId: v.id("scriptSegments"),
+    title: v.optional(v.string()),
+    durationSec: v.optional(v.number()),
+    archive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireProjectWrite(ctx, args.projectId);
+    await segmentFor(ctx, args.projectId, args.segmentId);
+    if (
+      args.title !== undefined &&
+      (!args.title.trim() || args.title.trim().length > 120)
+    )
+      throw new Error("Use a title of 1–120 characters");
+    if (
+      args.durationSec !== undefined &&
+      (!Number.isInteger(args.durationSec) ||
+        args.durationSec < 4 ||
+        args.durationSec > 30)
+    )
+      throw new Error("Segment duration must be 4–30 seconds");
+    if (
+      args.archive &&
+      (await projectSegments(ctx, args.projectId)).filter((s) => !s.archivedAt)
+        .length <= 1
+    )
+      throw new Error("Keep at least one segment");
+    await ctx.db.patch(args.segmentId, {
+      ...(args.title !== undefined ? { title: args.title.trim() } : {}),
+      ...(args.durationSec !== undefined
+        ? { durationSec: args.durationSec }
+        : {}),
+      ...(args.archive ? { archivedAt: Date.now() } : {}),
+      updatedAt: Date.now(),
+    });
+  },
+});
+export const reorderSegments = mutation({
+  args: { ...projectArgs, segmentIds: v.array(v.id("scriptSegments")) },
+  handler: async (ctx, args) => {
+    await requireProjectWrite(ctx, args.projectId);
+    const segments = (await projectSegments(ctx, args.projectId)).filter(
+      (s) => !s.archivedAt,
+    );
+    if (
+      args.segmentIds.length !== segments.length ||
+      new Set(args.segmentIds).size !== segments.length ||
+      segments.some((s) => !args.segmentIds.includes(s._id))
+    )
+      throw new Error("Include each active segment exactly once");
+    for (const [order, id] of args.segmentIds.entries())
+      await ctx.db.patch(id, { order, updatedAt: Date.now() });
+  },
 });

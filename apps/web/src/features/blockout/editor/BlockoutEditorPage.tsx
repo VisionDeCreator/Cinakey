@@ -123,6 +123,7 @@ export function BlockoutEditorPage() {
   }, [canWrite]);
   const { projectId } = useParams();
   const [search, setSearch] = useSearchParams();
+  const segmentId = search.get("segment") || undefined;
 
   const project = useQuery(
     api.projects.get,
@@ -497,13 +498,18 @@ export function BlockoutEditorPage() {
     setStatus(null);
     try {
       const saved = await saveStaging({
+        segmentId: segmentId as never,
         projectId: projectId as never,
         id: (stagingId as never) ?? undefined,
         document: snapshot,
         expectedFileId: loadedFile.current,
       });
       loadedFile.current = saved.fileId;
-      if (!stagingId) setSearch({ staging: saved.id }, { replace: true });
+      if (!stagingId)
+        setSearch(
+          { staging: saved.id, ...(segmentId ? { segment: segmentId } : {}) },
+          { replace: true },
+        );
       const unchanged = editRevision.current === revision;
       if (unchanged) setDirty(false);
       setStatus(
@@ -553,6 +559,7 @@ export function BlockoutEditorPage() {
       commitDoc(next, { undo: false });
       if (projectId) {
         const saved = await saveStaging({
+          segmentId: segmentId as never,
           projectId: projectId as never,
           id: (stagingId as never) ?? undefined,
           document: next,
@@ -620,12 +627,16 @@ export function BlockoutEditorPage() {
         let savedStagingId = stagingId;
         if (!savedStagingId) {
           const saved = await saveStaging({
+            segmentId: segmentId as never,
             projectId: projectId as never,
             document: doc,
           });
           savedStagingId = saved.id;
           loadedFile.current = saved.fileId;
-          setSearch({ staging: saved.id }, { replace: true });
+          setSearch(
+            { staging: saved.id, ...(segmentId ? { segment: segmentId } : {}) },
+            { replace: true },
+          );
         }
         await setPrevizAsset({
           id: savedStagingId as never,
@@ -804,7 +815,7 @@ export function BlockoutEditorPage() {
       <header className="staging-editor-header flex shrink-0 flex-wrap items-center gap-2 border-b border-zinc-800 px-2 py-1.5">
         <Button type="button" size="sm" variant="ghost" className="h-8" asChild>
           <Link
-            to={`/projects/${projectId}/studio${stagingId ? `?staging=${stagingId}` : ""}`}
+            to={`/projects/${projectId}/studio?segment=${segmentId ?? ""}${stagingId ? `&staging=${stagingId}` : ""}`}
           >
             <ArrowLeft className="size-3.5" />
             <I18nText text="Back to Studio" />

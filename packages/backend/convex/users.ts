@@ -376,6 +376,12 @@ async function purgeProject(ctx: MutationCtx, projectId: Id<"projects">) {
     await ctx.db.delete(e._id);
   }
 
+  for (const segment of await ctx.db
+    .query("scriptSegments")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .collect())
+    await ctx.db.delete(segment._id);
+
   const scripts = await ctx.db
     .query("workspaceScripts")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

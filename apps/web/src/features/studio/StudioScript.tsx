@@ -37,6 +37,9 @@ import {
 
 export function StudioScript({
   projectId,
+  segmentId,
+  versionRef,
+  recoverLegacyDraft,
   onDirty,
   onValidityChange,
   saveRef,
@@ -44,6 +47,9 @@ export function StudioScript({
 }: {
   stagingReferenceId?: string;
   projectId: string;
+  segmentId?: string;
+  recoverLegacyDraft?: boolean;
+  versionRef?: MutableRefObject<string | undefined>;
   onDirty: (dirty: boolean) => void;
   onValidityChange?: (valid: boolean) => void;
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
@@ -58,6 +64,7 @@ export function StudioScript({
   const project = useQuery(api.projects.get, { projectId: projectId as never });
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
+    segmentId: segmentId as never,
   });
   const currentId = useRef<
     import("@dirrio/backend").Id<"workspaceScripts"> | undefined
@@ -135,13 +142,16 @@ export function StudioScript({
       window.removeEventListener("resize", resize);
     };
   }, []);
+  useEffect(() => {
+    if (versionRef) versionRef.current = currentId.current;
+  });
   const draft = useRef("");
   const saved = useRef("");
   const initialized = useRef(false);
   const saving = useRef<Promise<boolean> | null>(null);
   const alive = useRef(true);
   const draftScope = useDraftScope();
-  const key = `dirrio.scriptDraft.${draftScope}${projectId}.plain`;
+  const key = `dirrio.scriptDraft.${draftScope}${projectId}${segmentId ? `.${segmentId}` : ""}.plain`;
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -153,14 +163,26 @@ export function StudioScript({
     let cancelled = false;
     const load = async () => {
       try {
-        const loaded = await loadContent({ projectId: projectId as never });
+        const loaded = await loadContent({
+          projectId: projectId as never,
+          segmentId: segmentId as never,
+        });
         const content = loaded.text;
-        currentId.current = loaded.id;
         if (cancelled) return;
+        currentId.current = loaded.id;
+        if (versionRef) versionRef.current = loaded.id;
         initialized.current = true;
         let value = content;
         try {
-          value = localStorage.getItem(key) ?? content;
+          const legacyKey = `dirrio.scriptDraft.${draftScope}${projectId}.plain`;
+          const legacy = recoverLegacyDraft
+            ? localStorage.getItem(legacyKey)
+            : null;
+          value = localStorage.getItem(key) ?? legacy ?? content;
+          if (legacy !== null && key !== legacyKey) {
+            localStorage.setItem(key, value);
+            localStorage.removeItem(legacyKey);
+          }
         } catch {
           /* optional recovery */
         }
@@ -192,7 +214,11 @@ export function StudioScript({
   const saveLatest = useCallback(async (): Promise<boolean> => {
     if (!writeAllowedRef.current) return draft.current === saved.current;
     if (saving.current) return saving.current;
-    if (!initialized.current || draft.current === saved.current) return true;
+    if (!initialized.current) return false;
+    if (draft.current === saved.current) {
+      if (versionRef) versionRef.current = currentId.current;
+      return true;
+    }
     const run = async () => {
       while (draft.current !== saved.current) {
         if (!writeAllowedRef.current) return false;
@@ -204,9 +230,11 @@ export function StudioScript({
         try {
           currentId.current = await save({
             projectId: projectId as never,
+            segmentId: segmentId as never,
             expectedId: currentId.current,
             text: snapshot,
           });
+          if (versionRef) versionRef.current = currentId.current;
           saved.current = snapshot;
           if (draft.current === snapshot) {
             try {
@@ -236,7 +264,7 @@ export function StudioScript({
     } finally {
       saving.current = null;
     }
-  }, [save, projectId, key, onDirty, setError]);
+  }, [save, projectId, segmentId, versionRef, key, onDirty, setError]);
   useEffect(() => {
     saveRef.current = saveLatest;
     return () => {
@@ -682,7 +710,7 @@ export function StudioScript({
           </option>
           {workspace?.scripts.map((version) => (
             <option key={version._id} value={version._id}>
-              {version.label} ·{" "}
+              {t("Version")} {version.version} · {version.label} ·{" "}
               {new Date(version.createdAt).toLocaleString(getLocale())}
             </option>
           ))}

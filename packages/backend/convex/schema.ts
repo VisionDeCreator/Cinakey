@@ -627,7 +627,17 @@ const schema = defineSchema(
       .index("by_asset", ["assetId"])
       .index("by_project_asset", ["projectId", "assetId"]),
 
+    scriptSegments: defineTable({
+      projectId: v.id("projects"),
+      title: v.string(),
+      order: v.number(),
+      durationSec: v.number(),
+      archivedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_project", ["projectId"]),
     workspaceScripts: defineTable({
+      segmentId: v.optional(v.id("scriptSegments")),
       projectId: v.id("projects"),
       text: v.optional(v.string()),
       contentFileId: v.optional(v.id("_storage")),
@@ -637,6 +647,7 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_project", ["projectId"]),
     workspaceStaging: defineTable({
+      segmentId: v.optional(v.id("scriptSegments")),
       planHistory: v.optional(
         v.array(
           v.object({
@@ -861,6 +872,8 @@ const schema = defineSchema(
       seed: v.optional(v.number()),
       inputAssetIds: v.optional(v.array(v.id("assets"))),
       inputsFileId: v.optional(v.id("_storage")),
+      segmentId: v.optional(v.id("scriptSegments")),
+      scriptVersionId: v.optional(v.id("workspaceScripts")),
       estimatedCostUsdMicros: v.number(),
       priceVersion: v.optional(v.string()),
       unitUsdMicros: v.optional(v.number()),

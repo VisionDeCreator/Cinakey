@@ -12,6 +12,13 @@ import { afterEach, expect, it, vi } from "vitest";
 import { MediaPreview } from "./MediaPreview";
 import { StudioWorkspace } from "./StudioWorkspace";
 const state = vi.hoisted(() => ({
+  queries: vi.fn(),
+  segments: [] as {
+    _id: string;
+    title: string;
+    durationSec: number;
+    versionCount: number;
+  }[],
   settings: {
     resolution: "720p",
     durationSec: 5,
@@ -53,7 +60,8 @@ const state = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/lib/api/hooks", () => ({
-  useQuery: (ref: Parameters<typeof getFunctionName>[0]) => {
+  useQuery: (ref: Parameters<typeof getFunctionName>[0], args: unknown) => {
+    state.queries(getFunctionName(ref), args);
     switch (getFunctionName(ref)) {
       case "projects:generationSettings":
         return state.settings;
@@ -65,6 +73,7 @@ vi.mock("@/lib/api/hooks", () => ({
           script: null,
           scripts: [],
           staging: state.staging,
+          segments: state.segments,
         };
       case "workspace:videos":
         return state.footage;
@@ -101,6 +110,8 @@ vi.mock("@/features/blockout/BlockoutPage", () => ({
 afterEach(() => {
   cleanup();
   state.staging = [];
+  state.segments = [];
+  state.queries.mockClear();
   state.settings = {
     resolution: "720p",
     durationSec: 5,
@@ -409,4 +420,51 @@ it("does not replay an old staging URL over a collaborator's later preference ch
     screen.getByRole("checkbox", { name: "Use staging as video reference" }),
   ).not.toBeChecked();
   expect(state.mutation).not.toHaveBeenCalled();
+});
+
+it("opens the selected segment and switches its editor with a segment-scoped query", async () => {
+  state.segments = [
+    { _id: "opening", title: "Opening", durationSec: 30, versionCount: 2 },
+    { _id: "ending", title: "Ending", durationSec: 30, versionCount: 1 },
+  ];
+  render(
+    <MemoryRouter initialEntries={["/projects/p/studio?segment=ending"]}>
+      <Routes>
+        <Route
+          path="/projects/:projectId/studio"
+          element={
+            <StudioWorkspace
+              toolbar={<div />}
+              viewer={<canvas />}
+              timeline={<div />}
+              inspector={<div />}
+              selectedClip={null}
+              onInsert={vi.fn()}
+              onPreview={vi.fn()}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+  await act(async () => {});
+  expect(screen.getByRole("combobox", { name: "Script segment" })).toHaveValue(
+    "ending",
+  );
+  expect(state.queries).toHaveBeenCalledWith("workspace:list", {
+    projectId: "p",
+    segmentId: "ending",
+  });
+  fireEvent.change(screen.getByRole("combobox", { name: "Script segment" }), {
+    target: { value: "opening" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("combobox", { name: "Script segment" }),
+    ).toHaveValue("opening"),
+  );
+  expect(state.queries).toHaveBeenCalledWith("workspace:list", {
+    projectId: "p",
+    segmentId: "opening",
+  });
 });

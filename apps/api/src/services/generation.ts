@@ -55,6 +55,8 @@ function pollDelay(pollAttempt: number): number {
 export const startGeneration = action({
   args: {
     projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
+    scriptVersionId: v.optional(v.id("workspaceScripts")),
     quoteId: v.optional(v.id("usageQuotes")),
     maxCostUsdMicros: v.optional(v.number()),
     adapterId: v.string(),
@@ -286,6 +288,18 @@ export const startGeneration = action({
       throw new Error("Estimated cost must be positive");
     }
 
+    if (args.scriptVersionId) {
+      const script = await ctx.runQuery(api.workspace.scriptRecord, {
+        id: args.scriptVersionId,
+      });
+      if (
+        !script ||
+        script.projectId !== args.projectId ||
+        script.segmentId !== args.segmentId
+      )
+        throw new Error("Script version does not belong to this segment");
+    } else if (args.segmentId)
+      throw new Error("A segment generation requires a script version");
     const { storageId: inputsFileId } = await saveJson(ctx, buildInput);
 
     let jobId: Id<"generationJobs">;
@@ -306,6 +320,8 @@ export const startGeneration = action({
         prompt: args.prompt,
         seed: args.seed,
         inputsFileId,
+        segmentId: args.segmentId,
+        scriptVersionId: args.scriptVersionId,
         estimatedCostUsdMicros: estimated,
         quoteId,
         durationSec: pricedDuration,
@@ -318,6 +334,8 @@ export const startGeneration = action({
         requestFingerprint: args.requestId
           ? JSON.stringify({
               adapterId: args.adapterId,
+              segmentId: args.segmentId,
+              scriptVersionId: args.scriptVersionId,
               entityId: args.entityId,
               kind: args.kind,
               prompt: args.prompt,

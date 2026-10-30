@@ -44,6 +44,13 @@ export function BlockoutPage({
   const { projectId = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const state = useQuery(api.workspace.list, { projectId: projectId as never });
+  const segment =
+    state?.segments?.find((s) => s._id === params.get("segment")) ??
+    state?.segments?.[0];
+  const segmentStaging =
+    state?.staging.filter(
+      (s) => !s.segmentId || s.segmentId === segment?._id,
+    ) ?? [];
   const ensure = useAction(api.workspace.ensure);
   const generate = useAction(api.workspace.generateStaging);
   const load = useAction(api.workspace.loadStaging);
@@ -73,8 +80,8 @@ export function BlockoutPage({
     );
   }, [projectId, ensure]);
   const selected =
-    state?.staging.find((item) => item._id === params.get("staging")) ??
-    state?.staging[0];
+    segmentStaging.find((item) => item._id === params.get("staging")) ??
+    segmentStaging[0];
   const selectedId = selected?._id;
   const selectedFile = selected?.contentFileId;
   useEffect(() => {
@@ -96,6 +103,7 @@ export function BlockoutPage({
   }, [selectedId, selectedFile, projectId, load]);
   const estimate = useQuery(api.workspace.estimateStaging, {
     projectId: projectId as never,
+    segmentId: segment?._id,
     durationSec: duration,
   });
   const url = useQuery(
@@ -124,6 +132,7 @@ export function BlockoutPage({
     try {
       const result = await generate({
         projectId: projectId as never,
+        segmentId: segment?._id,
         id: selected?._id,
         durationSec: duration,
         reuse,
@@ -179,6 +188,28 @@ export function BlockoutPage({
   }
   return (
     <section className="studio-staging staging-workspace">
+      <label>
+        <I18nText text="Script segment" />
+        <select
+          aria-label={t("Script segment")}
+          value={segment?._id ?? ""}
+          disabled={busy}
+          onChange={(event) =>
+            setParams((previous) => {
+              const next = new URLSearchParams(previous);
+              next.set("segment", event.target.value);
+              next.delete("staging");
+              return next;
+            })
+          }
+        >
+          {state?.segments?.map((s) => (
+            <option key={s._id} value={s._id}>
+              {s.title}
+            </option>
+          ))}
+        </select>
+      </label>
       <h2 className="staging-title">
         <Clapperboard size={20} />
         <I18nText text="Staging" />
@@ -214,7 +245,7 @@ export function BlockoutPage({
             <I18nText text="Staging document" />
           </label>
           <Select
-            disabled={busy || !state?.staging.length}
+            disabled={busy || !segmentStaging.length}
             value={selected?._id ?? ""}
             onValueChange={(id) => {
               setHistory([]);
@@ -232,7 +263,7 @@ export function BlockoutPage({
               <SelectValue placeholder={t("No staging documents yet")} />
             </SelectTrigger>
             <SelectContent>
-              {state?.staging.map((item) => (
+              {segmentStaging.map((item) => (
                 <SelectItem key={item._id} value={item._id}>
                   {item.name}
                 </SelectItem>
@@ -282,14 +313,16 @@ export function BlockoutPage({
         </Button>
         <Button variant="outline" asChild>
           <Link
-            to={`/projects/${projectId}/blockout/edit${selected ? `?staging=${selected._id}` : ""}`}
+            to={`/projects/${projectId}/blockout/edit?segment=${segment?._id ?? ""}${selected ? `&staging=${selected._id}` : ""}`}
           >
             <Box size={15} />
             <I18nText text="Open 3D editor" />
           </Link>
         </Button>
         <Button variant="outline" asChild>
-          <Link to={`/projects/${projectId}/blockout/edit?new=1`}>
+          <Link
+            to={`/projects/${projectId}/blockout/edit?new=1&segment=${segment?._id ?? ""}`}
+          >
             <Plus size={15} />
             <I18nText text="New document" />
           </Link>
@@ -358,7 +391,7 @@ export function BlockoutPage({
             if (onUseForGeneration) onUseForGeneration(selected._id);
             else
               navigate(
-                `/projects/${projectId}/studio?staging=${selected._id}&stagingReference=1`,
+                `/projects/${projectId}/studio?segment=${segment?._id ?? ""}&staging=${selected._id}&stagingReference=1`,
               );
           }}
         >

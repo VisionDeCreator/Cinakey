@@ -2384,5 +2384,15 @@
   "Imported revision": "取り込んだリビジョン",
   "Last content deployment": "最終コンテンツデプロイ",
   "Edited in Admin; deployment review required": "管理画面で編集済み。デプロイ時に確認が必要",
-  "Approved database override": "承認済みのデータベース版"
+  "Approved database override": "承認済みのデータベース版",
+  "Archived segment": "アーカイブ済みセグメント",
+  "Script segment": "スクリプトのセグメント",
+  "Add segment": "セグメントを追加",
+  "Segment title": "セグメントのタイトル",
+  "Planned seconds": "予定秒数",
+  "Segment duration": "セグメントの長さ",
+  "Move earlier": "前に移動",
+  "Move later": "後に移動",
+  "Archive segment": "セグメントをアーカイブ",
+  "Selected segment only": "選択したセグメントのみ"
 }
