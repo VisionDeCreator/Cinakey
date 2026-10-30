@@ -490,3 +490,32 @@
 .waitlist-how svg { color:#ff4d00; flex-shrink:0; }
 @media(max-width:1200px) { .waitlist-workbench { grid-template-columns:1fr; } }
 @media(max-width:760px) { .waitlist-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .waitlist-summary>section { padding:16px; } .waitlist-summary strong { font-size:24px; } .waitlist-access-layout { grid-template-columns:1fr; } .waitlist-filters { flex-wrap:wrap; } .waitlist-filters .admin-search { width:100%; flex:auto; } .waitlist-requests footer { flex-wrap:wrap; } }
+
+/* Support case management shares the inbox's panel and form treatment. */
+.support-case-lookup { padding:24px; display:grid; grid-template-columns:180px minmax(0,1fr) auto; gap:18px; align-items:end; }
+.support-case-lookup>header { grid-column:1/-1; display:flex; gap:14px; align-items:start; margin-bottom:4px; }
+.support-case-lookup>header>svg { color:#ff4d00; margin-top:3px; }
+.support-case-lookup h2,.support-cases-list>header h2 { font-size:18px; font-weight:600; }
+.support-case-lookup header p { color:#a3a3a3; font-size:13px; line-height:1.6; margin-top:6px; }
+.support-case-lookup label,.support-case-fields label { display:flex; flex-direction:column; gap:8px; font-size:12px; color:#d4d4d4; min-width:0; }
+.support-case-lookup input,.support-case-fields input { width:100%; min-width:0; }
+.support-cases-list>header { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.support-cases-list>header>[role=combobox] { width:200px; }
+.support-case-card { padding:24px; }
+.support-case-card>header { display:flex; justify-content:space-between; align-items:start; gap:16px; }
+.support-case-card h3 { display:flex; align-items:start; gap:12px; font-size:18px; font-weight:600; line-height:1.5; }
+.support-case-card h3>svg { color:#ff4d00; flex-shrink:0; margin-top:3px; }
+.support-case-status { border:1px solid #794425; background:#ff4d0010; color:#ffab86; padding:5px 10px; border-radius:8px; font-size:12px; flex-shrink:0; }
+.support-case-status[data-status=resolved] { color:#86efac; background:#14532d25; border-color:#166534; }
+.support-case-meta { display:flex; align-items:center; gap:8px; color:#a3a3a3; font-size:12px; overflow-wrap:anywhere; }
+.support-case-meta svg { flex-shrink:0; }
+.support-case-link { display:inline-flex; align-items:center; gap:8px; margin-right:20px; font-size:12px; color:#d4d4d4; overflow-wrap:anywhere; max-width:100%; }
+.support-case-link:hover { color:#ff4d00; }
+.support-case-link>svg { flex-shrink:0; }
+.support-case-card>p:not(.support-case-meta) { color:#a3a3a3; font-size:12px; overflow-wrap:anywhere; }
+.support-case-fields { display:grid; grid-template-columns:180px minmax(0,1fr) auto; align-items:end; gap:16px; border-top:1px solid #343434; padding-top:20px; }
+.support-case-reason h4 { font-size:13px; font-weight:500; margin-bottom:10px; }
+.support-case-reason textarea { min-height:100px; }
+.support-cases-empty { padding:40px; display:flex; flex-direction:column; align-items:center; gap:16px; color:#a3a3a3; }
+.support-cases-empty>svg { color:#ff4d00; }
+@media(max-width:760px) { .support-case-lookup,.support-case-fields { grid-template-columns:1fr; } .support-case-card { padding:18px; } .support-case-card>header,.support-cases-list>header { flex-wrap:wrap; } .support-case-meta { flex-wrap:wrap; } .support-case-link { display:flex; margin:12px 0; } }

@@ -297,6 +297,7 @@ export const purgeUserData = internalMutation({
       await ctx.db.delete(n._id);
     }
 
+    await enqueueTask(ctx, 0, "support:purgeCustomer", { userId: args.userId });
     await ctx.db.patch(args.userId, {
       name: "Deleted User",
       email: undefined,

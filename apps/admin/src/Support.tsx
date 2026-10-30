@@ -1,3 +1,4 @@
+import { SupportWorkspace } from "@dirrio/ui/support";
 import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type Id } from "@dirrio/backend";
@@ -5,7 +6,27 @@ import { useMutation, useQuery } from "@dirrio/api-client";
 import { Button } from "@dirrio/ui/button";
 import { Input } from "@dirrio/ui/input";
 import { getLocale, I18nText, t, useLocale } from "@dirrio/ui/i18n";
+import {
+  FolderOpen,
+  History,
+  ExternalLink,
+  UserRound,
+  Clock3,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@dirrio/ui/select";
 import { Permission } from "./Permissions";
+const caseLabels = {
+  open: "Open",
+  investigating: "Investigating",
+  waiting: "Waiting",
+  resolved: "Resolved",
+} as const;
 const statuses = ["open", "investigating", "waiting", "resolved"] as const;
 function SupportAction({
   label,
@@ -39,7 +60,7 @@ function SupportAction({
       }}
     >
       <textarea
-        className="w-full rounded border bg-transparent p-3"
+        className="provider-reason"
         aria-label={t("Internal reason or note")}
         placeholder={t(
           "Record the reason, evidence, and next steps. Do not include passwords, tokens, or payment details.",
@@ -54,7 +75,7 @@ function SupportAction({
           request.current = null;
         }}
       />
-      <Button disabled={busy} type="submit">
+      <Button disabled={busy || text.trim().length < 10} type="submit">
         <I18nText text={label} />
       </Button>
       {message && <p role="status">{message}</p>}
@@ -74,10 +95,11 @@ function Pages({
 }) {
   return (
     <div className="flex gap-3">
-      <Button onClick={reset} disabled={!cursor}>
+      <Button variant="outline" onClick={reset} disabled={!cursor}>
         <I18nText text="First page" />
       </Button>
       <Button
+        variant="outline"
         disabled={!result || result.isDone}
         onClick={() => result && next(result.continueCursor)}
       >
@@ -98,60 +120,94 @@ function CaseCard({ record }: { record: Case }) {
   const [status, setStatus] = useState(record.status),
     [assignedTo, setAssignedTo] = useState(record.assignedTo ?? "");
   return (
-    <article className="border-t py-4 space-y-3">
-      <h3>{record.subject}</h3>
-      <p>
-        {record._id} · {t(record.status)} ·{" "}
-        {new Date(record.updatedAt).toLocaleString(getLocale())}
+    <article className="admin-card support-case-card space-y-4">
+      <header>
+        <h3>
+          <FolderOpen size={20} />
+          {record.subject}
+        </h3>
+        <span className="support-case-status" data-status={record.status}>
+          {t(caseLabels[record.status])}
+        </span>
+      </header>
+      <p className="support-case-meta">
+        <Clock3 size={14} />
+        {record._id} · {new Date(record.updatedAt).toLocaleString(getLocale())}
       </p>
       <Link
-        className="underline"
+        className="support-case-link"
         to={`/support/${record.targetType}/${record.targetId}`}
       >
-        {record.targetType}: {record.targetId}
+        <UserRound size={15} />
+        {t(record.targetType === "user" ? "User" : "Workspace")}:{" "}
+        {record.targetId}
       </Link>
+      {record.conversationId && (
+        <Link
+          className="support-case-link"
+          to={`/support?conversation=${record.conversationId}`}
+        >
+          <ExternalLink size={15} />
+          <I18nText text="Open conversation" />
+        </Link>
+      )}
       <p>
         <I18nText text="Assigned administrator:" />{" "}
         {record.assignedTo ?? t("Unassigned")}
       </p>
       <Permission permission="support.write">
-        <div className="flex flex-wrap gap-3">
-          <select
-            className="rounded border bg-transparent p-2"
-            aria-label={t("Case status")}
-            value={status}
-            onChange={(e) => setStatus(e.target.value as typeof status)}
+        <div className="support-case-fields">
+          <label>
+            {t("Case status")}
+            <Select
+              value={status}
+              onValueChange={(value) => setStatus(value as typeof status)}
+            >
+              <SelectTrigger aria-label={t("Case status")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statuses.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {t(caseLabels[s])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <label>
+            {t("Assigned administrator ID")}
+            <Input
+              aria-label={t("Assigned administrator ID")}
+              value={assignedTo}
+              placeholder={t("Leave blank to unassign")}
+              onChange={(e) => setAssignedTo(e.target.value)}
+            />
+          </label>
+          <Button
+            variant="outline"
+            onClick={() => setAssignedTo(me?._id ?? "")}
           >
-            {statuses.map((s) => (
-              <option key={s} value={s}>
-                {t(s)}
-              </option>
-            ))}
-          </select>
-          <Input
-            aria-label={t("Assigned administrator ID")}
-            value={assignedTo}
-            placeholder={t("Leave blank to unassign")}
-            onChange={(e) => setAssignedTo(e.target.value)}
-          />
-          <Button onClick={() => setAssignedTo(me?._id ?? "")}>
             <I18nText text="Assign to me" />
           </Button>
         </div>
-        <SupportAction
-          key={`${record.updatedAt}:${status}:${assignedTo}`}
-          label="Update support case"
-          run={(reason, requestId) =>
-            update({
-              caseId: record._id,
-              status,
-              assignedTo: (assignedTo as Id<"users">) || null,
-              expectedUpdatedAt: record.updatedAt,
-              reason,
-              requestId,
-            })
-          }
-        />
+        <div className="support-case-reason">
+          <h4>{t("Internal reason or note")}</h4>
+          <SupportAction
+            key={`${record.updatedAt}:${status}:${assignedTo}`}
+            label="Update support case"
+            run={(reason, requestId) =>
+              update({
+                caseId: record._id,
+                status,
+                assignedTo: (assignedTo as Id<"users">) || null,
+                expectedUpdatedAt: record.updatedAt,
+                reason,
+                requestId,
+              })
+            }
+          />
+        </div>
       </Permission>
     </article>
   );
@@ -159,6 +215,7 @@ function CaseCard({ record }: { record: Case }) {
 export function SupportPage() {
   useLocale();
   const navigate = useNavigate();
+  const [section, setSection] = useState("inbox");
   const [type, setType] = useState("user"),
     [id, setId] = useState(""),
     [status, setStatus] = useState<(typeof statuses)[number]>("open"),
@@ -174,64 +231,125 @@ export function SupportPage() {
           <I18nText text="Internal cases, account controls, and workspace support history." />
         </p>
       </div>
-      <form
-        className="admin-card p-5 flex gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          navigate(`/support/${type}/${encodeURIComponent(id.trim())}`);
-        }}
+      <nav className="admin-section-tabs" aria-label={t("Support navigation")}>
+        {[
+          ["inbox", "Inbox"],
+          ["help", "Knowledge base"],
+          ["cases", "Support cases"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            aria-current={section === key ? "page" : undefined}
+            onClick={() => setSection(key!)}
+          >
+            {t(label!)}
+          </button>
+        ))}
+      </nav>
+      <section
+        hidden={section === "cases"}
+        className="admin-card admin-support-inbox"
       >
-        <select
-          aria-label={t("Support target type")}
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-        >
-          <option value="user">{t("User")}</option>
-          <option value="workspace">{t("Workspace")}</option>
-        </select>
-        <Input
-          aria-label={t("User or workspace ID")}
-          required
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-        />
-        <Button>
-          <I18nText text="Open support history" />
-        </Button>
-      </form>
-      <section className="admin-card p-5 space-y-3">
-        <h2>
-          <I18nText text="Support cases" />
-        </h2>
-        <select
-          aria-label={t("Filter case status")}
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value as typeof status);
-            setCursor(null);
+        <SupportWorkspace staff view={section === "help" ? "help" : "chats"} />
+      </section>
+      <div
+        hidden={section !== "cases"}
+        className="support-cases-page space-y-6"
+      >
+        <form
+          className="admin-card support-case-lookup"
+          onSubmit={(e) => {
+            e.preventDefault();
+            navigate(`/support/${type}/${encodeURIComponent(id.trim())}`);
           }}
         >
-          {statuses.map((s) => (
-            <option key={s} value={s}>
-              {t(s)}
-            </option>
+          <header>
+            <History size={22} />
+            <div>
+              <h2>{t("Open support history")}</h2>
+              <p>
+                {t(
+                  "Internal cases, account controls, and workspace support history.",
+                )}
+              </p>
+            </div>
+          </header>
+          <label>
+            {t("Support target type")}
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger aria-label={t("Support target type")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">{t("User")}</SelectItem>
+                <SelectItem value="workspace">{t("Workspace")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          <label>
+            {t("User or workspace ID")}
+            <Input
+              aria-label={t("User or workspace ID")}
+              required
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+            />
+          </label>
+          <Button>
+            <I18nText text="Open support history" />
+          </Button>
+        </form>
+        <section className="support-cases-list space-y-4">
+          <header>
+            <h2>
+              <I18nText text="Support cases" />
+            </h2>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value as typeof status);
+                setCursor(null);
+              }}
+            >
+              <SelectTrigger aria-label={t("Filter case status")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statuses.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {t(caseLabels[s])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </header>
+          {result === undefined && (
+            <p role="status" className="admin-card p-6">
+              {t("Loading…")}
+            </p>
+          )}
+          {result?.page.map((record) => (
+            <CaseCard
+              key={`${record._id}:${record.updatedAt}`}
+              record={record}
+            />
           ))}
-        </select>
-        {result?.page.map((record) => (
-          <CaseCard key={`${record._id}:${record.updatedAt}`} record={record} />
-        ))}
-        {result?.page.length === 0 && (
-          <p>
-            <I18nText text="No matching support cases." />
-          </p>
-        )}
-        <Pages
-          cursor={cursor}
-          result={result}
-          next={setCursor}
-          reset={() => setCursor(null)}
-        />
-      </section>
+          {result?.page.length === 0 && (
+            <div className="admin-card support-cases-empty">
+              <FolderOpen size={28} />
+              <p>
+                <I18nText text="No matching support cases." />
+              </p>
+            </div>
+          )}
+          <Pages
+            cursor={cursor}
+            result={result}
+            next={setCursor}
+            reset={() => setCursor(null)}
+          />
+        </section>
+      </div>
     </div>
   );
 }

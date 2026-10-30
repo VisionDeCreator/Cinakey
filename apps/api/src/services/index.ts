@@ -1,3 +1,4 @@
+import * as support from "./support";
 import * as earlyAccess from "./earlyAccess";
 import * as adminMedia from "./adminMedia";
 import * as adminBilling from "./adminBilling";
@@ -18,6 +19,7 @@ import * as staging from "./staging";
 import * as storage from "./storage";
 import * as timelineVersions from "./timelineVersions";
 export const services = {
+  support,
   earlyAccess,
   adminMedia,
   adminJobs,

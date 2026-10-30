@@ -39,7 +39,8 @@
     "podman:web": "podman compose --env-file deployments/web/.env -f deployments/web/docker-compose.yml up --build -d",
     "podman:admin": "podman compose --env-file deployments/admin/.env -f deployments/admin/docker-compose.yml up --build -d",
     "podman:all": "podman compose -f docker-compose.yml up --build -d",
-    "deploy:check:services": "bun --no-env-file deployments/scripts/check-env.ts all"
+    "deploy:check:services": "bun --no-env-file deployments/scripts/check-env.ts all",
+    "help:deploy": "bun --no-env-file scripts/deploy-help-content.ts"
   },
   "devDependencies": {
     "@dirrio/config": "*",

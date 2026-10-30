@@ -15,34 +15,40 @@ export async function assertMediaNotHeld(ctx: Ctx, storageId: string) {
     throw new Error("Media is quarantined or under a retention hold");
 }
 export async function r2References(ctx: Ctx, id: Id<"r2Files">) {
-  const [asset, media, publication, staged, upload] = await Promise.all([
-    ctx.db
-      .query("assets")
-      .withIndex("by_storage", (q) => q.eq("storageId", id))
-      .first(),
-    ctx.db
-      .query("mediaFiles")
-      .withIndex("by_storage", (q) => q.eq("storageId", id))
-      .first(),
-    ctx.db
-      .query("publishedExports")
-      .withIndex("by_storage", (q) => q.eq("storageId", id))
-      .first(),
-    ctx.db
-      .query("publishedExports")
-      .withIndex("by_staged", (q) => q.eq("stagedStorageId", id))
-      .first(),
-    ctx.db
-      .query("r2Uploads")
-      .withIndex("by_file", (q) => q.eq("fileId", id))
-      .first(),
-  ]);
+  const [asset, media, publication, staged, upload, support] =
+    await Promise.all([
+      ctx.db
+        .query("assets")
+        .withIndex("by_storage", (q) => q.eq("storageId", id))
+        .first(),
+      ctx.db
+        .query("mediaFiles")
+        .withIndex("by_storage", (q) => q.eq("storageId", id))
+        .first(),
+      ctx.db
+        .query("publishedExports")
+        .withIndex("by_storage", (q) => q.eq("storageId", id))
+        .first(),
+      ctx.db
+        .query("publishedExports")
+        .withIndex("by_staged", (q) => q.eq("stagedStorageId", id))
+        .first(),
+      ctx.db
+        .query("r2Uploads")
+        .withIndex("by_file", (q) => q.eq("fileId", id))
+        .first(),
+      ctx.db
+        .query("supportAttachments")
+        .withIndex("by_storage", (q) => q.eq("storageId", id))
+        .first(),
+    ]);
   return {
     asset: !!asset,
     media: !!media,
     publication: !!publication,
     staged: !!staged,
     upload: !!upload,
+    support: !!support,
   };
 }
 export function hasR2References(

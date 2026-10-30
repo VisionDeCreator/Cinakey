@@ -1402,5 +1402,129 @@
   "earlyAccess:configure": {
     "kind": "mutation",
     "public": true
+  },
+  "support:conversations": {
+    "kind": "query",
+    "public": true
+  },
+  "support:start": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:detail": {
+    "kind": "query",
+    "public": true
+  },
+  "support:send": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:update": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:read": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:articles": {
+    "kind": "query",
+    "public": true
+  },
+  "support:article": {
+    "kind": "query",
+    "public": true
+  },
+  "support:saveArticle": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:uploadAccess": {
+    "kind": "query",
+    "public": true
+  },
+  "support:attach": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:attachment": {
+    "kind": "query",
+    "public": true
+  },
+  "support:abandoned": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:removeAbandoned": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:answerContext": {
+    "kind": "query",
+    "public": false
+  },
+  "support:finishAnswer": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:reserveCall": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:requestTranslation": {
+    "kind": "mutation",
+    "public": true
+  },
+  "support:translationContext": {
+    "kind": "query",
+    "public": false
+  },
+  "support:finishTranslation": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:answer": {
+    "kind": "action",
+    "public": false
+  },
+  "support:translate": {
+    "kind": "action",
+    "public": false
+  },
+  "support:upload": {
+    "kind": "action",
+    "public": true
+  },
+  "support:download": {
+    "kind": "action",
+    "public": true
+  },
+  "support:cleanupAttachment": {
+    "kind": "action",
+    "public": false
+  },
+  "support:purgeCustomer": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:languageContext": {
+    "kind": "query",
+    "public": false
+  },
+  "support:setMessageLanguage": {
+    "kind": "mutation",
+    "public": false
+  },
+  "support:detectLanguage": {
+    "kind": "action",
+    "public": false
+  },
+  "helpContent:preview": {
+    "kind": "query",
+    "public": false
+  },
+  "helpContent:apply": {
+    "kind": "mutation",
+    "public": false
   }
 }

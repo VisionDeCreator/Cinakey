@@ -20,6 +20,8 @@ COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY packages/backend packages/backend
 COPY packages/shared packages/shared
+COPY content/help content/help
+COPY scripts/deploy-help-content.ts scripts/deploy-help-content.ts
 COPY deployments/scripts/worker-health.ts deployments/scripts/worker-health.ts
 ENV NODE_ENV=production PORT=3001
 USER bun

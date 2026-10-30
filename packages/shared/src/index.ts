@@ -316,3 +316,11 @@ export {
   type AnalyticsMetric,
   type AnalyticsDimension,
 } from "./admin-analytics";
+export {
+  HELP_CONTENT_LANGUAGES,
+  HELP_CONTENT_MAX_ARTICLES,
+  HELP_CONTENT_MAX_BYTES,
+  normalizeHelpArticle,
+  helpArticleSnapshot,
+  type HelpArticleContent,
+} from "./help-content";

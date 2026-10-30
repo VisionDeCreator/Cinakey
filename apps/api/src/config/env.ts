@@ -66,6 +66,13 @@ export function requireProviderKey(provider: ProviderName): string {
   const key = configuredProviderKey(provider);
   return key;
 }
+/** Platform-funded support never reserves or consumes customer/Polar balances.
+ * Keep this accessor separate from the customer-generation sandbox admission guard.
+ * Support's worker also enforces its own call allowance and provider emergency pauses.
+ */
+export function requireSupportProviderKey(): string {
+  return configuredProviderKey("deepseek");
+}
 /** Test seam: only the test runner replaces this implementation. Runtime always uses live providers. */
 export function useMockProviders(): boolean {
   return false;

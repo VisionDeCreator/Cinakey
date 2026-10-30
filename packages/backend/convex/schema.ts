@@ -1,3 +1,4 @@
+import { helpContentValidator } from "./lib/helpArticles";
 import { generationSettingsValidator } from "./lib/generationSettings";
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
@@ -275,7 +276,117 @@ const schema = defineSchema(
     })
       .index("by_key_opened", ["key", "openedAt"])
       .index("by_status_opened", ["status", "openedAt"]),
+    supportConversations: defineTable({
+      userId: v.id("users"),
+      workspaceId: v.optional(v.id("workspaces")),
+      subject: v.string(),
+      language: v.string(),
+      startRequestId: v.optional(v.string()),
+      mode: v.union(v.literal("ai"), v.literal("queued"), v.literal("human")),
+      status: v.union(
+        v.literal("staff"),
+        v.literal("customer"),
+        v.literal("resolved"),
+      ),
+      assignedTo: v.optional(v.id("users")),
+      caseId: v.optional(v.id("supportCases")),
+      revision: v.number(),
+      sequence: v.number(),
+      publicSequence: v.optional(v.number()),
+      customerRead: v.number(),
+      staffRead: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId", "updatedAt"])
+      .index("by_updated", ["updatedAt"])
+      .index("by_user_request", ["userId", "startRequestId"]),
+    supportMessages: defineTable({
+      conversationId: v.id("supportConversations"),
+      sequence: v.number(),
+      role: v.union(
+        v.literal("customer"),
+        v.literal("staff"),
+        v.literal("assistant"),
+        v.literal("note"),
+      ),
+      authorId: v.optional(v.id("users")),
+      text: v.string(),
+      language: v.string(),
+      requestId: v.string(),
+      createdAt: v.number(),
+      attachments: v.array(v.id("supportAttachments")),
+      sources: v.array(
+        v.object({
+          id: v.id("helpArticles"),
+          title: v.string(),
+          revision: v.number(),
+        }),
+      ),
+      aiState: v.optional(
+        v.union(v.literal("pending"), v.literal("done"), v.literal("failed")),
+      ),
+    })
+      .index("by_conversation", ["conversationId", "sequence"])
+      .index("by_request", ["conversationId", "requestId"]),
+    supportTranslations: defineTable({
+      messageId: v.id("supportMessages"),
+      language: v.string(),
+      text: v.optional(v.string()),
+      state: v.union(
+        v.literal("pending"),
+        v.literal("done"),
+        v.literal("failed"),
+      ),
+    }).index("by_message_language", ["messageId", "language"]),
+    supportAttachments: defineTable({
+      conversationId: v.id("supportConversations"),
+      userId: v.id("users"),
+      storageId: v.union(v.id("_storage"), v.id("r2Files")),
+      name: v.string(),
+      mime: v.string(),
+      size: v.number(),
+      messageId: v.optional(v.id("supportMessages")),
+      deleting: v.optional(v.boolean()),
+      createdAt: v.number(),
+    })
+      .index("by_conversation", ["conversationId"])
+      .index("by_storage", ["storageId"]),
+    helpArticles: defineTable({
+      title: v.string(),
+      category: v.string(),
+      language: v.string(),
+      body: v.string(),
+      published: v.boolean(),
+      revision: v.number(),
+      updatedAt: v.number(),
+      updatedBy: v.optional(v.id("users")),
+      sourceKey: v.optional(v.string()),
+      sourceLanguage: v.optional(v.string()),
+      sourceHash: v.optional(v.string()),
+      sourceRevision: v.optional(v.string()),
+      sourceImportedAt: v.optional(v.number()),
+      sourceBaseline: v.optional(helpContentValidator),
+      sourceOverride: v.optional(v.boolean()),
+      sourceGeneration: v.optional(v.number()),
+    })
+      .index("by_published", ["published", "updatedAt"])
+      .index("by_source", ["sourceKey", "sourceLanguage"]),
+    helpChunks: defineTable({
+      articleId: v.id("helpArticles"),
+      revision: v.number(),
+      title: v.string(),
+      language: v.string(),
+      content: v.string(),
+    })
+      .index("by_article", ["articleId"])
+      .searchIndex("search_content", { searchField: "content" }),
+    supportUsage: defineTable({ key: v.string(), calls: v.number() }).index(
+      "by_key",
+      ["key"],
+    ),
     supportCases: defineTable({
+      conversationId: v.optional(v.id("supportConversations")),
       targetType: v.union(v.literal("user"), v.literal("workspace")),
       targetId: v.string(),
       subject: v.string(),

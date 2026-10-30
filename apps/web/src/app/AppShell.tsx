@@ -1,3 +1,4 @@
+import { SupportWidget } from "@dirrio/ui/support";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { UploadProgress } from "@/components/UploadProgress";
 import { WorkspaceSelector } from "@/features/workspaces/WorkspaceSelector";
@@ -120,6 +121,7 @@ export function AppShell() {
         <p role="alert">
           <I18nText text="This account is suspended. Contact support." />
         </p>
+        <SupportWidget />
         <Button onClick={() => void signOut()}>
           <I18nText text="Sign out" />
         </Button>
@@ -129,6 +131,7 @@ export function AppShell() {
     <WorkspaceProvider>
       <WorkspaceShell />
       <UploadProgress />
+      <WorkspaceSupport />
     </WorkspaceProvider>
   );
 }
@@ -546,4 +549,9 @@ function WorkspaceShell() {
       </div>
     </div>
   );
+}
+
+function WorkspaceSupport() {
+  const { workspaceId } = useWorkspace();
+  return <SupportWidget workspaceId={workspaceId} />;
 }

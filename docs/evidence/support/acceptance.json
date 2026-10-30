@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Asia/Seoul",
+  "environment": {
+    "web": "http://localhost:5173/projects",
+    "admin": "http://localhost:5174/support",
+    "api": "http://localhost:3001",
+    "backend": "configured development Convex deployment",
+    "paymentEnvironment": "sandbox",
+    "provider": "existing configured DeepSeek provider, platform-funded support calls",
+    "actorRole": "platform administrator using both customer and staff interfaces"
+  },
+  "behavioralTesting": "Built-in browser only; no automated test suite was run, as requested.",
+  "browserChecks": [
+    {
+      "check": "Embedded customer panel and persistent conversation history",
+      "result": "passed",
+      "observed": "Conversations survived page refreshes and development reloads."
+    },
+    {
+      "check": "Published knowledge management",
+      "result": "passed",
+      "observed": "Created and published a factual Studio help article through Admin. The customer knowledge base displayed it and its article dialog opened."
+    },
+    {
+      "check": "Draft publication boundary",
+      "result": "passed",
+      "observed": "A saved private draft appeared in Admin alongside the published article and was absent from the customer knowledge list."
+    },
+    {
+      "check": "Live AI answer and citation",
+      "result": "passed",
+      "observed": "DeepSeek answered the timeline question using the published article. The displayed source link opened that article."
+    },
+    {
+      "check": "Korean question against English knowledge",
+      "result": "passed",
+      "observed": "A Korean product question produced a Korean answer grounded in the English Studio article, with the same article citation."
+    },
+    {
+      "check": "Provider-failure handoff",
+      "result": "passed",
+      "observed": "Before the platform-funded support credential accessor was installed, the existing sandbox guard prevented calls; a localized fallback was persisted and the chat entered the staff queue."
+    },
+    {
+      "check": "Staff assignment and replies",
+      "result": "passed",
+      "observed": "A staff member claimed the queued conversation and sent a reply. The customer saw it in the same transcript."
+    },
+    {
+      "check": "Bidirectional live translation",
+      "result": "passed",
+      "observed": "The Korean customer message appeared in English for staff; the English staff reply appeared in Korean for the customer. Original-text controls were present."
+    },
+    {
+      "check": "Internal note privacy",
+      "result": "passed",
+      "observed": "Private note markers appeared in Admin and were absent from the customer transcript. A second private note produced no customer unread badge and did not change the public subject."
+    },
+    {
+      "check": "Attachment upload and download",
+      "result": "passed",
+      "observed": "Uploaded a generated PDF fixture through the customer panel, attached it to a message, and downloaded it through the staff inbox."
+    },
+    {
+      "check": "Unsupported upload rejection",
+      "result": "passed",
+      "observed": "A generated plain-text fixture was rejected with the supported PNG/JPEG/WebP/PDF error."
+    },
+    {
+      "check": "Case linking",
+      "result": "passed",
+      "observed": "Created a linked support case; the existing case card displayed its conversation link. Concurrent message/case updates produced a safe revision conflict; retrying succeeded."
+    },
+    {
+      "check": "Resolution and reopening",
+      "result": "passed",
+      "observed": "Staff resolved the conversation; the reply composer was removed and Reopen became available. Reopening restored the human queue."
+    },
+    {
+      "check": "In-flight human handoff",
+      "result": "passed",
+      "observed": "Sent a new product question and immediately requested a human while Preparing an answer was visible. The chat entered the human queue. Several minutes later the customer still had only the two prior AI messages; no delayed AI reply appeared."
+    },
+    {
+      "check": "Six-language UI and draft preservation",
+      "result": "passed",
+      "observed": "Checked English, French, Spanish, Korean, Japanese and Simplified Chinese in the Admin knowledge editor. Labels, navigation and statuses changed; unsaved title/category/body remained intact."
+    }
+  ],
+  "staticValidation": {
+    "webBuild": "passed; existing bundle-size advisory",
+    "adminBuild": "passed; existing bundle-size advisory",
+    "apiBuild": "passed",
+    "backendBuild": "passed",
+    "changedBackendAndApiLint": "passed",
+    "supportUiLint": "no errors; two hook warnings (locale synchronization and explicit read-state dependencies)",
+    "diffWhitespace": "passed"
+  },
+  "screenshots": [
+    "customer-ai-ko.png",
+    "customer-handoff.png",
+    "customer-knowledge.png",
+    "admin-inbox.png"
+  ],
+  "coverageLimits": [
+    "Browser checks used one existing staff account in separate customer/admin origins; a distinct-customer isolation and full staff-role matrix were not exercised.",
+    "Account erasure, storage holds, one-hour abandoned-upload cleanup and daily-limit exhaustion were reviewed in source but not triggered against live data.",
+    "No production deployment or staff-role changes were made.",
+    "Attachments are available to staff; AI image/PDF interpretation is not included.",
+    "Knowledge search and inbox filters operate on the displayed paginated page. AI retrieval searches the published chunk index.",
+    "The checked browser viewport was narrow; a separate wide-desktop layout session was not performed."
+  ]
+}

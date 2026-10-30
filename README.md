@@ -715,3 +715,9 @@ Role and financial-permission boundaries remain covered by automated tests.
 Docker deployment configuration, per-service environment templates, production Convex tooling, and rollout/rollback instructions are available in [the deployment runbook](deployments/README.md).
 
 See [brand and infrastructure transition](docs/brand-transition.md) for new Dirrio infrastructure configuration and saved-data compatibility.
+
+## Product support
+
+The web app includes Help and support with persistent conversations, human handoff,
+private attachments and translated messages. Admin → Support provides the inbox,
+knowledge base and linked support cases. See [support configuration and rollout](docs/support.md).

@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Asia/Seoul",
+  "environment": "Development only; production was not modified",
+  "behavioralVerification": "Built-in browser used for Admin editing, article visibility, publication changes, provenance and restored content. The content deployment command was used to perform the corresponding development imports; no automated test suite was run.",
+  "checks": [
+    {
+      "check": "Initial content preview and import",
+      "result": "passed",
+      "observed": "Preview reported four creates without writing. Apply imported the four English starter articles. Admin displayed their repository keys, source revisions, hashes and import timestamps."
+    },
+    {
+      "check": "Idempotent redeployment",
+      "result": "passed",
+      "observed": "A second deployment reported zero changed and four unchanged. No additional repository article cards appeared."
+    },
+    {
+      "check": "Manual articles preserved",
+      "result": "passed",
+      "observed": "The browser showed four repository articles and two pre-existing manual articles, including the private draft. The customer view excluded that draft. A manual article with a matching title remained independent."
+    },
+    {
+      "check": "Admin edit conflict",
+      "result": "passed",
+      "observed": "Edited Getting started through Admin and saved a temporary verification paragraph. The next deployment preview reported one conflict and three unchanged, exited with status 2 and did not overwrite the edit."
+    },
+    {
+      "check": "Keep database resolution",
+      "result": "passed",
+      "observed": "Explicit database resolution preserved the browser-authored content and displayed Approved database override. A subsequent preview treated all four articles as unchanged. The customer article still contained the accepted edit."
+    },
+    {
+      "check": "Restore repository resolution",
+      "result": "passed",
+      "observed": "Explicit repository resolution restored the original body. The browser body matched the original repository article exactly; the temporary paragraph and override indicator were absent."
+    },
+    {
+      "check": "Repository publication changes",
+      "result": "passed",
+      "observed": "Temporarily deployed using-references with published false. Admin retained it as a draft and the customer list excluded it. Restored the source flag to true, deployed again and verified it reappeared for customers. All starter source files end in their original intended published state."
+    },
+    {
+      "check": "Final browser state",
+      "result": "passed",
+      "observed": "Four repository article cards, two manual article cards, zero approved override indicators and zero private draft cards in customer help. Screenshots capture the imported article in Admin and customer help."
+    }
+  ],
+  "staticValidation": {
+    "apiBuild": "passed",
+    "backendBuild": "passed",
+    "adminBuild": "passed; bundle-size advisory",
+    "webBuild": "passed; bundle-size advisory",
+    "changedApiBackendSharedAndUiLint": "passed with no errors or warnings",
+    "whitespace": "passed"
+  },
+  "screenshots": [
+    "admin-imported-article.png",
+    "customer-imported-article.png"
+  ],
+  "coverageLimits": [
+    "Production deploy:convex integration and container packaging were reviewed in source; no production release or container build was executed.",
+    "Concurrent preview/apply races, wrong-target credentials, duplicate metadata and size ceilings were reviewed in source but not exercised through a test harness.",
+    "The customer and staff browser interfaces used the same existing staff account in separate origins; a separate account/role matrix was not exercised."
+  ]
+}

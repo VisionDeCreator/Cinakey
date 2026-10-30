@@ -1,3 +1,5 @@
+import { runHelpContent } from "../../apps/api/src/cli/help-content";
+import { readHelpArticles } from "../../apps/api/src/cli/help-content-files";
 import { spawnSync } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -112,6 +114,7 @@ try {
       });
     }
   } else {
+    if (operation === "deploy") readHelpArticles(resolve(root, "content/help"));
     const entries: Record<string, string> = {};
     for (const key of [
       "SITE_URL",
@@ -133,7 +136,21 @@ try {
         "--env-file",
         resolve(root, "deployments/convex/.env"),
       ]);
-      console.log("Convex deployment complete.");
+      console.log(
+        "Convex deployment complete. Deploying repository help articles…",
+      );
+      const helpResult = await runHelpContent([
+        "--environment",
+        "production",
+        "--env-file",
+        resolve(root, "deployments/convex/.env"),
+        "--apply",
+      ]);
+      if (helpResult !== 0)
+        throw new Error(
+          "Convex functions are deployed, but help content deployment did not complete. Resolve content conflicts or connectivity before enabling the release. Run help:deploy separately to resume.",
+        );
+      console.log("Backend and repository help deployment complete.");
     }
   }
 } catch (error) {

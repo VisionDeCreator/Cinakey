@@ -62,7 +62,7 @@ Shared `VITE_CONVEX_URL` and `VITE_API_URL` must match across those files. For o
 3. Configure SMTP and enable `EMAIL_NOTIFICATIONS_ENABLED` for email-code login. Alternatively configure Google login in Convex; its callback is `https://<deployment>.convex.site/api/auth/callback/google`.
 4. Optionally run `bun run deploy:check` to validate the root production configuration without printing secret values. `bun run deploy:check:services` checks the per-service layout instead. Neither command is required to invoke Compose, and neither changes secrets.
 5. Prepare `deployments/convex/.env` separately for the optional Convex tooling. Run `bun run setup:convex-auth-keys`, preserving existing auth keys. Rotation requires the explicit `--rotate` option and invalidates sessions.
-6. Back up Convex and run `bun run deploy:convex` before starting updated API/worker releases. The script checks the production key's target, syncs an allowlist of runtime flags, and deploys from `packages/backend`. Flag updates take effect before code deployment; coordinate changes. CLI diagnostics are suppressed to protect secrets; investigate failures in the dashboard. Review regenerated bindings afterward.
+6. Back up Convex and run `bun run deploy:convex` before starting updated API/worker releases. The script checks the production key's target, syncs an allowlist of runtime flags, and deploys from `packages/backend`. Flag updates take effect before code deployment; coordinate changes. CLI diagnostics are suppressed to protect secrets; investigate failures in the dashboard. The command then deploys repository help articles from `content/help`; unresolved Admin-edit conflicts fail the release after functions have been deployed. Resolve them with `help:deploy` before enabling the release. Review regenerated bindings afterward.
 7. Build/start with standard Compose or Dokploy. Configure generation callbacks at `https://<api-host>/webhooks/generation`. If enabling Polar payments, configure `/webhooks/polar`, distinct product IDs, production credentials, and matching API/worker/Convex flags. Sandbox balances cannot fund live providers. Payments and paywall default to disabled.
 8. Run `bun run deploy:smoke`, then verify login, project access, uploads, media range playback, SPA deep links, worker heartbeat/restart recovery and browser export. The smoke command sends read-only HTTP probes and does not start paid work.
 9. After the intended administrator signs in once, run `bash deployments/scripts/bootstrap-admin.sh you@yourdomain.com --reason "Initial platform administrator"`. This runs Dirrio's audited verified-account promotion inside the running root API container. For a standalone API stack set `COMPOSE_FILE=deployments/api/docker-compose.yml`; set `CONTAINER_ENGINE=podman` if using Podman.
@@ -80,3 +80,12 @@ API readiness probes `/ready`; `/health` is process liveness. Worker health requ
 Run deployment tests, typechecking, lint, application tests, production builds and container builds before release. Retain immutable `RELEASE_VERSION` image tags and secure backups of configuration, Convex and R2. Container filesystems do not back up managed data.
 
 Deploy compatible Convex schema/functions first, API/worker second, frontends last. To roll back, pause admissions, stop the worker and reconcile accepted/uncertain provider jobs and reservations. Restore compatible previous images with `RELEASE_VERSION=<previous> docker compose up -d --no-build --pull never`. Review schema compatibility before restoring Convex functions; never blindly restore database snapshots or replay provider submissions.
+
+## Help content deployments
+
+`deploy:convex` includes the repository help import. For article-only releases use
+`bun run help:deploy --environment production --env-file deployments/convex/.env`
+to preview, then repeat with `--apply`. Both API and worker images also include the
+content and importer for explicit container execution. Imports never run as a side
+effect of API/worker startup. Manual articles are preserved and conflicting Admin
+edits require an explicit per-article choice. See the [content deployment guide](../content/help/README.md).

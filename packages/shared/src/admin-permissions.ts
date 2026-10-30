@@ -19,6 +19,7 @@ export type AdminPermission =
   | "providers.pause"
   | "support.read"
   | "support.write"
+  | "knowledge.publish"
   | "accounts.manage"
   | "jobs.read"
   | "jobs.manage"
@@ -50,6 +51,7 @@ const permissions: Record<AdminRole, readonly AdminPermission[]> = {
     "providers.pause",
     "support.read",
     "support.write",
+    "knowledge.publish",
     "accounts.manage",
     "directory.read",
     "jobs.read",
