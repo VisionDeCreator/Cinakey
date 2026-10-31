@@ -35,6 +35,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import "./marketing.css";
+import { FeaturePreview } from "./FeaturePreview";
+import { FeatureGuide } from "./FeatureGuide";
 const features = [
   {
     Icon: Clapperboard,
@@ -45,11 +47,6 @@ const features = [
     Icon: Layers,
     title: "Series & shared libraries",
     text: "Organize episodes and reuse characters, locations, and creative resources across your series.",
-  },
-  {
-    Icon: Sparkles,
-    title: "Remix",
-    text: "Transform existing footage with references and a new creative direction.",
   },
   {
     Icon: Box,
@@ -75,120 +72,6 @@ const artwork: Record<string, string> = {
   team: teamImage,
 };
 const art = (name: string) => artwork[name]!;
-function FeaturePreview({ title }: { title: string }) {
-  useLocale();
-  if (title === "Studio")
-    return (
-      <div className="marketing-mini-studio">
-        <div>
-          <img
-            src={art("desert")}
-            alt={t("Illustrative desert footage preview")}
-            loading="lazy"
-          />
-          <aside>
-            <span>
-              <I18nText text="Script" />
-            </span>
-            <p>
-              <I18nText text="A traveler crosses the valley at sunrise." />
-            </p>
-            <span>
-              <I18nText text="Generation" />
-            </span>
-          </aside>
-        </div>
-        <div className="marketing-mini-tracks">
-          <span />
-          <span />
-          <span />
-        </div>
-      </div>
-    );
-  if (title === "Series & shared libraries" || title === "Assets & references")
-    return (
-      <div className="marketing-mini-library">
-        <header>
-          {t(title === "Assets & references" ? "References" : "Shared library")}
-          <span>
-            <I18nText text="Characters · Locations" />
-          </span>
-        </header>
-        <div>
-          {[
-            { src: "character", label: "Maya" },
-            { src: "desert", label: "Desert valley" },
-            { src: "staging", label: "Scene plan" },
-          ].map((item) => (
-            <figure key={item.src}>
-              <img src={art(item.src)} alt={t(item.label)} loading="lazy" />
-              <figcaption>{t(item.label)}</figcaption>
-            </figure>
-          ))}
-        </div>
-      </div>
-    );
-  if (title === "Remix")
-    return (
-      <div className="marketing-mini-remix">
-        <figure>
-          <img
-            src={art("desert")}
-            alt={t("Desert scene before a new creative direction")}
-            loading="lazy"
-          />
-          <figcaption>
-            <I18nText text="Source" />
-          </figcaption>
-        </figure>
-        <ArrowRight size={20} />
-        <figure>
-          <img
-            src="/images/genjutsu-example.png"
-            alt={t("Illustrative transformed scene")}
-            loading="lazy"
-          />
-          <figcaption>
-            <I18nText text="New direction" />
-          </figcaption>
-        </figure>
-      </div>
-    );
-  if (title === "3D staging")
-    return (
-      <div className="marketing-mini-staging">
-        <img
-          src={art("staging")}
-          alt={t("Gray clay scene with camera movement guides")}
-          loading="lazy"
-        />
-        <span>
-          <I18nText text="Plan camera & movement" />
-        </span>
-      </div>
-    );
-  return (
-    <div className="marketing-mini-team">
-      <header>
-        <I18nText text="Team" />
-        <span>
-          <I18nText text="Workspace roles" />
-        </span>
-      </header>
-      {[
-        { initial: "J", name: "Jordan", role: "Owner" },
-        { initial: "T", name: "Taylor", role: "Admin" },
-        { initial: "R", name: "Riley", role: "Creator" },
-      ].map((member) => (
-        <div key={member.name}>
-          <i>{member.initial}</i>
-          <span>{member.name}</span>
-          <small>{t(member.role)}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Waitlist({ requireApproval }: { requireApproval: boolean }) {
   const locale = useLocale();
@@ -571,6 +454,7 @@ export function LandingPage() {
                 <FeaturePreview title={title} />
               </article>
             ))}
+            <FeatureGuide variant="card" />
           </div>
         </section>
         <section className="marketing-section">
@@ -618,6 +502,12 @@ export function LandingPage() {
           <p>
             <I18nText text="A workspace subscription, optional team seats, and metered generation." />
           </p>
+          <div className="marketing-pricing-value">
+            <p>
+              <I18nText text="Script, references, generation, editing, and sharing in one workspace. Generation and other metered usage draw from your allowance; additional usage is billed separately." />
+            </p>
+            <FeatureGuide />
+          </div>
           <div className="marketing-price-grid">
             <article>
               <h3>

@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
@@ -118,4 +119,50 @@ it("replaces the waitlist and manual-approval copy with direct signup when regis
       "For creators and small production teams. Access is approved manually.",
     ),
   ).not.toBeInTheDocument();
+});
+
+it("opens the feature guide from pricing and restores focus after Escape", async () => {
+  const user = (await import("@testing-library/user-event")).default.setup();
+  render(
+    <MemoryRouter>
+      <LandingPage />
+    </MemoryRouter>,
+  );
+  const pricing = document.querySelector("#pricing")!;
+  const trigger = within(pricing as HTMLElement).getByRole("button", {
+    name: "See all features",
+  });
+  await user.click(trigger);
+  const dialog = screen.getByRole("dialog", {
+    name: "Explore your creative workspace",
+  });
+  expect(
+    within(dialog).getByText(/Each generation saves its script/),
+  ).toBeInTheDocument();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Share & videos" }),
+  );
+  expect(within(dialog).getByText("Up to 200 MiB per video")).toBeVisible();
+  expect(
+    within(dialog).getByText(/Workspace storage limit: 5 GiB/),
+  ).toBeVisible();
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(trigger).toHaveFocus();
+});
+
+it("opens the same guide from features and closes with the close button", async () => {
+  const user = (await import("@testing-library/user-event")).default.setup();
+  render(
+    <MemoryRouter>
+      <LandingPage />
+    </MemoryRouter>,
+  );
+  await user.click(
+    screen.getByRole("button", { name: /Explore all features/ }),
+  );
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

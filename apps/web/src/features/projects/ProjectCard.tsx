@@ -1,7 +1,6 @@
 import { getLocale } from "@dirrio/ui/i18n";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { api } from "@dirrio/backend";
-import type { PipelineProgress } from "@dirrio/shared";
 import { useMutation } from "@/lib/api/hooks";
 import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
@@ -22,7 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StageProgressBar } from "@/features/projects/StageProgress";
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts;
@@ -45,7 +43,6 @@ export function ProjectCard({
   title,
   thumbnailUrl,
   updatedAt,
-  progress,
   archived,
   layout = "grid",
 }: {
@@ -53,7 +50,6 @@ export function ProjectCard({
   title: string;
   thumbnailUrl: string | null;
   updatedAt: number;
-  progress: PipelineProgress;
   archived?: boolean;
   layout?: "grid" | "list";
 }) {
@@ -172,7 +168,6 @@ export function ProjectCard({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <StageProgressBar progress={progress} size="sm" />
         </div>
       </article>
 

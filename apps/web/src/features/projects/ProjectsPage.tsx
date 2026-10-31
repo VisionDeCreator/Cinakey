@@ -152,14 +152,13 @@ export function ProjectsPage() {
               view === "grid" ? "sm:grid-cols-2 xl:grid-cols-3" : "grid-cols-1",
             )}
           >
-            {visible?.map(({ project, thumbnailUrl, progress }) => (
+            {visible?.map(({ project, thumbnailUrl }) => (
               <ProjectCard
                 key={project._id}
                 projectId={project._id}
                 title={project.title}
                 thumbnailUrl={thumbnailUrl}
                 updatedAt={project.updatedAt}
-                progress={progress}
                 archived={project.archivedAt !== undefined}
                 layout={view}
               />
