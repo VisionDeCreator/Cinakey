@@ -680,3 +680,191 @@ it("keeps manually created staging in its segment and rejects moving it across s
     }),
   ).rejects.toThrow("another segment");
 });
+
+it("deletes a segment's entire script history and stored content without affecting other segments", async () => {
+  const { t, user, projectId } = await fixture();
+  const segmentId = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  const first = (await user.query(api.workspace.list, { projectId }))
+    .segments[0]!._id;
+  const original = await user.action(api.workspace.script, {
+    projectId,
+    segmentId,
+  });
+  const version = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId,
+    expectedId: original.id,
+    text: "Delete this script",
+  });
+  const file = await t.run(async (ctx) => {
+    const storageId = await ctx.storage.store(
+      new Blob([JSON.stringify("Historical script")]),
+    );
+    await ctx.db.patch(original.id, { contentFileId: storageId });
+    return storageId;
+  });
+  const other = await user.action(api.workspace.script, {
+    projectId,
+    segmentId: first,
+  });
+  const otherProject = await user.mutation(api.projects.create, {
+    title: "Other",
+  });
+  await expect(
+    user.mutation(api.workspace.deleteSegment, {
+      projectId: otherProject,
+      segmentId,
+    }),
+  ).rejects.toThrow("not found");
+  const strangerId = await createFundedTestUser(t, "delete-stranger@test.com");
+  await expect(
+    t
+      .withIdentity(authIdentity(strangerId))
+      .mutation(api.workspace.deleteSegment, { projectId, segmentId }),
+  ).rejects.toThrow("access denied");
+  await user.mutation(api.workspace.deleteSegment, { projectId, segmentId });
+  const state = await user.query(api.workspace.list, { projectId });
+  expect(state.segments.map((s) => s._id)).toEqual([first]);
+  expect(
+    await user.query(api.workspace.scriptRecord, { id: original.id }),
+  ).toBeNull();
+  expect(
+    await user.query(api.workspace.scriptRecord, { id: version }),
+  ).toBeNull();
+  await t.run(async (ctx) => {
+    expect(await ctx.storage.get(file)).toBeNull();
+  });
+  await expect(
+    user.action(api.workspace.script, { projectId, segmentId }),
+  ).rejects.toThrow("not found");
+  await expect(
+    user.query(api.projects.generationSettings, { projectId, segmentId }),
+  ).rejects.toThrow("not found");
+  await user.action(api.workspace.ensure, { projectId });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).segments,
+  ).toHaveLength(1);
+  expect(
+    (await user.action(api.workspace.script, { projectId, segmentId: first }))
+      .id,
+  ).toBe(other.id);
+  await user.mutation(api.workspace.deleteSegment, {
+    projectId,
+    segmentId: first,
+  });
+  await user.action(api.workspace.ensure, { projectId });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).segments,
+  ).toHaveLength(0);
+  const replacement = await user.mutation(api.workspace.createSegment, {
+    projectId,
+  });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).segments.map(
+      (s) => s._id,
+    ),
+  ).toEqual([replacement]);
+});
+
+it("lists and restores archived segments with their original script history and settings", async () => {
+  const { t, user, projectId } = await fixture();
+  const second = await user.mutation(api.workspace.createSegment, {
+    projectId,
+    title: "Middle",
+  });
+  const third = await user.mutation(api.workspace.createSegment, {
+    projectId,
+    title: "Ending",
+  });
+  const first = (await user.query(api.workspace.list, { projectId }))
+    .segments[0]!._id;
+  const original = await user.action(api.workspace.script, {
+    projectId,
+    segmentId: second,
+  });
+  const version = await user.mutation(api.workspace.saveScript, {
+    projectId,
+    segmentId: second,
+    expectedId: original.id,
+    text: "Preserve this script",
+  });
+  const settings = await user.mutation(api.projects.saveGenerationSettings, {
+    projectId,
+    segmentId: second,
+    durationSec: 12,
+    resolution: "1080p",
+  });
+  await user.mutation(api.workspace.updateSegment, {
+    projectId,
+    segmentId: second,
+    archive: true,
+  });
+  const archived = await user.query(api.workspace.list, { projectId });
+  expect(archived.archivedSegments.map((s) => s._id)).toEqual([second]);
+  expect(archived.archivedSegments[0]?.versionCount).toBe(2);
+  expect(archived.segments.map((s) => s._id)).not.toContain(second);
+  const strangerId = await createFundedTestUser(t, "restore-stranger@test.com");
+  await expect(
+    t
+      .withIdentity(authIdentity(strangerId))
+      .mutation(api.workspace.restoreSegment, { projectId, segmentId: second }),
+  ).rejects.toThrow("access denied");
+  const otherProject = await user.mutation(api.projects.create, {
+    title: "Other",
+  });
+  await expect(
+    user.mutation(api.workspace.restoreSegment, {
+      projectId: otherProject,
+      segmentId: second,
+    }),
+  ).rejects.toThrow("not found");
+  await user.mutation(api.workspace.reorderSegments, {
+    projectId,
+    segmentIds: [third, first],
+  });
+  await user.mutation(api.workspace.restoreSegment, {
+    projectId,
+    segmentId: second,
+  });
+  const restored = await user.query(api.workspace.list, {
+    projectId,
+    segmentId: second,
+  });
+  expect(restored.archivedSegments).toEqual([]);
+  expect(restored.segments.map((s) => s._id)).toEqual([third, first, second]);
+  expect(restored.scripts.map((s) => s._id)).toEqual([version, original.id]);
+  expect(
+    (await user.action(api.workspace.script, { projectId, segmentId: second }))
+      .text,
+  ).toBe("Preserve this script");
+  expect(
+    await user.query(api.projects.generationSettings, {
+      projectId,
+      segmentId: second,
+    }),
+  ).toEqual(settings);
+  await user.mutation(api.workspace.restoreSegment, {
+    projectId,
+    segmentId: second,
+  });
+  expect(
+    (await user.query(api.workspace.list, { projectId })).segments.map(
+      (s) => s._id,
+    ),
+  ).toEqual([third, first, second]);
+  await user.mutation(api.workspace.deleteSegment, {
+    projectId,
+    segmentId: third,
+  });
+  await expect(
+    user.mutation(api.workspace.restoreSegment, {
+      projectId,
+      segmentId: third,
+    }),
+  ).rejects.toThrow("not found");
+  expect(
+    (await user.query(api.workspace.list, { projectId })).archivedSegments,
+  ).toEqual([]);
+});

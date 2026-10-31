@@ -1,7 +1,10 @@
 import { useGenerationSettings } from "./useGenerationSettings";
 import { getLocale } from "@dirrio/ui/i18n";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
-import { useWorkspace } from "@/features/workspaces/workspace-context";
+import {
+  useWorkspace,
+  useDraftScope,
+} from "@/features/workspaces/workspace-context";
 import { formatUsd } from "@dirrio/ui/i18n";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useConfirm } from "@/components/use-confirm";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { BlockoutPage } from "@/features/blockout/BlockoutPage";
@@ -32,6 +42,11 @@ import {
   Upload,
   Search,
   Maximize,
+  MoreHorizontal,
+  ArrowUp,
+  ArrowDown,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import {
   useCallback,
@@ -89,9 +104,8 @@ export function StudioWorkspace({
 }) {
   useLocale();
   const { canWrite } = useWorkspace();
+  const draftScope = useDraftScope();
   const { projectId = "" } = useParams();
-  const preferences = useGenerationSettings(projectId);
-  const { resolution, durationSec, aspectRatio } = preferences.settings;
   const workspace = useQuery(api.workspace.list, {
     projectId: projectId as never,
   });
@@ -115,7 +129,12 @@ export function StudioWorkspace({
   const selectedSegment =
     segments.find((s) => s._id === workspaceParams.get("segment")) ??
     segments[0];
+  const preferences = useGenerationSettings(projectId, selectedSegment?._id);
+  const { resolution, durationSec, aspectRatio } = preferences.settings;
   const createSegment = useMutation(api.workspace.createSegment);
+  const deleteSegment = useMutation(api.workspace.deleteSegment);
+  const restoreSegment = useMutation(api.workspace.restoreSegment);
+  const archivedSegments = workspace?.archivedSegments ?? [];
   const updateSegment = useMutation(api.workspace.updateSegment);
   const reorderSegments = useMutation(api.workspace.reorderSegments);
   const scriptVersion = useRef<string | undefined>(undefined);
@@ -338,11 +357,12 @@ export function StudioWorkspace({
     );
   }
   const scriptSave = useRef<(() => Promise<boolean>) | null>(null);
-  function selectSegment(id: string) {
+  function selectSegment(id?: string) {
     scriptVersion.current = undefined;
     setWorkspaceParams((previous) => {
       const next = new URLSearchParams(previous);
-      next.set("segment", id);
+      if (id) next.set("segment", id);
+      else next.delete("segment");
       next.delete("staging");
       next.delete("stagingReference");
       return next;
@@ -353,6 +373,7 @@ export function StudioWorkspace({
     setBusy(true);
     setError(null);
     try {
+      if (!(await preferences.flush())) return;
       if (scriptSave.current && !(await scriptSave.current())) return;
       await action();
     } catch (error) {
@@ -514,7 +535,8 @@ export function StudioWorkspace({
     try {
       if (!(await preferences.flush())) return;
       if (scriptSave.current && !(await scriptSave.current())) return;
-      if (selectedSegment && !scriptVersion.current)
+      const generationScriptVersion = scriptVersion.current;
+      if (selectedSegment && !generationScriptVersion)
         throw new Error("Wait for the script to finish loading");
       if (
         usdMicros >= COST_CONFIRM_THRESHOLD_USD_MICROS &&
@@ -534,7 +556,14 @@ export function StudioWorkspace({
         maxCostUsdMicros: usdMicros,
         projectId: projectId as never,
         segmentId: selectedSegment?._id,
-        scriptVersionId: scriptVersion.current as never,
+        scriptVersionId: generationScriptVersion as never,
+        settingsSnapshot: {
+          resolution,
+          durationSec,
+          aspectRatio,
+          stagingId: preferences.settings.stagingId ?? undefined,
+          useStaging: preferences.settings.useStaging,
+        },
         durationSec,
         resolution,
         aspectRatio,
@@ -1400,54 +1429,14 @@ export function StudioWorkspace({
         </div>
         <div hidden={inspectorView !== "script"}>
           <div className="studio-segments">
-            <label>
-              <I18nText text="Script segment" />
-              <select
-                aria-label={t("Script segment")}
-                value={selectedSegment?._id ?? ""}
-                disabled={busy}
-                onChange={(event) => {
-                  const id = event.target.value;
-                  void segmentAction(async () => selectSegment(id));
-                }}
-              >
-                {segments.map((segment, index) => (
-                  <option key={segment._id} value={segment._id}>
-                    {index + 1}. {segment.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedSegment && (
-              <p className="studio-segment-details">
-                <span>
-                  {segmentTime(
-                    segments
-                      .slice(0, segments.indexOf(selectedSegment))
-                      .reduce(
-                        (total, segment) => total + segment.durationSec,
-                        0,
-                      ),
-                  )}
-                  –
-                  {segmentTime(
-                    segments
-                      .slice(0, segments.indexOf(selectedSegment) + 1)
-                      .reduce(
-                        (total, segment) => total + segment.durationSec,
-                        0,
-                      ),
-                  )}
-                </span>
-                <span>
-                  {t("Version")} {selectedSegment.versionCount}
-                </span>
-              </p>
-            )}
-            {canWrite !== false && (
-              <>
+            <div className="studio-segment-heading">
+              <span>
+                <I18nText text="Script segment" />
+              </span>{" "}
+              {canWrite !== false && (
                 <Button
                   variant="outline"
+                  size="sm"
                   disabled={busy}
                   onClick={() =>
                     void segmentAction(async () =>
@@ -1457,105 +1446,243 @@ export function StudioWorkspace({
                     )
                   }
                 >
+                  <Plus size={14} />
                   <I18nText text="Add segment" />
                 </Button>
+              )}
+            </div>
+            <div className="studio-segment-picker">
+              <label>
+                <select
+                  aria-label={t("Script segment")}
+                  value={selectedSegment?._id ?? ""}
+                  disabled={busy}
+                  onChange={(event) => {
+                    const id = event.target.value;
+                    void segmentAction(async () => selectSegment(id));
+                  }}
+                >
+                  {segments.map((segment, index) => (
+                    <option key={segment._id} value={segment._id}>
+                      {index + 1}. {segment.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {canWrite !== false && selectedSegment && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label={t("Segment actions")}
+                      disabled={busy}
+                    >
+                      <MoreHorizontal size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="studio-segment-menu"
+                  >
+                    <DropdownMenuItem
+                      disabled={
+                        busy || segments[0]?._id === selectedSegment._id
+                      }
+                      onSelect={() => void moveSegment(-1)}
+                    >
+                      <ArrowUp size={14} />
+                      <I18nText text="Move earlier" />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={
+                        busy || segments.at(-1)?._id === selectedSegment._id
+                      }
+                      onSelect={() => void moveSegment(1)}
+                    >
+                      <ArrowDown size={14} />
+                      <I18nText text="Move later" />
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={busy || segments.length < 2}
+                      onSelect={() =>
+                        void segmentAction(async () => {
+                          await updateSegment({
+                            projectId: projectId as never,
+                            segmentId: selectedSegment._id,
+                            archive: true,
+                          });
+                          selectSegment(
+                            segments.find((s) => s._id !== selectedSegment._id)!
+                              ._id,
+                          );
+                        })
+                      }
+                    >
+                      <Archive size={14} />
+                      <I18nText text="Archive segment" />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="studio-segment-delete"
+                      disabled={busy}
+                      onSelect={() =>
+                        void segmentAction(async () => {
+                          if (
+                            !(await confirm({
+                              title: t("Delete segment?"),
+                              description: t(
+                                "Deleting {0} permanently removes its script and all script versions. This cannot be undone.",
+                                { 0: selectedSegment.title },
+                              ),
+                              confirmLabel: t("Delete segment"),
+                              destructive: true,
+                            }))
+                          )
+                            return;
+                          await deleteSegment({
+                            projectId: projectId as never,
+                            segmentId: selectedSegment._id,
+                          });
+                          try {
+                            localStorage.removeItem(
+                              `dirrio.scriptDraft.${draftScope}${projectId}.${selectedSegment._id}.plain`,
+                            );
+                          } catch {
+                            /* optional browser recovery */
+                          }
+                          selectSegment(
+                            segments.find(
+                              (segment) => segment._id !== selectedSegment._id,
+                            )?._id,
+                          );
+                        })
+                      }
+                    >
+                      <Trash2 size={14} />
+                      <I18nText text="Delete segment" />
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            {canWrite !== false && (
+              <>
                 {selectedSegment && (
                   <>
-                    <input
-                      aria-label={t("Segment title")}
-                      key={`${selectedSegment._id}-${selectedSegment.title}`}
-                      defaultValue={selectedSegment.title}
-                      maxLength={120}
-                      onBlur={(event) => {
-                        const title = event.target.value.trim();
-                        if (title !== selectedSegment.title)
-                          void segmentAction(async () => {
-                            await updateSegment({
-                              projectId: projectId as never,
-                              segmentId: selectedSegment._id,
-                              title,
-                            });
-                          });
-                      }}
-                    />
-                    <label>
-                      <I18nText text="Planned seconds" />
+                    <label className="studio-segment-title">
+                      <span>
+                        <I18nText text="Segment title" />
+                      </span>
                       <input
-                        aria-label={t("Segment duration")}
-                        type="number"
-                        min={4}
-                        max={30}
-                        key={`${selectedSegment._id}-${selectedSegment.durationSec}`}
-                        defaultValue={selectedSegment.durationSec}
+                        aria-label={t("Segment title")}
+                        key={`${selectedSegment._id}-${selectedSegment.title}`}
+                        defaultValue={selectedSegment.title}
+                        maxLength={120}
                         onBlur={(event) => {
-                          const durationSec = Number(event.target.value);
-                          if (durationSec !== selectedSegment.durationSec)
+                          const title = event.target.value.trim();
+                          if (title !== selectedSegment.title)
                             void segmentAction(async () => {
                               await updateSegment({
                                 projectId: projectId as never,
                                 segmentId: selectedSegment._id,
-                                durationSec,
+                                title,
                               });
                             });
                         }}
                       />
                     </label>
-                    <div className="studio-segment-actions">
-                      <Button
-                        variant="outline"
-                        disabled={
-                          busy || segments[0]?._id === selectedSegment._id
-                        }
-                        onClick={() => void moveSegment(-1)}
-                      >
-                        <I18nText text="Move earlier" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={
-                          busy || segments.at(-1)?._id === selectedSegment._id
-                        }
-                        onClick={() => void moveSegment(1)}
-                      >
-                        <I18nText text="Move later" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={busy || segments.length < 2}
-                        onClick={() =>
-                          void segmentAction(async () => {
-                            await updateSegment({
-                              projectId: projectId as never,
-                              segmentId: selectedSegment._id,
-                              archive: true,
-                            });
-                            selectSegment(
-                              segments.find(
-                                (s) => s._id !== selectedSegment._id,
-                              )!._id,
-                            );
-                          })
-                        }
-                      >
-                        <I18nText text="Archive segment" />
-                      </Button>
-                    </div>
                   </>
                 )}
               </>
             )}
+            {selectedSegment && (
+              <p className="studio-segment-details">
+                <span>
+                  <I18nText text="Planned range" />{" "}
+                  <strong>
+                    {segmentTime(
+                      segments
+                        .slice(0, segments.indexOf(selectedSegment))
+                        .reduce(
+                          (total, segment) => total + segment.durationSec,
+                          0,
+                        ),
+                    )}
+                    –
+                    {segmentTime(
+                      segments
+                        .slice(0, segments.indexOf(selectedSegment) + 1)
+                        .reduce(
+                          (total, segment) => total + segment.durationSec,
+                          0,
+                        ),
+                    )}
+                  </strong>
+                </span>
+                <span>
+                  <I18nText text="Script version" />{" "}
+                  <strong>{selectedSegment.versionCount}</strong>
+                </span>
+                <small>
+                  <I18nText text="Based on segment durations, not timeline edits." />
+                </small>
+              </p>
+            )}
+            <details className="studio-archived-segments">
+              <summary>
+                <I18nText text="Archived segments" /> ({archivedSegments.length}
+                )
+              </summary>
+              {archivedSegments.length ? (
+                <ul>
+                  {archivedSegments.map((segment) => (
+                    <li key={segment._id}>
+                      <span>{segment.title}</span>
+                      {canWrite !== false && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busy}
+                          aria-label={t("Restore {0}", { 0: segment.title })}
+                          onClick={() =>
+                            void segmentAction(async () => {
+                              const id = await restoreSegment({
+                                projectId: projectId as never,
+                                segmentId: segment._id,
+                              });
+                              selectSegment(id);
+                            })
+                          }
+                        >
+                          <I18nText text="Restore" />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>
+                  <I18nText text="No archived segments" />
+                </p>
+              )}
+            </details>
           </div>
-          <StudioScript
-            key={`${projectId}-${selectedSegment?._id ?? "legacy"}`}
-            segmentId={selectedSegment?._id}
-            versionRef={scriptVersion}
-            recoverLegacyDraft={selectedSegment?._id === segments[0]?._id}
-            stagingReferenceId={useStaging ? staging?.previzAssetId : undefined}
-            projectId={projectId}
-            onDirty={dirtyChanged}
-            onValidityChange={setReferencesValid}
-            saveRef={scriptSave}
-          />
+          {selectedSegment && (
+            <StudioScript
+              key={`${projectId}-${selectedSegment?._id ?? "legacy"}`}
+              segmentId={selectedSegment?._id}
+              versionRef={scriptVersion}
+              recoverLegacyDraft={selectedSegment?._id === segments[0]?._id}
+              stagingReferenceId={
+                useStaging ? staging?.previzAssetId : undefined
+              }
+              projectId={projectId}
+              onDirty={dirtyChanged}
+              onValidityChange={setReferencesValid}
+              saveRef={scriptSave}
+            />
+          )}
         </div>
         <div
           hidden={inspectorView === "clip"}
@@ -1569,6 +1696,14 @@ export function StudioWorkspace({
             <h2>
               <I18nText text="Generation" />
             </h2>
+            {inspectorView === "generation" && selectedSegment && (
+              <div className="studio-generation-segment">
+                <span>
+                  <I18nText text="Script segment" />
+                </span>
+                <strong>{selectedSegment.title}</strong>
+              </div>
+            )}
             <label>
               <I18nText text="Model" />
               <span>Seedance 2.5</span>

@@ -1,25 +1,38 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { api, type Id } from "@dirrio/backend";
 import { useMutation, useQuery } from "@/lib/api/hooks";
-import { GenerationSettingsDraft } from "./generationSettingsDraft";
+import { GenerationSettingsDraftStore } from "./generationSettingsDraft";
 
-export function useGenerationSettings(projectId: string) {
-  const server = useQuery(api.projects.generationSettings, {
-    projectId: projectId as Id<"projects">,
-  });
+export function useGenerationSettings(projectId: string, segmentId?: string) {
+  const server = useQuery(
+    api.projects.generationSettings,
+    segmentId
+      ? {
+          projectId: projectId as Id<"projects">,
+          segmentId: segmentId as Id<"scriptSegments">,
+        }
+      : "skip",
+  );
   const save = useMutation(api.projects.saveGenerationSettings);
-  const draft = useMemo(
+  const drafts = useMemo(
     () =>
-      new GenerationSettingsDraft((patch) =>
-        save({ projectId: projectId as Id<"projects">, ...patch }),
+      new GenerationSettingsDraftStore((id, patch) =>
+        id
+          ? save({
+              projectId: projectId as Id<"projects">,
+              segmentId: id as Id<"scriptSegments">,
+              ...patch,
+            })
+          : Promise.reject(new Error("Select a script segment first")),
       ),
     [projectId, save],
   );
+  const draft = drafts.forSegment(segmentId ?? "");
   const state = useSyncExternalStore(draft.subscribe, draft.getSnapshot);
   useEffect(() => {
     draft.observe(server);
   }, [draft, server, state.saving]);
-  useEffect(() => () => draft.dispose(), [draft]);
+  useEffect(() => () => drafts.dispose(), [drafts]);
   const settings = {
     resolution: "720p" as "720p" | "1080p",
     durationSec: 5,
@@ -30,7 +43,7 @@ export function useGenerationSettings(projectId: string) {
   };
   return {
     settings,
-    loaded: server !== undefined,
+    loaded: Boolean(segmentId) && server !== undefined,
     saving: state.saving,
     pending: Object.keys(state.patch).length > 0 && !state.saved,
     error: state.error,

@@ -6,7 +6,7 @@ export type SavedGenerationSettings = FunctionReturnType<
 >;
 export type GenerationSettingsPatch = Omit<
   FunctionArgs<typeof api.projects.saveGenerationSettings>,
-  "projectId"
+  "projectId" | "segmentId"
 >;
 type Save = (
   patch: GenerationSettingsPatch,
@@ -118,4 +118,28 @@ export class GenerationSettingsDraft {
     clearTimeout(this.timer);
     void this.flush();
   };
+}
+
+/** Keep failed and in-flight drafts attached to their segment when navigating. */
+export class GenerationSettingsDraftStore {
+  private drafts = new Map<string, GenerationSettingsDraft>();
+  constructor(
+    private save: (
+      segmentId: string,
+      patch: GenerationSettingsPatch,
+    ) => Promise<SavedGenerationSettings>,
+  ) {}
+  forSegment(segmentId: string) {
+    let draft = this.drafts.get(segmentId);
+    if (!draft) {
+      draft = new GenerationSettingsDraft((patch) =>
+        this.save(segmentId, patch),
+      );
+      this.drafts.set(segmentId, draft);
+    }
+    return draft;
+  }
+  dispose() {
+    for (const draft of this.drafts.values()) draft.dispose();
+  }
 }

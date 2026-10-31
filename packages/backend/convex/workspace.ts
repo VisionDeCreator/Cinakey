@@ -1,3 +1,7 @@
+import {
+  generationDefaults,
+  segmentSettingsDefaults,
+} from "./lib/generationSettings";
 import { requireProjectWrite } from "./lib/access";
 import { projectUsage } from "./lib/budgets";
 import { estimateStagingTokens, resolveReferences } from "@dirrio/shared";
@@ -16,7 +20,7 @@ import {
   projectCanUseAsset,
   requireProjectAccess,
 } from "./lib/access";
-import { getFileUrl } from "./storage";
+import { deleteFile, getFileUrl } from "./storage";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
@@ -29,7 +33,9 @@ async function projectSegments(
       .query("scriptSegments")
       .withIndex("by_project", (q) => q.eq("projectId", projectId))
       .collect()
-  ).sort((a, b) => a.order - b.order);
+  )
+    .filter((segment) => !segment.deletedAt)
+    .sort((a, b) => a.order - b.order);
 }
 async function segmentFor(
   ctx: QueryCtx | MutationCtx,
@@ -41,7 +47,10 @@ async function segmentFor(
     : (await projectSegments(ctx, projectId)).find((s) => !s.archivedAt);
   if (
     segmentId &&
-    (!segment || segment.projectId !== projectId || segment.archivedAt)
+    (!segment ||
+      segment.projectId !== projectId ||
+      segment.archivedAt ||
+      segment.deletedAt)
   )
     throw new Error("Segment not found in project");
   return segment;
@@ -50,6 +59,15 @@ async function initializeSegments(ctx: MutationCtx, projectId: Id<"projects">) {
   const segments = await projectSegments(ctx, projectId);
   const project = await ctx.db.get(projectId);
   if (!project) throw new Error("Project not found");
+  // An intentionally emptied project stays empty until the user adds a segment.
+  if (
+    !segments.length &&
+    (await ctx.db
+      .query("scriptSegments")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .first())
+  )
+    return;
   const segmentId =
     segments[0]?._id ??
     (await ctx.db.insert("scriptSegments", {
@@ -76,6 +94,35 @@ async function initializeSegments(ctx: MutationCtx, projectId: Id<"projects">) {
           scripts.find((s) => s._id === staging.scriptVersionId)?.segmentId ??
           segmentId,
       });
+  }
+  for (const segment of await projectSegments(ctx, projectId)) {
+    if (segment.generationSettings) continue;
+    const defaults = generationDefaults(project);
+    const settings: import("./lib/generationSettings").GenerationSettings = {
+      ...segmentSettingsDefaults(project),
+      durationSec: segment.durationSec,
+    };
+    if (defaults.stagingId) {
+      const staging = await ctx.db.get(defaults.stagingId);
+      if (
+        staging?.projectId === projectId &&
+        staging.segmentId === segment._id
+      ) {
+        settings.stagingId = defaults.stagingId;
+        settings.useStaging =
+          defaults.useStaging && Boolean(staging.previzAssetId);
+      }
+    }
+    const stored = {
+      resolution: settings.resolution,
+      aspectRatio: settings.aspectRatio,
+      stagingId: settings.stagingId,
+      useStaging: settings.useStaging,
+    };
+    await ctx.db.patch(segment._id, {
+      generationSettings: stored,
+      settingsRevision: 1,
+    });
   }
   if (!scripts.some((s) => s.isTip))
     await ctx.db.insert("workspaceScripts", {
@@ -104,6 +151,14 @@ export const list = query({
     const segment = await segmentFor(ctx, projectId, segmentId);
     const selected = scripts.filter((s) => s.segmentId === segment?._id);
     return {
+      archivedSegments: segments
+        .filter((segment) => segment.archivedAt)
+        .map((segment) => ({
+          ...segment,
+          versionCount: scripts.filter(
+            (script) => script.segmentId === segment._id,
+          ).length,
+        })),
       segments: segments
         .filter((s) => !s.archivedAt)
         .map((segment) => ({
@@ -410,11 +465,15 @@ export const createSegment = mutation({
     const title = args.title?.trim() || `Segment ${segments.length + 1}`;
     if (title.length > 120)
       throw new Error("Segment title exceeds 120 characters");
+    const project = await ctx.db.get(args.projectId);
+    if (!project) throw new Error("Project not found");
     const id = await ctx.db.insert("scriptSegments", {
       projectId: args.projectId,
       title,
-      order: Math.max(...segments.map((s) => s.order)) + 1,
-      durationSec: 30,
+      order: Math.max(-1, ...segments.map((s) => s.order)) + 1,
+      durationSec: generationDefaults(project).durationSec,
+      generationSettings: segmentSettingsDefaults(project),
+      settingsRevision: 1,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -439,7 +498,7 @@ export const updateSegment = mutation({
   },
   handler: async (ctx, args) => {
     await requireProjectWrite(ctx, args.projectId);
-    await segmentFor(ctx, args.projectId, args.segmentId);
+    const segment = await segmentFor(ctx, args.projectId, args.segmentId);
     if (
       args.title !== undefined &&
       (!args.title.trim() || args.title.trim().length > 120)
@@ -461,7 +520,10 @@ export const updateSegment = mutation({
     await ctx.db.patch(args.segmentId, {
       ...(args.title !== undefined ? { title: args.title.trim() } : {}),
       ...(args.durationSec !== undefined
-        ? { durationSec: args.durationSec }
+        ? {
+            durationSec: args.durationSec,
+            settingsRevision: (segment?.settingsRevision ?? 0) + 1,
+          }
         : {}),
       ...(args.archive ? { archivedAt: Date.now() } : {}),
       updatedAt: Date.now(),
@@ -483,5 +545,56 @@ export const reorderSegments = mutation({
       throw new Error("Include each active segment exactly once");
     for (const [order, id] of args.segmentIds.entries())
       await ctx.db.patch(id, { order, updatedAt: Date.now() });
+  },
+});
+
+/** Remove scripts permanently; retain a tombstone for generated-media provenance. */
+export const deleteSegment = mutation({
+  args: { ...projectArgs, segmentId: v.id("scriptSegments") },
+  handler: async (ctx, { projectId, segmentId }) => {
+    await requireProjectWrite(ctx, projectId);
+    const segment = await segmentFor(ctx, projectId, segmentId);
+    if (!segment) throw new Error("Segment not found in project");
+    const scripts = (
+      await ctx.db
+        .query("workspaceScripts")
+        .withIndex("by_project", (q) => q.eq("projectId", projectId))
+        .collect()
+    ).filter((script) => script.segmentId === segmentId);
+    const files = new Set(
+      scripts.flatMap((script) =>
+        script.contentFileId ? [script.contentFileId] : [],
+      ),
+    );
+    for (const file of files) await deleteFile(ctx, file);
+    for (const script of scripts) await ctx.db.delete(script._id);
+    await ctx.db.patch(segmentId, {
+      deletedAt: Date.now(),
+      generationSettings: undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/** Restore the original script chain and preferences, appending to active segments. */
+export const restoreSegment = mutation({
+  args: { ...projectArgs, segmentId: v.id("scriptSegments") },
+  handler: async (ctx, { projectId, segmentId }) => {
+    await requireProjectWrite(ctx, projectId);
+    const segment = await ctx.db.get(segmentId);
+    if (!segment || segment.projectId !== projectId || segment.deletedAt)
+      throw new Error("Segment not found in project");
+    if (!segment.archivedAt) return segmentId;
+    const segments = await projectSegments(ctx, projectId);
+    await ctx.db.patch(segmentId, {
+      archivedAt: undefined,
+      order:
+        Math.max(
+          -1,
+          ...segments.filter((s) => !s.archivedAt).map((s) => s.order),
+        ) + 1,
+      updatedAt: Date.now(),
+    });
+    return segmentId;
   },
 });

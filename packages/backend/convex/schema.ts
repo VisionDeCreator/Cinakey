@@ -1,5 +1,8 @@
 import { helpContentValidator } from "./lib/helpArticles";
-import { generationSettingsValidator } from "./lib/generationSettings";
+import {
+  generationSettingsValidator,
+  segmentGenerationSettingsValidator,
+} from "./lib/generationSettings";
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
@@ -628,6 +631,9 @@ const schema = defineSchema(
       .index("by_project_asset", ["projectId", "assetId"]),
 
     scriptSegments: defineTable({
+      deletedAt: v.optional(v.number()),
+      generationSettings: v.optional(segmentGenerationSettingsValidator),
+      settingsRevision: v.optional(v.number()),
       projectId: v.id("projects"),
       title: v.string(),
       order: v.number(),

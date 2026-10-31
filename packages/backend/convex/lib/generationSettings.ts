@@ -34,3 +34,21 @@ export function generationDefaults(project: {
     }
   );
 }
+
+/** Duration has a single source of truth on the segment itself. */
+export const segmentGenerationSettingsValidator = v.object({
+  resolution: generationResolution,
+  aspectRatio: generationAspectRatio,
+  stagingId: v.optional(v.id("workspaceStaging")),
+  useStaging: v.boolean(),
+});
+export function segmentSettingsDefaults(
+  project: Parameters<typeof generationDefaults>[0],
+): Infer<typeof segmentGenerationSettingsValidator> {
+  const defaults = generationDefaults(project);
+  return {
+    resolution: defaults.resolution,
+    aspectRatio: defaults.aspectRatio,
+    useStaging: false,
+  };
+}

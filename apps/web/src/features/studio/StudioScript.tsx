@@ -4,6 +4,13 @@ import {
   useWorkspace,
   useDraftScope,
 } from "@/features/workspaces/workspace-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useAssetUpload } from "@/features/assets/useAssetUpload";
 import { useAction, useMutation, useQuery } from "@/lib/api/hooks";
@@ -16,7 +23,7 @@ import {
   scriptMentionRanges,
   replacementReferenceAlias,
 } from "@dirrio/shared";
-import { Check, Link2, Upload, X } from "lucide-react";
+import { Check, Link2, Upload, X, History, ChevronDown } from "lucide-react";
 import {
   useCallback,
   useLayoutEffect,
@@ -680,60 +687,81 @@ export function StudioScript({
           }
         }}
       />
-      <details>
+      <details className="studio-script-history">
         <summary>
-          <I18nText text="Script history (" />
-          {workspace?.scripts.length ?? 0})
+          <History size={15} />
+          <span>
+            <I18nText text="Script history" />
+          </span>
+          <span className="studio-history-count">
+            {workspace?.scripts.length ?? 0}
+          </span>
+          <ChevronDown size={14} className="studio-history-chevron" />
         </summary>
-        <select
-          aria-label={t("Script history")}
-          defaultValue=""
-          onChange={async (event) => {
-            if (!event.target.value) return;
-            try {
-              const old = await loadContent({
-                projectId: projectId as never,
-                id: event.target.value as never,
-              });
-              setHistoryText(old.text);
-            } catch (error) {
-              setError(
-                error instanceof Error
-                  ? error.message
-                  : "Could not load history",
-              );
-            }
-          }}
-        >
-          <option value="">
-            <I18nText text="Preview a saved version" />
-          </option>
-          {workspace?.scripts.map((version) => (
-            <option key={version._id} value={version._id}>
-              {t("Version")} {version.version} · {version.label} ·{" "}
-              {new Date(version.createdAt).toLocaleString(getLocale())}
-            </option>
-          ))}
-        </select>
-        {historyText !== null && (
-          <>
-            <textarea
-              readOnly
-              aria-label={t("Script history preview")}
-              value={historyText}
-            />
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!(await saveLatest())) return;
-                edit(historyText);
-                setHistoryText(null);
+        <div className="studio-history-content">
+          <label>
+            <span>
+              <I18nText text="Saved version" />
+            </span>
+            <Select
+              defaultValue=""
+              onValueChange={async (id) => {
+                if (!id) return;
+                try {
+                  const old = await loadContent({
+                    projectId: projectId as never,
+                    id: id as never,
+                  });
+                  setHistoryText(old.text);
+                } catch (error) {
+                  setError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not load history",
+                  );
+                }
               }}
             >
-              <I18nText text="Use this version as draft" />
-            </Button>
-          </>
-        )}
+              <SelectTrigger aria-label={t("Script history")}>
+                <SelectValue placeholder={t("Preview a saved version")} />
+              </SelectTrigger>
+              <SelectContent>
+                {workspace?.scripts.map((version) => (
+                  <SelectItem key={version._id} value={version._id}>
+                    {t("Version")} {version.version} · {version.label} ·{" "}
+                    {new Date(version.createdAt).toLocaleString(getLocale())}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          {historyText !== null && (
+            <>
+              <textarea
+                readOnly
+                aria-label={t("Script history preview")}
+                value={historyText}
+              />
+              <div className="studio-history-footer">
+                <span>
+                  <I18nText text="Preview only" />
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!writeAllowed}
+                  onClick={async () => {
+                    if (!(await saveLatest())) return;
+                    edit(historyText);
+                    setHistoryText(null);
+                  }}
+                >
+                  <I18nText text="Use this version as draft" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </details>
       <div className="studio-reference-list">
         {mentions.map((alias) => {

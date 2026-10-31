@@ -1538,5 +1538,13 @@
   "workspace:reorderSegments": {
     "kind": "mutation",
     "public": true
+  },
+  "workspace:deleteSegment": {
+    "kind": "mutation",
+    "public": true
+  },
+  "workspace:restoreSegment": {
+    "kind": "mutation",
+    "public": true
   }
 }

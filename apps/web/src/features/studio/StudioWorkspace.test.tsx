@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import {
   act,
   cleanup,
@@ -13,7 +14,31 @@ import { MediaPreview } from "./MediaPreview";
 import { StudioWorkspace } from "./StudioWorkspace";
 const state = vi.hoisted(() => ({
   queries: vi.fn(),
-  segments: [] as {
+  archivedSegments: [] as {
+    _id: string;
+    title: string;
+    durationSec: number;
+    versionCount: number;
+  }[],
+  confirm: vi.fn().mockResolvedValue(false),
+  settingsBySegment: {} as Record<
+    string,
+    {
+      resolution: string;
+      durationSec: number;
+      aspectRatio: string;
+      useStaging: boolean;
+      revision: number;
+    }
+  >,
+  segments: [
+    {
+      _id: "defaultSegment",
+      title: "Segment 1",
+      durationSec: 5,
+      versionCount: 1,
+    },
+  ] as {
     _id: string;
     title: string;
     durationSec: number;
@@ -64,7 +89,11 @@ vi.mock("@/lib/api/hooks", () => ({
     state.queries(getFunctionName(ref), args);
     switch (getFunctionName(ref)) {
       case "projects:generationSettings":
-        return state.settings;
+        return (
+          state.settingsBySegment[
+            (args as { segmentId?: string })?.segmentId ?? ""
+          ] ?? state.settings
+        );
       case "assets:list":
         return state.assets;
       case "workspace:list":
@@ -74,6 +103,7 @@ vi.mock("@/lib/api/hooks", () => ({
           scripts: [],
           staging: state.staging,
           segments: state.segments,
+          archivedSegments: state.archivedSegments,
         };
       case "workspace:videos":
         return state.footage;
@@ -94,7 +124,9 @@ vi.mock("@/lib/api/hooks", () => ({
   useAction: () => vi.fn().mockResolvedValue({ id: "script", text: "" }),
   useMutation: () => state.mutation,
 }));
-vi.mock("@/components/use-confirm", () => ({ useConfirm: () => vi.fn() }));
+vi.mock("@/components/use-confirm", () => ({
+  useConfirm: () => state.confirm,
+}));
 vi.mock("@/features/assets/useAssetUpload", () => ({
   useAssetUpload: () => ({ uploads: [], uploadFiles: vi.fn() }),
 }));
@@ -110,8 +142,25 @@ vi.mock("@/features/blockout/BlockoutPage", () => ({
 afterEach(() => {
   cleanup();
   state.staging = [];
-  state.segments = [];
+  state.segments = [
+    {
+      _id: "defaultSegment",
+      title: "Segment 1",
+      durationSec: 5,
+      versionCount: 1,
+    },
+  ];
   state.queries.mockClear();
+  state.archivedSegments = [];
+  state.confirm.mockReset().mockResolvedValue(false);
+  state.settingsBySegment = {};
+  state.mutation.mockReset().mockResolvedValue({
+    resolution: "720p",
+    durationSec: 5,
+    aspectRatio: "16:9",
+    useStaging: false,
+    revision: 2,
+  });
   state.settings = {
     resolution: "720p",
     durationSec: 5,
@@ -358,6 +407,7 @@ it("loads saved generation settings and persists edits without changing project 
   await waitFor(() =>
     expect(state.mutation).toHaveBeenCalledWith({
       projectId: "p",
+      segmentId: "defaultSegment",
       aspectRatio: "1:1",
     }),
   );
@@ -467,4 +517,256 @@ it("opens the selected segment and switches its editor with a segment-scoped que
     projectId: "p",
     segmentId: "opening",
   });
+});
+
+function renderSegmentSettings(single = false) {
+  state.segments = [
+    { _id: "opening", title: "Opening", durationSec: 8, versionCount: 1 },
+    { _id: "ending", title: "Ending", durationSec: 20, versionCount: 1 },
+  ];
+  if (single) state.segments = state.segments.slice(0, 1);
+  state.settingsBySegment = {
+    opening: {
+      resolution: "720p",
+      durationSec: 8,
+      aspectRatio: "16:9",
+      useStaging: false,
+      revision: 1,
+    },
+    ending: {
+      resolution: "1080p",
+      durationSec: 20,
+      aspectRatio: "9:16",
+      useStaging: false,
+      revision: 1,
+    },
+  };
+  return render(
+    <MemoryRouter initialEntries={["/projects/p/studio?segment=opening"]}>
+      <Routes>
+        <Route
+          path="/projects/:projectId/studio"
+          element={
+            <StudioWorkspace
+              toolbar={null}
+              viewer={null}
+              timeline={null}
+              inspector={null}
+              selectedClip={null}
+              onInsert={vi.fn()}
+              onPreview={vi.fn()}
+            />
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+it("flushes the old segment before switching and restores each segment's settings", async () => {
+  let finish!: (result: typeof state.settings) => void;
+  state.mutation.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderSegmentSettings();
+  await act(async () => {});
+  fireEvent.change(
+    screen.getByRole("slider", { name: "Generation duration" }),
+    { target: { value: "12" } },
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: "Script segment" }), {
+    target: { value: "ending" },
+  });
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith({
+      projectId: "p",
+      segmentId: "opening",
+      durationSec: 12,
+    }),
+  );
+  expect(screen.getByRole("combobox", { name: "Script segment" })).toHaveValue(
+    "opening",
+  );
+  await act(async () => {
+    state.settingsBySegment.opening = {
+      ...state.settingsBySegment.opening!,
+      durationSec: 12,
+      revision: 2,
+    };
+    finish(state.settingsBySegment.opening);
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("combobox", { name: "Script segment" }),
+    ).toHaveValue("ending"),
+  );
+  expect(
+    screen.getByRole("slider", { name: "Generation duration" }),
+  ).toHaveValue("20");
+  expect(
+    screen.getByRole("combobox", { name: "Resolution" }),
+  ).toHaveTextContent("1080p");
+  fireEvent.change(screen.getByRole("combobox", { name: "Script segment" }), {
+    target: { value: "opening" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("slider", { name: "Generation duration" }),
+    ).toHaveValue("12"),
+  );
+  expect(
+    screen.queryByRole("spinbutton", { name: "Segment duration" }),
+  ).not.toBeInTheDocument();
+});
+it("keeps the current segment and its settings draft when saving fails, with a retry", async () => {
+  state.mutation.mockRejectedValueOnce(new Error("offline"));
+  renderSegmentSettings();
+  await act(async () => {});
+  fireEvent.change(
+    screen.getByRole("slider", { name: "Generation duration" }),
+    { target: { value: "14" } },
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: "Script segment" }), {
+    target: { value: "ending" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Retry save" }),
+    ).toBeInTheDocument(),
+  );
+  expect(screen.getByRole("combobox", { name: "Script segment" })).toHaveValue(
+    "opening",
+  );
+  expect(
+    screen.getByRole("slider", { name: "Generation duration" }),
+  ).toHaveValue("14");
+  state.mutation.mockResolvedValueOnce({
+    ...state.settingsBySegment.opening,
+    durationSec: 14,
+    revision: 2,
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Retry save" }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Retry save" }),
+    ).not.toBeInTheDocument(),
+  );
+  fireEvent.change(screen.getByRole("combobox", { name: "Script segment" }), {
+    target: { value: "ending" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole("combobox", { name: "Script segment" }),
+    ).toHaveValue("ending"),
+  );
+});
+
+it("warns about losing the script and versions, and deletes only after confirmation", async () => {
+  renderSegmentSettings();
+  await act(async () => {});
+  await userEvent.click(
+    screen.getByRole("button", { name: "Segment actions" }),
+  );
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: "Delete segment" }),
+  );
+  await waitFor(() =>
+    expect(state.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Delete segment?",
+        description:
+          "Deleting Opening permanently removes its script and all script versions. This cannot be undone.",
+        destructive: true,
+      }),
+    ),
+  );
+  expect(state.mutation).not.toHaveBeenCalled();
+  expect(screen.getByRole("combobox", { name: "Script segment" })).toHaveValue(
+    "opening",
+  );
+  state.confirm.mockResolvedValueOnce(true);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Segment actions" }),
+  );
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: "Delete segment" }),
+  );
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith({
+      projectId: "p",
+      segmentId: "opening",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("combobox", { name: "Script segment" }),
+    ).toHaveValue("ending"),
+  );
+});
+
+it("allows deleting the last segment and leaves the project ready to add another", async () => {
+  state.confirm.mockResolvedValueOnce(true);
+  state.mutation.mockImplementationOnce(async () => {
+    state.segments = [];
+  });
+  renderSegmentSettings(true);
+  await act(async () => {});
+  await userEvent.click(
+    screen.getByRole("button", { name: "Segment actions" }),
+  );
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: "Delete segment" }),
+  );
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith({
+      projectId: "p",
+      segmentId: "opening",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Delete segment" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.getByRole("button", { name: "Add segment" })).toBeEnabled();
+});
+
+it("restores an archived segment from the editor and selects it", async () => {
+  const archived = {
+    _id: "archived",
+    title: "Archived middle",
+    durationSec: 12,
+    versionCount: 3,
+  };
+  state.archivedSegments = [archived];
+  state.mutation.mockImplementationOnce(async () => {
+    state.archivedSegments = [];
+    state.segments = [...state.segments, archived];
+    return archived._id;
+  });
+  renderSegmentSettings();
+  await act(async () => {});
+  fireEvent.click(screen.getByText(/^Archived segments/));
+  expect(screen.getByText("Archived middle")).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Restore Archived middle" }),
+  );
+  await waitFor(() =>
+    expect(state.mutation).toHaveBeenCalledWith({
+      projectId: "p",
+      segmentId: "archived",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("combobox", { name: "Script segment" }),
+    ).toHaveValue("archived"),
+  );
+  expect(state.queries).toHaveBeenCalledWith("workspace:list", {
+    projectId: "p",
+    segmentId: "archived",
+  });
+  expect(screen.getByText("No archived segments")).toBeVisible();
 });

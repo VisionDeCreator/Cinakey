@@ -1,6 +1,7 @@
 import {
   generationResolution,
   generationAspectRatio,
+  generationSettingsValidator,
 } from "../../../../packages/backend/convex/lib/generationSettings";
 import {
   assertBlockoutDocument,
@@ -331,6 +332,7 @@ export const generate = action({
     maxCostUsdMicros: v.optional(v.number()),
     quoteId: v.optional(v.id("usageQuotes")),
     prompt: v.optional(v.string()),
+    settingsSnapshot: v.optional(generationSettingsValidator),
     durationSec: v.number(),
     resolution: generationResolution,
     aspectRatio: v.optional(generationAspectRatio),
@@ -404,6 +406,38 @@ export const generate = action({
         throw new Error("Choose either staging or a script video reference");
       referenceVideoAssetId = staging.previzAssetId;
     }
+    const preferences = await ctx.runQuery(api.projects.generationSettings, {
+      projectId: args.projectId,
+      segmentId: script.segmentId,
+    });
+    const settingsSnapshot = args.settingsSnapshot ?? {
+      durationSec: args.durationSec,
+      resolution: args.resolution,
+      aspectRatio: args.aspectRatio ?? preferences.aspectRatio,
+      stagingId: args.stagingId,
+      useStaging: Boolean(args.stagingId),
+    };
+    if (
+      settingsSnapshot.durationSec !== args.durationSec ||
+      settingsSnapshot.resolution !== args.resolution ||
+      settingsSnapshot.aspectRatio !==
+        (args.aspectRatio ?? preferences.aspectRatio) ||
+      settingsSnapshot.useStaging !== Boolean(args.stagingId) ||
+      (settingsSnapshot.useStaging &&
+        settingsSnapshot.stagingId !== args.stagingId)
+    )
+      throw new Error("Generation settings do not match the request");
+    if (settingsSnapshot.stagingId) {
+      const selected = await ctx.runQuery(api.workspace.stagingRecord, {
+        id: settingsSnapshot.stagingId,
+      });
+      if (
+        !selected ||
+        selected.projectId !== args.projectId ||
+        selected.segmentId !== script.segmentId
+      )
+        throw new Error("Staging belongs to another segment");
+    }
     return ctx.runAction(api.generation.startGeneration, {
       maxCostUsdMicros: args.maxCostUsdMicros,
       quoteId: args.quoteId,
@@ -427,10 +461,8 @@ export const generate = action({
       input: {
         durationSec: args.durationSec,
         resolution: args.resolution,
-        aspectRatio:
-          args.aspectRatio ??
-          project.generationSettings?.aspectRatio ??
-          project.aspectRatio,
+        aspectRatio: settingsSnapshot.aspectRatio,
+        generationSettings: settingsSnapshot,
         segmentId: args.segmentId,
         scriptVersionId: script.id,
         stagingId: args.stagingId,

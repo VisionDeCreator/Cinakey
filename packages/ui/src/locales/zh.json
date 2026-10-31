@@ -2394,5 +2394,17 @@
   "Move earlier": "前移",
   "Move later": "后移",
   "Archive segment": "归档片段",
-  "Selected segment only": "仅所选片段"
+  "Selected segment only": "仅所选片段",
+  "Delete segment?": "删除片段？",
+  "Delete segment": "删除片段",
+  "Deleting {0} permanently removes its script and all script versions. This cannot be undone.": "删除 {0} 将永久移除其脚本及所有脚本版本。此操作无法撤销。",
+  "Archived segments": "已归档片段",
+  "No archived segments": "没有已归档片段",
+  "Restore {0}": "恢复 {0}",
+  "Segment actions": "片段操作",
+  "Planned range": "计划范围",
+  "Script version": "脚本版本",
+  "Based on segment durations, not timeline edits.": "基于片段时长，而非时间线编辑。",
+  "Saved version": "已保存版本",
+  "Preview only": "仅预览"
 }

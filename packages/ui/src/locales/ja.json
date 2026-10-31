@@ -2394,5 +2394,17 @@
   "Move earlier": "前に移動",
   "Move later": "後に移動",
   "Archive segment": "セグメントをアーカイブ",
-  "Selected segment only": "選択したセグメントのみ"
+  "Selected segment only": "選択したセグメントのみ",
+  "Delete segment?": "セグメントを削除しますか？",
+  "Delete segment": "セグメントを削除",
+  "Deleting {0} permanently removes its script and all script versions. This cannot be undone.": "{0} を削除すると、スクリプトとすべてのバージョンが完全に削除されます。この操作は取り消せません。",
+  "Archived segments": "アーカイブ済みセグメント",
+  "No archived segments": "アーカイブ済みセグメントはありません",
+  "Restore {0}": "{0} を復元",
+  "Segment actions": "セグメントの操作",
+  "Planned range": "予定範囲",
+  "Script version": "スクリプトのバージョン",
+  "Based on segment durations, not timeline edits.": "タイムラインの編集ではなく、セグメントの長さに基づきます。",
+  "Saved version": "保存済みバージョン",
+  "Preview only": "プレビューのみ"
 }

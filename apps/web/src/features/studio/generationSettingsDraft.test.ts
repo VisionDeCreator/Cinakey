@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
   GenerationSettingsDraft,
+  GenerationSettingsDraftStore,
   type SavedGenerationSettings,
 } from "./generationSettingsDraft";
 const saved = (revision: number): SavedGenerationSettings => ({
@@ -67,4 +68,36 @@ it("retains failed edits, blocks a generation flush, and retries the same prefer
   expect(save).toHaveBeenCalledTimes(1);
   expect(await draft.retry()).toBe(true);
   expect(save).toHaveBeenLastCalledWith({ aspectRatio: "1:1" });
+});
+
+it("keeps delayed saves and failed drafts bound to their original segment", async () => {
+  let finish!: (settings: SavedGenerationSettings) => void;
+  const save = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<SavedGenerationSettings>((resolve) => {
+          finish = resolve;
+        }),
+    )
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValue(saved(2));
+  const store = new GenerationSettingsDraftStore(save);
+  const opening = store.forSegment("opening");
+  opening.change({ durationSec: 12 });
+  const pending = opening.flush();
+  const ending = store.forSegment("ending");
+  ending.change({ resolution: "1080p" });
+  expect(await ending.flush()).toBe(false);
+  finish({ ...saved(2), durationSec: 12 });
+  expect(await pending).toBe(true);
+  expect(store.forSegment("opening")).toBe(opening);
+  expect(store.forSegment("ending").getSnapshot().error).toBe("offline");
+  expect(await store.forSegment("ending").retry()).toBe(true);
+  expect(save.mock.calls).toEqual([
+    ["opening", { durationSec: 12 }],
+    ["ending", { resolution: "1080p" }],
+    ["ending", { resolution: "1080p" }],
+  ]);
+  store.dispose();
 });

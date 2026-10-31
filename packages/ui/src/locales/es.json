@@ -2394,5 +2394,17 @@
   "Move earlier": "Mover antes",
   "Move later": "Mover después",
   "Archive segment": "Archivar segmento",
-  "Selected segment only": "Solo el segmento seleccionado"
+  "Selected segment only": "Solo el segmento seleccionado",
+  "Delete segment?": "¿Eliminar segmento?",
+  "Delete segment": "Eliminar segmento",
+  "Deleting {0} permanently removes its script and all script versions. This cannot be undone.": "Eliminar {0} borra permanentemente su guion y todas sus versiones. Esta acción no se puede deshacer.",
+  "Archived segments": "Segmentos archivados",
+  "No archived segments": "No hay segmentos archivados",
+  "Restore {0}": "Restaurar {0}",
+  "Segment actions": "Acciones del segmento",
+  "Planned range": "Intervalo previsto",
+  "Script version": "Versión del guion",
+  "Based on segment durations, not timeline edits.": "Basado en las duraciones de los segmentos, no en las ediciones de la línea de tiempo.",
+  "Saved version": "Versión guardada",
+  "Preview only": "Solo vista previa"
 }

@@ -1,6 +1,7 @@
 import { requireProjectUnpausedAccess } from "./lib/access";
 import {
   generationDefaults,
+  segmentSettingsDefaults,
   generationResolution,
   generationAspectRatio,
 } from "./lib/generationSettings";
@@ -345,10 +346,37 @@ export const duplicate = mutation({
 
 /** Reading preferences never writes defaults into legacy projects. */
 export const generationSettings = query({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, { projectId }) => {
+  args: {
+    projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
+  },
+  handler: async (ctx, { projectId, segmentId }) => {
     const project = await requireProjectAccess(ctx, projectId);
-    return { ...generationDefaults(project), revision: project.updatedAt };
+    if (!segmentId)
+      return { ...generationDefaults(project), revision: project.updatedAt };
+    const segment = await ctx.db.get(segmentId);
+    if (
+      !segment ||
+      segment.projectId !== projectId ||
+      segment.archivedAt ||
+      segment.deletedAt
+    )
+      throw new Error("Segment not found in project");
+    const settings = {
+      ...(segment.generationSettings ?? segmentSettingsDefaults(project)),
+      durationSec: segment.durationSec,
+    };
+    // Read-only fallback for records awaiting the idempotent workspace migration.
+    if (!segment.generationSettings && project.generationSettings?.stagingId) {
+      const staging = await ctx.db.get(project.generationSettings.stagingId);
+      if (staging?.segmentId === segmentId && staging.projectId === projectId) {
+        settings.stagingId = staging._id;
+        settings.useStaging =
+          project.generationSettings.useStaging &&
+          Boolean(staging.previzAssetId);
+      }
+    }
+    return { ...settings, revision: segment.settingsRevision ?? 0 };
   },
 });
 
@@ -356,15 +384,30 @@ export const generationSettings = query({
 export const saveGenerationSettings = mutation({
   args: {
     projectId: v.id("projects"),
+    segmentId: v.optional(v.id("scriptSegments")),
     resolution: v.optional(generationResolution),
     durationSec: v.optional(v.number()),
     aspectRatio: v.optional(generationAspectRatio),
     stagingId: v.optional(v.union(v.id("workspaceStaging"), v.null())),
     useStaging: v.optional(v.boolean()),
   },
-  handler: async (ctx, { projectId, ...changes }) => {
+  handler: async (ctx, { projectId, segmentId, ...changes }) => {
     const project = await requireProjectWrite(ctx, projectId);
-    const settings = { ...generationDefaults(project) };
+    const segment = segmentId ? await ctx.db.get(segmentId) : null;
+    if (
+      segmentId &&
+      (!segment ||
+        segment.projectId !== projectId ||
+        segment.archivedAt ||
+        segment.deletedAt)
+    )
+      throw new Error("Segment not found in project");
+    const settings = segment
+      ? {
+          ...(segment.generationSettings ?? segmentSettingsDefaults(project)),
+          durationSec: segment.durationSec,
+        }
+      : { ...generationDefaults(project) };
     if (changes.resolution !== undefined)
       settings.resolution = changes.resolution;
     if (changes.durationSec !== undefined)
@@ -389,12 +432,27 @@ export const saveGenerationSettings = mutation({
       );
     if (settings.stagingId) {
       const staging = await ctx.db.get(settings.stagingId);
-      if (!staging || staging.projectId !== projectId)
+      if (
+        !staging ||
+        staging.projectId !== projectId ||
+        (segmentId && staging.segmentId !== segmentId)
+      )
         throw new Error("Staging is not available in this project.");
       if (settings.useStaging && !staging.previzAssetId)
         throw new Error("Export staging to a previsualization video first");
     } else if (settings.useStaging)
       throw new Error("Choose a staging reference first.");
+    if (segment && segmentId) {
+      const revision = (segment.settingsRevision ?? 0) + 1;
+      const { durationSec, ...stored } = settings;
+      await ctx.db.patch(segmentId, {
+        generationSettings: stored,
+        durationSec,
+        settingsRevision: revision,
+        updatedAt: Date.now(),
+      });
+      return { ...settings, revision };
+    }
     const revision = Math.max(Date.now(), project.updatedAt + 1);
     await ctx.db.patch(projectId, {
       generationSettings: settings,

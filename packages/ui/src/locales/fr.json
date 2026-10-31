@@ -2394,5 +2394,17 @@
   "Move earlier": "Déplacer avant",
   "Move later": "Déplacer après",
   "Archive segment": "Archiver le segment",
-  "Selected segment only": "Segment sélectionné uniquement"
+  "Selected segment only": "Segment sélectionné uniquement",
+  "Delete segment?": "Supprimer le segment ?",
+  "Delete segment": "Supprimer le segment",
+  "Deleting {0} permanently removes its script and all script versions. This cannot be undone.": "La suppression de {0} efface définitivement son script et toutes ses versions. Cette action est irréversible.",
+  "Archived segments": "Segments archivés",
+  "No archived segments": "Aucun segment archivé",
+  "Restore {0}": "Restaurer {0}",
+  "Segment actions": "Actions du segment",
+  "Planned range": "Plage prévue",
+  "Script version": "Version du script",
+  "Based on segment durations, not timeline edits.": "Basée sur la durée des segments, pas sur le montage.",
+  "Saved version": "Version enregistrée",
+  "Preview only": "Aperçu uniquement"
 }
