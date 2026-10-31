@@ -2,12 +2,7 @@ import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@dirrio/backend";
 import { useQuery } from "@/lib/api/hooks";
-import {
-  FolderOpen,
-  LayoutGrid,
-  List,
-  Plus,
-} from "lucide-react";
+import { FolderOpen, LayoutGrid, List, Plus } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,20 +13,23 @@ import { cn } from "@/lib/utils";
 export function ProjectsPage() {
   useLocale();
   const { workspaceId, canCreate } = useWorkspace();
-  const projects = useQuery(
-    api.projects.listMine,
-    workspaceId ? { workspaceId } : {},
-  );
+  const projects = useQuery(api.projects.listMine, {
+    ...(workspaceId ? { workspaceId } : {}),
+    includeArchived: true,
+  });
   const [createOpen, setCreateOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
-  const [tab, setTab] = useState<"projects" | "episodes">("projects");
+  const [tab, setTab] = useState<"projects" | "archived">("projects");
   const [sort, setSort] = useState("updated");
   const [view, setView] = useState<"grid" | "list">("grid");
   const visible = projects
     ?.filter(
       ({ project }) =>
-        (tab === "episodes" ? Boolean(project.seriesId) : !project.seriesId) &&
+        !project.seriesId &&
+        (tab === "archived"
+          ? project.archivedAt !== undefined
+          : project.archivedAt === undefined) &&
         project.title.toLowerCase().includes(search.trim().toLowerCase()),
     )
     .sort((a, b) =>
@@ -103,7 +101,7 @@ export function ProjectsPage() {
           className="flex gap-6 border-b border-zinc-800"
           aria-label={t("Project category")}
         >
-          {(["projects", "episodes"] as const).map((category) => (
+          {(["projects", "archived"] as const).map((category) => (
             <button
               key={category}
               type="button"
@@ -116,7 +114,7 @@ export function ProjectsPage() {
                   : "border-transparent text-zinc-400 hover:text-zinc-100",
               )}
             >
-              {category === "projects" ? t("All projects") : t("Episodes")}
+              {category === "projects" ? t("All projects") : t("Archived")}
             </button>
           ))}
         </div>
@@ -130,8 +128,8 @@ export function ProjectsPage() {
             <p className="text-sm text-zinc-400">
               {search.trim()
                 ? t("No matching projects.")
-                : tab === "episodes"
-                  ? t("No episodes yet.")
+                : tab === "archived"
+                  ? t("No archived projects.")
                   : t("No projects yet.")}
             </p>
             {!search.trim() && tab === "projects" && (

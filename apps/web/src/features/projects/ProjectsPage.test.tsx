@@ -13,6 +13,7 @@ const data = vi.hoisted(() => ({
       title: string;
       updatedAt: number;
       seriesId?: string;
+      archivedAt?: number;
     };
     thumbnailUrl: null;
     progress: {
@@ -83,6 +84,27 @@ describe("ProjectsPage", () => {
       },
       {
         project: {
+          _id: "archived",
+          title: "Archived project",
+          updatedAt: 4,
+          archivedAt: 5,
+        },
+        thumbnailUrl: null,
+        progress,
+      },
+      {
+        project: {
+          _id: "archived-episode",
+          title: "Archived episode",
+          updatedAt: 6,
+          archivedAt: 7,
+          seriesId: "series",
+        },
+        thumbnailUrl: null,
+        progress,
+      },
+      {
+        project: {
           _id: "episode",
           title: "Episode One",
           updatedAt: 3,
@@ -93,6 +115,9 @@ describe("ProjectsPage", () => {
       },
     ];
     setup();
+    expect(
+      screen.queryByRole("button", { name: "Episodes" }),
+    ).not.toBeInTheDocument();
     expect(
       screen
         .getAllByRole("article")
@@ -105,10 +130,10 @@ describe("ProjectsPage", () => {
     expect(
       within(screen.getAllByRole("article")[0]!).getByRole("heading"),
     ).toHaveTextContent("Alpha");
-    await userEvent.click(screen.getByRole("button", { name: "Episodes" }));
+    await userEvent.click(screen.getByRole("button", { name: "Archived" }));
     expect(screen.getAllByRole("article")).toHaveLength(1);
     expect(
-      screen.getByRole("heading", { name: "Episode One" }),
+      screen.getByRole("heading", { name: "Archived project" }),
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "List view" }));
     expect(screen.getByRole("button", { name: "List view" })).toHaveAttribute(
@@ -146,4 +171,13 @@ describe("ProjectsPage", () => {
       screen.queryByRole("link", { name: /New series/ }),
     ).not.toBeInTheDocument();
   });
+});
+
+it("shows an empty archived state without an extra create button", async () => {
+  setup();
+  await userEvent.click(screen.getByRole("button", { name: "Archived" }));
+  expect(screen.getByText("No archived projects.")).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: "New project" })).toHaveLength(
+    1,
+  );
 });
