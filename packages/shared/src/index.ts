@@ -324,3 +324,9 @@ export {
   helpArticleSnapshot,
   type HelpArticleContent,
 } from "./help-content";
+
+export {
+  FEATURES,
+  assertRemixEnabled,
+  assertGenerationModelEnabled,
+} from "./features";

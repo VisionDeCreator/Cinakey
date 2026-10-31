@@ -1,3 +1,4 @@
+import { FEATURES } from "@dirrio/shared";
 import { WorkspaceTrialNotice } from "@/features/workspaces/WorkspaceTrialNotice";
 import { SupportWidget } from "@dirrio/ui/support";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
@@ -293,32 +294,34 @@ function WorkspaceShell() {
               />
             </div>
           ) : null}
-          {navItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/projects"}
-              title={label}
-              aria-label={label}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-xl border-l-2 border-transparent py-3 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100",
-                  compact
-                    ? "justify-center px-0"
-                    : "justify-center px-0 sm:justify-start sm:px-3",
-                  to === "/billing" && "mt-auto",
-                  isActive &&
-                    "border-l-[var(--color-studio-accent)] bg-zinc-900 text-zinc-50 [&_svg]:text-[var(--color-studio-accent)]",
-                )
-              }
-            >
-              <Icon className="size-4 shrink-0" aria-hidden />
-              {!compact ? (
-                <span className="hidden truncate sm:inline">{label}</span>
-              ) : null}
-              {compact ? <span className="sr-only">{label}</span> : null}
-            </NavLink>
-          ))}
+          {navItems
+            .filter((item) => item.to !== "/remix" || FEATURES.remix)
+            .map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/projects"}
+                title={label}
+                aria-label={label}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-xl border-l-2 border-transparent py-3 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100",
+                    compact
+                      ? "justify-center px-0"
+                      : "justify-center px-0 sm:justify-start sm:px-3",
+                    to === "/billing" && "mt-auto",
+                    isActive &&
+                      "border-l-[var(--color-studio-accent)] bg-zinc-900 text-zinc-50 [&_svg]:text-[var(--color-studio-accent)]",
+                  )
+                }
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                {!compact ? (
+                  <span className="hidden truncate sm:inline">{label}</span>
+                ) : null}
+                {compact ? <span className="sr-only">{label}</span> : null}
+              </NavLink>
+            ))}
         </nav>
         <div
           className={cn(

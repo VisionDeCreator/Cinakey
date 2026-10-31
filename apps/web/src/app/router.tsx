@@ -1,3 +1,4 @@
+import { FEATURES } from "@dirrio/shared";
 import { LandingPage } from "@/features/marketing/LandingPage";
 import { I18nText, useLocale } from "@dirrio/ui/i18n";
 import { ShareWatchPage } from "@/features/sharing/ShareWatchPage";
@@ -58,6 +59,7 @@ function LegacyRemixRedirect() {
   const { sessionId } = useParams();
   const [params] = useSearchParams();
   const query = params.toString();
+  if (!FEATURES.remix) return <Navigate to="/projects" replace />;
   return (
     <Navigate
       replace
@@ -110,9 +112,27 @@ export function AppRouter() {
           <Route element={<AppShell />}>
             <Route path="/series" element={<SeriesIndexPage />} />
             <Route path="/series/:seriesId" element={<SeriesPage />} />
-            <Route path="/remix" element={<GenjutsuPage />} />
+            <Route
+              path="/remix"
+              element={
+                FEATURES.remix ? (
+                  <GenjutsuPage />
+                ) : (
+                  <Navigate to="/projects" replace />
+                )
+              }
+            />
             <Route path="/genjutsu" element={<LegacyRemixRedirect />} />
-            <Route path="/remix/:sessionId" element={<GenjutsuPage />} />
+            <Route
+              path="/remix/:sessionId"
+              element={
+                FEATURES.remix ? (
+                  <GenjutsuPage />
+                ) : (
+                  <Navigate to="/projects" replace />
+                )
+              }
+            />
             <Route
               path="/genjutsu/:sessionId"
               element={<LegacyRemixRedirect />}

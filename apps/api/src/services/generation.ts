@@ -1,3 +1,4 @@
+import { assertGenerationModelEnabled } from "@dirrio/shared";
 import { applyUsageMarkup } from "@dirrio/shared";
 import type { BuildRequestInput, GenerationAdapter } from "@dirrio/shared";
 import {
@@ -85,6 +86,7 @@ export const startGeneration = action({
     jobId: Id<"generationJobs">;
     estimatedCostUsdMicros: number;
   }> => {
+    assertGenerationModelEnabled(args.adapterId);
     if (
       !["text-to-video", "image-to-video", "upscale", "extend"].includes(
         args.kind,

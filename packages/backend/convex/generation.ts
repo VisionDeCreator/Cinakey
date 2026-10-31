@@ -1,3 +1,4 @@
+import { FEATURES, assertGenerationModelEnabled } from "@dirrio/shared";
 import {
   assertPaymentGeneration,
   productionEntitlement,
@@ -45,7 +46,11 @@ export const listCapabilities = query({
   args: {},
   handler: async () => {
     return listAdapters()
-      .filter((a) => a.capabilities.kind === "video")
+      .filter(
+        (a) =>
+          a.capabilities.kind === "video" &&
+          (FEATURES.remix || a.capabilities.id !== "sume-remix-lite"),
+      )
       .map((a) => a.capabilities);
   },
 });
@@ -57,6 +62,7 @@ export const estimateCost = query({
     input: v.any(),
   },
   handler: async (_ctx, args) => {
+    assertGenerationModelEnabled(args.adapterId);
     const adapter = getAdapter(args.adapterId);
     if (
       !adapter ||
@@ -93,6 +99,7 @@ export const quote = mutation({
     maxCostUsdMicros: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    assertGenerationModelEnabled(args.adapterId);
     const user = await requireUser(ctx);
     const project = await requireProjectAccess(ctx, args.projectId);
     await assertPaymentGeneration(ctx, project.workspaceId);
@@ -218,6 +225,7 @@ export const createQueuedJob = internalMutation({
     requestFingerprint: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    assertGenerationModelEnabled(args.model);
     if (
       !Number.isSafeInteger(args.estimatedCostUsdMicros) ||
       args.estimatedCostUsdMicros <= 0

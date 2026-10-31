@@ -1,3 +1,4 @@
+import { assertRemixEnabled } from "@dirrio/shared";
 import {
   tokenBatchPrice,
   normalizeTokenUsage,
@@ -139,6 +140,7 @@ export const analyze = action({
     usdMicros: number;
     settlementPending?: boolean;
   }> => {
+    assertRemixEnabled();
     if (!args.instruction.trim() || args.instruction.length > 4000)
       throw new Error("Describe the requested change in 1–4000 characters");
     const resolvedInput = await resolveInstruction(
@@ -292,6 +294,7 @@ export const generate = action({
     jobId: Id<"generationJobs">;
     estimatedCostUsdMicros: number;
   }> => {
+    assertRemixEnabled();
     const originalPlan = videoTransformSchema.parse(args.plan);
     const resolvedInput = await resolveInstruction(
       ctx,

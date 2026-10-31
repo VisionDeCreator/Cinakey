@@ -1,3 +1,15 @@
+import { FEATURES } from "@dirrio/shared";
+import {
+  beforeEach as beforeFeatureTest,
+  afterEach as afterFeatureTest,
+} from "vitest";
+// Exercise the preserved implementation with the release switch enabled.
+beforeFeatureTest(() => {
+  FEATURES.remix = true;
+});
+afterFeatureTest(() => {
+  FEATURES.remix = false;
+});
 import { fundTestWorkspace } from "../test/helpers";
 import { setTestProviders } from "../../../apps/api/test/setup";
 import { afterEach, describe, expect, it, vi } from "vitest";

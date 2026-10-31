@@ -128,3 +128,9 @@ it("explains provider pauses while keeping existing project content available", 
   ).toBeInTheDocument();
   expect(screen.getByText("Project content")).toBeInTheDocument();
 });
+
+it("hides Remix navigation while keeping production navigation available", () => {
+  setup();
+  expect(screen.queryByRole("link", { name: "Remix" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Projects" })).toBeInTheDocument();
+});

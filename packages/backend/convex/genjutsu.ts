@@ -1,3 +1,4 @@
+import { assertRemixEnabled } from "@dirrio/shared";
 import { requireProjectUnpausedAccess } from "./lib/access";
 import { requireProjectGenerationWrite } from "./lib/access";
 import { startProductionTrial } from "./lib/paymentAccess";
@@ -48,6 +49,7 @@ export const get = query({
 export const create = mutation({
   args: { title: v.string(), workspaceId: v.optional(v.id("workspaces")) },
   handler: async (ctx, args) => {
+    assertRemixEnabled();
     const user = await requireUser(ctx);
     await assertRateLimit(
       ctx,
@@ -100,6 +102,7 @@ export const update = mutation({
     sourceAssetId: v.optional(v.id("assets")),
   },
   handler: async (ctx, args) => {
+    assertRemixEnabled();
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Transformation session not found");
     await requireProjectGenerationWrite(ctx, session.storageScopeId);
@@ -137,6 +140,7 @@ export const update = mutation({
 export const removeInput = mutation({
   args: { sessionId: v.id("genjutsuSessions"), assetId: v.id("assets") },
   handler: async (ctx, { sessionId, assetId }) => {
+    assertRemixEnabled();
     const session = await ctx.db.get(sessionId);
     if (!session) throw new Error("Transformation session not found");
     await requireProjectUnpausedAccess(ctx, session.storageScopeId);

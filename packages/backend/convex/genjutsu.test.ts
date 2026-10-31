@@ -1,3 +1,15 @@
+import { FEATURES } from "@dirrio/shared";
+import {
+  beforeEach as beforeFeatureTest,
+  afterEach as afterFeatureTest,
+} from "vitest";
+// Exercise the preserved implementation with the release switch enabled.
+beforeFeatureTest(() => {
+  FEATURES.remix = true;
+});
+afterFeatureTest(() => {
+  FEATURES.remix = false;
+});
 import { installAnalysisFixture } from "../../../apps/api/test/analysisFixture";
 import { expect, it } from "vitest";
 import { api } from "../../../apps/api/src/operations";
