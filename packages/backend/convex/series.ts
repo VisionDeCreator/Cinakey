@@ -1,6 +1,6 @@
 import { requireSeriesUnpausedAccess } from "./lib/access";
 import { requireProjectWrite, requireSeriesWrite } from "./lib/access";
-import { assertPaymentProduction } from "./lib/paymentAccess";
+import { startProductionTrial } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
@@ -77,7 +77,7 @@ export const create = mutation({
     const workspaceId =
       args.workspaceId ?? (await ensurePersonalWorkspaceForUser(ctx, user._id));
     await requireWorkspaceAccess(ctx, workspaceId);
-    await assertPaymentProduction(ctx, workspaceId);
+    await startProductionTrial(ctx, workspaceId, user._id);
     if (args.fps !== undefined && ![24, 25, 30, 60].includes(args.fps))
       throw new Error("Unsupported frame rate");
     const now = Date.now();
@@ -142,6 +142,9 @@ export const createEpisode = mutation({
     episodeNumber: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await requireSeriesAccess(ctx, args.seriesId);
+    await startProductionTrial(ctx, existing.workspaceId, user._id);
     const series = await requireSeriesWrite(ctx, args.seriesId);
     if (series.archivedAt)
       throw new Error("Restore this series before creating episodes");

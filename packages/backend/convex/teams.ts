@@ -1,4 +1,8 @@
-import { paymentState, assertSeatAvailable } from "./lib/paymentAccess";
+import {
+  paymentState,
+  assertSeatAvailable,
+  assertPaymentProduction,
+} from "./lib/paymentAccess";
 import { enqueueTask } from "./tasks";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
@@ -110,6 +114,7 @@ export const invite = mutation({
   args: { ...workspaceArgs, email: v.string(), role },
   handler: async (ctx, args) => {
     const workspace = await requireWorkspaceAccess(ctx, args.workspaceId);
+    await assertPaymentProduction(ctx, args.workspaceId);
     const actor = await requireUser(ctx);
     const actorRole = await workspaceRole(ctx, args.workspaceId, actor._id);
     if (actorRole !== "owner" && actorRole !== "admin")
@@ -171,6 +176,7 @@ export const resendInvitation = mutation({
     );
     if (actorRole !== "owner" && actorRole !== "admin")
       throw new Error("Workspace administration required");
+    await assertPaymentProduction(ctx, invitation.workspaceId);
     if (
       invitation.revokedAt ||
       invitation.acceptedBy ||
@@ -228,6 +234,7 @@ export const accept = mutation({
     );
     if (inviterRole !== "owner" && inviterRole !== "admin")
       throw new Error("Invitation is no longer available");
+    await assertPaymentProduction(ctx, invitation.workspaceId);
     const current = await workspaceRole(ctx, invitation.workspaceId, user._id);
     if (!current && invitation.role !== "reviewer")
       await assertSeatAvailable(ctx, invitation.workspaceId);
@@ -321,6 +328,7 @@ export const assign = mutation({
   },
   handler: async (ctx, args) => {
     await requireWorkspaceAccess(ctx, args.workspaceId);
+    if (args.enabled) await assertPaymentProduction(ctx, args.workspaceId);
     const actor = await requireUser(ctx);
     if (!!args.projectId === !!args.seriesId)
       throw new Error("Choose one project or series");

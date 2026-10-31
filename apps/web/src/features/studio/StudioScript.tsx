@@ -62,8 +62,8 @@ export function StudioScript({
   saveRef: MutableRefObject<(() => Promise<boolean>) | null>;
 }) {
   useLocale();
-  const { canWrite } = useWorkspace();
-  const writeAllowed = canWrite !== false;
+  const { canWrite, canPrepareVideo } = useWorkspace();
+  const writeAllowed = (canPrepareVideo ?? canWrite) !== false;
   const writeAllowedRef = useRef(writeAllowed);
   useLayoutEffect(() => {
     writeAllowedRef.current = writeAllowed;

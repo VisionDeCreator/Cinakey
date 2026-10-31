@@ -43,7 +43,7 @@ describe("Sume video contracts (no paid network)", () => {
       await adapter.submit({
         ...body,
         _idempotencyKey: "dirrio:job:1",
-        _maximumRetailUsdMicros: 1_218_000,
+        _maximumRetailUsdMicros: 1_392_000,
       }),
     ).toEqual({
       providerJobId: "job_fixture",
@@ -194,7 +194,7 @@ it("blocks a supplier price increase before paid submission and strips internal 
   await expect(
     adapter.submit({
       ...body,
-      _maximumRetailUsdMicros: 1_218_000,
+      _maximumRetailUsdMicros: 1_392_000,
       _idempotencyKey: "fixture",
     }),
   ).rejects.toMatchObject({ uncertain: false });
@@ -213,7 +213,7 @@ it("treats an unavailable free estimator as a definite no-submission failure", a
       model: "seedance-2.5",
       duration: 5,
       resolution: "720p",
-      _maximumRetailUsdMicros: 1_218_000,
+      _maximumRetailUsdMicros: 1_392_000,
     }),
   ).rejects.toMatchObject({ uncertain: false });
   expect(send).toHaveBeenCalledOnce();

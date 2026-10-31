@@ -8,7 +8,10 @@ import {
   expiredAvailable,
   releaseFunding,
 } from "./funding";
-import { assertPaymentProduction } from "./paymentAccess";
+import {
+  assertPaymentGeneration,
+  productionEntitlement,
+} from "./paymentAccess";
 import { checkBudgets, updateTotals } from "./budgets";
 
 export type LedgerReason =
@@ -95,7 +98,13 @@ export async function appendLedgerEntry(
       await assertProviderAdmission(ctx, job.model, -args.delta);
       companyFunded =
         (await ctx.db.get(args.workspaceId))?.billingMode === "internal";
-      await assertPaymentProduction(ctx, args.workspaceId);
+      await assertPaymentGeneration(ctx, args.workspaceId, -args.delta);
+      if (
+        !(await productionEntitlement(ctx, args.workspaceId)).canWrite &&
+        !["seedance-2.5", "sume-remix-lite"].includes(job.model) &&
+        !(job.model === "deepseek" && job.kind === "transform-analysis")
+      )
+        throw new Error("Subscribe to use production analysis and staging.");
       await expireFunding(ctx, args.workspaceId, args.userId);
       scope = await checkBudgets(
         ctx,
@@ -215,7 +224,12 @@ export async function appendLedgerEntry(
     );
   const fundingAllocations =
     args.reason === "reserve" && !companyFunded
-      ? await allocateFunding(ctx, args.workspaceId, -args.delta)
+      ? await allocateFunding(
+          ctx,
+          args.workspaceId,
+          -args.delta,
+          !(await productionEntitlement(ctx, args.workspaceId)).canWrite,
+        )
       : undefined;
   if (reserveEntry && (args.reason === "settle" || args.reason === "refund"))
     await releaseFunding(ctx, reserveEntry, args.delta);

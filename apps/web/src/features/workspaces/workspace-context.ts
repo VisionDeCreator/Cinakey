@@ -6,6 +6,11 @@ type WorkspaceState = {
   workspaceId?: Id<"workspaces">;
   role?: Role;
   canWrite?: boolean;
+  canGenerate?: boolean;
+  canPrepareVideo?: boolean;
+  canStartTrial?: boolean;
+  trialExpiresAt?: number | null;
+  trialStatus?: "active" | "expired" | null;
   subscriptionMessage?: string | null;
   canCreate: boolean;
   canManage: boolean;

@@ -78,6 +78,7 @@ export function validateEnvironment(
     if (!["sandbox", "production"].includes(env.POLAR_ENVIRONMENT))
       errors.push("POLAR_ENVIRONMENT: use sandbox or production");
     boolean("SUBSCRIPTION_PAYWALL_ENABLED");
+    boolean("WORKSPACE_TRIAL_ENABLED");
     if (service === "convex") {
       boolean("STAGING_LLM_ENABLED");
       if (Boolean(env.AUTH_GOOGLE_ID) !== Boolean(env.AUTH_GOOGLE_SECRET))
@@ -175,6 +176,7 @@ export function checkServices(selected: readonly Service[]) {
       "SITE_URL",
       "POLAR_ENVIRONMENT",
       "SUBSCRIPTION_PAYWALL_ENABLED",
+      "WORKSPACE_TRIAL_ENABLED",
     ])
       match("api", key, s, key);
   }

@@ -1,3 +1,4 @@
+import { productionEntitlement } from "./lib/paymentAccess";
 import { requireProjectUnpausedAccess } from "./lib/access";
 import {
   generationDefaults,
@@ -5,8 +6,11 @@ import {
   generationResolution,
   generationAspectRatio,
 } from "./lib/generationSettings";
-import { requireProjectWrite } from "./lib/access";
-import { assertPaymentProduction } from "./lib/paymentAccess";
+import {
+  requireProjectWrite,
+  requireProjectGenerationWrite,
+} from "./lib/access";
+import { startProductionTrial } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query, type QueryCtx } from "./_generated/server";
@@ -183,7 +187,7 @@ export const create = mutation({
     const role = await workspaceRole(ctx, workspaceId, user._id);
     if (!role || role === "reviewer")
       throw new Error("Workspace access denied");
-    await assertPaymentProduction(ctx, workspaceId);
+    await startProductionTrial(ctx, workspaceId, user._id, true);
     const now = Date.now();
     const projectId = await ctx.db.insert("projects", {
       workspaceId,
@@ -392,7 +396,12 @@ export const saveGenerationSettings = mutation({
     useStaging: v.optional(v.boolean()),
   },
   handler: async (ctx, { projectId, segmentId, ...changes }) => {
-    const project = await requireProjectWrite(ctx, projectId);
+    const project = await requireProjectGenerationWrite(ctx, projectId);
+    if (
+      (changes.useStaging === true || changes.stagingId) &&
+      !(await productionEntitlement(ctx, project.workspaceId)).canWrite
+    )
+      throw new Error("Subscribe to use 3D staging tools.");
     const segment = segmentId ? await ctx.db.get(segmentId) : null;
     if (
       segmentId &&

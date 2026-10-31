@@ -1,3 +1,4 @@
+import { WorkspaceTrialNotice } from "@/features/workspaces/WorkspaceTrialNotice";
 import { SupportWidget } from "@dirrio/ui/support";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { UploadProgress } from "@/components/UploadProgress";
@@ -144,6 +145,9 @@ function WorkspaceShell() {
     workspaces,
     canWrite,
     subscriptionMessage,
+    trialExpiresAt,
+    trialStatus,
+    userId,
     role,
   } = useWorkspace();
   const isInternal =
@@ -507,7 +511,14 @@ function WorkspaceShell() {
           </DropdownMenu>
         </header>
 
-        {canWrite === false && (
+        <WorkspaceTrialNotice
+          userId={userId}
+          workspaceId={workspaceId}
+          expiresAt={trialExpiresAt}
+          status={trialStatus}
+          isOwner={role === "owner"}
+        />
+        {canWrite === false && trialStatus !== "expired" && (
           <div
             role="status"
             className="border-b border-amber-800 bg-amber-950 px-4 py-3 text-sm text-amber-100"

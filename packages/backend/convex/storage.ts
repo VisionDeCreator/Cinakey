@@ -1,7 +1,8 @@
+import { productionEntitlement } from "./lib/paymentAccess";
 import { mediaUnavailable, assertMediaNotHeld } from "./lib/mediaControls";
 import { makeFunctionReference } from "convex/server";
 import { enqueueTask } from "./tasks";
-import { requireProjectWrite } from "./lib/access";
+import { requireProjectGenerationWrite } from "./lib/access";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -330,7 +331,7 @@ const assetType = v.union(
 export const createUploadUrl = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, { projectId }) => {
-    await requireProjectWrite(ctx, projectId);
+    await requireProjectGenerationWrite(ctx, projectId);
     const project = await ctx.db.get(projectId);
     return project!.workspaceId;
   },
@@ -366,8 +367,17 @@ export const createAssetFromUpload = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
-    await requireProjectWrite(ctx, args.projectId);
+    await requireProjectGenerationWrite(ctx, args.projectId);
 
+    const uploadProject = await ctx.db.get(args.projectId);
+    if (
+      uploadProject &&
+      !(await productionEntitlement(ctx, uploadProject.workspaceId)).canWrite &&
+      (!["image", "video"].includes(args.type) || args.entityId || args.jobId)
+    )
+      throw new Error(
+        "Purchased credits allow image and video reference uploads only.",
+      );
     const name = args.name.trim();
     if (name.length === 0) {
       throw new Error("Asset name is required");

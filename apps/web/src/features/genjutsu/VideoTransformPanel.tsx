@@ -7,7 +7,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatUsd } from "@dirrio/ui/i18n";
-import { useDraftScope } from "@/features/workspaces/workspace-context";
+import {
+  useDraftScope,
+  useWorkspace,
+} from "@/features/workspaces/workspace-context";
 import { useEffect, useRef, useState, type Ref } from "react";
 import { api } from "@dirrio/backend";
 import {
@@ -56,6 +59,7 @@ export function VideoTransformPanel({
   referenceEditorRef?: Ref<ReferencePromptHandle>;
 }) {
   useLocale();
+  const { canWrite, canGenerate } = useWorkspace();
   const analyze = useAction(api.transforms.analyze);
   const generate = useAction(api.transforms.generate);
   const [targets, setTargets] = useState<TransformTarget[]>([]);
@@ -201,6 +205,7 @@ export function VideoTransformPanel({
   const totalCost = cost + (currentReview ? 0 : analysisCost);
   async function renderTransform() {
     if (
+      (canWrite === false && canGenerate !== true) ||
       !ready ||
       !sourceId ||
       !sourceUrl ||
@@ -432,6 +437,7 @@ export function VideoTransformPanel({
       </p>
       <Button
         disabled={
+          (canWrite === false && canGenerate !== true) ||
           submittedKey === renderKey ||
           !ready ||
           busy ||

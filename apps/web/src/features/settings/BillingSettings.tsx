@@ -74,6 +74,13 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
     });
     window.location.assign(result.url);
   }
+  const [clock, setClock] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const trial = summary?.trial;
+  const trialActive = trial?.active && (trial.expiresAt ?? 0) > clock;
   const state = summary?.state;
   const seats = Number(
     seatDraft || state?.seats || summary?.occupiedSeats || 1,
@@ -112,6 +119,31 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
         </p>
       ) : null}
       <>
+        {trial &&
+          (!summary?.usable || !state?.subscriptionId) &&
+          (trial.active || trial.eligible || trial.startedAt !== null) && (
+            <p role="status" className="text-sm text-amber-300">
+              {trialActive
+                ? t(
+                    "Workspace trial ends {date}. Generation is paid separately.",
+                    {
+                      date: new Date(trial.expiresAt!).toLocaleString(
+                        getLocale(),
+                      ),
+                    },
+                  )
+                : trial.startedAt !== null
+                  ? t(
+                      "Your trial has ended. Remaining purchased credits unlock projects, scripts, image/video reference uploads and generation. Subscribe for the full production workspace.",
+                    )
+                  : t(
+                      "Try the workspace free for seven days from your first project, series or transformation. Generation is paid separately. No automatic subscription charge.",
+                    )}
+            </p>
+          )}
+        <p className="text-xs text-zinc-400">
+          <I18nText text="AI usage is priced at supplier cost plus 20%. The trial includes one creator and no free generation. Purchased credits keep the video-generation workflow available after expiry; the full production workspace and further top-ups require a subscription." />
+        </p>
         {config?.enabled && config.environment === "sandbox" && (
           <p className="text-sm text-amber-300">
             <I18nText text="Sandbox billing · test payments only" />
@@ -131,9 +163,9 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
         </p>
         <p className="text-sm">
           <I18nText text="Subscription:" />{" "}
-          {state?.status ?? t("Not subscribed")} · {summary?.occupiedSeats ?? 1}{" "}
-          <I18nText text="seats in use ·" /> {state?.paidSeats ?? 0}{" "}
-          <I18nText text="paid" />
+          {state?.subscriptionId ? state.status : t("Not subscribed")} ·{" "}
+          {summary?.occupiedSeats ?? 1} <I18nText text="seats in use ·" />{" "}
+          {state?.paidSeats ?? 0} <I18nText text="paid" />
         </p>
         {state?.status === "active" &&
           !summary?.usable &&
@@ -302,11 +334,14 @@ function WorkspaceBilling({ workspaceId }: { workspaceId: Id<"workspaces"> }) {
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {[10, 25, 50].map((amount) => (
+              {[25, 10, 50].map((amount) => (
                 <Button
                   key={amount}
-                  variant="outline"
-                  disabled={busy || !state?.subscriptionId || !summary.usable}
+                  variant={amount === 25 ? "default" : "outline"}
+                  disabled={
+                    busy ||
+                    !(trialActive || (state?.subscriptionId && summary.usable))
+                  }
                   onClick={() => void run(() => buy("topup", amount))}
                 >
                   <I18nText text="Add $" />

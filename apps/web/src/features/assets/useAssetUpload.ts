@@ -105,16 +105,17 @@ async function mediaMetadata(
 }
 
 export function useAssetUpload(projectId: string | undefined) {
-  const { canWrite } = useWorkspace();
+  const { canWrite, canPrepareVideo } = useWorkspace();
+  const canUpload = canPrepareVideo ?? canWrite;
   const createUploadUrl = useMutation(api.storage.createUploadUrl);
   const createAsset = useMutation(api.storage.createAssetFromUpload);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
 
   const uploadFiles = useCallback(
     async (files: FileList | File[], options?: UploadOptions) => {
-      if (canWrite === false)
+      if (canUpload === false)
         throw new Error(
-          "An active workspace subscription is required for new uploads. Ask the workspace owner to manage Billing in Settings.",
+          "A subscription or remaining purchased credits are required for image/video reference uploads.",
         );
       if (!projectId) {
         throw new Error("Select a project before uploading");
@@ -129,6 +130,10 @@ export function useAssetUpload(projectId: string | undefined) {
       for (const file of list) {
         const id = `${file.name}-${Date.now()}-${Math.random()}`;
         const type = options?.type ?? inferType(file);
+        if (canWrite === false && type !== "image" && type !== "video")
+          throw new Error(
+            "Purchased credits allow image and video reference uploads only.",
+          );
         if (type === null) {
           setUploads((prev) => [
             ...prev,
@@ -223,7 +228,7 @@ export function useAssetUpload(projectId: string | undefined) {
       }
       return createdIds;
     },
-    [projectId, createUploadUrl, createAsset, canWrite],
+    [projectId, createUploadUrl, createAsset, canWrite, canUpload],
   );
 
   const clearFinished = useCallback(() => {

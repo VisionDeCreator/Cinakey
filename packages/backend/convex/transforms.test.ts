@@ -73,7 +73,7 @@ it("saves a reviewed transformation snapshot and replays the request without a s
   const first = await asUser.action(api.transforms.generate, request);
   const replay = await asUser.action(api.transforms.generate, request);
   expect(replay.jobId).toBe(first.jobId);
-  expect(first.estimatedCostUsdMicros).toBe(630_000);
+  expect(first.estimatedCostUsdMicros).toBe(720_000);
   const job = await t.run((ctx) => ctx.db.get(first.jobId));
   const snapshot = await t.run(async (ctx) =>
     JSON.parse(await (await ctx.storage.get(job!.inputsFileId!))!.text()),

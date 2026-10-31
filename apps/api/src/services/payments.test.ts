@@ -93,7 +93,7 @@ function product() {
           seat_tier_type: "graduated",
           tiers: [
             { min_seats: 1, max_seats: 1, price_per_seat: 2900 },
-            { min_seats: 2, max_seats: null, price_per_seat: 1500 },
+            { min_seats: 2, max_seats: null, price_per_seat: 1000 },
           ],
         },
       },
@@ -360,8 +360,8 @@ async function paidFixture() {
     subscription_id: "sub",
     subscription: sub,
     checkout_id: "checkout",
-    subtotal_amount: 4400,
-    net_amount: 4400,
+    subtotal_amount: 3900,
+    net_amount: 3900,
     refunded_amount: 0,
     paid: true,
     currency: "usd",
@@ -393,7 +393,7 @@ it("runs signed paid/refund events through the durable worker and real ledger, w
   const summary = await f.owner.query(api.payments.summary, {
     workspaceId: f.workspaceId,
   });
-  expect(summary.state?.paidSeats).toBe(2); // $44 invoice, even if nested subscription has since changed to 3.
+  expect(summary.state?.paidSeats).toBe(2); // $39 invoice, even if nested subscription has since changed to 3.
   expect(summary.includedAvailable).toBe(5_000_000);
   mocks.product.mockResolvedValue({
     ...product(),
@@ -663,4 +663,70 @@ it("creates an owner-only portal session returning to the same workspace billing
     f.owner.action(api.payments.portal, { workspaceId: f.workspaceId }),
   ).rejects.toThrow();
   expect(mocks.portal).toHaveBeenCalledTimes(1);
+});
+it("funds a trial's first top-up through checkout and webhook reconciliation without a subscription", async () => {
+  vi.stubEnv("WORKSPACE_TRIAL_ENABLED", "true");
+  const f = await fixture();
+  await f.owner.mutation(api.projects.create, {
+    workspaceId: f.workspaceId,
+    title: "Trial",
+  });
+  mocks.product.mockResolvedValue({
+    is_archived: false,
+    is_recurring: false,
+    recurring_interval: null,
+    prices: [
+      {
+        amount_type: "fixed",
+        price_currency: "usd",
+        price_amount: 1000,
+        tax_behavior: "exclusive",
+        is_archived: false,
+      },
+    ],
+  });
+  await f.owner.action(api.payments.checkout, {
+    workspaceId: f.workspaceId,
+    kind: "topup",
+    amountUsd: 10,
+    requestId: crypto.randomUUID(),
+  });
+  const intent = await f.t.run(
+    async (ctx) => (await ctx.db.query("paymentCheckouts").collect())[0]!,
+  );
+  mocks.order.mockResolvedValue({
+    id: "trial-paid-topup",
+    product_id: "topup-10",
+    currency: "usd",
+    customer_id: "customer",
+    customer: { external_id: f.workspaceId },
+    subscription_id: null,
+    subscription: null,
+    checkout_id: "checkout",
+    metadata: { dirrio_intent: intent._id },
+    billing_reason: "purchase",
+    subtotal_amount: 1000,
+    net_amount: 1000,
+    refunded_amount: 0,
+    status: "paid",
+    paid: true,
+    created_at: new Date().toISOString(),
+    items: [],
+  });
+  await f.t.mutation(internal.payments.receiveEvent, {
+    environment: "sandbox",
+    eventId: "trial-paid-event",
+    eventType: "order.paid",
+    objectId: "trial-paid-topup",
+  });
+  await f.t.finishAllScheduledFunctions(() => {});
+  const summary = await f.owner.query(api.payments.summary, {
+    workspaceId: f.workspaceId,
+  });
+  expect(summary).toMatchObject({
+    includedAvailable: 0,
+    purchasedAvailable: 10_000_000,
+  });
+  expect(summary.state?.subscriptionId).toBeUndefined();
+  expect(mocks.subscription).not.toHaveBeenCalled();
 });

@@ -1,6 +1,6 @@
 # Phase 1 implementation plan
 
-> Pricing update — October 28, 2026: the current card uses supplier cost plus configurable 5% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
+> Pricing update — October 31, 2026: the current card uses supplier cost plus configurable 20% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
 
 > Scope update (October 27, 2026): the current MVP is team collaboration, safe editing,
 > stored video exports and simple private sharing. Comments, annotations, approvals,

@@ -11,9 +11,10 @@ export async function validatePolarDeployment() {
   );
   if (
     deployed.environment !== config.environment ||
-    deployed.paywall !== config.paywall
+    deployed.paywall !== config.paywall ||
+    (deployed.trialEnabled ?? false) !== config.trialEnabled
   )
     throw new Error(
-      "Polar environment and SUBSCRIPTION_PAYWALL_ENABLED must match between API/worker and Convex before enabling payments",
+      "Polar environment, SUBSCRIPTION_PAYWALL_ENABLED and WORKSPACE_TRIAL_ENABLED must match between API/worker and Convex before enabling payments",
     );
 }

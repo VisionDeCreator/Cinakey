@@ -112,7 +112,7 @@ it("replaces the waitlist and manual-approval copy with direct signup when regis
   expect(
     screen.queryByText("INVITE-ONLY EARLY ACCESS"),
   ).not.toBeInTheDocument();
-  for (const link of screen.getAllByRole("link", { name: "Create account" }))
+  for (const link of screen.getAllByRole("link", { name: "Start free trial" }))
     expect(link).toHaveAttribute("href", "/sign-up");
   expect(
     screen.queryByText(
@@ -165,4 +165,32 @@ it("opens the same guide from features and closes with the close button", async 
     within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
   );
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+it("discloses the trial start, paid credits, expiry restrictions and indefinite retention", () => {
+  render(
+    <MemoryRouter>
+      <LandingPage />
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByText("Try the workspace free for seven days"),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: "How the trial works" }),
+  ).toHaveAttribute("href", "#trial-details");
+  const details = screen.getByRole("region", {
+    name: "How the seven-day trial works",
+  });
+  expect(details).toHaveTextContent("Signing up does not start the clock");
+  expect(details).toHaveTextContent("one creator seat");
+  expect(details).toHaveTextContent("No card is required");
+  expect(details).toHaveTextContent("starting at $10");
+  expect(details).toHaveTextContent("No free generation credits are included");
+  expect(details).toHaveTextContent("upload image/video references");
+  expect(details).toHaveTextContent("purchased balance reaches zero");
+  expect(details).toHaveTextContent("retained indefinitely for now");
+  expect(details).toHaveTextContent("no automatic subscription charge");
+  expect(details).toHaveTextContent(/\$29(?:\.00)?\/month/);
+  expect(details).toHaveTextContent(/\$10(?:\.00)?\/month each/);
 });

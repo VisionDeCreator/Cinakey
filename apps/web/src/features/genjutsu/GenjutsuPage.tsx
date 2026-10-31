@@ -1,3 +1,4 @@
+import { useTrialConfirmation } from "@/features/workspaces/useTrialConfirmation";
 import { getLocale } from "@dirrio/ui/i18n";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { formatUsd } from "@dirrio/ui/i18n";
@@ -44,6 +45,7 @@ import "./genjutsu.css";
 
 export function GenjutsuPage() {
   useLocale();
+  const confirmTrial = useTrialConfirmation();
   const { workspaceId, canCreate } = useWorkspace();
   const { sessionId } = useParams();
   const sessions = useQuery(
@@ -67,6 +69,7 @@ export function GenjutsuPage() {
   const [error, setError] = useState<string | null>(null);
   async function newSession() {
     if (busy || !canCreate) return;
+    if (!(await confirmTrial())) return;
     setBusy(true);
     setError(null);
     try {

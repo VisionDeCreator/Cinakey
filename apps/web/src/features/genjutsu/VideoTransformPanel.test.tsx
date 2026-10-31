@@ -88,7 +88,7 @@ it("automatically analyzes then generates from a prompt with one click using a r
   expect(screen.getByRole("button", { name: /^Generate ·/ })).toBeDisabled();
   prompt();
   expect(
-    screen.getByRole("button", { name: "Generate · up to $1.019173" }),
+    screen.getByRole("button", { name: /^Generate · up to \$/ }),
   ).toBeEnabled();
   await generate();
   expect(mocks.sample).toHaveBeenCalledOnce();

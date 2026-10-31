@@ -12,6 +12,9 @@ import {
 } from "./lib/access";
 import {
   productionEntitlement,
+  trialAccess,
+  assertPaymentGeneration,
+  purchasedAvailable,
   occupiedSeats,
   paymentState,
   subscriptionUsable,
@@ -58,6 +61,11 @@ export const summary = query({
       state,
       occupiedSeats: await occupiedSeats(ctx, workspaceId),
       usable: subscriptionUsable(state),
+      trial: await trialAccess(ctx, workspaceId),
+      canPurchaseUsage:
+        (await productionEntitlement(ctx, workspaceId)).canWrite &&
+        (!!state?.subscriptionId ||
+          (await trialAccess(ctx, workspaceId)).active),
       includedAvailable: pools
         .filter(
           (p) =>
@@ -140,7 +148,11 @@ export const prepareCheckout = internalMutation({
         throw new Error(
           "Buy enough seats for the current Owner, Admins and Creators",
         );
-    } else if (!state?.subscriptionId || !subscriptionUsable(state))
+    } else if (
+      !(await productionEntitlement(ctx, args.workspaceId)).canWrite ||
+      (!state?.subscriptionId &&
+        !(await trialAccess(ctx, args.workspaceId)).active)
+    )
       throw new Error("Activate a workspace subscription before buying usage");
     const pending = await ctx.db
       .query("paymentCheckouts")
@@ -296,7 +308,6 @@ export const binding = internalQuery({
       !intent ||
       intent.workspaceId !== workspaceId ||
       intent.environment !== args.environment ||
-      intent.kind !== "subscription" ||
       (intent.checkoutId !== undefined && intent.checkoutId !== args.checkoutId)
     )
       return null;
@@ -418,8 +429,40 @@ export const applyOrder = internalMutation({
     topupUsdMicros: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const state = await paymentState(ctx, args.workspaceId);
+    let state = await paymentState(ctx, args.workspaceId);
     const workspace = await ctx.db.get(args.workspaceId);
+    if (!state && workspace && args.kind === "topup" && args.paid) {
+      const intent = args.intentId ? await ctx.db.get(args.intentId) : null;
+      if (
+        !intent ||
+        intent.kind !== "topup" ||
+        intent.workspaceId !== args.workspaceId ||
+        intent.environment !== args.environment ||
+        intent.amountCents !== args.netCents ||
+        ![1000, 2500, 5000].includes(args.netCents) ||
+        args.topupUsdMicros !== args.netCents * 10_000 ||
+        (intent.checkoutId !== undefined &&
+          intent.checkoutId !== args.checkoutId) ||
+        (intent.fundedOrderId !== undefined &&
+          intent.fundedOrderId !== args.orderId)
+      )
+        throw new Error("Top-up does not match the approved checkout");
+      const id = await ctx.db.insert("paymentWorkspaces", {
+        workspaceId: args.workspaceId,
+        environment: args.environment,
+        customerId: args.customerId,
+        status: "trial",
+        seats: 1,
+        paidSeats: 0,
+        paidPeriodEnd: 0,
+        paidOrderAt: 0,
+        periodStart: 0,
+        periodEnd: 0,
+        cancelAtPeriodEnd: false,
+        providerUpdatedAt: 0,
+      });
+      state = await ctx.db.get(id);
+    }
     if (
       !state ||
       !workspace ||
@@ -622,6 +665,7 @@ export const deploymentEnvironment = internalQuery({
   handler: () => ({
     environment: convexEnv("POLAR_ENVIRONMENT") ?? "sandbox",
     paywall: convexEnv("SUBSCRIPTION_PAYWALL_ENABLED") === "true",
+    trialEnabled: convexEnv("WORKSPACE_TRIAL_ENABLED") === "true",
   }),
 });
 
@@ -629,7 +673,22 @@ export const entitlements = query({
   args: workspaceArgs,
   handler: async (ctx, { workspaceId }) => {
     await requireWorkspaceMembership(ctx, workspaceId);
-    return productionEntitlement(ctx, workspaceId);
+    const access = await productionEntitlement(ctx, workspaceId);
+    const trial = await trialAccess(ctx, workspaceId);
+    let canGenerate = false;
+    try {
+      await assertPaymentGeneration(ctx, workspaceId);
+      canGenerate = true;
+    } catch {
+      /* Capability remains denied. */
+    }
+    return {
+      ...access,
+      trial,
+      canStartTrial: trial.eligible,
+      canGenerate,
+      purchasedBalance: await purchasedAvailable(ctx, workspaceId),
+    };
   },
 });
 export const assertProjectWrite = internalQuery({

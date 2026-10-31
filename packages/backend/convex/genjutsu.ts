@@ -1,6 +1,6 @@
 import { requireProjectUnpausedAccess } from "./lib/access";
-import { requireProjectWrite } from "./lib/access";
-import { assertPaymentProduction } from "./lib/paymentAccess";
+import { requireProjectGenerationWrite } from "./lib/access";
+import { startProductionTrial } from "./lib/paymentAccess";
 import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import {
@@ -63,7 +63,7 @@ export const create = mutation({
     const role = await workspaceRole(ctx, workspaceId, user._id);
     if (!role || role === "reviewer")
       throw new Error("Workspace access denied");
-    await assertPaymentProduction(ctx, workspaceId);
+    await startProductionTrial(ctx, workspaceId, user._id, true);
     const now = Date.now();
     // An isolated infrastructure scope reuses media/usdMicros/workers. It is never
     // presented as a production project and cannot become a series episode.
@@ -102,7 +102,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Transformation session not found");
-    await requireProjectWrite(ctx, session.storageScopeId);
+    await requireProjectGenerationWrite(ctx, session.storageScopeId);
     if (
       args.title !== undefined &&
       (!args.title.trim() || args.title.trim().length > 120)

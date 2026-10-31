@@ -1,6 +1,6 @@
 # Phase 1 implementation readiness
 
-> Pricing update — October 28, 2026: the current card uses supplier cost plus configurable 5% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
+> Pricing update — October 31, 2026: the current card uses supplier cost plus configurable 20% markup, including verified DeepSeek off-peak periods. This supersedes earlier 20% margin and fee-allocation decisions. See [generation pricing](generation-pricing.md) for settlement rules and remaining qualification. Earlier pricing notes below are historical; D2 remains nonblocking.
 
 Initial assessment date: October 26, 2026. At assessment time, no application code, schema,
 payment products, or live billing configuration changed. No paid generation was run.
@@ -31,17 +31,17 @@ publish a final rate card or enable live Polar checkout.** The selected $29 work
 $15 extra creator seat, $5 monthly workspace allowance, and 20% API margin remain
 the commercial targets. Development credit replacement needs no migration support.
 
-| Gate                      | Evidence/status                                                                    | Blocks                                                  |
-| ------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Commercial choices        | Accepted in plan                                                                   | None for foundation work                                |
-| Sume rates                | Public page plus authenticated read-only model catalog checked                     | Final quotes still need operation-specific confirmation |
-| Remix charging basis      | Source-only versus source-plus-output wording conflicts                            | Final Genjutsu retail rate                              |
-| DeepSeek billing          | Current Flash rates checked; code lacks complete cost accounting                   | Final analysis/staging quotes and settlement            |
-| Polar technical fit       | Documented seat tiers, immediate paid upgrades, next-period changes, grace         | Sandbox proof still required                            |
-| Polar product eligibility | Material Genjutsu policy conflict identified                                       | Live Polar launch for full product scope                |
+| Gate                      | Evidence/status                                                                   | Blocks                                                  |
+| ------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Commercial choices        | Accepted in plan                                                                  | None for foundation work                                |
+| Sume rates                | Public page plus authenticated read-only model catalog checked                    | Final quotes still need operation-specific confirmation |
+| Remix charging basis      | Source-only versus source-plus-output wording conflicts                           | Final Genjutsu retail rate                              |
+| DeepSeek billing          | Current Flash rates checked; code lacks complete cost accounting                  | Final analysis/staging quotes and settlement            |
+| Polar technical fit       | Documented seat tiers, immediate paid upgrades, next-period changes, grace        | Sandbox proof still required                            |
+| Polar product eligibility | Material Genjutsu policy conflict identified                                      | Live Polar launch for full product scope                |
 | Seller eligibility        | Likely Hong Kong; organization name Dirrio supplied; account verification pending | Account eligibility and payout verification             |
-| Sandbox access            | Opened sandbox; login screen, no authenticated organization available              | Account-level test execution                            |
-| Repository baseline       | Typecheck/lint/test/build passed using Turbo cached results                        | Does not prove new feature acceptance                   |
+| Sandbox access            | Opened sandbox; login screen, no authenticated organization available             | Account-level test execution                            |
+| Repository baseline       | Typecheck/lint/test/build passed using Turbo cached results                       | Does not prove new feature acceptance                   |
 
 ## Pricing evidence and calculation
 
@@ -163,8 +163,8 @@ provided by the account owner, not inferred from the user's timezone.
 | $29 first creator, $15 subsequent creators | Graduated seat tiers                                  | Prototype first-seat tier then remaining-seat tier; prove exact invoices      |
 | Paid mid-period increases                  | `invoice` proration                                   | Do not activate capacity until authoritative payment confirmation             |
 | Lower capacity at renewal                  | `next_period` scheduled updates                       | Reconcile pending changes; later updates supersede earlier ones               |
-| Seven-day grace                            | Organization benefit-revocation grace supports 7 days | Match Dirrio's own entitlement rules; do not grant unpaid allowance          |
-| Prepaid top-ups                            | One-time products/credit benefits                     | Fund Dirrio ledger once; no second metered usage invoice                     |
+| Seven-day grace                            | Organization benefit-revocation grace supports 7 days | Match Dirrio's own entitlement rules; do not grant unpaid allowance           |
+| Prepaid top-ups                            | One-time products/credit benefits                     | Fund Dirrio ledger once; no second metered usage invoice                      |
 | Monthly included $5                        | Paid order events                                     | Do not grant from `subscription.cycled`, which can precede successful payment |
 | Bun/Elysia API                             | TypeScript SDK                                        | Use SDK directly; Polar's Elysia adapter is deprecated                        |
 

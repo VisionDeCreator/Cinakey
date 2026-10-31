@@ -1,3 +1,5 @@
+import { assertPaymentProduction } from "./lib/paymentAccess";
+import { requireProjectGenerationWrite } from "./lib/access";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -200,6 +202,13 @@ export const update = mutation({
       throw new Error("Asset not found");
     }
     await requireAssetAccess(ctx, asset._id);
+    if (asset.projectId) {
+      const project = await requireProjectGenerationWrite(ctx, asset.projectId);
+      if (args.tags !== undefined)
+        await assertPaymentProduction(ctx, project.workspaceId);
+    } else if (asset.workspaceId)
+      await assertPaymentProduction(ctx, asset.workspaceId);
+    else throw new Error("Asset workspace not found");
 
     const name = args.name !== undefined ? args.name.trim() : asset.name;
     if (name.length === 0) {
@@ -226,6 +235,10 @@ export const setStarred = mutation({
       throw new Error("Asset not found");
     }
     await requireAssetAccess(ctx, asset._id);
+    const project = asset.projectId ? await ctx.db.get(asset.projectId) : null;
+    const workspaceId = project?.workspaceId ?? asset.workspaceId;
+    if (!workspaceId) throw new Error("Asset workspace not found");
+    await assertPaymentProduction(ctx, workspaceId);
     await ctx.db.patch(args.assetId, {
       starred: args.starred,
       updatedAt: Date.now(),

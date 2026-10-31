@@ -103,7 +103,9 @@ export function StudioWorkspace({
   onPreview: () => void;
 }) {
   useLocale();
-  const { canWrite } = useWorkspace();
+  const { canWrite, canGenerate, canPrepareVideo } = useWorkspace();
+  const canPrepare = canPrepareVideo ?? canWrite;
+  const productionReadOnly = readOnly || canWrite === false;
   const draftScope = useDraftScope();
   const { projectId = "" } = useParams();
   const workspace = useQuery(api.workspace.list, {
@@ -533,8 +535,13 @@ export function StudioWorkspace({
     setBusy(true);
     setError(null);
     try {
-      if (!(await preferences.flush())) return;
-      if (scriptSave.current && !(await scriptSave.current())) return;
+      if (canPrepare !== false && !(await preferences.flush())) return;
+      if (
+        canPrepare !== false &&
+        scriptSave.current &&
+        !(await scriptSave.current())
+      )
+        return;
       const generationScriptVersion = scriptVersion.current;
       if (selectedSegment && !generationScriptVersion)
         throw new Error("Wait for the script to finish loading");
@@ -578,7 +585,7 @@ export function StudioWorkspace({
     }
   }
   async function insertSelected() {
-    if (!onInsertMany || busy || readOnly) return;
+    if (!onInsertMany || busy || productionReadOnly) return;
     setBusy(true);
     setError(null);
     try {
@@ -619,7 +626,7 @@ export function StudioWorkspace({
     }
   }
   function insert() {
-    if (readOnly) return;
+    if (productionReadOnly) return;
     if (
       !source ||
       !Number.isFinite(inSec) ||
@@ -727,7 +734,7 @@ export function StudioWorkspace({
         }}
         onDrop={async (event) => {
           if (!event.dataTransfer.files.length) return;
-          if (canWrite === false) {
+          if (canPrepare === false) {
             event.preventDefault();
             return;
           }
@@ -748,7 +755,7 @@ export function StudioWorkspace({
           </h2>
           <Button
             size="sm"
-            disabled={canWrite === false}
+            disabled={canPrepare === false}
             onClick={() => importInput.current?.click()}
           >
             <Plus size={14} />
@@ -900,8 +907,10 @@ export function StudioWorkspace({
             ref={importInput}
             aria-label={t("Import media")}
             type="file"
-            disabled={canWrite === false}
-            accept="image/*,video/*,audio/*"
+            disabled={canPrepare === false}
+            accept={
+              canWrite === false ? "image/*,video/*" : "image/*,video/*,audio/*"
+            }
             multiple
             onChange={async (e) => {
               if (e.target.files) {
@@ -983,6 +992,7 @@ export function StudioWorkspace({
                 <I18nText text="Timeline" />
               </button>
               <button
+                disabled={canWrite === false}
                 aria-pressed={view === "staging"}
                 onClick={() => {
                   setView("staging");
@@ -1188,7 +1198,7 @@ export function StudioWorkspace({
                 size="sm"
                 disabled={
                   canWrite === false ||
-                  readOnly ||
+                  productionReadOnly ||
                   (source.type !== "image" && !sourceDuration)
                 }
                 onClick={insert}
@@ -1237,7 +1247,7 @@ export function StudioWorkspace({
             <Button
               size="sm"
               variant="outline"
-              disabled={readOnly || !assemblyIds.length || busy}
+              disabled={productionReadOnly || !assemblyIds.length || busy}
               onClick={() => void insertSelected()}
             >
               <I18nText text="Add selected videos (" />
@@ -1338,6 +1348,7 @@ export function StudioWorkspace({
                 </button>
                 <button
                   className="studio-favourite"
+                  disabled={canWrite === false}
                   aria-label={`${video.starred ? "Unfavourite" : "Favourite"} ${video.name}`}
                   aria-pressed={video.starred}
                   onClick={() =>
@@ -1433,7 +1444,7 @@ export function StudioWorkspace({
               <span>
                 <I18nText text="Script segment" />
               </span>{" "}
-              {canWrite !== false && (
+              {canPrepare !== false && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -1469,7 +1480,7 @@ export function StudioWorkspace({
                   ))}
                 </select>
               </label>
-              {canWrite !== false && selectedSegment && (
+              {canPrepare !== false && selectedSegment && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1566,7 +1577,7 @@ export function StudioWorkspace({
                 </DropdownMenu>
               )}
             </div>
-            {canWrite !== false && (
+            {canPrepare !== false && (
               <>
                 {selectedSegment && (
                   <>
@@ -1639,7 +1650,7 @@ export function StudioWorkspace({
                   {archivedSegments.map((segment) => (
                     <li key={segment._id}>
                       <span>{segment.title}</span>
-                      {canWrite !== false && (
+                      {canPrepare !== false && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1715,7 +1726,7 @@ export function StudioWorkspace({
                 </label>
                 <Select
                   value={resolution}
-                  disabled={canWrite === false || busy || !preferences.loaded}
+                  disabled={canPrepare === false || busy || !preferences.loaded}
                   onValueChange={(value) =>
                     preferences.update({
                       resolution: value as "720p" | "1080p",
@@ -1737,7 +1748,7 @@ export function StudioWorkspace({
                 </label>
                 <Select
                   value={aspectRatio}
-                  disabled={canWrite === false || busy || !preferences.loaded}
+                  disabled={canPrepare === false || busy || !preferences.loaded}
                   onValueChange={(value) =>
                     preferences.update({
                       aspectRatio: value as "16:9" | "9:16" | "1:1",
@@ -1772,7 +1783,7 @@ export function StudioWorkspace({
                   max={30}
                   step={1}
                   value={durationSec}
-                  disabled={canWrite === false || busy || !preferences.loaded}
+                  disabled={canPrepare === false || busy || !preferences.loaded}
                   onBlur={() => void preferences.flush()}
                   onPointerUp={() => void preferences.flush()}
                   onKeyUp={() => void preferences.flush()}
@@ -1836,7 +1847,12 @@ export function StudioWorkspace({
                 <input
                   type="checkbox"
                   checked={useStaging}
-                  disabled={canWrite === false || busy || !preferences.loaded}
+                  disabled={
+                    busy ||
+                    !preferences.loaded ||
+                    (canWrite === false &&
+                      (canPrepare === false || !useStaging))
+                  }
                   onChange={(event) => {
                     const checked = event.target.checked;
                     if (staging)
@@ -1866,7 +1882,7 @@ export function StudioWorkspace({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={canWrite === false || busy}
+                  disabled={canPrepare === false || busy}
                   onClick={() => {
                     preferences.update({ stagingId: null, useStaging: false });
                     setWorkspaceParams(
@@ -1912,7 +1928,7 @@ export function StudioWorkspace({
                 preferences.pending ||
                 Boolean(preferences.error) ||
                 (preferences.settings.useStaging && !useStaging) ||
-                canWrite === false ||
+                (canWrite === false && canGenerate !== true) ||
                 busy ||
                 running ||
                 !validDuration ||

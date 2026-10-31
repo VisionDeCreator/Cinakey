@@ -43,6 +43,14 @@ it("rejects mismatched payment environments before serving billing", async () =>
       paywall: false,
     });
     await expect(validatePolarDeployment()).resolves.toBeUndefined();
+    vi.stubEnv("WORKSPACE_TRIAL_ENABLED", "true");
+    await expect(validatePolarDeployment()).rejects.toThrow("must match");
+    query.mockResolvedValue({
+      environment: "production",
+      paywall: false,
+      trialEnabled: true,
+    });
+    await expect(validatePolarDeployment()).resolves.toBeUndefined();
   } finally {
     query.mockRestore();
   }

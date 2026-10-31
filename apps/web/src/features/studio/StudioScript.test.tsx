@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StudioScript } from "./StudioScript";
 const state = vi.hoisted(() => ({
   canWrite: true,
+  canPrepareVideo: undefined as boolean | undefined,
   text: "@image_1 meets @image_1. @james walks.",
   save: vi.fn(),
   bind: vi.fn(),
@@ -26,7 +27,10 @@ const state = vi.hoisted(() => ({
   adopt: vi.fn(),
 }));
 vi.mock("@/features/workspaces/workspace-context", () => ({
-  useWorkspace: () => ({ canWrite: state.canWrite }),
+  useWorkspace: () => ({
+    canWrite: state.canWrite,
+    canPrepareVideo: state.canPrepareVideo,
+  }),
   useDraftScope: () => "",
 }));
 vi.mock("@/lib/api/hooks", () => ({
@@ -77,6 +81,7 @@ function mount(segmentId?: string, recoverLegacyDraft = false) {
 }
 beforeEach(() => {
   state.canWrite = true;
+  state.canPrepareVideo = undefined;
   state.shared = [];
   state.adopt.mockReset().mockResolvedValue("adopted");
   state.text = "@image_1 meets @image_1. @james walks.";
@@ -440,4 +445,29 @@ it("recovers legacy drafts into only the first segment and saves to its own segm
     expectedId: "tip",
     text: "Recovered ending",
   });
+});
+
+it("allows credit-funded script editing and pauses it when generation preparation access ends", async () => {
+  vi.useFakeTimers();
+  state.canWrite = false;
+  state.canPrepareVideo = true;
+  const view = mount();
+  await act(async () => {});
+  const editor = screen.getByRole("textbox", { name: "Script" });
+  expect(editor).not.toHaveAttribute("readonly");
+  fireEvent.change(editor, { target: { value: "A new credit-funded video" } });
+  await act(() => vi.advanceTimersByTimeAsync(1500));
+  expect(state.save).toHaveBeenCalledWith(
+    expect.objectContaining({ text: "A new credit-funded video" }),
+  );
+  state.canPrepareVideo = false;
+  view.rerender(
+    <StudioScript
+      projectId="project"
+      onDirty={state.dirty}
+      saveRef={view.saveRef}
+    />,
+  );
+  expect(editor).toHaveAttribute("readonly");
+  expect(editor).toHaveValue("A new credit-funded video");
 });

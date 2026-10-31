@@ -1,4 +1,4 @@
-import { requireProjectWrite } from "./lib/access";
+import { requireProjectGenerationWrite } from "./lib/access";
 import { v } from "convex/values";
 import {
   referenceAlias,
@@ -26,7 +26,7 @@ export const bind = mutation({
     expectedAssetId: v.optional(v.id("assets")),
   },
   handler: async (ctx, { projectId, alias: raw, assetId, expectedAssetId }) => {
-    const project = await requireProjectWrite(ctx, projectId);
+    const project = await requireProjectGenerationWrite(ctx, projectId);
     const alias = referenceAlias(raw);
     if (!alias || alias.length > 80)
       throw new Error("Use a reference name of 1–80 characters.");
@@ -69,7 +69,7 @@ export const rename = mutation({
     expectedId: v.id("workspaceScripts"),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectWrite(ctx, args.projectId);
+    const project = await requireProjectGenerationWrite(ctx, args.projectId);
     const alias = referenceAlias(args.alias),
       newAlias = referenceAlias(args.newAlias);
     if (!newAlias || newAlias.length > 80)
@@ -159,7 +159,7 @@ export const replace = mutation({
     expectedAssetId: v.union(v.id("assets"), v.null()),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectWrite(ctx, args.projectId);
+    const project = await requireProjectGenerationWrite(ctx, args.projectId);
     if (!(await projectCanUseAsset(ctx, args.projectId, args.assetId)))
       throw new Error("Asset not found in this project");
     const asset = await ctx.db.get(args.assetId);
@@ -232,7 +232,7 @@ export const undoReplacement = mutation({
     previousAssetId: v.union(v.id("assets"), v.null()),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectWrite(ctx, args.projectId);
+    const project = await requireProjectGenerationWrite(ctx, args.projectId);
     const current = await ctx.db.get(args.expectedId),
       previous = await ctx.db.get(args.previousVersionId);
     if (

@@ -69,7 +69,7 @@ export function validatePolarProduct(
         ADDITIONAL_SEAT_MONTHLY_USD_MICROS / 10_000
     )
       throw new Error(
-        "Configure graduated seats: first seat $29, remaining seats $15",
+        "Configure graduated seats: first seat $29, remaining seats $10",
       );
   } else if (
     product.is_recurring ||

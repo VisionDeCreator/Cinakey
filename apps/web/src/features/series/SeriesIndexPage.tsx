@@ -1,3 +1,4 @@
+import { useTrialConfirmation } from "@/features/workspaces/useTrialConfirmation";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@dirrio/backend";
@@ -40,7 +41,9 @@ import { cn } from "@/lib/utils";
 
 export function SeriesIndexPage() {
   useLocale();
-  const { workspaceId, canManage, canWrite } = useWorkspace();
+  const confirmTrial = useTrialConfirmation();
+  const { workspaceId, canManage, canWrite, canStartTrial } = useWorkspace();
+  const canCreate = canWrite !== false || canStartTrial === true;
   const rows = useQuery(api.series.list, {
     includeArchived: true,
     ...(workspaceId ? { workspaceId } : {}),
@@ -93,7 +96,7 @@ export function SeriesIndexPage() {
         {canManage && (
           <Button
             size="lg"
-            disabled={canWrite === false}
+            disabled={canCreate === false}
             onClick={() => {
               setName("");
               setCreateError("");
@@ -314,7 +317,8 @@ export function SeriesIndexPage() {
             className="space-y-5"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (!name.trim() || !canManage || canWrite === false) return;
+              if (!name.trim() || !canManage || canCreate === false) return;
+              if (!(await confirmTrial())) return;
               setBusy(true);
               setCreateError("");
               try {
@@ -366,7 +370,7 @@ export function SeriesIndexPage() {
               <Button
                 type="submit"
                 disabled={
-                  busy || !name.trim() || !canManage || canWrite === false
+                  busy || !name.trim() || !canManage || canCreate === false
                 }
               >
                 {busy ? t("Creating…") : t("Create series")}

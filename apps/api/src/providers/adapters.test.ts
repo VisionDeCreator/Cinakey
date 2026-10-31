@@ -11,7 +11,7 @@ describe("model adapters", () => {
     expect(getAdapter("gpt-image-2")).toBeUndefined();
     expect(
       getAdapter("deepseek")?.estimateCost({ estimatedTokens: 2000 }),
-    ).toBe(2520);
+    ).toBe(2880);
   });
 
   it("real adapters expose non-zero verified retail rates", () => {

@@ -161,6 +161,7 @@ const schema = defineSchema(
       .index("by_key", ["key"])
       .index("by_workspace_created", ["workspaceId", "createdAt"]),
     r2Uploads: defineTable({
+      projectId: v.optional(v.id("projects")),
       retentionProtected: v.optional(v.boolean()),
       token: v.string(),
       key: v.string(),
@@ -439,6 +440,7 @@ const schema = defineSchema(
 
     // Extend Convex Auth users with staff flag and personal workspace link.
     users: defineTable({
+      trialWorkspaceId: v.optional(v.id("workspaces")),
       supportRevision: v.optional(v.number()),
       suspendedAt: v.optional(v.number()),
       generationPausedAt: v.optional(v.number()),
@@ -493,6 +495,10 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_user", ["userId"]),
     workspaces: defineTable({
+      trialStartedAt: v.optional(v.number()),
+      trialExpiresAt: v.optional(v.number()),
+      trialOwnerId: v.optional(v.id("users")),
+      trialEnvironment: v.optional(v.string()),
       supportRevision: v.optional(v.number()),
       productionPausedAt: v.optional(v.number()),
       billingMode: v.optional(v.literal("internal")),

@@ -90,6 +90,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     entitlement?.canWrite === true &&
     (!entitlement.validUntil || entitlement.validUntil > entitlementClock);
 
+  const canPrepareVideo =
+    canWrite ||
+    (entitlement?.canGenerate === true &&
+      (!entitlement.validUntil ||
+        (entitlement.trial?.startedAt != null &&
+          entitlement.purchasedBalance > 0)));
+  const trial = entitlement?.trial;
+  const trialStatus =
+    (trial?.active || entitlement?.code === "TRIAL_EXPIRED") && trial?.expiresAt
+      ? entitlement?.code === "TRIAL_EXPIRED" ||
+        trial.expiresAt <= entitlementClock
+        ? "expired"
+        : "active"
+      : null;
+
   // Persist the resolved default too, so transferring ownership does not silently
   // select a newly created personal workspace on the next profile refresh.
   useEffect(() => {
@@ -180,14 +195,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         workspaceId: active.workspace._id,
         role,
         canWrite,
+        canGenerate: canPrepareVideo,
+        canPrepareVideo,
+        canStartTrial: entitlement?.canStartTrial === true,
+        trialStatus,
+        trialExpiresAt: trialStatus ? trial?.expiresAt : null,
         subscriptionMessage: canWrite
           ? null
-          : (entitlement?.message ??
-            (entitlement
-              ? "Your subscription needs payment confirmation. Editing and new uploads are paused; existing work remains available."
-              : "Checking subscription access…")),
+          : trialStatus === "expired"
+            ? "Your trial has ended. Remaining purchased credits unlock projects, scripts, image/video reference uploads and generation. Subscribe for the full production workspace."
+            : (entitlement?.message ??
+              (entitlement
+                ? "Your subscription needs payment confirmation. Editing and new uploads are paused; existing work remains available."
+                : "Checking subscription access…")),
         canCreate:
-          canWrite &&
+          (canPrepareVideo ||
+            (role === "owner" && entitlement?.canStartTrial === true)) &&
           (role === "owner" || role === "admin" || role === "creator"),
         canManage: role === "owner" || role === "admin",
         workspaces: workspaces ?? [],

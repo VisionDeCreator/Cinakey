@@ -1,10 +1,12 @@
-# Generation pricing — October 28, 2026
+# Generation pricing — October 31, 2026
 
-Version: `usd-2026-10-28-cost-plus-v2`. USD amounts exclude checkout tax. This policy supersedes the earlier 20% margin and 15% fee allocation.
+Version: `usd-2026-10-31-cost-plus-v3`. USD amounts exclude checkout tax. This policy supersedes the earlier 20% margin and 15% fee allocation.
+
+Supplier-rate verification below dates to October 28. The October 31 change updates the commercial markup only. Accepted earlier quotes and jobs keep their stored markup and rates. A 20% markup is a 16.67% margin before collection and operating costs.
 
 ## Commercial setting
 
-`USAGE_MARKUP_BPS = 500` in `packages/shared/src/pricing.ts` adds **5% to supplier cost**. Set it to zero for supplier-cost passthrough. Change `PRICE_VERSION` whenever changing the commercial setting or supplier rates. Accepted quotes and jobs pin their markup and rate snapshots.
+`USAGE_MARKUP_BPS = 2000` in `packages/shared/src/pricing.ts` adds **20% to supplier cost**. Set it to zero for supplier-cost passthrough. Change `PRICE_VERSION` whenever changing the commercial setting or supplier rates. Accepted quotes and jobs pin their markup and rate snapshots.
 
 Final customer charge is `ceil(supplier USD micros × (10000 + markupBps) / 10000)`, capped at the accepted reservation. This is a markup, not a guaranteed margin after fees. Collection fees, failed operations and operating costs are funded from subscriptions and seats. The $5 included workspace allowance uses the same usage prices. Payment enablement and subscription prices are unchanged.
 
@@ -12,16 +14,16 @@ Final customer charge is `ceil(supplier USD micros × (10000 + markupBps) / 1000
 
 | Operation                         | Resolution | Supplier USD/second | Five-second customer maximum |
 | --------------------------------- | ---------- | ------------------: | ---------------------------: |
-| Seedance 2.5                      | 720p       |              0.2312 |                     1.218000 |
-| Seedance 2.5                      | 1080p      |              0.5686 |                     2.992500 |
-| Remix Lite Object Swap / Genjutsu | 720p       |              0.1000 |                     0.525000 |
-| Remix Lite Object Swap / Genjutsu | 1080p      |              0.2000 |                     1.050000 |
+| Seedance 2.5                      | 720p       |              0.2312 |                     1.392000 |
+| Seedance 2.5                      | 1080p      |              0.5686 |                     3.420000 |
+| Remix Lite Object Swap / Genjutsu | 720p       |              0.1000 |                     0.600000 |
+| Remix Lite Object Swap / Genjutsu | 1080p      |              0.2000 |                     1.200000 |
 
 Quotes round the supplier estimate upward to a whole cent before adding markup, because the verified Sume captured ledger reports cents. This allowance is a reservation, not an extra charge. Before submission, the free estimator checks the exact payload against the accepted maximum. An unavailable, malformed or higher estimate stops paid submission.
 
 After completion, settlement reads the final captured `usage_summary` from `GET /v1/jobs/{id}`. Prefer integer `captured_usd_micros` when available; otherwise use `captured_usd_cents × 10000`. A final captured receipt is required. Missing receipts retry and retain the financial hold for reconciliation. Store estimates and captured receipts separately; repeated settlement cannot charge twice or overwrite a conflicting receipt.
 
-For example, a supplier capture of $1.16 costs the customer $1.218. A $2.84 capture costs $2.982, releasing $0.0105 from the $2.9925 reservation. If the receipt plus markup exceeds the accepted maximum, cap the customer charge and flag reconciliation.
+For example, a supplier capture of $1.16 costs the customer $1.392. A $2.84 capture costs $3.408, releasing $0.012 from the $3.4200 reservation. If the receipt plus markup exceeds the accepted maximum, cap the customer charge and flag reconciliation.
 
 Seedance supports the existing 4–30-second operations. Remix Lite uses the dedicated `/v1/sume/remix-lite/object-swap/v1.0` endpoint and existing 4–15-second range, with source duration rounded up once. The router alias that bills source plus output is not interchangeable. Genjutsu analysis is separately metered and included in the combined estimate.
 
@@ -29,11 +31,11 @@ Seedance supports the existing 4–30-second operations. Remix Lite uses the ded
 
 All supported text/vision calls use `deepseek-flash`, bounded output and disabled thinking. Current [official rates and timing](https://api-docs.deepseek.com/quick_start/pricing/) are:
 
-| Token category | Peak supplier USD/million | Off-peak supplier USD/million | Peak with 5% | Off-peak with 5% |
-| -------------- | ------------------------: | ----------------------------: | -----------: | ---------------: |
-| Cached input   |                     0.006 |                         0.003 |       0.0063 |          0.00315 |
-| Uncached input |                      0.30 |                          0.15 |        0.315 |           0.1575 |
-| Output         |                      1.20 |                          0.60 |         1.26 |             0.63 |
+| Token category | Peak supplier USD/million | Off-peak supplier USD/million | Peak with 20% | Off-peak with 20% |
+| -------------- | ------------------------: | ----------------------------: | ------------: | ----------------: |
+| Cached input   |                     0.006 |                         0.003 |        0.0072 |            0.0036 |
+| Uncached input |                      0.30 |                          0.15 |          0.36 |              0.18 |
+| Output         |                      1.20 |                          0.60 |          1.44 |              0.72 |
 
 Peak is Monday–Friday 01:00–04:00 and 06:00–10:00 UTC, excluding Chinese public holidays; all other periods are off-peak. The verified 2026 holiday calendar follows the [government notice](https://www.beijing.gov.cn/zhengce/zhengcefagui/202511/t20251104_4258873.html). Maintain the calendar before each new year. Unknown-year potential peak periods require reconciliation.
 
@@ -47,7 +49,7 @@ Reservations use conservative peak bounds. Every paid call checks its remaining 
 
 Supplier catalog and exact free estimates were checked October 28, 2026. [Saved sanitized estimator evidence](evidence/generation-price-verification.json) covers Seedance variants and the dedicated Remix Lite endpoint. [Historical captured receipt evidence](evidence/generation-captured-receipts.json) confirms Sume's final captured cents. Sources: [Sume billing](https://www.sume.com/docs/billing), [job API](https://www.sume.com/docs/jobs), [DeepSeek response schema](https://api-docs.deepseek.com/api/create-chat-completion/).
 
-- [x] Configurable 5% markup; zero and alternate percentages tested.
+- [x] Configurable 20% markup; zero and alternate percentages tested.
 - [x] Quotes, captured video settlement, reservation refunds and retry idempotency tested.
 - [x] DeepSeek cache categories, mixed peak/off-peak calls, holidays, boundaries and missing evidence tested.
 - [ ] Compare a capped live generation and DeepSeek invoice with provider billing before production qualification.

@@ -211,6 +211,7 @@ export const analyze = action({
       workspaceId: project.workspaceId,
       userId,
       estimatedCostUsdMicros: reserved,
+      kind: "transform-analysis",
       prompt: `Analyze video transformation: ${args.instruction}`,
       modelVersion: "deepseek-flash",
     });

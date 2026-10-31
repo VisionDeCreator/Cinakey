@@ -1,3 +1,4 @@
+import { useTrialConfirmation } from "@/features/workspaces/useTrialConfirmation";
 import { I18nText, t, useLocale } from "@dirrio/ui/i18n";
 import { useWorkspace } from "@/features/workspaces/workspace-context";
 import { api } from "@dirrio/backend";
@@ -31,6 +32,7 @@ export function NewProjectDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   useLocale();
+  const confirmTrial = useTrialConfirmation();
   const { workspaceId, canCreate } = useWorkspace();
   const create = useMutation(api.projects.create);
   const navigate = useNavigate();
@@ -51,6 +53,7 @@ export function NewProjectDialog({
       setError("Name is required.");
       return;
     }
+    if (!(await confirmTrial())) return;
     setBusy(true);
     setError(null);
     try {

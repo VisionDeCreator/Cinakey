@@ -6,6 +6,9 @@ export const polarSecretNames = [
 ] as const;
 export function polarConfiguration() {
   const enabled = process.env.POLAR_PAYMENTS_ENABLED ?? "false";
+  const trialEnabled = process.env.WORKSPACE_TRIAL_ENABLED ?? "false";
+  if (!["true", "false"].includes(trialEnabled))
+    throw new Error("Invalid WORKSPACE_TRIAL_ENABLED");
   const paywall = process.env.SUBSCRIPTION_PAYWALL_ENABLED ?? "false";
   if (!["true", "false"].includes(paywall))
     throw new Error("Invalid SUBSCRIPTION_PAYWALL_ENABLED");
@@ -48,6 +51,7 @@ export function polarConfiguration() {
   return {
     enabled: enabled === "true",
     paywall: paywall === "true",
+    trialEnabled: trialEnabled === "true",
     environment: environment as "sandbox" | "production",
     products,
     siteUrl: url.origin,

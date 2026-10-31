@@ -25,6 +25,14 @@ const state = vi.hoisted(() => ({
     canWrite: true,
     validUntil: null as number | null,
     message: null as string | null,
+  } as {
+    canWrite: boolean;
+    validUntil: number | null;
+    message: string | null;
+    code?: string;
+    canGenerate?: boolean;
+    purchasedBalance?: number;
+    trial?: { active: boolean; startedAt: number; expiresAt: number };
   },
   userId: "user-one",
   personalId: "one",
@@ -96,6 +104,8 @@ function Probe() {
       <p data-testid="rights">
         {String(workspace.canCreate)}:{String(workspace.canManage)}
       </p>
+      <p data-testid="preparation">{String(workspace.canPrepareVideo)}</p>
+      <p data-testid="trial-status">{workspace.trialStatus ?? "none"}</p>
       <p data-testid="path">{location.pathname}</p>
       <input
         aria-label="Local draft"
@@ -257,4 +267,69 @@ it("keeps the billing page open when switching workspaces", async () => {
     expect(screen.getByTestId("path")).toHaveTextContent("/billing/two"),
   );
   expect(screen.getByTestId("active")).toHaveTextContent("two");
+});
+
+it("changes trial reminders to expired at the deadline and removes them after paid conversion", async () => {
+  vi.useFakeTimers();
+  const end = Date.now() + 500;
+  state.entitlement = {
+    canWrite: true,
+    validUntil: end,
+    message: null,
+    trial: { active: true, startedAt: Date.now(), expiresAt: end },
+  };
+  const rendered = render(view());
+  expect(screen.getByTestId("trial-status")).toHaveTextContent("active");
+  await act(() => vi.advanceTimersByTimeAsync(501));
+  expect(screen.getByTestId("trial-status")).toHaveTextContent("expired");
+  state.entitlement = {
+    canWrite: true,
+    validUntil: Date.now() + 86400_000,
+    message: null,
+    trial: { active: false, startedAt: end - 500, expiresAt: end },
+  };
+  rendered.rerender(view());
+  expect(screen.getByTestId("trial-status")).toHaveTextContent("none");
+});
+it("shows an expired trial notice when opening an already expired workspace", () => {
+  state.entitlement = {
+    canWrite: false,
+    validUntil: null,
+    message: null,
+    code: "TRIAL_EXPIRED",
+    trial: {
+      active: false,
+      startedAt: Date.now() - 8 * 86400_000,
+      expiresAt: Date.now() - 86400_000,
+    },
+  };
+  render(view());
+  expect(screen.getByTestId("trial-status")).toHaveTextContent("expired");
+});
+
+it("unlocks creation and preparation with purchased credits without unlocking editor writes", () => {
+  state.entitlement = {
+    canWrite: false,
+    validUntil: null,
+    message: null,
+    code: "TRIAL_EXPIRED",
+    canGenerate: true,
+    purchasedBalance: 10_000_000,
+    trial: {
+      active: false,
+      startedAt: Date.now() - 8 * 86400_000,
+      expiresAt: Date.now() - 86400_000,
+    },
+  };
+  const rendered = render(view());
+  expect(screen.getByTestId("rights")).toHaveTextContent("true:true");
+  expect(screen.getByTestId("preparation")).toHaveTextContent("true");
+  state.entitlement = {
+    ...state.entitlement,
+    canGenerate: false,
+    purchasedBalance: 0,
+  };
+  rendered.rerender(view());
+  expect(screen.getByTestId("rights")).toHaveTextContent("false:true");
+  expect(screen.getByTestId("preparation")).toHaveTextContent("false");
 });

@@ -1,6 +1,9 @@
 import { mediaUnavailable } from "./mediaControls";
 import { hasAdminPermission, type AdminPermission } from "@dirrio/shared";
-import { assertPaymentProduction } from "./paymentAccess";
+import {
+  assertPaymentProduction,
+  assertPaymentGeneration,
+} from "./paymentAccess";
 import { getAuthSessionId, getAuthUserId } from "@convex-dev/auth/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
@@ -233,6 +236,15 @@ export async function requireWorkspaceMembership(
 export async function requireProjectWrite(ctx: Ctx, projectId: Id<"projects">) {
   const project = await requireProjectAccess(ctx, projectId);
   await assertPaymentProduction(ctx, project.workspaceId);
+  return project;
+}
+/** Projects, scripts and references needed to spend purchased generation balance. */
+export async function requireProjectGenerationWrite(
+  ctx: Ctx,
+  projectId: Id<"projects">,
+) {
+  const project = await requireProjectAccess(ctx, projectId);
+  await assertPaymentGeneration(ctx, project.workspaceId);
   return project;
 }
 export async function requireSeriesWrite(ctx: Ctx, seriesId: Id<"series">) {

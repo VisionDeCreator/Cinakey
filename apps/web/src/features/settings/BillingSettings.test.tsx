@@ -15,6 +15,12 @@ const state = vi.hoisted(() => ({
   enabled: false,
   action: vi.fn(),
   config: vi.fn(),
+  trial: null as null | {
+    active: boolean;
+    eligible: boolean;
+    expiresAt: number | null;
+    startedAt: number | null;
+  },
   paid: false,
   paidSeats: 2,
   workspaceId: "workspace",
@@ -38,6 +44,7 @@ vi.mock("@/lib/api/hooks", () => ({
             isOwner: state.isOwner,
             occupiedSeats: 1,
             usable: state.paid,
+            trial: state.trial,
             orders: state.orders,
             includedAvailable: 5_000_000,
             purchasedAvailable: 10_000_000,
@@ -66,6 +73,7 @@ beforeEach(() => {
   state.canManage = true;
   state.isOwner = true;
   state.paid = false;
+  state.trial = null;
   state.paidSeats = 2;
   state.enabled = false;
   state.action.mockReset().mockResolvedValue({ scheduled: true });
@@ -240,4 +248,35 @@ it("shows company funding and hides all purchase controls for internal workspace
     screen.queryByText("Total paid seats, including owner"),
   ).not.toBeInTheDocument();
   expect(state.action).not.toHaveBeenCalled();
+});
+
+it("allows trial top-ups with no subscription and shows the exact expiry", async () => {
+  state.enabled = true;
+  state.trial = {
+    active: true,
+    eligible: false,
+    startedAt: Date.now(),
+    expiresAt: Date.now() + 86400_000,
+  };
+  render(<BillingSettings />);
+  await screen.findByText(/Sandbox billing/);
+  expect(screen.getByRole("button", { name: "Add $10 usage" })).toBeEnabled();
+  expect(screen.getByText(/Workspace trial ends/)).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Subscribe with Polar" }),
+  ).toBeEnabled();
+  expect(state.action).not.toHaveBeenCalled();
+});
+it("blocks fresh top-ups after expiry without hiding the purchased balance", async () => {
+  state.enabled = true;
+  state.trial = {
+    active: false,
+    eligible: false,
+    startedAt: Date.now() - 8 * 86400_000,
+    expiresAt: Date.now() - 86400_000,
+  };
+  render(<BillingSettings />);
+  await screen.findByText(/Sandbox billing/);
+  expect(screen.getByRole("button", { name: "Add $25 usage" })).toBeDisabled();
+  expect(screen.getByText(/Your trial has ended/)).toBeInTheDocument();
 });

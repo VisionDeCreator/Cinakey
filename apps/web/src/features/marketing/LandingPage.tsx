@@ -33,6 +33,8 @@ import {
   Users,
   ShieldCheck,
   LoaderCircle,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import "./marketing.css";
 import { FeaturePreview } from "./FeaturePreview";
@@ -87,13 +89,13 @@ function Waitlist({ requireApproval }: { requireApproval: boolean }) {
       <section id="early-access" className="marketing-waitlist">
         <div className="marketing-waitlist-story">
           <h2>
-            <I18nText text="Create account" />
+            <I18nText text="Start free trial" />
           </h2>
           <p>
             <I18nText text="Registration is open. Sign up with a verified email to get started." />
           </p>
           <Link className="marketing-primary" to="/sign-up">
-            <I18nText text="Create account" />
+            <I18nText text="Start free trial" />
           </Link>
         </div>
       </section>
@@ -270,139 +272,169 @@ export function LandingPage() {
             {requireApproval ? (
               <I18nText text="Request early access" />
             ) : (
-              <I18nText text="Create account" />
+              <I18nText text="Start free trial" />
             )}
           </a>
         </div>
       </header>
       <main>
-        <section className="marketing-hero">
-          <span className="marketing-eyebrow">
-            {requireApproval ? (
-              <I18nText text="INVITE-ONLY EARLY ACCESS" />
-            ) : (
-              <I18nText text="OPEN REGISTRATION" />
-            )}
-          </span>
-          <h1>
-            <I18nText text="Your story. One creative workspace." />
-          </h1>
-          <p>
-            <I18nText text="Write, generate, edit, and share videos—with the tools to keep every scene connected." />
-          </p>
-          <div className="marketing-hero-actions">
-            <a
-              className="marketing-primary"
-              href={requireApproval ? "#early-access" : "/sign-up"}
-            >
+        <div className="marketing-hero-layout">
+          <section className="marketing-hero">
+            <span className="marketing-trial-badge">
+              <I18nText text="7-day workspace trial" />
+            </span>
+            <span className="marketing-eyebrow">
               {requireApproval ? (
-                <I18nText text="Request early access" />
+                <I18nText text="INVITE-ONLY EARLY ACCESS" />
               ) : (
-                <I18nText text="Create account" />
+                <I18nText text="OPEN REGISTRATION" />
               )}
-              <ArrowRight size={18} />
-            </a>
-            <a className="marketing-secondary" href="#workflow">
-              <I18nText text="Explore the workflow" />
-            </a>
-          </div>
-          <small>
-            {requireApproval ? (
-              <I18nText text="For creators and small production teams. Access is approved manually." />
-            ) : (
-              <I18nText text="Registration is open. Sign up with a verified email to get started." />
-            )}
-          </small>
-        </section>
-        <section
-          className="marketing-studio"
-          aria-label={t("Illustrative Studio workflow preview")}
-        >
-          <header>
-            <span>
-              <Clapperboard size={20} />
-              Dirrio{" "}
-              <b>
-                <I18nText text="Studio" />
-              </b>
             </span>
-            <span>
-              <I18nText text="Script → References → Generation → Edit" />
-            </span>
-          </header>
-          <div className="marketing-studio-panels">
-            <aside>
-              <h3>
-                <I18nText text="Project media" />
-              </h3>
-              <div className="marketing-media-grid">
-                {["Characters", "Locations", "Footage", "References"].map(
-                  (title, i) => (
-                    <div key={title}>
-                      <img
-                        src={art(
-                          ["character", "desert", "staging", "desert"][i]!,
-                        )}
-                        alt=""
-                        style={{ objectPosition: `${i * 30}% center` }}
-                      />
-                      <span>{t(title)}</span>
-                    </div>
-                  ),
+            <h1>
+              <I18nText text="Your story. One creative workspace." />
+            </h1>
+            <p>
+              <I18nText text="Write, generate, edit, and share videos—with the tools to keep every scene connected." />
+            </p>
+            <div className="marketing-hero-actions">
+              <a
+                className="marketing-primary"
+                href={requireApproval ? "#early-access" : "/sign-up"}
+              >
+                {requireApproval ? (
+                  <I18nText text="Request early access" />
+                ) : (
+                  <I18nText text="Start free trial" />
                 )}
-              </div>
-            </aside>
-            <div className="marketing-studio-preview">
-              <img
-                src={art("desert")}
-                alt={t("Example creative imagery in a Studio workflow preview")}
-              />
+                <ArrowRight size={18} />
+              </a>
+              <a className="marketing-secondary" href="#workflow">
+                <I18nText text="Explore the workflow" />
+              </a>
+            </div>
+            <div className="marketing-trial-promises">
               <span>
-                <Film size={16} />
-                <I18nText text="Preview your next scene" />
+                <Check size={16} />
+                <I18nText text="No card required" />
+              </span>
+              <span>
+                <Check size={16} />
+                <I18nText text="No automatic subscription charge" />
               </span>
             </div>
-            <aside className="marketing-script-preview">
-              <span className="marketing-script-tabs">
-                <I18nText text="Script" />
-                <span>
-                  <I18nText text="Generation" />
-                </span>
-              </span>
-              <h3>
-                <I18nText text="Scene 01" />
-              </h3>
+            <div className="marketing-trial-summary">
+              <strong>
+                <I18nText text="Try the workspace free for seven days" />
+              </strong>
               <p>
-                <I18nText text="Describe the scene. Add your references. Shape the next moment of your story." />
+                <I18nText text="Your trial starts with your first project, not signup. AI generation credits are purchased separately." />
               </p>
-              <div className="marketing-reference-chip">
-                <Images size={18} />
-                <I18nText text="Connected references" />
+              <a href="#trial-details">
+                <I18nText text="How the trial works" />
+              </a>
+            </div>
+            <small>
+              {requireApproval ? (
+                <I18nText text="For creators and small production teams. Access is approved manually." />
+              ) : (
+                <I18nText text="Registration is open. Sign up with a verified email to get started." />
+              )}
+            </small>
+          </section>
+          <section
+            className="marketing-studio"
+            aria-label={t("Illustrative Studio workflow preview")}
+          >
+            <header>
+              <span>
+                <Clapperboard size={20} />
+                Dirrio{" "}
+                <b>
+                  <I18nText text="Studio" />
+                </b>
+              </span>
+              <span>
+                <I18nText text="Script → References → Generation → Edit" />
+              </span>
+            </header>
+            <div className="marketing-studio-panels">
+              <aside>
+                <h3>
+                  <I18nText text="Project media" />
+                </h3>
+                <div className="marketing-media-grid">
+                  {["Characters", "Locations", "Footage", "References"].map(
+                    (title, i) => (
+                      <div key={title}>
+                        <img
+                          src={art(
+                            ["character", "desert", "staging", "desert"][i]!,
+                          )}
+                          alt=""
+                          style={{ objectPosition: `${i * 30}% center` }}
+                        />
+                        <span>{t(title)}</span>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </aside>
+              <div className="marketing-studio-preview">
+                <img
+                  src={art("desert")}
+                  alt={t(
+                    "Example creative imagery in a Studio workflow preview",
+                  )}
+                />
+                <span>
+                  <Film size={16} />
+                  <I18nText text="Preview your next scene" />
+                </span>
               </div>
-              <p className="marketing-preview-action">
-                <Sparkles size={16} />
-                <I18nText text="Generate footage" />
-              </p>
-            </aside>
-          </div>
-          <div className="marketing-timeline">
-            <span>
-              <I18nText text="Video" />
-            </span>
-            {["desert", "character", "desert", "staging"].map((name, index) => (
-              <div key={index}>
-                <img src={art(name)} alt="" />
-              </div>
-            ))}
-            <span>
-              <I18nText text="Audio" />
-            </span>
-            <i />
-          </div>
-          <p className="marketing-illustration-label">
-            <I18nText text="Illustrative workflow preview" />
-          </p>
-        </section>
+              <aside className="marketing-script-preview">
+                <span className="marketing-script-tabs">
+                  <I18nText text="Script" />
+                  <span>
+                    <I18nText text="Generation" />
+                  </span>
+                </span>
+                <h3>
+                  <I18nText text="Scene 01" />
+                </h3>
+                <p>
+                  <I18nText text="Describe the scene. Add your references. Shape the next moment of your story." />
+                </p>
+                <div className="marketing-reference-chip">
+                  <Images size={18} />
+                  <I18nText text="Connected references" />
+                </div>
+                <p className="marketing-preview-action">
+                  <Sparkles size={16} />
+                  <I18nText text="Generate footage" />
+                </p>
+              </aside>
+            </div>
+            <div className="marketing-timeline">
+              <span>
+                <I18nText text="Video" />
+              </span>
+              {["desert", "character", "desert", "staging"].map(
+                (name, index) => (
+                  <div key={index}>
+                    <img src={art(name)} alt="" />
+                  </div>
+                ),
+              )}
+              <span>
+                <I18nText text="Audio" />
+              </span>
+              <i />
+            </div>
+            <p className="marketing-illustration-label">
+              <I18nText text="Illustrative workflow preview" />
+            </p>
+          </section>
+        </div>
         <section id="workflow" className="marketing-section">
           <h2>
             <I18nText text="From first idea to final cut" />
@@ -497,26 +529,23 @@ export function LandingPage() {
             <I18nText text="PRICING" />
           </span>
           <h2>
-            <I18nText text="One workspace. Clear usage pricing." />
+            <I18nText text="Start free. Build at your pace." />
           </h2>
           <p>
-            <I18nText text="A workspace subscription, optional team seats, and metered generation." />
+            <I18nText text="Try the workspace for 7 days. Subscribe when you’re ready." />
           </p>
-          <div className="marketing-pricing-value">
-            <p>
-              <I18nText text="Script, references, generation, editing, and sharing in one workspace. Generation and other metered usage draw from your allowance; additional usage is billed separately." />
-            </p>
-            <FeatureGuide />
-          </div>
           <div className="marketing-price-grid">
-            <article>
+            <article className="marketing-workspace-plan">
+              <span className="marketing-trial-badge">
+                <I18nText text="7-day workspace trial" />
+              </span>
               <h3>
                 <I18nText text="Workspace" />
               </h3>
               <strong>
                 {formatUsd(WORKSPACE_MONTHLY_USD_MICROS)}
                 <span>
-                  <I18nText text="/ month" />
+                  <I18nText text="/ month after trial" />
                 </span>
               </strong>
               <p>
@@ -527,39 +556,153 @@ export function LandingPage() {
                   },
                 )}
               </p>
-            </article>
-            <article>
-              <h3>
-                <I18nText text="Additional seats" />
-              </h3>
-              <strong>
-                {formatUsd(ADDITIONAL_SEAT_MONTHLY_USD_MICROS)}
-                <span>
-                  <I18nText text="/ month each" />
-                </span>
-              </strong>
-              <p>
-                <I18nText text="For additional Admins and Creators. Additional seats do not add usage allowance." />
+              <ul className="marketing-plan-benefits">
+                {[
+                  "1 creator seat included",
+                  "Studio, shared libraries & 3D staging",
+                  "Editing, exports & sharing",
+                ].map((label) => (
+                  <li key={label}>
+                    <Check size={16} />
+                    {t(label)}
+                  </li>
+                ))}
+              </ul>
+              <a
+                className="marketing-primary"
+                href={requireApproval ? "#early-access" : "/sign-up"}
+              >
+                {t(
+                  requireApproval ? "Request early access" : "Start free trial",
+                )}
+                <ArrowRight size={16} />
+              </a>
+              <p className="marketing-plan-disclosure">
+                <I18nText text="No free AI generation credits. No automatic subscription charge." />
               </p>
             </article>
-            <article>
-              <h3>
-                <I18nText text="Generation" />
-              </h3>
-              <strong>
-                {formatUsd(VIDEO_RATES["seedance-2.5"]["720p"])}
-                <span>
-                  <I18nText text="/ second" />
-                </span>
-              </strong>
-              <p>
-                <I18nText text="Seedance 2.5 at 720p. Rates vary by model and resolution. The app shows an estimate before submission." />
-              </p>
-            </article>
+            <div className="marketing-plan-addons">
+              <article>
+                <Users size={24} aria-hidden="true" />
+                <h3>
+                  <I18nText text="Additional seats" />
+                </h3>
+                <strong>
+                  {formatUsd(ADDITIONAL_SEAT_MONTHLY_USD_MICROS)}
+                  <span>
+                    <I18nText text="/ month each" />
+                  </span>
+                </strong>
+                <p>
+                  <I18nText text="For additional Admins and Creators. Additional seats do not add usage allowance." />
+                </p>
+              </article>
+              <article>
+                <Sparkles size={24} aria-hidden="true" />
+                <h3>
+                  <I18nText text="Generation" />
+                </h3>
+                <strong>
+                  {formatUsd(VIDEO_RATES["seedance-2.5"]["720p"])}
+                  <span>
+                    <I18nText text="/ second" />
+                  </span>
+                </strong>
+                <p>
+                  <I18nText text="Seedance 2.5 at 720p. Rates vary by model and resolution. The app shows an estimate before submission." />
+                </p>
+              </article>
+            </div>
+          </div>
+          <div className="marketing-pricing-value">
+            <p>
+              <I18nText text="Script, references, generation, editing, and sharing in one workspace. Generation and other metered usage draw from your allowance; additional usage is billed separately." />
+            </p>
+            <FeatureGuide />
           </div>
           <p className="marketing-form-note">
             <I18nText text="USD, plus applicable tax. Generation estimates may reserve a rounded maximum; final charges follow the app’s usage settlement." />
           </p>
+          <section
+            id="trial-details"
+            className="marketing-trial-details"
+            aria-labelledby="trial-details-title"
+          >
+            <div className="marketing-trial-intro">
+              {" "}
+              <h3 id="trial-details-title">
+                <I18nText text="How the seven-day trial works" />
+              </h3>
+              <ol className="marketing-trial-steps">
+                {[
+                  "Verify your account",
+                  "Create your first project",
+                  "Your 7-day workspace trial begins",
+                ].map((label, index) => (
+                  <li key={label}>
+                    <span>{index + 1}</span>
+                    {t(label)}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="marketing-trial-questions">
+              <div className="marketing-trial-accordion">
+                <details open>
+                  <summary>
+                    <I18nText text="When does my trial start?" />
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="marketing-trial-answer">
+                    <I18nText text="Your seven days begin when you create your first project, series or transformation with a verified account. Signing up does not start the clock. The trial includes one creator seat." />
+                  </div>
+                </details>
+                <details>
+                  <summary>
+                    <I18nText text="Do I need a card or generation credits?" />
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="marketing-trial-answer">
+                    <I18nText text="No card is required to start the workspace trial. AI generation requires purchased credits, shown as a USD balance, starting at $10 plus applicable tax. No free generation credits are included. Usage depends on the model and settings; review the estimate before generating." />
+                  </div>
+                </details>
+                <details>
+                  <summary>
+                    <I18nText text="What happens when the trial ends?" />
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="marketing-trial-answer">
+                    <I18nText text="Purchased credits do not expire. While a balance remains, you can create projects, edit scripts, upload image/video references and generate videos. A subscription is required for timeline editing, staging, series, collaboration, sharing and more credits. When your purchased balance reaches zero, creation, script editing, uploads and generation pause. Viewing, downloads and existing exports remain available." />
+                  </div>
+                </details>
+                <details>
+                  <summary>
+                    <I18nText text="Do my credits or projects expire?" />
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="marketing-trial-answer">
+                    <I18nText text="Purchased credits do not expire and carry over if you subscribe. Your projects and media are retained indefinitely for now, including after your trial, unless you delete them. The paid plan's monthly included usage is separate and does not roll over." />
+                  </div>
+                </details>
+                <details>
+                  <summary>
+                    <I18nText text="Will I be charged automatically?" />
+                    <ChevronDown size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="marketing-trial-answer">
+                    {t(
+                      "There is no automatic subscription charge when the trial ends. Subscribe explicitly for {subscription}/month, including one creator and {usage} of monthly generation usage. Additional creators are {seat}/month each. Prices are in USD, plus applicable tax.",
+                      {
+                        subscription: formatUsd(WORKSPACE_MONTHLY_USD_MICROS),
+                        usage: formatUsd(INCLUDED_MONTHLY_USAGE_USD_MICROS),
+                        seat: formatUsd(ADDITIONAL_SEAT_MONTHLY_USD_MICROS),
+                      },
+                    )}
+                  </div>
+                </details>
+              </div>
+            </div>
+          </section>
           <a
             className="marketing-secondary"
             href={requireApproval ? "#early-access" : "/sign-up"}
@@ -567,7 +710,7 @@ export function LandingPage() {
             {requireApproval ? (
               <I18nText text="Request early access" />
             ) : (
-              <I18nText text="Create account" />
+              <I18nText text="Start free trial" />
             )}
             <ArrowRight size={18} />
           </a>
@@ -590,7 +733,7 @@ export function LandingPage() {
           {requireApproval ? (
             <I18nText text="Request early access" />
           ) : (
-            <I18nText text="Create account" />
+            <I18nText text="Start free trial" />
           )}
         </a>
         <LanguageSelector />

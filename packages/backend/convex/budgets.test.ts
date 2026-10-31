@@ -37,7 +37,7 @@ async function fixture() {
       actualCostUsdMicros: actual,
       // Supply verified usage corresponding to the integer budget fixture.
       usage: {
-        inputTokens: Math.floor((actual * 1000) / 315),
+        inputTokens: Math.floor((actual * 1000) / 360),
         cachedInputTokens: 0,
         outputTokens: 0,
       },

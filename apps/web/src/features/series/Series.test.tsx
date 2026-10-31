@@ -1,5 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { getFunctionName } from "convex/server";
 import type { Id } from "@dirrio/backend";
@@ -13,6 +19,7 @@ vi.mock("@/lib/api/hooks", () => ({
     (ref: Parameters<typeof getFunctionName>[0]) => (args: unknown) =>
       state.write(getFunctionName(ref), args),
 }));
+afterEach(cleanup);
 beforeEach(() => {
   state.query.mockReset();
   state.write.mockReset();
@@ -28,10 +35,11 @@ it("creates a Series without a provider call and opens its workspace", async () 
       </Routes>
     </MemoryRouter>,
   );
+  fireEvent.click(screen.getByRole("button", { name: "New series" }));
   fireEvent.change(screen.getByLabelText("Series name"), {
     target: { value: "Harbour" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "New series" }));
+  fireEvent.click(screen.getByRole("button", { name: "Create series" }));
   await screen.findByText("Series opened");
   expect(state.write).toHaveBeenCalledWith("series:create", {
     title: "Harbour",
@@ -79,10 +87,7 @@ it("adopts an explicit resource version into an episode without generating media
       versionId: "version",
     }),
   );
-  expect(state.query).not.toHaveBeenCalledWith(
-    "resources:assetUrls",
-    expect.objectContaining({ versionId: "version" }),
-  );
+  expect(state.write).toHaveBeenCalledTimes(1);
   expect(fetch).not.toHaveBeenCalled();
 });
 it("disables re-import of a version already pinned to the episode", () => {

@@ -343,7 +343,7 @@ Follow [Polar setup and activation](docs/polar-payments.md) for products, signed
 worker processing, the $5 monthly allowance and remaining sandbox qualification.
 
 Generation pricing uses the verified [October 28 rate card](docs/generation-pricing.md),
-with configurable 5% supplier-cost markup, captured video receipts and cache-aware
+with configurable 20% supplier-cost markup, captured video receipts and cache-aware
 DeepSeek peak/off-peak settlement.
 
 ## Internationalisation
@@ -694,7 +694,6 @@ No prompts, email addresses, media URLs, credentials, or raw provider responses
 are exposed by report endpoints. Deploy Convex schema/functions and indexes first,
 then restart API/workers and rebuild Admin. No external analytics service or paid
 provider call is involved.
-
 
 ### Admin localization acceptance
 

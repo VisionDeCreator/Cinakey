@@ -54,6 +54,7 @@ export async function allocateFunding(
   ctx: MutationCtx,
   workspaceId: Id<"workspaces">,
   amount: number,
+  purchasedOnly = false,
 ) {
   const pools = await ctx.db
     .query("fundingPools")
@@ -70,6 +71,7 @@ export async function allocateFunding(
   const allocations: { poolId: Id<"fundingPools">; amount: number }[] = [];
   for (const p of pools) {
     if (needed === 0) break;
+    if (purchasedOnly && p.kind !== "purchased") continue;
     if (p.revoked || (p.expiresAt !== undefined && p.expiresAt <= Date.now()))
       continue;
     const take = Math.min(p.remaining, needed);
@@ -82,6 +84,8 @@ export async function allocateFunding(
       needed -= take;
     }
   }
+  if (purchasedOnly && needed > 0)
+    throw new Error("Insufficient purchased generation balance");
   // Development/staff grants predate payment pools and remain the unpooled remainder.
   return allocations;
 }

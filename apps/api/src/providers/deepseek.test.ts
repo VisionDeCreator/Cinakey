@@ -37,7 +37,7 @@ it("pins the verified Flash model, bounded non-thinking output, and preserves ca
     thinking: { type: "disabled" },
   });
   expect(result.usage).toEqual(usage);
-  expect(tokenUsagePrice(normalizeTokenUsage(result.usage)!)).toBe(791);
+  expect(tokenUsagePrice(normalizeTokenUsage(result.usage)!)).toBe(904);
 });
 it("refuses an unbudgeted call or unpriced model without contacting the provider", async () => {
   live();

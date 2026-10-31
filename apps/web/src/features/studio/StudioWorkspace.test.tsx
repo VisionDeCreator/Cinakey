@@ -1,3 +1,4 @@
+import { WorkspaceContext } from "@/features/workspaces/workspace-context";
 import userEvent from "@testing-library/user-event";
 import {
   act,
@@ -769,4 +770,49 @@ it("restores an archived segment from the editor and selects it", async () => {
     segmentId: "archived",
   });
   expect(screen.getByText("No archived segments")).toBeVisible();
+});
+
+it("unlocks reference imports and generation settings with credits while staging and music remain disabled", async () => {
+  render(
+    <WorkspaceContext.Provider
+      value={{
+        canWrite: false,
+        canPrepareVideo: true,
+        canGenerate: true,
+        canCreate: true,
+        canManage: true,
+        workspaces: [],
+        switchWorkspace: async () => {},
+      }}
+    >
+      <MemoryRouter initialEntries={["/projects/p/studio"]}>
+        <Routes>
+          <Route
+            path="/projects/:projectId/studio"
+            element={
+              <StudioWorkspace
+                toolbar={<div />}
+                viewer={<canvas />}
+                timeline={<div />}
+                inspector={<div />}
+                selectedClip={null}
+                onInsert={vi.fn()}
+                onPreview={vi.fn()}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </WorkspaceContext.Provider>,
+  );
+  await act(async () => {});
+  expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
+  expect(screen.getByLabelText("Import media")).toBeEnabled();
+  expect(screen.getByLabelText("Import media")).toHaveAttribute(
+    "accept",
+    "image/*,video/*",
+  );
+  expect(screen.getByLabelText("Generation duration")).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Staging" })).toBeDisabled();
+  expect(screen.getByLabelText("Import music")).toBeDisabled();
 });

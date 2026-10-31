@@ -51,7 +51,7 @@ export function AssetLibrary({
   requireProject?: boolean;
 }) {
   useLocale();
-  const { workspaceId, canWrite } = useWorkspace();
+  const { workspaceId, canWrite, canPrepareVideo } = useWorkspace();
   const projects = useQuery(
     api.projects.listMine,
     workspaceId ? { workspaceId } : {},
@@ -107,7 +107,8 @@ export function AssetLibrary({
   const { uploads, uploadFiles } = useAssetUpload(effectiveProjectId);
   const setStarred = useMutation(api.assets.setStarred);
 
-  const canUpload = canWrite !== false && Boolean(effectiveProjectId);
+  const canUpload =
+    (canPrepareVideo ?? canWrite) !== false && Boolean(effectiveProjectId);
 
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -407,6 +408,7 @@ export function AssetLibrary({
               type={asset.type}
               starred={asset.starred}
               tags={asset.tags}
+              canStar={canWrite !== false}
               onOpen={() => {
                 setSelectedAssetId(asset._id);
                 setDrawerOpen(true);
@@ -484,6 +486,7 @@ function AssetGridItem({
   tags,
   onOpen,
   onToggleStar,
+  canStar = true,
 }: {
   assetId: Id<"assets">;
   name: string;
@@ -492,6 +495,7 @@ function AssetGridItem({
   tags?: string[];
   onOpen: () => void;
   onToggleStar: () => void;
+  canStar?: boolean;
 }) {
   useLocale();
   const url = useQuery(api.storage.getAssetUrl, { assetId });
@@ -547,6 +551,7 @@ function AssetGridItem({
             ? t("Remove {0} from favourites", { 0: name })
             : t("Add {0} to favourites", { 0: name })
         }
+        disabled={!canStar}
         aria-pressed={starred}
         className="absolute bottom-4 right-12 p-1 text-zinc-400 hover:text-[var(--color-studio-accent)]"
         onClick={(e) => {
@@ -577,7 +582,7 @@ function AssetGridItem({
           <DropdownMenuItem onSelect={onOpen}>
             <I18nText text="View asset details" />
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onToggleStar}>
+          <DropdownMenuItem disabled={!canStar} onSelect={onToggleStar}>
             {starred ? t("Remove from favourites") : t("Add to favourites")}
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -20,7 +20,7 @@ async function fixture(funded = true) {
       kind: "text-to-video",
       durationSec: 5,
       resolution: "720p",
-      maxCostUsdMicros: 1_218_000,
+      maxCostUsdMicros: 1_392_000,
     });
   const start = (
     quoteId: Awaited<ReturnType<typeof quote>>["quoteId"],
@@ -47,6 +47,7 @@ describe("USD authorizations and accounting", () => {
     await f.t.run((ctx) =>
       ctx.db.patch(quote.quoteId, {
         priceVersion: "dev-prior",
+        usageMarkupBps: 500,
         unitUsdMicros: 600_000,
         maximumUsdMicros: 3_000_000,
       }),
@@ -56,6 +57,7 @@ describe("USD authorizations and accounting", () => {
     const job = await f.owner.query(api.generation.getJob, { jobId });
     expect(job).toMatchObject({
       priceVersion: "dev-prior",
+      usageMarkupBps: 500,
       unitUsdMicros: 600_000,
       estimatedCostUsdMicros: 3_000_000,
     });
@@ -110,7 +112,7 @@ describe("USD authorizations and accounting", () => {
         kind: "text-to-video",
         durationSec: 5,
         resolution: "1080p",
-        maxCostUsdMicros: 1_218_000,
+        maxCostUsdMicros: 1_392_000,
       }),
     ).rejects.toThrow("accepted maximum");
     const quote = await f.quote();
@@ -234,7 +236,7 @@ describe("USD authorizations and accounting", () => {
     expect(
       (await f.owner.query(api.billing.budgets, { workspaceId: f.workspaceId }))
         .account,
-    ).toMatchObject({ reserved: 0, spent: 1_575 });
+    ).toMatchObject({ reserved: 0, spent: 1_800 });
   });
 });
 it("settles token categories at the authorized snapshot and stores peak supplier cost separately", async () => {
@@ -370,7 +372,7 @@ it("autofill settles measured token categories instead of charging its fixed max
     ),
   );
   const result = await f.owner.action(api.entities.autofillSheet, { entityId });
-  expect(result.actualCostUsdMicros).toBe(1575);
+  expect(result.actualCostUsdMicros).toBe(1800);
   expect(result.actualCostUsdMicros).toBeLessThan(
     result.estimatedCostUsdMicros,
   );
@@ -379,16 +381,16 @@ it("autofill settles measured token categories instead of charging its fixed max
     entityId,
     kind: "look-dev-autofill",
     status: "succeeded",
-    actualCostUsdMicros: 1575,
+    actualCostUsdMicros: 1800,
     tokenUsage: { inputTokens: 1000, cachedInputTokens: 0, outputTokens: 1000 },
   });
 });
 
 it.each([
-  ["seedance-2.5", "720p", 1218000, 1160000, 1218000],
-  ["seedance-2.5", "1080p", 2992500, 2840000, 2982000],
-  ["sume-remix-lite", "720p", 525000, 500000, 525000],
-  ["sume-remix-lite", "1080p", 1050000, 1000000, 1050000],
+  ["seedance-2.5", "720p", 1392000, 1160000, 1392000],
+  ["seedance-2.5", "1080p", 3420000, 2840000, 3408000],
+  ["sume-remix-lite", "720p", 600000, 500000, 600000],
+  ["sume-remix-lite", "1080p", 1200000, 1000000, 1200000],
 ] as const)(
   "settles %s %s from the captured supplier receipt, releasing unused quote funds",
   async (model, resolution, maximum, supplier, charged) => {
@@ -425,7 +427,7 @@ it.each([
     expect(await f.t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
       actualCostUsdMicros: charged,
       supplierActualCostUsdMicros: supplier,
-      usageMarkupBps: 500,
+      usageMarkupBps: 2000,
       billingNeedsReview: false,
     });
     expect(
@@ -481,11 +483,11 @@ it("settles mixed peak and off-peak DeepSeek calls from cache-aware batches inst
   });
   expect(await f.t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
     supplierActualCostUsdMicros: 1130,
-    actualCostUsdMicros: 1187,
+    actualCostUsdMicros: 1356,
     billingNeedsReview: false,
   });
   expect(
     (await f.owner.query(api.billing.budgets, { workspaceId: f.workspaceId }))
       .account,
-  ).toMatchObject({ reserved: 0, spent: 1187 });
+  ).toMatchObject({ reserved: 0, spent: 1356 });
 });

@@ -1,7 +1,7 @@
 /** Verified 2026-10-28. Source evidence and settlement policy: docs/generation-pricing.md. */
-export const PRICE_VERSION = "usd-2026-10-28-cost-plus-v2";
-/** Single commercial setting: 500 basis points = 5% markup on cost; 0 = supplier cost. Bump PRICE_VERSION when changing. */
-export const USAGE_MARKUP_BPS = 500;
+export const PRICE_VERSION = "usd-2026-10-31-cost-plus-v3";
+/** Single commercial setting: 2000 basis points = 20% markup on cost; 0 = supplier cost. Bump PRICE_VERSION when changing. */
+export const USAGE_MARKUP_BPS = 2000;
 export function applyUsageMarkup(
   cost: number,
   markupBps: number = USAGE_MARKUP_BPS,
@@ -237,5 +237,5 @@ export function verifiedDeepseekPeriod(
 
 /** Public and in-app subscription presentation, USD micros. Keep checkout catalog aligned. */
 export const WORKSPACE_MONTHLY_USD_MICROS = 29_000_000;
-export const ADDITIONAL_SEAT_MONTHLY_USD_MICROS = 15_000_000;
+export const ADDITIONAL_SEAT_MONTHLY_USD_MICROS = 10_000_000;
 export const INCLUDED_MONTHLY_USAGE_USD_MICROS = 5_000_000;

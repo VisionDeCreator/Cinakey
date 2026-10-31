@@ -1,3 +1,7 @@
+import {
+  assertPaymentGeneration,
+  productionEntitlement,
+} from "./lib/paymentAccess";
 import { paidWorkPause } from "./lib/providerControls";
 import { mediaUnavailable } from "./lib/mediaControls";
 import { generationRestriction } from "./lib/restrictions";
@@ -91,6 +95,7 @@ export const quote = mutation({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     const project = await requireProjectAccess(ctx, args.projectId);
+    await assertPaymentGeneration(ctx, project.workspaceId);
     const adapter = getAdapter(args.adapterId);
     if (
       !adapter ||
@@ -647,6 +652,47 @@ export const beginSubmission = internalMutation({
     let blocked = project
       ? await generationRestriction(ctx, job.createdBy, project.workspaceId)
       : "Project is unavailable";
+    if (!blocked && project) {
+      try {
+        // Already held purchased funds remain eligible even when available balance is zero.
+        const reserve = await ctx.db
+          .query("usageLedger")
+          .withIndex("by_job", (q) => q.eq("jobId", job._id))
+          .filter((q) => q.eq(q.field("reason"), "reserve"))
+          .unique();
+        const heldPurchased =
+          (reserve?.fundingAllocations ?? []).reduce(
+            (n, a) => n + a.amount,
+            0,
+          ) === job.estimatedCostUsdMicros &&
+          (
+            await Promise.all(
+              (reserve?.fundingAllocations ?? []).map(async (a) => {
+                const pool = await ctx.db.get(a.poolId);
+                return (
+                  pool?.kind === "purchased" &&
+                  !pool.revoked &&
+                  pool.held >= a.amount
+                );
+              }),
+            )
+          ).every(Boolean);
+        if (
+          !heldPurchased &&
+          !(await productionEntitlement(ctx, project.workspaceId)).canWrite
+        )
+          throw new Error(
+            "Expired work must be fully backed by purchased funding.",
+          );
+        await assertPaymentGeneration(
+          ctx,
+          project.workspaceId,
+          heldPurchased ? 0 : job.estimatedCostUsdMicros,
+        );
+      } catch {
+        blocked = "Workspace production access expired before submission.";
+      }
+    }
     blocked ??= await paidWorkPause(ctx, job.model);
     for (const assetId of job.inputAssetIds ?? []) {
       const asset = await ctx.db.get(assetId);

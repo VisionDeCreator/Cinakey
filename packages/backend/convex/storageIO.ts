@@ -1,3 +1,8 @@
+import {
+  assertPaymentProduction,
+  productionEntitlement,
+  assertPaymentGeneration,
+} from "./lib/paymentAccess";
 import { appendAuditLog } from "./lib/audit";
 import { mediaUnavailable, mediaControl } from "./lib/mediaControls";
 import { assertUploadAllowed } from "./lib/restrictions";
@@ -20,7 +25,7 @@ export const remove = internalMutation({
 });
 
 import {
-  requireProjectWrite,
+  requireProjectGenerationWrite,
   requireSeriesWrite,
   requireUser,
 } from "./lib/access";
@@ -39,7 +44,7 @@ export const beginR2Upload = internalMutation({
     if (!!args.projectId === !!args.seriesId)
       throw new Error("Choose a project or series");
     const scope = args.projectId
-      ? await requireProjectWrite(ctx, args.projectId)
+      ? await requireProjectGenerationWrite(ctx, args.projectId)
       : await requireSeriesWrite(ctx, args.seriesId!);
     if ("archivedAt" in scope && scope.archivedAt)
       throw new Error("Restore this series first");
@@ -47,6 +52,7 @@ export const beginR2Upload = internalMutation({
       token: args.token,
       key: args.key,
       workspaceId: scope.workspaceId,
+      projectId: args.projectId,
       createdBy: user._id,
       expiresAt: Date.now() + 3600_000,
     });
@@ -71,6 +77,19 @@ export const prepareR2Upload = internalMutation({
     if (!row || row.expiresAt < Date.now() || row.fileId || row.completing)
       throw new Error("Upload session expired or completed");
     await assertUploadAllowed(ctx, row);
+    if (!(await productionEntitlement(ctx, row.workspaceId)).canWrite) {
+      if (!row.projectId) await assertPaymentProduction(ctx, row.workspaceId);
+      await assertPaymentGeneration(ctx, row.workspaceId);
+      const contentType =
+        "contentType" in args ? args.contentType : row.contentType;
+      if (
+        typeof contentType !== "string" ||
+        !/^(image|video)\//.test(contentType)
+      )
+        throw new Error(
+          "Purchased credits allow image and video reference uploads only.",
+        );
+    }
     if (
       row.contentType &&
       (row.contentType !== args.contentType || row.size !== args.size)
@@ -93,6 +112,18 @@ export const claimR2Upload = internalMutation({
     if (!row || row.expiresAt < Date.now() || !row.contentType || !row.size)
       throw new Error("Upload session unavailable");
     await assertUploadAllowed(ctx, row);
+    if (!(await productionEntitlement(ctx, row.workspaceId)).canWrite) {
+      if (!row.projectId) await assertPaymentProduction(ctx, row.workspaceId);
+      await assertPaymentGeneration(ctx, row.workspaceId);
+      const contentType = row.contentType;
+      if (
+        typeof contentType !== "string" ||
+        !/^(image|video)\//.test(contentType)
+      )
+        throw new Error(
+          "Purchased credits allow image and video reference uploads only.",
+        );
+    }
     if (!row.fileId) {
       if (row.completing)
         throw new Error("Upload completion already in progress");
@@ -128,6 +159,19 @@ export const completeR2Upload = internalMutation({
       throw new Error("Upload session unavailable");
     if (row.fileId) return row.fileId;
     await assertUploadAllowed(ctx, row);
+    if (!(await productionEntitlement(ctx, row.workspaceId)).canWrite) {
+      if (!row.projectId) await assertPaymentProduction(ctx, row.workspaceId);
+      await assertPaymentGeneration(ctx, row.workspaceId);
+      const contentType =
+        "contentType" in args ? args.contentType : row.contentType;
+      if (
+        typeof contentType !== "string" ||
+        !/^(image|video)\//.test(contentType)
+      )
+        throw new Error(
+          "Purchased credits allow image and video reference uploads only.",
+        );
+    }
     if (row.size !== args.size || row.contentType !== args.contentType)
       throw new Error("Uploaded file does not match the upload session");
     const id = await ctx.db.insert("r2Files", {

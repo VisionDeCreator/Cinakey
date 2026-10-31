@@ -2,7 +2,10 @@ import {
   generationDefaults,
   segmentSettingsDefaults,
 } from "./lib/generationSettings";
-import { requireProjectWrite } from "./lib/access";
+import {
+  requireProjectWrite,
+  requireProjectGenerationWrite,
+} from "./lib/access";
 import { projectUsage } from "./lib/budgets";
 import { estimateStagingTokens, resolveReferences } from "@dirrio/shared";
 import { stagingUsdMicros, stagingUsesLlm } from "./staging";
@@ -200,7 +203,7 @@ export const saveScript = mutation({
     expectedId: v.optional(v.id("workspaceScripts")),
   },
   handler: async (ctx, args) => {
-    const project = await requireProjectWrite(ctx, args.projectId);
+    const project = await requireProjectGenerationWrite(ctx, args.projectId);
     if (args.text.length > 200000)
       throw new Error("Script exceeds 200,000 characters");
     const rows = await ctx.db
@@ -459,7 +462,7 @@ export const auditAll = internalQuery({
 export const createSegment = mutation({
   args: { ...projectArgs, title: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireProjectWrite(ctx, args.projectId);
+    await requireProjectGenerationWrite(ctx, args.projectId);
     await initializeSegments(ctx, args.projectId);
     const segments = await projectSegments(ctx, args.projectId);
     const title = args.title?.trim() || `Segment ${segments.length + 1}`;
@@ -497,7 +500,7 @@ export const updateSegment = mutation({
     archive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    await requireProjectWrite(ctx, args.projectId);
+    await requireProjectGenerationWrite(ctx, args.projectId);
     const segment = await segmentFor(ctx, args.projectId, args.segmentId);
     if (
       args.title !== undefined &&
@@ -533,7 +536,7 @@ export const updateSegment = mutation({
 export const reorderSegments = mutation({
   args: { ...projectArgs, segmentIds: v.array(v.id("scriptSegments")) },
   handler: async (ctx, args) => {
-    await requireProjectWrite(ctx, args.projectId);
+    await requireProjectGenerationWrite(ctx, args.projectId);
     const segments = (await projectSegments(ctx, args.projectId)).filter(
       (s) => !s.archivedAt,
     );
@@ -552,7 +555,7 @@ export const reorderSegments = mutation({
 export const deleteSegment = mutation({
   args: { ...projectArgs, segmentId: v.id("scriptSegments") },
   handler: async (ctx, { projectId, segmentId }) => {
-    await requireProjectWrite(ctx, projectId);
+    await requireProjectGenerationWrite(ctx, projectId);
     const segment = await segmentFor(ctx, projectId, segmentId);
     if (!segment) throw new Error("Segment not found in project");
     const scripts = (
@@ -580,7 +583,7 @@ export const deleteSegment = mutation({
 export const restoreSegment = mutation({
   args: { ...projectArgs, segmentId: v.id("scriptSegments") },
   handler: async (ctx, { projectId, segmentId }) => {
-    await requireProjectWrite(ctx, projectId);
+    await requireProjectGenerationWrite(ctx, projectId);
     const segment = await ctx.db.get(segmentId);
     if (!segment || segment.projectId !== projectId || segment.deletedAt)
       throw new Error("Segment not found in project");
